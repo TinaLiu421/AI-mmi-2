@@ -1,0 +1,120 @@
+div.page-content.media-files div.list div.block {
+    margin-top: 15px;
+}
+
+div.page-content.media-files div.list div.block:nth-child(1) {
+    margin-top: 0px;
+}
+
+div.page-content.media-files div.list div.block > div.widget {
+    padding: 10px;
+}
+
+div.page-content.media-files div.list div.block > div.widget > div.iweb-checkbox {
+    position: absolute;
+    top: -7px;
+    left: -7px;
+}
+
+div.page-content.media-files div.list div.block div.photo {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.page-content.media-files div.list div.block div.photo > a.link {
+    position: relative;
+    display: block;
+    background: #f6f6f6;
+    width: 80px;
+    height: 80px;
+    border-radius: 4px;
+    border: 1px solid #e6e6e6;
+    text-align: center;
+    overflow: hidden;
+}
+
+div.page-content.media-files div.list div.block div.photo > a.link:before {
+    display: inline-block;
+    content: '';
+    width: 0px;
+    height: 100%;
+    vertical-align: middle;
+}
+
+div.page-content.media-files div.list div.block div.photo > a.link > img {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.page-content.media-files div.list div.block div.photo > a.link > i {
+    display: inline-block;
+    font-size: 50px;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    vertical-align: middle;
+}
+
+div.page-content.media-files div.list div.block div.photo > a.rotate {
+    position: absolute;
+    background: var(--color-red);
+    display: block;
+    top: 0px;
+    right: 0px;
+    padding: 4px;
+    border-radius: 4px;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+div.page-content.media-files div.list div.block div.photo > a.rotate > i {
+    display: block;
+    font-size: 10px;
+    color: var(--color-white);
+}
+
+div.page-content.media-files div.list div.block div.info {
+    display: inline-block;
+    width: calc(100% - 80px);
+    padding: 15px 0px 15px 15px;
+    line-height: 2;
+    vertical-align: middle;
+}
+
+div.page-content.media-files div.list div.block div.info a {
+    color: var(--color-blue);
+    word-break: break-all;
+    text-decoration: underline;
+}
+
+div.page-content.media-files div.list div.block div.info div.name {
+    line-height: 20px;
+}
+
+div.page-content.media-files div.list div.block div.info div.path {
+    line-height: 20px;
+    border-bottom: 2px solid #e6e6e6; 
+}
+
+div.page-content.media-files div.list div.block div.controls {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+}
+
+div.page-content.media-files div.list div.block div.controls button.btn,
+div.page-content.media-files div.list div.block div.controls a.btn {
+    background: transparent;
+    padding: 8px;
+}
+
+div.page-content.media-files div.list div.block div.controls button.btn > i,
+div.page-content.media-files div.list div.block div.controls a.btn > i {
+    color: var(--color-green);
+}
+
+div.page-content.media-files div.list div.block div.controls button.btn.delete > i {
+    color: var(--color-red);
+}

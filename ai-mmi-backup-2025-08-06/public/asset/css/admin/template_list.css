@@ -1,0 +1,42 @@
+div.widget div.controls.right div.extra {
+    display: inline-block;
+    margin-left: 6px;
+}
+
+div.advanced-search {
+    position: relative;
+    padding: 15px;
+    margin-top: 10px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+}
+
+div.advanced-search > form > div.row {
+    float: left;
+    margin-bottom: 10px;
+    width: 50%;
+}
+
+div.advanced-search > form > div.row:nth-child(even) {
+    padding-right: 15px;
+}
+
+div.advanced-search > form > div.row:nth-child(odd) {
+    padding-left: 15px;
+}
+
+div.advanced-search > form > div.row > label {
+    display: block;
+    line-height: 1.5;
+}
+
+div.advanced-search > form > div.row > input {
+    width: 100%;
+}
+
+@media only screen and (max-width: 800px) {
+    div.advanced-search > form > div.row { 
+        width: 100%;
+        padding: 0px!important;
+    }
+}

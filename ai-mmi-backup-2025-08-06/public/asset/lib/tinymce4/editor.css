@@ -1,0 +1,9 @@
+#tinymce {
+    line-height: 1.5;
+}
+
+#tinymce ul,
+#tinymce ol {
+    list-style-position: outside;
+    padding-left: 20px;
+}

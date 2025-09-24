@@ -1,0 +1,2072 @@
+* {
+    font-family: Heebo,Arial,"Microsoft JhengHei",微軟正黑體,"Heiti TC",PMingLiU,新細明體;
+}
+
+body.iweb {
+    max-width: 1920px;
+    margin: auto;
+}
+
+div.iweb-processing > div.loading > svg > circle {
+    stroke: #012169;
+}
+
+div.iweb-info-dialog {
+    background: rgba(255,255,255,0.7);
+}
+
+div.iweb-alert-dialog > div > div.dialog-content > div {
+    border-top: 4px solid #012069;
+}
+
+div.iweb-info-dialog > div > div.dialog-content {
+    margin: 90px auto;
+    max-width: 620px;
+}
+
+div.iweb-info-dialog > div > div.dialog-content > div {
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
+}
+
+div.iweb-info-dialog > div > div.dialog-content > a.btn-close {
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+}
+
+div.iweb-info-dialog > div > div.dialog-content div.action {
+    margin-top: 20px!important;
+}
+
+div.iweb-info-dialog > div > div.dialog-content div.action > button {
+    width: 100%!important;
+}
+
+div.iweb-info-dialog.fullscr>div {
+    padding: 0px!important;
+}
+
+div.iweb-info-dialog.fullscr > div > div.dialog-content {
+    margin: 0px;
+    max-width: none;
+}
+
+div.iweb-info-dialog div.fullscreen > a > i.fa-expand {
+    display: inline-block;
+}
+
+div.iweb-info-dialog div.fullscreen > a > i.fa-compress {
+    display: none;
+}
+
+div.iweb-info-dialog.fullscr div.fullscreen > a > i.fa-expand {
+    display: none;
+}
+
+div.iweb-info-dialog.fullscr div.fullscreen > a > i.fa-compress {
+    display: inline-block;
+}
+
+div.iweb-info-dialog.share > div > div.dialog-content {
+    max-width: 360px;
+    text-align: center;
+}
+
+div.iweb-radiobox>div.options>div.checked:after {
+    background: #002065;
+}
+
+div.iweb-selector > div.virtual > div.options ul > li > a:hover {
+    background: #002065;
+}
+
+div.iweb-selector-multiple > div.virtual > div.result >a {
+    background: #fff;
+    height: 48px;
+    line-height: 36px;
+}
+
+header.page-header {
+    position: fixed;
+    background: #bb002d;
+    padding: 0px 20px;
+    height: 80px;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    z-index: 10;
+}
+
+header.page-header > div {
+    position: relative;
+    max-width: 1800px;
+    margin: auto;
+}
+
+header.page-header a.logo {
+    position: relative;
+    display: inline-block;
+    width: 214px;
+    padding: 15px 0px 10px 0px;
+    vertical-align: top;
+}
+
+header.page-header a.logo > img {
+    display: block;
+}
+
+header.page-header div.controls {
+    float: right;
+    padding: 13px 24px;
+}
+
+header.page-header div.controls > div {
+    position: relative;
+    display: inline-block;
+    margin-left: 40px;
+    vertical-align: middle;
+}
+
+header.page-header div.controls > div.lang > a {
+    display: inline-block;
+}
+
+header.page-header div.controls > div.lang > a > img {
+    display: inline-block;
+    width: 24px;
+    vertical-align: middle;
+}
+
+header.page-header div.controls > div.lang > a > span {
+    display: inline-block;
+    font-size: 24px;
+    color: #fff;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+header.page-header div.controls > div.lang > div.options {
+    position: absolute;
+    display: none;
+    background: #fff;
+    top: 100%;
+    left: 50%;
+    width: 110px;
+    padding-bottom: 5px 0px;
+    margin-top: 10px;
+    margin-left: -55px;
+    border-radius: 8px;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+}
+
+header.page-header div.controls > div.lang > div.options.show {
+    display: block;
+}
+
+header.page-header div.controls > div.lang > div.options:before {
+    position: absolute;
+    content: '';
+    top: -10px;
+    left: 50%;
+    margin-left: -20px;
+    width: 0;
+    height: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-bottom: 20px solid #fff;
+}
+
+header.page-header div.controls > div.lang > div.options > a {
+    display: block;
+    padding: 5px 10px;
+    white-space: nowrap;
+}
+
+header.page-header div.controls > div.lang > div.options > a > img {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+header.page-header div.controls > div.lang > div.options > a > span {
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+header.page-header div.controls > div.member.large {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+header.page-header div.controls > div.member > a {
+    position: relative;
+    display: inline-block;
+}
+
+
+header.page-header div.controls > div.member > a > img {
+    position: relative;
+    display: inline-block;
+    width: 28px;
+    vertical-align: middle;
+}
+
+header.page-header div.controls > div.member.large > a > img {
+    width: 100%;
+    height: 100%;
+}
+
+header.page-header div.controls > div.member.large > a > div.avatar {
+    position: absolute;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+header.page-header div.controls > div.member > a > span {
+    display: inline-block;
+    font-size: 24px;
+    color: #fff;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+header.page-header div.controls > div.menu > a {
+    position: relative;
+    display: none;
+    width: 54px;
+    height: 54px;
+    border-radius: 27px;
+}
+
+header.page-header div.controls > div.menu > a.show {
+    display: inline-block;
+}
+
+header.page-header div.controls > div.menu > ul {
+    position: absolute;
+    display: none;
+    background: #fff;
+    list-style: none;
+    top: 67px;
+    right: -45px;
+    min-width: 280px;
+    padding: 10px 20px;
+    border-bottom-left-radius: 8px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+}
+
+header.page-header div.controls > div.menu > ul.show {
+    display: block;
+}
+
+header.page-header div.controls > div.menu > ul > li {
+    position: relative;
+    display: block;
+    border-top: 1px solid #dbdbdb;
+}
+
+header.page-header div.controls > div.menu > ul > li:nth-child(1) {
+    border-top: 0px;
+}
+
+header.page-header div.controls > div.menu > ul > li:before {
+    position: absolute;
+    background-color: #bb002d;
+    content: '';
+    top: -3px;
+    left: 0px;
+    width: 18px;
+    height: 6px;
+}
+
+header.page-header div.controls > div.menu > ul > li:nth-child(1):before {
+    display: none;
+}
+
+header.page-header div.controls > div.menu > ul > li > a {
+    position: relative;
+    display: block;
+    padding: 15px 0px;
+    font-size: 20px;
+}
+
+header.page-header div.controls > div.menu > ul > li > ol {
+    list-style: none;
+    margin-top: -30px;
+    margin-left: 2px;
+    padding: 15px 0px;
+}
+
+header.page-header div.controls > div.menu > ul > li > ol > li {
+    display: inline-block;
+    margin-right: 8px;
+}
+
+header.page-header div.controls > div.menu > ul > li > ol > li > a {
+    position: relative;
+    display: block;
+    padding: 5px 0px;
+    font-size: 17px;
+}
+
+header.page-header div.controls > div.menu > ul > li > ol > li > a > img {
+    display: inline-block;
+    width: 24px;
+    vertical-align: middle;
+}
+
+header.page-header div.controls > div.menu > ul > li > ol > li > a > span {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+a.floating-show-chat {
+    position: fixed;
+    display: none!important;
+    background: #fff;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    box-shadow: 0px -5px 5px rgba(0,0,0,0.2);
+    z-index: 5;
+}
+
+a.floating-show-chat > img {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+    margin: auto;
+}
+
+main.page-body {
+    position: relative;
+    max-width: 100%;
+    margin: auto;
+    padding-top: 80px;
+}
+
+main.page-body.full {
+    max-width: 100%;
+}
+
+main.page-body > div.page-content {
+    position: relative;
+    background-color: #f0f1f3;
+    min-height: 680px;
+}
+
+main.page-body > div.page-content:before {
+    position: absolute;
+    background-color: #12161f;
+    content: '';
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    width: 33%;
+    height: 100%;
+}
+
+main.page-body > div.page-content div.iweb-editor {
+    font-size: 20px;
+    line-height: 1.5;
+}
+
+main.page-body div.info-area {
+    position: relative;
+    background-image: url('asset/image/panel-bg-top.png');
+    background-position: left top;
+    background-repeat: no-repeat;
+    background-size: 80%;
+    background-color: #f0f1f3;
+    float: left;
+    width: 67%;
+    min-height: 870px;
+    padding-bottom: 60px;
+}
+
+main.page-body div.info-area:before {
+    position: absolute;
+    background-image: url('asset/image/panel-bg-bottom.png');
+    background-position: right bottom;
+    background-repeat: no-repeat;
+    background-size: 80%;
+    content: '';
+    bottom: 0px;
+    right: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+
+main.page-body div.info-area.hide {
+     display: none!important;
+}
+
+main.page-body div.info-area.show {
+     display: block!important;
+}
+
+main.page-body div.info-area > div {
+    position: relative;
+}
+
+main.page-body div.info-area > div.inner-panel {
+    padding-top: 25px;
+    padding-left: 50px;
+    padding-right: 40px;
+}
+
+main.page-body div.info-area > div.inner-panel h1.title {
+    position: relative;
+    font-size: 40px;
+    color: #002065;
+}
+
+main.page-body div.info-area > div.inner-panel h1.title-small {
+    position: relative;
+    font-size: 24px;
+    color: #5e5e5e;
+}
+
+main.page-body div.info-area > div.inner-panel div.top-brief {
+    padding-bottom: 10px;
+}
+
+main.page-body div.info-area > div.inner-panel div.underline {
+    position: relative;
+}
+
+main.page-body div.info-area > div.inner-panel div.underline:before {
+    position: absolute;
+    display: block;
+    background-color: #002065;
+    content: '';
+    left: 0px;
+    bottom: -8px;
+    width: 42px;
+    height: 8px;
+}
+
+main.page-body div.info-area > div.inner-panel div.underline:after {
+    position: absolute;
+    display: block;
+    background-color: #bc012e;
+    content: '';
+    left: 42px;
+    bottom: -8px;
+    width: 18px;
+    height: 8px;
+}
+
+main.page-body div.chat-area {
+    position: fixed;
+    background-image: url('asset/image/chat-bg.jpg');
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-size: cover;
+    float: right;
+    width: 33%;
+    padding: 25px 50px 25px 25px;
+    top: 80px;
+    right: 0px;
+    bottom: 0px;
+}
+
+main.page-body div.chat-area:before {
+    position: absolute;
+    background: rgba(0,0,0,0.3);
+    content: '';
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+main.page-body div.chat-area.hide {
+    display: none!important;
+}
+
+main.page-body div.chat-area.show {
+    display: block!important;
+    width: 100%;
+    z-index: 8;
+}
+
+main.page-body div.chat-area.show-mobile {
+    top: 32px;
+    padding: 0px;
+}
+
+main.page-body div.chat-area.show-mobile div.box {
+    border-radius: 0px;
+}
+    
+main.page-body div.chat-area > div {
+    position: relative;
+}
+
+main.page-body div.chat-area.show div.top {
+    display: none!important;
+}
+
+main.page-body div.chat-area.show div.controls {
+    display: none!important;
+}
+
+main.page-body div.chat-area div.slogn {
+    float: left;
+    width: 46.7%;
+    margin-top: 5px;
+}
+
+main.page-body div.chat-area div.robot {
+    position: relative;
+    background: #fff;
+    float: right;
+    width: 32.8%;
+    max-width: 156px;
+    text-align: right;
+    border-radius: 8px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+main.page-body div.chat-area div.robot > img {
+    position: relative;
+    display: block;
+    opacity: 0;
+}
+
+main.page-body div.chat-area div.robot > video {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+main.page-body div.chat-area div.robot > a {
+    position: absolute;
+    display: inline-block;
+    background: #012169;
+    font-size: 12px;
+    right: 5px;
+    bottom: 5px;
+    padding: 2px;
+    width: 18px;
+    height: 20px;
+    border-radius: 10px;
+    overflow: hidden;;
+    text-align: center;
+}
+
+main.page-body div.chat-area div.robot > a > i {
+    color: #fff;
+}
+
+main.page-body div.chat-area div.box {
+    position: relative;
+    background-color: #f0f2f3;
+    border-radius: 18px;
+    padding: 25px 20px;
+    margin-top: 16px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+}
+
+main.page-body div.chat-area div.box.mask:after {
+    position: absolute;
+    content: '';
+    background-image: url(asset/image/fading-circles.gif);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #fff;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    border-radius: 18px;
+    opacity: 0.7;
+    z-index: 99;
+}
+
+main.page-body div.chat-area div.box > a.btn-expand-full {
+    position: absolute;
+    display: inline-block;
+    top: -8px;
+    right: -18px;
+    z-index: 1;
+}
+
+main.page-body div.chat-area.show div.box > a.btn-expand-full {
+    display: none;
+}
+
+main.page-body div.chat-area div.box > a.btn-expand-full-mobile {
+    position: absolute;
+    display: none;
+    top: -8px;
+    right: -18px;
+    z-index: 1;
+}
+
+main.page-body div.chat-area div.box > div.limit-warning {
+    position: absolute;
+    background: rgba(230,230,230,0.5);
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    padding: 5px 20px;
+    border-radius: 18px;
+    color: #bb002d;
+    text-align: center;
+}
+
+main.page-body div.chat-area div.box > div.show-message {
+    position: relative;
+    background-image: url('asset/image/chat-message-bg.png');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 50%;
+    width: 100%;
+    min-height: 80px;
+    max-height: 345px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+main.page-body div.chat-area.show div.box > div.show-message {
+    max-height: none;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.chat-date {
+    margin: 8px 2px;
+    text-align: center;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.chat-date > span {
+    display: inline-block;
+    background: lightgray;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 4px;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog {
+    position: relative;
+    display: inline-block;
+    margin: 8px 2px;
+    word-break: break-all;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog.ask {
+    float: right;
+    text-align: right;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog.reply {
+    float: left;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog > div.avatar {
+    position: relative;
+    display: inline-block;
+    background-color: #fff;
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    box-shadow: 0px 0px 2px rgba(0,0,0,0.2);
+    border: 1px solid #e6e6e6;
+    overflow: hidden;
+    vertical-align: middle;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog > div.avatar > img {
+    opacity: 0;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog > div.avatar > div {
+    position: absolute;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog.reply > div.avatar > div {
+   background-size: contain;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog > div.name {
+    display: inline-block;
+    font-weight: bold;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog > div.txt {
+    position: relative;
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 8px;
+    margin-top: 8px;
+    border-radius: 8px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    text-align: left;
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog > div.txt:before {
+    position: absolute;
+    content: '';
+    top: -4px;
+    left: 8px;
+    width: 0; 
+    height: 0; 
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid #fff;
+    box-shadow: 0px -5px 5px rgba(0,0,0,0.2);
+}
+
+main.page-body div.chat-area div.box > div.show-message div.dialog.ask > div.txt:before {
+    left: auto;
+    right: 8px;
+}
+
+main.page-body div.chat-area div.box div.input-question {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    border-radius: 24px;
+    overflow: hidden;
+}
+
+main.page-body div.chat-area div.box div.input-question > div {
+    width: 100%;
+}
+
+main.page-body div.chat-area div.box div.input-question input[name="question"] {
+    background: #fff;
+    display: block;
+    width: 100%;
+    height: 48px;
+    padding-left: 18px;
+    padding-right: 58px;
+    border: 0px;
+}
+
+main.page-body div.chat-area div.box div.input-question button {
+    position: absolute;
+    background: transparent;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    padding: 0px;
+    border-radius: 14px;
+}
+
+main.page-body div.chat-area div.controls {
+    margin-top: 15px;
+    color: #fff;
+}
+
+main.page-body div.chat-area div.controls table {
+    width: 100%;
+}
+
+main.page-body div.chat-area div.controls table td {
+    width: 50%;
+    padding: 0px;
+}
+
+main.page-body div.chat-area div.controls table td:nth-child(2) {
+    text-align: right;
+}
+
+main.page-body div.chat-area div.controls div.not-sure {
+    font-size: 20px;
+    color: #fff;
+}
+
+main.page-body div.chat-area div.controls div.apply-visa {
+    font-size: 20px;
+    color: #fff;
+    padding-bottom: 5px;
+}
+
+main.page-body div.chat-area div.controls a.start-free {
+    background-color: #9fcdff;
+    display: inline-block;
+    width: calc(100% - 10px);
+    height: 60px;
+    font-size: 20px;
+    color: #171310;
+    line-height: 60px;
+    text-align: center;
+    border-radius: 10px;
+    vertical-align: top;
+    overflow: hidden;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+}
+
+main.page-body div.chat-area div.controls div.break-line {
+    border-top: 1px solid #9fcdff;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+main.page-body div.chat-area div.controls a.with-ai,
+main.page-body div.chat-area div.controls a.with-human {
+    background-color: #bb002d;
+    display: inline-block;
+    width: calc(100% - 10px);
+    height: 105px;
+    font-size: 20px;
+    color: #fff;
+    text-align: center;
+    border-radius: 10px;
+    vertical-align: top;
+    overflow: hidden;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+}
+
+main.page-body div.chat-area div.controls a.with-ai > div:nth-child(1),
+main.page-body div.chat-area div.controls a.with-human > div:nth-child(1) {
+    background-color: #1294ce;
+    font-weight: 300;
+    line-height: 35px;
+}
+
+main.page-body div.chat-area div.controls a.with-ai > div:nth-child(2),
+main.page-body div.chat-area div.controls a.with-human > div:nth-child(2) {
+    font-size: 35px;
+    font-weight: 700;
+    line-height: 45px;
+}
+
+
+main.page-body div.chat-area div.controls a.with-ai > div > small,
+main.page-body div.chat-area div.controls a.with-human > div > small {
+    display: block;
+    font-size: 15px;
+    font-weight: 300;
+    margin-top: -15px;
+}
+
+footer.page-footer {
+    position: relative;
+    background-color: #515151;
+    padding: 8px 20px;
+    overflow: hidden;
+    z-index: 1;
+}
+
+footer.page-footer > div {
+    font-size: 15px;
+    color: #fff;
+    text-align: center;
+}
+
+footer.page-footer > div > a {
+    display: inline-block;
+    color: #fff;
+    vertical-align: middle;
+}
+
+/******************************************************************************/
+div.form {
+    margin-top: 30px;
+}
+
+div.form div.required {
+    text-align: right;
+    margin-bottom: -10px;
+}
+
+div.form div.row {
+    position: relative;
+    margin-top: 20px;
+}
+
+div.form div.row.left {
+    float: left;
+    width: calc((100% - 20px)/2);
+}
+
+div.form div.row.right {
+    float: right;
+    width: calc((100% - 20px)/2);
+}
+
+div.form div.row > label {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    padding-bottom: 4px;
+    /*text-transform: capitalize;*/
+}
+
+div.form div.input-value {
+    font-size: 18px;
+    padding: 10px 0px;
+    line-height: 28px;
+    border-bottom: 1px solid #ccc;
+}
+
+div.form div.row div.iweb-input {
+    display: block;
+}
+
+div.form div.row.agree .iweb-checkbox {
+    display: block;
+    width: 100%!important;
+}
+
+div.form div.row div.iweb-input > div > input {
+    display: block;
+    /*background: #eef0f1;*/
+    background: #fff;
+    font-size: 18px;
+    width: 100%;
+    height: 48px;
+    border: 1px solid #ccc;
+}
+
+div.form div.row div.iweb-input > div > textarea {
+    display: block;
+    /*background: #eef0f1;*/
+    background: #fff;
+    font-size: 18px;
+    width: 100%;
+    height: 98px;
+    border: 1px solid #ccc;
+}
+
+div.form button.switch-pwd-type {
+    top: 50%;
+    margin-top: -18px;
+}
+
+div.form div.iweb-selector > div.real > select {
+    /*background: #eef0f1;*/
+    background: #fff;
+    font-size: 18px;
+    height: 48px;
+    border: 1px solid #ccc;
+}
+
+div.form div.iweb-checkbox > div.options, 
+div.form div.iweb-radiobox > div.options {
+    width: 26px;
+    height: 26px;
+}
+
+div.form div.iweb-checkbox > div.options > div.checked:after {
+    font-size: 20px;
+    color: #012069;
+    left: 4px;
+}
+
+div.form  div.iweb-radiobox > div.options > div.checked:after {
+    background: #012069;
+    width: 16px;
+    height: 16px;
+    top: 5px;
+    left: 5px;
+}
+
+div.form div.iweb-checkbox div.virtual-msg {
+    font-size: 18px;
+    width: calc(100% - 40px);
+}
+
+div.form div.iweb-checkbox-set > div.iweb-checkbox {
+    width: 40%;
+    margin-top: 10px;
+}
+
+div.form div.iweb-radiobox-set > div.iweb-radiobox {
+    width: 40%;
+    margin-top: 10px;
+}
+
+div.form div.action {
+    margin-top: 60px;
+}
+
+div.form div.action.center {
+    text-align: center;
+}
+
+div.form div.action a.btn,
+div.form div.action button.btn {
+    display: inline-block;
+    background: transparent;
+    min-width: 140px;
+    height: 56px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #012069;
+    padding: 0px 20px;
+    border-radius: 10px;
+    text-align: center;
+    margin-right: 10px;
+    border: 1px solid #012069;
+    vertical-align: top;
+}
+
+div.form div.action a.btn-back {
+    line-height: 54px;
+    color: #012069;
+}
+
+div.form div.action a.btn-back-2 {
+    line-height: 54px;
+    background: #012069;
+    color: #fff;
+    margin: auto;
+}
+
+div.form div.action button.btn-next {
+    background: #012069;
+    color: #fff;
+}
+
+div.form div.group-title {
+    font-size: 28px;
+    font-weight: bold;
+}
+
+div.form div.logo-file {
+    position: relative;
+    width: 130px;
+    border: 1px solid #ccc;
+}
+
+div.form div.logo-file > img{
+    display: block;
+    width: 100%;
+}
+
+div.form div.logo-file > div.preview {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    white-space: nowrap;
+}
+
+div.form div.logo-file > div.preview:before {
+    position: relative;
+    display: inline-block;
+    content: '';
+    width: 0px;
+    height: 100%;
+    vertical-align: middle;
+}
+
+div.form div.logo-file > div.preview > img {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    vertical-align: middle;
+}
+
+div.form div.logo-file > div.select {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+div.form div.logo-file > div.select > input[type="file"] {
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+div.form div.coverphoto-file {
+    position: relative;
+    border: 1px solid #ccc;
+}
+
+div.form div.coverphoto-file > div.upload {
+    text-align: center;
+    padding: 48px;
+}
+
+div.form div.coverphoto-file > div.upload > i {
+    font-size: 32px;
+    color: #ccc;
+}
+
+div.form div.coverphoto-file > img{
+    display: block;
+    width: 100%;
+}
+
+div.form div.coverphoto-file > div.preview {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+
+div.form div.coverphoto-file > div.preview:before {
+    position: relative;
+    display: inline-block;
+    content: '';
+    width: 0px;
+    height: 100%;
+    vertical-align: middle;
+}
+
+div.form div.coverphoto-file > div.preview > img{
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    vertical-align: middle;
+}
+
+div.form div.coverphoto-file > div.select {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+div.form div.coverphoto-file > div.select > input[type="file"] {
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+div.form table.telephone {
+    width: 100%;
+}
+
+div.form table.telephone td {
+    padding: 0px;
+    vertical-align: top;
+}
+
+div.form table.telephone td:nth-child(1) {
+    width: 80px;
+}
+
+div.form table.telephone td:nth-child(1) div.iweb-input > div > input {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+}
+
+div.form table.telephone td:nth-child(2) div.iweb-input > div > input {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+}
+
+/******************************************************************************/
+div.article-list {
+    position: relative;
+}
+
+div.article-list > div.post {
+    position: relative;
+    background: #fff;
+    padding: 35px 20px 10px 20px;
+    margin-top: 10px;
+    border-radius: 4px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+div.article-list > div.post div.author {
+    float: left;
+}
+
+div.article-list > div.post div.author > div.avatar {
+    position: relative;
+    display: inline-block;
+    width: 64px;
+    height: 64px;
+    border: 1px solid #dbdbdb;
+    border-radius: 32px;
+    vertical-align: top;
+    overflow: hidden;
+}
+
+div.article-list > div.post div.author > div.avatar > a {
+    position: relative;
+    display: block;
+}
+
+div.article-list > div.post div.author > div.avatar > a > img {
+    width: 100%;
+}
+
+div.article-list > div.post div.author > div.avatar > a > div {
+    position: absolute;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+div.article-list > div.post div.author > div.name {
+    display: inline-block;
+    font-size: 20px;
+    margin-left: 14px;
+    vertical-align: top;
+}
+
+div.article-list > div.post div.author > div.name > div.hours {
+    font-size: 16px;
+    letter-spacing: 2px;
+}
+
+div.article-list > div.post div.follow {
+    float: right;
+    font-size: 18px;
+    letter-spacing: 2px;
+}
+
+div.article-list > div.post div.follow > a {
+    display: inline-block;
+    color: #1193ce;
+}
+
+div.article-list > div.post div.details {
+    margin-top: 10px;
+}
+
+div.article-list > div.post div.details > h3 {
+    border-bottom: 1px solid #e6e6e6;
+    padding-bottom: 20px;
+}
+
+div.article-list > div.post div.summary {
+    margin-top: 20px;
+}
+
+div.article-list > div.post div.summary > div.total > div.like {
+    float: left;
+}
+
+div.article-list > div.post div.summary > div.total > div.like > img {
+    display: inline-block;
+}
+
+div.article-list > div.post div.summary > div.total > div.like > span {
+    display: inline-block;
+    line-height: 20px;
+    vertical-align: bottom;
+}
+
+div.article-list > div.post div.summary > div.total > div.comment {
+    float: right;
+    line-height: 20px;
+}
+
+div.article-list > div.post div.summary > div.actions {
+    position: relative;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid #e4e4e4;
+}
+
+div.article-list > div.post div.summary > div.actions > a {
+    position: relative;
+    display: inline-block;
+    margin-right: 14px;
+    vertical-align: middle;
+}
+
+div.article-list > div.post div.summary > div.actions > a > img {
+    display: inline-block;
+}
+
+div.article-list > div.post div.summary > div.actions > a > span {
+    display: inline-block;
+    line-height: 20px;
+    vertical-align: bottom;
+}
+
+div.article-list > div.post div.summary > div.actions > div.shareto {
+    position: relative;
+    display: none;
+    height: 20px;
+    vertical-align: middle;
+}
+
+div.article-list > div.post div.summary > div.actions > div.shareto.show {
+    display: inline-block;
+}
+
+div.article-list > div.post div.summary > div.actions > div.shareto > div {
+    position: absolute;
+    top: -48px;
+    left: -70px;
+    padding: 8px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    background: #fff;
+    border-radius: 8px;
+}
+
+div.article-list > div.post div.summary > div.actions > div.shareto > div:before {
+    position: absolute;
+    content: '';
+    bottom: -4px;
+    left: 8px;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #fff;
+}
+
+div.article-list > div.post div.summary > div.actions > div.shareto > div > a {
+    display: inline-block;
+    width: 30px;
+    margin: 0px 4px;
+    vertical-align: middle;
+}
+
+div.article-list > div.post iframe.youtube-video {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+div.article-list > div.post div.leavecomment {
+    position: relative;
+    display: none;
+    padding: 10px 0px;
+    margin-top: 10px;
+    border-top: 1px solid #e4e4e4; 
+}
+
+div.article-list > div.post div.leavecomment > div {
+    position: relative;
+}
+
+div.article-list > div.post div.leavecomment div.iweb-input {
+    width: 100%;
+}
+
+div.article-list > div.post div.leavecomment textarea[name="message"] {
+    background: #f0f1f3;
+    width: 100%;
+    height: 96px;
+}
+
+div.article-list > div.post div.leavecomment button {
+    position: absolute;
+    background: transparent;
+    bottom: 15px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    padding: 0px;
+    border-radius: 14px;
+}
+
+div.article-list > div.post div.replier {
+    margin-bottom: 10px;
+}
+
+div.article-list > div.post div.replier > div.avatar {
+    position: relative;
+    display: inline-block;
+    width: 64px;
+    height: 64px;
+    border: 1px solid #dbdbdb;
+    border-radius: 32px;
+    vertical-align: top;
+    overflow: hidden;
+}
+
+div.article-list > div.post div.replier > div.avatar > a {
+    position: relative;
+    display: block;
+}
+
+div.article-list > div.post div.replier > div.avatar > a > img {
+    width: 100%;
+}
+
+div.article-list > div.post div.replier > div.avatar > a > div {
+    position: absolute;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+div.article-list > div.post div.replier > div.name {
+    position: relative;
+    display: inline-block;
+    background: #f0f1f3;
+    font-size: 16px;
+    margin-left: 14px;
+    width: calc(100% - 82px);
+    padding: 10px;
+    border-radius: 10px;
+    vertical-align: top;
+}
+
+div.article-list > div.post div.replier > div.name:before {
+    position: absolute;
+    content: '';
+    top: 10px;
+    left: -10px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid #f0f1f3;
+}
+
+div.article-list > div.post div.replier > div.name > div.hours {
+    font-size: 14px;
+    letter-spacing: 2px;
+}
+
+/******************************************************************************/
+#account-publish-form a.remove-my-post {
+    position: absolute;
+    font-size: 24px;
+    color: #bb002d;
+    top: 10px;
+    left: 18px;
+    z-index: 1;
+}
+
+#account-publish-form div.fullscreen {
+    position: absolute;
+    top: 12px;
+    right: 10px;
+    border: 1px solid #e6e6e6;
+    border-radius: 10px;
+    padding: 2px 6px;
+    z-index: 1;
+}
+
+#account-publish-form div.fullscreen > a {
+    display: inline-block;
+}
+
+#account-publish-form div.title {
+    font-size: 32px;
+    font-weight: bold;
+    padding: 5px;
+    text-align: center;
+    border-bottom: 1px solid #d8d8d8;
+}
+
+#account-publish-form div.details {
+    padding: 20px;
+}
+
+#account-publish-form div.category div.photo {
+    position: relative;
+    float: left;
+    width: 70px;
+    height: 70px;
+    background: #fff;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    margin-right: 10px;
+    overflow: hidden;
+}
+
+#account-publish-form div.category div.photo > img {
+    width: 100%;
+}
+
+#account-publish-form div.category div.photo > div.avatar {
+    position: absolute;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+#account-publish-form div.category div.choose {
+    position: relative;
+    float: left;
+    width: calc(100% - 80px);
+}
+
+#account-publish-form div.category div.name {
+    font-size: 22px;
+}
+
+#account-publish-form div.category div.dropdown {
+    display: inline-block;
+    vertical-align: top;
+}
+
+#account-publish-form div.category select {
+    background: #fff;
+    font-size: 16px;
+    height: 35px;
+}
+
+#account-publish-form div.row div.iweb-input {
+    box-shadow: 0px 0px 5px #ddd;
+}
+
+#account-publish-form div.row div.iweb-input > div > textarea {
+    background: #fff!important;
+    min-height: 240px;
+}
+
+#account-publish-form div.row.border {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px 20px;
+    box-shadow: 0px 0px 5px #ddd;
+}
+
+#account-publish-form div.media-title {
+    float: left;
+    font-size: 20px;
+    line-height: 30px;
+    color: #5e5e5e;
+}
+
+#account-publish-form div.media {
+    position: relative;
+    float: right;
+    text-align: right;
+}
+
+#account-publish-form div.media > a {
+    display: inline-block;
+    color: #5e5e5e;
+    margin-left: 14px;
+}
+
+#account-publish-form div.media > a > i {
+    display: inline-block;
+    color: #5e5e5e;
+    vertical-align: middle;
+}
+
+#account-publish-form div.media > a > span {
+    display: inline-block;
+    margin-left: 4px;
+    line-height: 30px;
+    vertical-align: middle;
+}
+
+#account-publish-form div.upload-photo {
+    position: absolute;
+    display: none;
+    left: 0px;
+    right: 0px;
+    bottom: 72px;
+}
+
+#account-publish-form div.upload-photo > div {
+    position: relative;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#account-publish-form div.upload-photo div.upload {
+    text-align: center;
+    padding: 48px;
+}
+
+#account-publish-form div.upload-photo div.upload > i {
+    font-size: 32px;
+    color: #ccc;
+}
+
+#account-publish-form div.upload-photo div.preview {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+
+#account-publish-form div.upload-photo div.preview:before {
+    position: relative;
+    display: inline-block;
+    content: '';
+    width: 0px;
+    height: 100%;
+    vertical-align: middle;
+}
+
+#account-publish-form div.upload-photo div.preview > img{
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+#account-publish-form div.upload-photo div.select {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+#account-publish-form div.upload-photo div.select > input[type="file"] {
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+#account-publish-form div.upload-video {
+    position: absolute;
+    display: none;
+    left: 0px;
+    right: 0px;
+    bottom: 72px;
+}
+
+#account-publish-form div.upload-video > div {
+    position: relative;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#account-publish-form div.upload-video input[type="text"] {
+    background: #fff!important;
+    border: 0px!important;
+}
+
+div.iweb-info-dialog.publish > div > div.dialog-content > div {
+    padding: 0px;
+    border-radius: 20px;
+}
+
+div.iweb-info-dialog.publish > div > div.dialog-content > a.btn-close {
+    left: 50%;
+    right: auto;
+    margin-left: -15px;
+    top: -40px;
+}
+
+
+@media only screen and (max-width: 1400px) {
+    header.page-header div.controls {
+        padding: 13px 0px;
+    }
+    
+    main.page-body div.info-area > div.inner-panel {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+    
+    main.page-body div.chat-area {
+        padding: 25px 20px 25px 20px;
+    }
+    
+    main.page-body div.chat-area div.controls div.not-sure {
+        font-size: 16px;
+    }
+    
+    main.page-body div.chat-area div.controls a.start-free {
+        font-size: 16px;
+        height: 48px;
+        line-height: 48px;
+    }
+    
+    main.page-body div.chat-area div.controls div.apply-visa {
+        font-size: 16px;
+    }
+    
+    main.page-body div.chat-area div.controls a.with-ai, 
+    main.page-body div.chat-area div.controls a.with-human {
+        font-size: 16px;
+    }
+    
+    main.page-body div.chat-area div.controls a.with-ai > div:nth-child(2), 
+    main.page-body div.chat-area div.controls a.with-human > div:nth-child(2) {
+        font-size: 28px;
+    }
+    
+    main.page-body div.chat-area div.controls a.with-ai > div > small, 
+    main.page-body div.chat-area div.controls a.with-human > div > small {
+        font-size: 12px;
+    }
+    
+    main.page-body div.info-area > div.inner-panel h1.title {
+        font-size: 28px;
+    }
+    
+    main.page-body div.info-area > div.inner-panel h1.title-small {
+        font-size: 20px;
+    }
+    
+    footer.page-footer > div {
+        font-size: 13px;
+    }
+    
+    div.article-list > div.post div.author > div.avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 24px;
+    }
+    
+    div.article-list > div.post div.author > div.name {
+        font-size: 16px;
+        margin-left: 4px;
+    }
+    
+    div.article-list > div.post div.author > div.name > div.hours {
+        font-size: 14px;
+    }
+    
+    div.article-list > div.post div.follow {
+        font-size: 16px;
+    }
+    
+    div.article-list > div.post div.details > div.iweb-editor {
+        font-size: 16px;
+    }
+    
+    div.article-list > div.post div.summary {
+        font-size: 14px;
+    }
+    
+    div.article-list > div.post div.replier > div.avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 24px;
+    }
+    
+    div.article-list > div.post div.replier > div.name {
+        width: calc(100% - 66px);
+    }
+}
+
+@media only screen and (max-width: 1000px) {
+    header.page-header {
+        position: fixed;
+        top: 0px;
+        left: 0px;
+        right: 0px;
+        box-shadow: 0px 5px 5px rgba(0,0,0,0.2);
+    }
+    
+    header.page-header div.controls {
+        padding: 13px 0px;
+    }
+    
+    header.page-header div.controls > div.menu > ul {
+        position: fixed;
+        background-image: url('asset/image/chat-message-bg-gray.png');
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: 25%;
+        top: 80px;
+        right: 0px;
+        bottom: 0px;
+        width: 60%;
+        border-radius: 0px;
+    }
+    
+    header.page-header div.controls > div.menu > ul > li > a {
+        padding: 10px 0px;
+    }
+    
+    a.floating-show-chat {
+        display: inline-block!important;
+    }
+    
+    main.page-body > div.page-content:before {
+        display: none;
+    }
+    
+    main.page-body > div.page-content div.iweb-editor {
+        font-size: 16px;
+    }
+
+    main.page-body div.info-area {
+        display: block;
+        width: 100%;
+        min-height: 480px;
+    }
+    
+    main.page-body div.info-area > div.inner-panel.full {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+    
+    main.page-body div.chat-area {
+        display: none;
+        width: 100%;
+        padding: 25px 20px;
+    }
+    
+    main.page-body div.chat-area div.box > a.btn-expand-full {
+        display: none!important;
+    }
+    
+    main.page-body div.chat-area div.box > a.btn-expand-full-mobile {
+        display: inline-block;
+    }
+    
+    main.page-body div.chat-area.show-mobile div.box > a.btn-expand-full-mobile {
+        display: none!important;
+    }
+    
+    main.page-body div.chat-area.show div.top {
+        display: block!important;
+    }
+    
+    main.page-body div.chat-area.show div.controls {
+        display: block!important;
+    }
+    
+    main.page-body div.chat-area.show-mobile div.top {
+        display: none!important;
+    }
+    
+    main.page-body div.chat-area.show-mobile div.controls {
+        display: none!important;
+    }
+}
+
+@media only screen and (max-width: 700px) {
+    header.page-header {
+        height: 48px;
+    }
+    
+    header.page-header a.logo {
+        width: 108px;
+        padding: 10px 0px; 
+    }
+    
+    header.page-header div.controls {
+        padding: 10px 0px;
+    }
+    
+    header.page-header div.controls > div {
+        margin-left: 10px;
+    }
+    
+    header.page-header div.controls > div.lang > a > span {
+        display: none;
+    }
+    
+    header.page-header div.controls > div.member.large {
+        width: 28px;
+        height: 28px;
+    }
+
+    header.page-header div.controls > div.member > a > span {
+        display: none;
+    }
+    
+    header.page-header div.controls > div.menu > a {
+        width: 28px;
+        height: 28px;
+        border-radius: 14px;
+    }
+    
+    header.page-header div.controls > div.menu > ul {
+        top: 48px;
+    }
+
+    header.page-header div.controls > div.menu > ul > li > a {
+        font-size: 16px;
+    }
+    
+    main.page-body {
+        padding-top: 48px;
+    }
+    
+    main.page-body div.chat-area {
+        top: 48px;
+    }
+    
+    div.form div.row.left {
+        float: none;
+        width: 100%
+    }
+
+    div.form div.row.right {
+        float: none;
+        width: 100%
+    }
+    
+    div.form div.row > label {
+        font-size: 16px;
+    }
+    
+    div.form div.row > label.none {
+        display: none;
+    }
+    
+    div.form div.input-value {
+        font-size: 16px;
+        padding: 8px 0px;
+        line-height: 24px;
+    }
+    
+    div.form div.row div.iweb-input > div > input {
+        font-size: 16px;
+        height: 40px;
+    }
+    
+    div.form div.row div.iweb-input > div > textarea {
+        font-size: 16px;
+        height: 88px;
+    }
+    
+    div.form div.iweb-selector > div.real > select {
+        font-size: 16px;
+        height: 40px;
+        border: 1px solid #ccc;
+    }
+
+    div.form div.iweb-checkbox > div.options, 
+    div.form div.iweb-radiobox > div.options {
+        width: 22px;
+        height: 22px;
+    }
+
+    div.form div.iweb-checkbox > div.options > div.checked:after {
+        font-size: 16px;
+    }
+    
+    div.form div.iweb-radiobox > div.options > div.checked:after {
+        width: 12px;
+        height: 12px;
+    }
+
+    div.form div.iweb-checkbox div.virtual-msg {
+        font-size: 16px;
+        width: calc(100% - 30px);
+    }
+
+    div.form div.iweb-checkbox-set > div.iweb-checkbox {
+        width: 100%;
+    }
+    
+   
+    div.form div.action {
+        margin-top: 30px;
+    }
+    
+    div.form div.action a.btn,
+    div.form div.action button.btn {
+        display: inline-block;
+        width: calc((100% - 20px)/2);
+        height: 42px;
+        font-size: 16px;
+        margin: auto;
+    }
+
+    div.form div.action a.btn-back {
+        float: left;
+        line-height: 40px;
+    }
+    
+    div.form div.action a.btn-back-2 {
+        display: block;
+        line-height: 40px;
+    }
+    
+    div.form div.action a.btn-back-3 {
+        width: 100%;
+    }
+    
+    div.form div.action button.btn-next {
+        float: right;
+    }
+    
+    div.form div.action button.btn-save {
+        width: 100%;
+    }
+    
+    div.form div.group-title {
+        font-size: 20px;
+        margin-top: 20px;
+    }
+    
+    div.iweb-info-dialog.publish > div > div.dialog-content > a.btn-close {
+        width: 30px;
+        height: 30px;
+        padding: 8px;
+    }
+    
+    #account-publish-form div.title {
+        font-size: 24px;
+    }
+    
+    #account-publish-form div.category div.name {
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+    }
+    
+    #account-publish-form div.category div.photo {
+        float: none;
+        width: 100px;
+        height: 100px;
+        margin: auto;
+    }
+    
+    #account-publish-form div.category div.choose {
+        float: none;
+        width: 100%;
+        margin-top: 10px;
+    }
+    
+    #account-publish-form div.category div.dropdown {
+        display: block;
+        margin-top: 5px;
+    }
+    
+    #account-publish-form div.media-title {
+        font-size: 18px;
+        display: none;
+    }
+    
+    #account-publish-form div.fullscreen {
+        display: none!important;
+    }
+}

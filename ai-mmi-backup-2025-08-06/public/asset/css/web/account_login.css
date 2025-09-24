@@ -1,0 +1,94 @@
+div.page-content.account-login div.form div.or {
+    position: relative;
+    text-align: center;
+    text-transform: uppercase;
+    margin-top: 30px;
+    overflow: hidden;
+}
+
+div.page-content.account-login div.form div.or > span {
+    display: inline-block;
+    font-size: 18px;
+    color: #aaaaaa;
+}
+
+div.page-content.account-login div.form div.or:before {
+    position: absolute;
+    content: '';
+    top: 50%;
+    left: calc(50% + 30px);
+    width: 100%;
+    border-top: 1px solid #aaaaaa;
+}
+
+div.page-content.account-login div.form div.or:after {
+    position: absolute;
+    content: '';
+    top: 50%;
+    right: calc(50% + 30px);
+    width: 100%;
+    border-top: 1px solid #aaaaaa;
+}
+
+div.page-content.account-login div.form div.third-party {
+    margin-top: 30px;
+}
+
+div.page-content.account-login div.form div.third-party > a {
+    display: inline-block;
+    width: calc((100% - 40px)/3);
+    height: 40px;
+    font-size: 16px;
+    color: #fff;
+    line-height: 40px;
+    margin-left: 20px;
+    vertical-align: top;
+    text-align: center;
+    border-radius: 4px;
+}
+
+div.page-content.account-login div.form div.third-party > a:nth-child(1) {
+    margin-left: 0px;
+}
+
+div.page-content.account-login div.form div.third-party > a.google {
+    background: #dd4b39;
+}
+
+div.page-content.account-login div.form div.third-party > a.fb {
+    background: #1677ef;
+}
+
+div.page-content.account-login div.form div.third-party > a.apple {
+    background: #000;
+}
+
+div.page-content.account-login div.form div.third-party > a > i {
+    display: inline-block;
+    line-height: normal;
+    vertical-align: middle;
+}
+
+div.page-content.account-login div.form div.third-party > a > span {
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+@media only screen and (max-width: 700px) {
+    div.page-content.account-login div.form div.third-party {
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+    }
+    
+    div.page-content.account-login div.form div.third-party > a {
+        width: 100%;
+        margin: auto;
+        margin-top: 10px;
+    }
+    
+    div.page-content.account-login div.form div.third-party > a:nth-child(1) {
+        margin-top: 0px;
+    }
+}

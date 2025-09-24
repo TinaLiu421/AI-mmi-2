@@ -1,0 +1,569 @@
+div.page-content.account div.banner {
+    position: relative;
+    background-color: #ccc;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    width: 100%;
+    height: 230px;
+    margin-top: -25px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+}
+
+div.page-content.account div.basic {
+    position: relative;
+    background: #fff;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    margin-top: -25px;
+}
+
+div.page-content.account div.basic > div.photo {
+    position: relative;
+    display: inline-block;
+    width: 100px;
+    height: 100px;
+    background: #fff;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    margin-top: 25px;
+    margin-left: 35px;
+    margin-right: 35px;
+    vertical-align: bottom;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.1);
+}
+
+div.page-content.account div.basic > div.photo > img {
+    width: 100%;
+}
+
+div.page-content.account div.basic > div.photo > div.avatar {
+    position: absolute;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+div.page-content.account div.basic > div.photo > a.camera {
+    position: absolute;
+    background: #ccc;
+    bottom: -10px;
+    right: -18px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    padding: 7px;
+    text-align: center;
+}
+
+div.page-content.account div.basic > div.photo > a.camera > i {
+    color: #fff;
+}
+
+div.page-content.account div.basic > div.name {
+    display: inline-block;
+    font-size: 28px;
+    font-weight: bold;
+    vertical-align: bottom;
+}
+
+div.page-content.account div.basic > div.name > div {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.page-content.account div.basic > div.name > div > div {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.page-content.account div.basic > div.name > div > div.edit {
+    display: none;
+}
+
+div.page-content.account div.basic > div.name > div > div.readonly {
+    display: inline-block;
+}
+
+div.page-content.account div.basic > div.name > div > div input {
+    font-size: 28px;
+    height: 40px;
+    border: 0px;
+    padding: 0px;
+    border-bottom: 2px solid #ccc;
+    border-radius: 0px;
+}
+
+div.page-content.account div.basic > div.name > div > a {
+    display: inline-block;
+    width: 22px;
+    vertical-align: middle;
+}
+
+div.page-content.account div.basic > div.name > div.total-followers {
+    display: block;
+    font-size: 18px;
+    color: #666666;
+    font-weight: normal;
+}
+
+div.page-content.account div.tab {
+    position: relative;
+    padding: 20px 35px;
+    margin-top: 40px;
+    border-top: 1px solid #ececec;
+}
+
+div.page-content.account div.tab > a {
+    position: relative;
+    display: inline-block;
+    font-size: 22px;
+    line-height: 40px;
+    margin-left: 60px;
+}
+
+div.page-content.account div.tab > a:nth-child(1) {
+    margin-left: 0px;
+}
+
+div.page-content.account div.tab > a.selected {
+    color: #012169;
+}
+
+div.page-content.account div.tab > a:hover:after,
+div.page-content.account div.tab > a.selected:after {
+    position: absolute;
+    background: #012169;
+    content: '';
+    bottom: -20px;
+    left: 0px;
+    right: 0px;
+    height: 4px;
+}
+
+div.page-content.account div.tab-details {
+    position: relative;
+    background: #fff;
+    padding: 20px 35px;
+    margin-top: 20px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    border-radius: 4px;
+}
+
+div.page-content.account div.tab-details.blank {
+    background: transparent;
+    padding: 0px;
+    box-shadow: none;
+}
+
+div.page-content.account div.tab-details div.form div.row div.iweb-input > div > input {
+    background: #fff;
+}
+
+div.iweb-info-dialog div.form div.row div.iweb-input > div > input {
+    background: #fff;
+}
+
+div.page-content.account div.tab-details div.form div.iweb-selector > div.real > select {
+    background: #fff;
+}
+
+div.page-content.account div.tab-details div.form div.row div.iweb-input > div > textarea {
+    background: #fff;
+}
+
+div.page-content.account div.tab-details div.ac-type {
+    background: #012169;
+    float: left;
+    font-size: 18px;
+    color: #fff;
+    height: 40px;
+    line-height: 40px;
+    padding: 0px 20px;
+    border-radius: 20px;
+}
+
+div.page-content.account div.tab-details div.further-tips {
+    background: #f8e5e9;
+    float: right;
+    font-size: 14px;
+    color: #bc002d;
+    height: 40px;
+    line-height: 40px;
+    padding: 0px 20px;
+}
+
+div.page-content.account div.further-title {
+    margin-top: 5px;
+    margin-bottom: 20px;
+}
+
+div.page-content.account div.further-title > h1 {
+    color: #012169;
+}
+
+div.page-content.account div.further-title > div.iweb-input {
+    width: 100%;
+}
+
+div.page-content.account div.further-title > div.iweb-input > div > textarea {
+    border-radius: 0px;
+    border-top: 0px;
+    border-left: 0px;
+    border-right: 0px;
+    width: 100%;
+    height: 80px;
+    padding: 0px;
+}
+
+div.page-content.account div.child-agent div.list.disabled {
+    position: relative;
+    opacity: 0.7;
+}
+
+div.page-content.account div.child-agent div.list.disabled:after {
+    position: absolute;
+    content: '';
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+div.page-content.account div.child-agent div.block {
+    position: relative;
+    margin-top: 20px;
+}
+
+div.page-content.account div.child-agent div.block.hidden {
+    display: none!important;
+}
+
+div.page-content.account div.child-agent div.block a.remove-agent-block {
+    position: absolute;
+    display: inline-block;
+    top: 2px;
+    right: 0px;
+    color: #bc002d;
+    z-index: 1;
+}
+
+div.page-content.account div.child-agent div.num {
+    font-size: 18px;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+div.page-content.account div.child-agent a.add-agent-block {
+    font-size: 18px;
+}
+
+div.page-content.account div.child-agent a.add-agent-block > span {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.page-content.account div.child-agent a.add-agent-block > i {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.page-content.account div.child-lawfirm div.list.disabled {
+    position: relative;
+    opacity: 0.7;
+}
+
+div.page-content.account div.child-lawfirm div.list.disabled:after {
+    position: absolute;
+    content: '';
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+div.page-content.account div.child-lawfirm div.block {
+    position: relative;
+    margin-top: 20px;
+}
+
+div.page-content.account div.child-lawfirm div.block.hidden {
+    display: none!important;
+}
+
+div.page-content.account div.child-lawfirm div.block a.remove-lawfirm-block {
+    position: absolute;
+    display: inline-block;
+    top: 2px;
+    right: 0px;
+    color: #bc002d;
+    z-index: 1;
+}
+
+div.page-content.account div.child-lawfirm div.num {
+    font-size: 18px;
+    text-decoration: underline;
+}
+
+div.page-content.account div.child-lawfirm a.add-lawfirm-block {
+    font-size: 18px;
+}
+
+div.page-content.account div.child-lawfirm a.add-lawfirm-block > span {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.page-content.account div.child-lawfirm a.add-lawfirm-block > i {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.page-content.account div.tab-details div.intro {
+    position: relative;
+    background: #fff;
+    float: left;
+    width: 32%;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    border-radius: 4px;
+}
+
+div.page-content.account div.tab-details div.intro > div.title {
+    position: relative;
+    font-size: 22px;
+    height: 45px;
+    padding: 5px 20px;
+    line-height: 35px;
+    border-bottom: 1px solid #aaa;
+}
+
+div.page-content.account div.tab-details div.intro > div.title > a {
+    position: absolute;
+    display: inline-block;
+    top: 5px;
+    right: 20px;
+    width: 22px;
+}
+
+div.page-content.account div.tab-details div.intro > div.info {
+    padding: 20px;
+}
+
+div.page-content.account div.tab-details div.intro > div.info > div.row {
+    margin-top: 20px;
+}
+
+div.page-content.account div.tab-details div.intro > div.info > div.row:nth-child(1) {
+    margin-top: 0px;
+}
+
+div.page-content.account div.tab-details div.intro > div.info > div.row > label {
+    font-size: 20px;
+    color: #aaa;
+}
+
+div.page-content.account div.tab-details div.intro > div.info > div.row > label > img {
+    display: inline-block;
+    width: 20px;
+    margin-right: 10px;
+    vertical-align: middle
+}
+
+div.page-content.account div.tab-details div.intro > div.info > div.row > label > i {
+    font-size: 22px;
+    width: 22px;
+    margin-right: 10px;
+}
+
+div.page-content.account div.tab-details div.intro > div.info > div.row > span {
+    display: block;
+    font-size: 20px;
+}
+
+div.page-content.account div.tab-details div.mypost {
+    position: relative;
+    float: right;
+    width: 68%;
+    padding-left: 20px;
+}
+
+
+div.page-content.account div.tab-details div.mypost div.publish {
+    position: relative;
+    background: #fff;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+}
+
+div.page-content.account div.tab-details div.mypost div.publish > div.title {
+    position: relative;
+    font-size: 22px;
+    color: #5e5e5e;
+    height: 45px;
+    padding: 5px 20px;
+
+    border-bottom: 1px solid #aaa;
+}
+
+div.page-content.account div.tab-details div.mypost div.publish > div.title > i {
+    display: inline-block;
+    font-size: 20px;
+    color: #5e5e5e;
+    vertical-align: middle;
+}
+
+div.page-content.account div.tab-details div.mypost div.publish > div.title > span {
+    display: inline-block;
+    margin-left: 4px;
+    line-height: 35px;
+    vertical-align: middle;
+}
+
+div.page-content.account div.tab-details div.mypost div.publish > div.media {
+    position: relative;
+    height: 45px;
+    padding: 5px 20px;
+    text-align: right;
+}
+
+div.page-content.account div.tab-details div.mypost div.publish > div.media > a {
+    display: inline-block;
+    color: #5e5e5e;
+    line-height: 35px;
+    margin-left: 14px;
+}
+
+div.page-content.account div.tab-details div.mypost div.publish > div.media > a > i {
+    display: inline-block;
+    color: #5e5e5e;
+    vertical-align: middle;
+}
+
+div.page-content.account div.tab-details div.mypost div.publish > div.media > a > span {
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+div.page-content.account div.article-list > div.post:nth-child(1) {
+    margin-top: 0px;
+}
+
+@media only screen and (max-width: 1400px) {
+    div.page-content.account div.tab-details div.intro > div.info > div.row > label {
+        font-size: 16px;
+    }
+    
+    div.page-content.account div.tab-details div.intro > div.info > div.row > span {
+        font-size: 16px;
+    }
+}
+
+@media only screen and (max-width: 1200px) {
+    div.page-content.account div.tab-details div.intro {
+        float: none;
+        width: auto;
+    }
+    
+    div.page-content.account div.tab-details div.mypost {
+        float: none;
+        width: auto;
+        padding-top: 20px;
+        padding-left: 0px;
+    }
+}
+
+@media only screen and (max-width: 1000px) {
+    div.page-content.account div.basic {
+        margin-left: 20px;
+        margin-right: 20px;
+    }
+    
+    div.page-content.account div.tab-details {
+        margin-left: 20px;
+        margin-right: 20px;
+    }
+}
+
+@media only screen and (max-width: 700px) {
+    div.page-content.account div.banner {
+        height: 180px;
+    }
+    
+    div.page-content.account div.basic {
+        text-align: center;
+    }
+    
+    div.page-content.account div.basic > div.photo {
+        width: 100px;
+        height: 100px;
+        margin-top: -50px;
+    }
+    
+    div.page-content.account div.basic > div.name {
+        display: block;
+        font-size: 22px;
+        text-align: center;
+        margin-top: 10px;
+    }
+    
+    div.page-content.account div.basic > div.name > div.total-followers {
+        font-size: 16px;
+    }
+    
+    div.page-content.account div.tab {
+        margin-top: 20px;
+        padding: 10px 20px;
+    }
+    
+    div.page-content.account div.tab > a {
+        font-size: 18px;
+    }
+    
+    div.page-content.account div.tab > a:hover:after, 
+    div.page-content.account div.tab > a.selected:after {
+        bottom: -10px;
+    }
+    
+    div.page-content.account div.tab-details {
+        padding: 20px;
+    }
+    
+    div.page-content.account div.tab-details div.ac-type {
+        float: none;
+        text-align: center;
+    }
+    
+    div.page-content.account div.tab-details div.further-tips {
+        float: none;
+        margin-top: 10px;
+    }
+    
+    div.page-content.account div.further-title > h1 {
+        font-size: 28px;
+    }
+    
+    div.page-content.account div.child-lawfirm a.add-agent-block {
+        font-size: 16px;
+    }
+    
+    div.page-content.account div.child-lawfirm a.add-lawfirm-block {
+        font-size: 16px;
+    }
+    
+    div.page-content.account div.tab-details div.mypost div.publish > div.title {
+        font-size: 20px;
+    }
+    
+    div.page-content.account div.tab-details div.intro > div.title {
+        font-size: 18px;
+    }
+}

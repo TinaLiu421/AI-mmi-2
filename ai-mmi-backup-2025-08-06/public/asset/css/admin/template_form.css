@@ -1,0 +1,373 @@
+div.expand-area {
+    position: relative;
+    margin-bottom: 15px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+}
+
+div.expand-area div.show {
+    position: relative; 
+}
+
+div.expand-area div.show > a {
+    position: relative;
+    display: block;
+    font-weight: bold;
+    padding: 0px 15px;
+    line-height: 36px;
+}
+
+div.expand-area div.show > a > i {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    margin-top: -6px;
+}
+
+div.expand-area div.show > a > i.fa-plus {
+    display: inline-block;
+}
+
+div.expand-area div.show > a > i.fa-minus {
+    display: none;
+}
+
+div.expand-area div.hide {
+    display: none;
+    border-top: 2px solid #e6e6e6;
+}
+
+div.expand-area div.widget.non {
+    margin-bottom: 0px;
+    border: 0px;
+    box-shadow: none;
+}
+
+div.widget.selfile {
+    position: relative;
+}
+
+div.widget.selfile .controls {
+    position: relative;
+    text-align: right;
+}
+
+div.widget.selfile .controls > button {
+    margin-left: 4px;
+}
+
+div.widget.selfile hr {
+    background: #e6e6e6;
+    height: 1px;
+    border: 0px;
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+
+div.widget.selfile div.list {
+    margin-top: 20px;
+}
+
+div.widget.selfile div.list div.block {
+    margin-top: 10px;
+}
+
+div.widget.selfile div.list div.block:nth-child(1) {
+    margin-top: 0px;
+}
+
+div.widget.selfile div.list div.block div.photo {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block div.photo > a.link {
+    display: block;
+    background: #f6f6f6;
+    width: 70px;
+    height: 70px;
+    border-radius: 2px;
+    border: 1px solid #e6e6e6;
+    text-align: center;
+    overflow: hidden;
+}
+
+div.widget.selfile div.list div.block div.photo > a.link:before {
+    display: inline-block;
+    content: '';
+    width: 0px;
+    height: 100%;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block div.photo > a.link > img {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block div.photo > a.link > i {
+    display: inline-block;
+    font-size: 50px;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block div.photo > a.rotate {
+    position: absolute;
+    background: var(--color-red);
+    display: block;
+    top: 0px;
+    right: 0px;
+    padding: 4px;
+    border-radius: 4px;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+div.widget.selfile div.list div.block div.photo > a.rotate > i {
+    display: block;
+    font-size: 10px;
+    color: var(--color-white);
+}
+
+div.widget.selfile div.list div.block div.info {
+    display: inline-block;
+    width: calc(100% - 70px);
+    padding: 15px 0px 15px 15px;
+    line-height: 1.5;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block div.info div.name {
+    line-height: 20px;
+}
+
+div.widget.selfile div.list div.block div.info div.path {
+    line-height: 20px;
+    border-bottom: 2px solid #e6e6e6; 
+}
+
+div.widget.selfile div.list div.block div.controls {
+    position: absolute;
+    top: 0px;
+    right: 10px;
+}
+
+div.widget.selfile div.list div.block button {
+    background: transparent;
+}
+
+div.widget.selfile div.list div.block button.edit {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block button.edit > i {
+    color: var(--color-blue);
+}
+
+div.widget.selfile div.list div.block button.pick {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block button.pick > i {
+    color: var(--color-green);
+}
+
+div.widget.selfile div.list div.block button.download {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block button.download > i {
+    color: var(--color-green);
+}
+
+div.widget.selfile div.list div.block button.delete {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block button.delete > i {
+    color: var(--color-primary);
+}
+
+
+div.widget.selfile div.list div.block button.move-up {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block button.move-up > i {
+    color: var(--color-yellow);
+}
+
+div.widget.selfile div.list div.block button.move-down {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+div.widget.selfile div.list div.block button.move-down > i {
+    color: var(--color-yellow);;
+}
+
+div.widget.selfile div.list div.block div.controls > div.dd {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+div.widget.selfile div.list div.block div.controls > div.dd > div.iweb-selector > div.real:before {
+    display: none;
+}
+
+div.widget.selfile div.list div.block div.controls > div.dd > div.iweb-selector > div.real > select,
+div.widget.selfile div.list div.block div.controls > div.dd > select {
+    width: 52px;
+    height: 24px;
+    padding: 4px;
+    text-align: center;
+    border: 1px solid #e6e6e6;
+    border-radius: 4px;
+    text-overflow: ellipsis;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+div.widget.selfile div.list div.block div.iweb-checkbox {
+    position: absolute;
+    top: -7px;
+    left: -7px;
+}
+
+div.widget.seo button.btn.upload {
+    position: absolute;
+    background: transparent;
+    top: 25px;
+    right: 0px;
+    z-index: 1;
+}
+
+div.widget.seo  button.btn.upload > i {
+    color: var(--color-green);
+}
+
+
+div.selfile-details {
+    position: relative;
+}
+
+div.selfile-details div.photo {
+    position: relative;
+    display: inline-block;
+    background: #f6f6f6;
+    width: 300px;
+    height: 300px;
+    vertical-align: top;
+    text-align: center;
+    border: 1px solid #e6e6e6;
+    border-radius: 4px;
+    box-shadow: 0px 0px 8px rgba(43, 43, 43, 0.15);
+}
+
+div.selfile-details div.photo > div {
+    display: inline-block;
+    height: 100%
+}
+
+div.selfile-details div.photo > div > img {
+    width: 100%;
+}
+
+div.selfile-details div.info {
+    position: relative;
+    display: inline-block;
+    width: calc(100% - 300px);
+    padding-left: 20px;
+    vertical-align: top;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content {
+    max-width: 700px;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content > div {
+    padding: 15px;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.photo {
+    position: relative;
+    background: #f6f6f6;
+    display: inline-block;
+    width: 330px;
+    min-height: 220px;
+    vertical-align: top;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.coordinate {
+    position: relative;
+    display: inline-block;
+    width: calc(100% - 330px);
+    padding-left: 20px;
+    vertical-align: top;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.coordinate > div {
+    margin-bottom: 10px;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.coordinate > div > span {
+    display: inline-block;
+    width: 30px;
+    vertical-align: middle;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.coordinate > div > input {
+    display: inline-block;
+    width: calc(100% - 30px);
+    vertical-align: middle;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.coordinate > div > button {
+    background: var(--color-primary);
+    color: var(--color-white);
+    width: 100%;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.attribute {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e6e6e6;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.attribute > div {
+    margin-bottom: 10px;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.attribute > div > label {
+    display: block;
+    line-height: 1.5;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.attribute > div > input {
+    display: block;
+    width: 100%;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.attribute > div > textarea {
+    display: block;
+    width: 100%;
+}
+
+div.iweb-info-dialog.imageinfo .dialog-content div.attribute > div > button {
+    margin-top: 10px;
+}

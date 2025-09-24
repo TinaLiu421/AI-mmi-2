@@ -1,0 +1,113 @@
+div.page-content.home div.banner {
+    position: relative;
+}
+
+div.page-content.home div.banner > div.desktop {
+    display: block;
+}
+
+div.page-content.home div.banner > div.mobile {
+    display: none;
+}
+
+div.page-content.home div.news-event {
+    position: relative;
+}
+
+div.page-content.home div.news-event div.hslider {
+    padding: 0px 40px;
+    margin: 0px -40px;
+}
+
+div.page-content.home div.news-event div.hslider a.link {
+    display: block;
+    white-space: normal;
+}
+
+div.page-content.home div.news-event div.hslider a.link > div.photo {
+    position: relative;
+    border: 1px solid #dbdbdb;
+    border-radius: 4px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+div.page-content.home div.news-event div.hslider a.link > div.photo > img {
+    display: block;
+}
+
+div.page-content.home div.news-event div.hslider a.link > div.photo > iframe {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    border: 0px;
+}
+
+div.page-content.home div.news-event div.hslider a.link:hover > div.photo:after {
+    position: absolute;
+    background: rgba(0,0,0,0.5);
+    content: '';
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+}
+
+div.page-content.home div.news-event div.hslider a.link > div.title {
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 24px;
+    padding: 10px 0px;
+    /*white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;*/
+}
+
+div.page-content.home div.news-event div.hslider div.slick-item {
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+div.page-content.home div.news-event div.hslider div.slick-track {
+    margin: 0px;
+}
+
+div.page-content.home div.news-event div.hslider .slick-prev, 
+div.page-content.home div.news-event div.hslider .slick-next {
+    background: none;
+    top: 36%;
+    border-radius: 0px;
+    box-shadow: none!important;
+}
+
+div.page-content.home div.news-event div.hslider .slick-prev {
+    left: 12px;
+}
+
+div.page-content.home div.news-event div.hslider .slick-next {
+    right: 12px;
+}
+
+div.page-content.home div.news-event div.hslider .slick-prev > i, 
+div.page-content.home div.news-event div.hslider .slick-next > i {
+    border-color: #ccc;
+}
+
+@media only screen and (max-width: 1400px) {
+    div.page-content.home div.news-event div.hslider a.link > div.title {
+        font-size: 16px;
+        line-height: 20px;
+    }
+}
+
+@media only screen and (max-width: 700px) {
+    div.page-content.home div.banner > div.desktop {
+        display: none;
+    }
+
+    div.page-content.home div.banner > div.mobile {
+        display: block;
+    }
+}

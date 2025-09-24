@@ -1,0 +1,69 @@
+div.page-content.faqs div.list {
+    position: relative;
+    margin-top: 40px;
+}
+
+div.page-content.faqs div.list > div.block {
+    position: relative;
+    padding: 30px;
+    border-top: 1px solid #c4c5c7;
+}
+
+div.page-content.faqs div.list > div.block:before {
+    position: absolute;
+    display: block;
+    background-color: #002065;
+    content: '';
+    top: -4px;
+    left: 0px;
+    width: 20px;
+    height: 8px;
+}
+
+div.page-content.faqs div.list > div.block > a {
+    position: relative;
+    display: block;
+}
+
+div.page-content.faqs div.list > div.block > a > i {
+    position: absolute;
+    color: #002065;
+    top: 50%;
+    right: 0px;
+    margin-top: -6px;
+    -webkit-transform: rotate(90deg);
+            transform: rotate(90deg);
+    -webkit-transition-duration: 0.5s;
+            transition-duration: 0.5s;
+}
+
+div.page-content.faqs div.list > div.block.show > a > i {
+    -webkit-transform: rotate(-90deg);
+            transform: rotate(-90deg);
+    margin-top: -8px;
+}
+
+div.page-content.faqs div.list > div.block > a > h2.title {
+    font-size: 30px;
+    color: #002065;
+}
+
+div.page-content.faqs div.list > div.block > div.content {
+    display: none;
+    margin-top: 20px;
+}
+
+@media only screen and (max-width: 1400px) {
+    div.page-content.faqs div.list > div.block {
+        padding: 20px;
+    }
+    
+    div.page-content.faqs div.list > div.block:before {
+        bottom: -3px;
+        height: 6px;
+    }
+    
+    div.page-content.faqs div.list > div.block > a > h2.title {
+        font-size: 20px;
+    }
+}

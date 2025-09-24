@@ -1,0 +1,85 @@
+div.page-content.authn {
+    padding: 120px 20px;
+}
+
+div.page-content.authn h1 {
+    position: relative;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+div.page-content.authn div.widget {
+    max-width: 1200px;
+    padding: 0px;
+    border-radius: 20px;
+}
+
+div.page-content.authn div.widget:before {
+    position: absolute;
+    content: '';
+    top: 40px;
+    left: 50%;
+    bottom: 40px;
+    margin-left: -1px;
+    border: 1px solid var(--color-primary);
+}
+
+div.page-content.authn div.widget > div.left,
+div.page-content.authn div.widget > div.right {
+    display: inline-block;
+    width: 50%;
+    padding: 60px;
+    vertical-align: middle;
+}
+
+div.page-content.authn div.widget > div.left {
+    text-align: center;
+}
+
+div.page-content.authn form div.row input {
+    border-radius: 18px;
+}
+
+div.page-content.authn form button[type="submit"] {
+    width: 100%;
+    border-radius: 18px;
+}
+
+div.page-content.authn div.ip_address {
+    position: fixed;
+    background: var(--color-primary);
+    width: 100%;
+    color: var(--color-white);
+    left: 0px;
+    bottom: 0px;
+    padding: 4px;
+    font-weight: bold;
+    text-align: center;
+}
+
+@media only screen and (max-width: 1200px) {
+    div.page-content.authn {
+        padding: 80px 20px;
+    }
+    
+    div.page-content.authn div.widget {
+        max-width: 500px;
+    }
+    
+    div.page-content.authn div.widget:before {
+        display: none;
+    }
+
+    div.page-content.authn div.widget > div.left, 
+    div.page-content.authn div.widget > div.right {
+        width: 100%;
+        padding: 40px 20px;
+    }
+    
+    div.page-content.authn div.widget > div.left {
+        display: block;
+        width: auto;
+        margin: 0px 20px;
+        border-bottom: 2px solid var(--color-primary);
+    }
+}

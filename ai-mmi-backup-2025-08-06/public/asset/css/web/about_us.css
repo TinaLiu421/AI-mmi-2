@@ -1,0 +1,104 @@
+div.page-content.about-us div.list {
+    position: relative;
+    margin-top: 40px;
+}
+
+div.page-content.about-us div.list > div.block {
+    position: relative;
+    padding: 30px;
+    border-top: 1px solid #c4c5c7;
+}
+
+div.page-content.about-us div.list > div.block:before {
+    position: absolute;
+    display: block;
+    background-color: #002065;
+    content: '';
+    top: -4px;
+    left: 0px;
+    width: 20px;
+    height: 8px;
+}
+
+div.page-content.about-us div.list > div.block > a {
+    position: relative;
+    display: block;
+}
+
+div.page-content.about-us div.list > div.block > a > i {
+    position: absolute;
+    color: #002065;
+    top: 50%;
+    right: 0px;
+    margin-top: -6px;
+    -webkit-transform: rotate(90deg);
+            transform: rotate(90deg);
+    -webkit-transition-duration: 0.5s;
+            transition-duration: 0.5s;
+}
+
+div.page-content.about-us div.list > div.block.show > a > i {
+    -webkit-transform: rotate(-90deg);
+            transform: rotate(-90deg);
+    margin-top: -8px;
+}
+
+div.page-content.about-us div.list > div.block > a > h2.title {
+    font-size: 30px;
+    color: #002065;
+}
+
+div.page-content.about-us div.list > div.block > div.content {
+    display: none;
+    margin-top: 20px;
+}
+
+div.shorcut {
+    position: relative;
+    margin-top: 30px;
+    text-align: center;
+}
+
+div.shorcut > a {
+    background: #002065;
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    border-radius: 8px;
+}
+
+button.btn-next {
+    background: #012069;
+    color: #fff;
+}
+
+div.form {
+    margin-top: 10px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.2);
+    margin-bottom: 60px;
+}
+
+h2.top-title {
+    color: #012069;
+    margin-top: 40px;
+}
+
+@media only screen and (max-width: 1400px) {
+    div.page-content.about-us div.list > div.block {
+        padding: 20px;
+    }
+    
+    div.page-content.about-us div.list > div.block:before {
+        bottom: -3px;
+        height: 6px;
+    }
+    
+    div.page-content.about-us div.list > div.block > a > h2.title {
+        font-size: 20px;
+    }
+}

@@ -1,0 +1,11 @@
+div.page-content.setting-general button.btn.upload {
+    position: absolute;
+    background: transparent;
+    top: 25px;
+    right: 0px;
+    z-index: 1;
+}
+
+div.page-content.setting-general button.btn.upload > i {
+    color: var(--color-green);
+}

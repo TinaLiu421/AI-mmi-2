@@ -1,0 +1,346 @@
+div.page-content.account-registration div.list {
+    position: relative;
+    margin-top: 40px;
+}
+
+div.page-content.account-registration div.list > div.block {
+    background: #fff;
+    display: inline-block;
+    width: calc((100% - 80px)/3);
+    vertical-align: top;
+    padding: 40px 30px;
+    margin-left: 40px;
+    border-radius: 20px;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+}
+
+div.page-content.account-registration div.list > div.block:nth-child(1) {
+    margin-left: 0px;
+}
+
+div.page-content.account-registration div.list > div.block div.txt-1 {
+    font-size: 24px;
+}
+
+div.page-content.account-registration div.list > div.block div.txt-2 {
+    font-size: 34px;
+    font-weight: bold;
+    color: #012169;
+}
+
+div.page-content.account-registration div.list > div.block div.txt-3 {
+    font-size: 42px;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+div.page-content.account-registration div.list > div.block div.txt-3 > span {
+    font-size: 20px;
+    font-weight: normal;
+    color: #aaaaaa;
+}
+
+div.page-content.account-registration div.list > div.block div.txt-4 {
+    font-size: 18px;
+    color: #aaaaaa;
+}
+
+div.page-content.account-registration div.list > div.block div.link-1 {
+    margin-top: 30px
+}
+
+div.page-content.account-registration div.list > div.block div.link-1 > a {
+    background: #012069;
+    display: block;
+    font-size: 20px;
+    color: #fff;
+    line-height: 60px;
+    text-align: center;
+    border-radius: 10px;
+}
+
+div.page-content.account-registration div.list > div.block div.link-2 {
+    margin-top: 10px;
+}
+
+div.page-content.account-registration div.list > div.block div.link-2 > a {
+    display: block;
+    font-size: 23px;
+    text-align: center;
+}
+
+div.page-content.account-registration div.list > div.block div.benefits {
+    margin-top: 30px;
+}
+
+div.page-content.account-registration div.list > div.block div.benefits > span {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+div.page-content.account-registration div.list > div.block div.benefits > span > i {
+    font-size: 12px;
+    color: #012069;
+}
+
+div.page-content.account-registration div.list > div.block div.benefits > div.iweb-editor {
+    font-size: 18px;
+    margin-top: 5px;
+}
+
+div.page-content.account-registration div.list > div.block div.benefits > div.iweb-editor ul,
+div.page-content.account-registration div.list > div.block div.benefits > div.iweb-editor ol {
+    list-style-image: url('asset/image/ul_tick.png');
+    margin-left: -8px;
+}
+
+div.page-content.account-registration div.form div.or {
+    position: relative;
+    text-align: center;
+    text-transform: uppercase;
+    margin-top: 30px;
+    overflow: hidden;
+}
+
+div.page-content.account-registration div.form div.or > span {
+    display: inline-block;
+    font-size: 18px;
+    color: #aaaaaa;
+}
+
+div.page-content.account-registration div.form div.or:before {
+    position: absolute;
+    content: '';
+    top: 50%;
+    left: calc(50% + 30px);
+    width: 100%;
+    border-top: 1px solid #aaaaaa;
+}
+
+div.page-content.account-registration div.form div.or:after {
+    position: absolute;
+    content: '';
+    top: 50%;
+    right: calc(50% + 30px);
+    width: 100%;
+    border-top: 1px solid #aaaaaa;
+}
+
+div.page-content.account-registration div.form div.third-party {
+    margin-top: 30px;
+}
+
+div.page-content.account-registration div.form div.third-party > a {
+    display: inline-block;
+    width: calc((100% - 40px)/3);
+    height: 36px;
+    font-size: 16px;
+    color: #fff;
+    line-height: 36px;
+    margin-left: 20px;
+    vertical-align: top;
+    text-align: center;
+    border-radius: 4px;
+}
+
+div.page-content.account-registration div.form div.third-party > a:nth-child(1) {
+    margin-left: 0px;
+}
+
+div.page-content.account-registration div.form div.third-party > a.google {
+    background: #dd4b39;
+}
+
+div.page-content.account-registration div.form div.third-party > a.fb {
+    background: #1677ef;
+}
+
+div.page-content.account-registration div.form div.third-party > a.apple {
+    background: #000;
+}
+
+div.page-content.account-registration div.form div.third-party > a > i {
+    display: inline-block;
+    line-height: normal;
+    vertical-align: middle;
+}
+
+div.page-content.account-registration div.form div.third-party > a > span {
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+div.page-content.account-registration div.vmsg {
+    font-size: 24px;
+    font-weight: bold;
+    color: #002065;
+    margin-top: 90px;
+    text-align: center;
+}
+
+div.page-content.account-registration div.form div.method {
+    background: #eef0f1;
+    border: 1px solid #ccc;
+    padding: 10px 20px;
+}
+
+div.page-content.account-registration div.form div.method:nth-child(2) {
+    margin-top: 60px;
+}
+
+div.page-content.account-registration div.form div.method img {
+    max-height: 50px;
+}
+
+div.page-content.account-registration div.iweb-radiobox > div.options > div.checked:after {
+    background: #012069;
+    width: 14px;
+    height: 14px;
+    top: 6px;
+    left: 6px
+}
+
+div.page-content.account-registration div.thanks {
+    position: relative;
+    background: #fff;
+    max-width: 600px;
+    margin: auto;
+    margin-top: 10%;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    padding: 60px 30px;
+}
+
+div.page-content.account-registration div.ttitle {
+    font-size: 56px;
+    font-weight: bold;
+    color: #002065;
+    text-align: center;
+}
+
+div.page-content.account-registration div.tmsg {
+    font-size: 28px;
+    font-weight: bold;
+    color: #5e5e5e;
+    margin-top: 30px;
+    text-align: center;
+}
+
+div.page-content.account-registration div.tmsg > span {
+    display: inline-block;
+    background: #002065;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: normal;
+}
+
+@media only screen and (max-width: 1800px) {
+    div.page-content.account-registration div.list > div.block div.txt-1 {
+        font-size: 22px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.txt-2 {
+        font-size: 30px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.txt-3 {
+        font-size: 36px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.txt-3 > span {
+        font-size: 18px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.link-2 > a {
+        font-size: 20px;
+    }
+}
+
+@media only screen and (max-width: 1640px) {
+    div.page-content.account-registration div.list > div.block {
+        width: 100%;
+        margin-top: 30px;
+        margin-left: 0px!important;
+    }
+    
+    div.page-content.account-registration div.list > div.block:nth-child(1) {
+        margin-top: 0px;
+    }
+}
+
+@media only screen and (max-width: 700px) {
+    div.page-content.account-registration div.list > div.block div.txt-1 {
+        font-size: 18px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.txt-2 {
+        font-size: 24px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.txt-3 {
+        font-size: 28px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.txt-3 > span {
+        font-size: 15px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.txt-4 {
+        font-size: 16px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.link-1 > a {
+        font-size: 18px;
+        line-height: 48px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.link-2 > a {
+        font-size: 16px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.benefits > span {
+        font-size: 16px;
+    }
+    
+    div.page-content.account-registration div.list > div.block div.benefits > div.iweb-editor {
+        font-size: 16px;
+    }
+    
+    div.page-content.account-registration div.form div.third-party {
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+    }
+    
+    div.page-content.account-registration div.form div.third-party > a {
+        width: 100%;
+        margin: auto;
+        margin-top: 10px;
+    }
+    
+    div.page-content.account-registration div.form div.third-party > a:nth-child(1) {
+        margin-top: 0px;
+    }
+    
+    div.page-content.account-registration div.vmsg { 
+        font-size: 18px;
+    }
+    
+    div.page-content.account-registration div.iweb-radiobox > div.options > div.checked:after {
+        background: #012069;
+        width: 10px;
+        height: 10px;
+    }
+    
+    div.page-content.account-registration div.ttitle {
+        font-size: 42px;
+    }
+
+    div.page-content.account-registration div.tmsg {
+        font-size: 22px;
+    }
+}

@@ -1,0 +1,65 @@
+div.form div.iweb-radiobox-set > div.iweb-radiobox {
+    width: 45%;
+}
+/*
+div.iweb-radiobox>div.virtual-msg {
+    width: calc(100% - 24px);
+}*/
+
+div.questions {
+    margin-top: 40px;
+}
+
+div.questions div.next {
+    display: none;
+}
+
+div.questions div.next.show {
+    display: block!important;
+}
+
+div.questions div.row {
+    background: #fff;
+    padding: 10px 20px;
+    margin-top: 10px;
+    border: 1px solid #e6e6e6;
+    border-radius: 10px;
+}
+
+div.questions div.row > div.row {
+    border: 0px;
+    padding: 0px;
+    padding-bottom: 10px;
+}
+
+div.questions div.row > label {
+    display: block;
+    font-weight: bold;
+    line-height: 1.5;
+}
+
+div.questions div.row > label > span.tips {
+    display: none;
+    font-weight: normal;
+    color: #bb002d;
+}
+
+div.questions div.row > div.iweb-input {
+    width: 100%;
+}
+
+div.form div.row div.iweb-input > div > input {
+    width: 100%;
+    background: #fff;
+}
+
+div.questions div.row > button {
+    background: #012069;
+    color: #fff;
+}
+
+@media only screen and (max-width: 700px) {
+    div.form div.iweb-radiobox-set > div.iweb-radiobox {
+        width: 100%;
+    }
+}
