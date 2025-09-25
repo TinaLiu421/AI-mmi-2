@@ -237,7 +237,7 @@
                                         </td>
                                         <?php } else { ?>
                                         <td>
-                                            <a class="with-ai" href="<?php echo $_page_base_url.'/auto_fill'; ?>">
+                                            <a class="with-ai" href="<?php echo $_page_base_url.'/upgrade'; ?>">
                                                 <div><?php echo $_page_lang['chat_robot.get_help_with'];?></div>
                                                 <div style="display:flex; justify-content:center; align-items:center; text-align:center; height:70px;">
                                                     <?php echo $_page_lang['chat_robot.autofill'];?>
@@ -246,7 +246,7 @@
                                             </a>
                                         </td>
                                         <td>
-                                            <a class="with-human" href="<?php echo $_page_base_url.'/agents'; ?>" style="width:100%;">
+                                            <a class="with-human" href="<?php echo $_page_base_url.'/apply'; ?>" style="width:100%;">
                                                 <div><?php echo $_page_lang['chat_robot.get_help_with'];?></div>
                                                 <div style="display:flex; justify-content:center; align-items:center; text-align:center; height:70px;">
                                                     <?php echo $_page_lang['chat_robot.human_agent'];?>
@@ -283,5 +283,9 @@
         <a class="floating-show-chat"><img src="asset/image/icon-floating-chat.jpg" alt="icon-floating-chat"/></a>
         
         <div id="bottom-white-space" style="height:0px;"></div>
+
+    <!-- {{-- Stripe Pricing Table script --}} -->
+    <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+
     </body>
 </html>
