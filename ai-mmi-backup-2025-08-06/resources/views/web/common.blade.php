@@ -167,47 +167,37 @@
 
                     <div>
                         <div class="top">
-                            <div class="controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin: 0 10px;">
+                            <div class="controls">
                                 <!-- Buttons -->
                                 <?php if(empty($_current_member) || !empty($_current_member['expiration_ai_level'])) { ?>
                                 <x-chat-button
                                     href="<?php echo $_page_base_url.'/account_submission'; ?>"
-                                    
-                                    topText="I WANT TO" 
+                                    topText="I like to" 
                                     bottomText="MIGRATE" 
-                                    hoverColor="rgba(80, 145, 205, 0.8)"
                                     class="with-ai" />
                                 <x-chat-button
                                     href="<?php echo $_page_base_url.'/agents'; ?>"
-                                    
-                                    topText="I WANT TO" 
+                                    topText="I like to" 
                                     bottomText="STUDY" 
-                                    color="var(--color-blue, #5091cd)"
-                                    hoverColor="rgba(80, 145, 205, 0.8)"
                                     class="with-human" />
                                 <?php } else { ?>
                                 <x-chat-button
                                     href="<?php echo $_page_base_url.'/upgrade'; ?>"
-                                    
-                                    topText="I WANT TO" 
+                                    topText="I like to" 
                                     bottomText="MIGRATE" 
-                                    hoverColor="rgba(80, 145, 205, 0.8)"
                                     class="with-ai" />
                                 <x-chat-button
                                     href="<?php echo $_page_base_url.'/apply'; ?>"
-                                    
-                                    topText="I WANT TO" 
+                                    topText="I like to" 
                                     bottomText="STUDY" 
-                                    color="var(--color-blue, #5091cd)"
-                                    hoverColor="rgba(80, 145, 205, 0.8)"
                                     class="with-human" />
                                 <?php } ?>
 
                                 <!-- Avatar on the right side -->
                                 <div class="robot-container">
-                                    <div class="robot" style="width: 110px; height: 110px; position: relative; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);">
-                                        <img src="asset/image/ai-robot.png" alt="ai-robot" style="width: 100%; height: 100%; object-fit: cover;"/>
-                                        <video id="ai-robot-video" muted autoplay loop playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+                                    <div class="robot" style="width: 110px; height: 110px; position: relative; border-radius: 12px; overflow: hidden;">
+                                        <img src="asset/image/ai-robot.png" alt="ai-robot"/>
+                                        <video id="ai-robot-video" muted autoplay loop playsinline>
                                             <source type="video/mp4" src="asset/image/ai-robot-video.mp4"></source>
                                         </video>
                                         <a id="sound-control" style="position: absolute; bottom: 5px; right: 5px; color: white; font-size: 12px;"><i class="fa fa-microphone-slash"></i></a>

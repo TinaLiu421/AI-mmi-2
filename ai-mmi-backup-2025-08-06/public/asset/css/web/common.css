@@ -1226,6 +1226,7 @@ footer.page-footer a:hover {
 .page-content.privacy-statement .info-area,
 .page-content.apply .info-area,
 .page-content.upgrade .info-area,
+.page-content.posts .info-area,
 .page-content.agent .info-area,
 .page-content.visa-options .info-area {
     width: 100% !important;
