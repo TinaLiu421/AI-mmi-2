@@ -172,14 +172,14 @@
                                 <?php if(empty($_current_member) || !empty($_current_member['expiration_ai_level'])) { ?>
                                 <x-chat-button
                                     href="<?php echo $_page_base_url.'/account_submission'; ?>"
-                                    icon="🌍"
+                                    
                                     topText="I WANT TO" 
                                     bottomText="MIGRATE" 
                                     hoverColor="rgba(80, 145, 205, 0.8)"
                                     class="with-ai" />
                                 <x-chat-button
                                     href="<?php echo $_page_base_url.'/agents'; ?>"
-                                    icon="📚"
+                                    
                                     topText="I WANT TO" 
                                     bottomText="STUDY" 
                                     color="var(--color-blue, #5091cd)"
@@ -188,14 +188,14 @@
                                 <?php } else { ?>
                                 <x-chat-button
                                     href="<?php echo $_page_base_url.'/upgrade'; ?>"
-                                    icon="🌍"
+                                    
                                     topText="I WANT TO" 
                                     bottomText="MIGRATE" 
                                     hoverColor="rgba(80, 145, 205, 0.8)"
                                     class="with-ai" />
                                 <x-chat-button
                                     href="<?php echo $_page_base_url.'/apply'; ?>"
-                                    icon="📚"
+                                    
                                     topText="I WANT TO" 
                                     bottomText="STUDY" 
                                     color="var(--color-blue, #5091cd)"
