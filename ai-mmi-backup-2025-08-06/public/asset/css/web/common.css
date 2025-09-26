@@ -624,7 +624,6 @@ main.page-body .chat-area.hide {
     display: none;
 }
 
-
 main.page-body .chat-area.show {
     width: 100%;
     position: fixed;
@@ -1197,7 +1196,6 @@ footer.page-footer a:hover {
     text-decoration: underline;
 }
 
-
 /* Mobile Chat Button - Hidden on desktop */
 .mobile-chat-button {
     display: none;
@@ -1214,7 +1212,6 @@ footer.page-footer a:hover {
    ======================================== */
 
 /* All pages use the remaining space after fixed chat */
-/* Profile and other content pages should hide internal chat and use full width */
 
 .page-content.account .info-area,
 .page-content.account-profile .info-area,
@@ -1227,6 +1224,9 @@ footer.page-footer a:hover {
 .page-content.about-us .info-area,
 .page-content.terms .info-area,
 .page-content.privacy-statement .info-area,
+.page-content.apply .info-area,
+.page-content.upgrade .info-area,
+.page-content.agent .info-area,
 .page-content.visa-options .info-area {
     width: 100% !important;
     flex: none !important;
