@@ -1,6 +1,6 @@
 @extends('web.common')
 @section('content')
-<?php $questions = $_page_data['questions']; ?>
+<!-- <?php $questions = $_page_data['questions']; ?>
 <div class="inner-panel">
     <h1 class="title"><?php echo $_page_data['details']['title']; ?></h1>
     <div class="underline"></div>
@@ -66,5 +66,16 @@
         </form>
     </div>
     <?php } ?>
+</div> -->
+
+<div class="container">
+  <h1>Choose Your Plan</h1>
+
+  <stripe-pricing-table
+    pricing-table-id="{{ env('STRIPE_PRICING_TABLE_ID') }}"
+    publishable-key="{{ env('STRIPE_KEY') }}"
+    customer-email="{{ auth()->user()->email ?? '' }}">
+  </stripe-pricing-table>
 </div>
 @endsection
+

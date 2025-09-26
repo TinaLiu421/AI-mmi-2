@@ -187,14 +187,14 @@
                                     class="with-human" />
                                 <?php } else { ?>
                                 <x-chat-button
-                                    href="<?php echo $_page_base_url.'/auto_fill'; ?>"
+                                    href="<?php echo $_page_base_url.'/upgrade'; ?>"
                                     icon="🌍"
                                     topText="I WANT TO" 
                                     bottomText="MIGRATE" 
                                     hoverColor="rgba(80, 145, 205, 0.8)"
                                     class="with-ai" />
                                 <x-chat-button
-                                    href="<?php echo $_page_base_url.'/agents'; ?>"
+                                    href="<?php echo $_page_base_url.'/apply'; ?>"
                                     icon="📚"
                                     topText="I WANT TO" 
                                     bottomText="STUDY" 
@@ -266,5 +266,7 @@
         <button class="mobile-chat-button" onclick="toggleMobileChat()">Chat with AIMMI</button>
 
         <div id="bottom-white-space" style="height:0px;"></div>
+        <!-- {{-- Stripe Pricing Table script --}} -->
+    <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
     </body>
 </html>
