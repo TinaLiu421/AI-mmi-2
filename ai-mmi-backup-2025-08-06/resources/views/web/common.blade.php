@@ -44,6 +44,7 @@
         <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) { ?>
         <script src="<?php echo $js_file; ?>?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
         <?php }} ?>
+        <script src="asset/js/web/common.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
 
         <!-- Google tag (gtag.js) -->
         <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16657487633"></script>
@@ -61,14 +62,14 @@
                 <a class="logo" href="<?php echo ($_page_base_url); ?>">
                     <img src="asset/image/logo.png" alt="logo">
                 </a>
-                
+
                 <div class="controls">
                     <div class="lang">
                         <a>
                             <img src="asset/image/icon-lang.png" alt="icon-lang"/>
                             <span><?php echo $_page_lang['lang_'.str_replace('-', '_', $_current_lang_code)]; ?></span>
                         </a>
-                        <div class="options">
+                        <div class="options header-dropdown">
                             <?php if(!empty($_mapping_data['multi_url']['en'])) { ?>
                             <a href="<?php echo $_mapping_data['multi_url']['en']; ?>">
                                 <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAt1BMVEWSmb66z+18msdig8La3u+tYX9IaLc7W7BagbmcUW+kqMr/q6n+//+hsNv/lIr/jIGMnNLJyOP9/fyQttT/wb3/////aWn+YWF5kNT0oqz0i4ueqtIZNJjhvt/8gn//WVr/6+rN1+o9RKZwgcMPJpX/VFT9UEn+RUX8Ozv2Ly+FGzdYZrfU1e/8LS/lQkG/mbVUX60AE231hHtcdMb0mp3qYFTFwNu3w9prcqSURGNDaaIUMX5FNW5wYt7AAAAAjklEQVR4AR3HNUJEMQCGwf+L8RR36ajR+1+CEuvRdd8kK9MNAiRQNgJmVDAt1yM6kSzYVJUsPNssAk5N7ZFKjVNFAY4co6TAOI+kyQm+LFUEBEKKzuWUNB7rSH/rSnvOulOGk+QlXTBqMIrfYX4tSe2nP3iRa/KNK7uTmWJ5a9+erZ3d+18od4ytiZdvZyuKWy8o3UpTVAAAAABJRU5ErkJggg==" alt="English" width="16" height="11" style="width: 16px; height: 11px;">
@@ -96,14 +97,11 @@
                     <div class="member large">
                         <a href="<?php echo ($_current_member['type'] == 1)?($_page_base_url.'/account/profile'):($_page_base_url.'/account/posts') ;?>">
                             <?php if(!empty($_current_member['avatar'])) { ?>
-                            <img src="asset/image/icon-member.png" alt="icon-member"/>
-                            
                             <?php if(file_exists('upload/member_avatar/'.$_current_member['avatar'])) { ?>
                             <div class="avatar" style="background-image:url('<?php echo 'upload/member_avatar/'.$_current_member['avatar']; ?>')"></div>
                             <?php } else { ?>
                             <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_current_member['avatar']; ?>')"></div>
                             <?php } ?>
-                            
                             <?php } else { ?>
                             <img src="asset/image/icon-member.png" alt="icon-member"/>
                             <?php } ?>
@@ -121,8 +119,7 @@
                     <div class="menu">
                         <a class="open-menu show"><img src="asset/image/icon-menu.png" alt="icon-menu"/></a>
                         <a class="close-menu"><img src="asset/image/icon-close.png" alt="icon-close"/></a>
-                        <a class="hide-chat"><img src="asset/image/icon-arrow-red.png" alt="icon-arrow-red"/></a>
-                        <ul>
+                        <ul class="header-dropdown">
                             <?php if(!empty($_page_data['visa_countries'])) { ?>
                             <li>
                                 <a href="#" class="parent-node"><?php echo $_page_lang['countries']; ?></a>
@@ -156,8 +153,6 @@
                         </ul>
                     </div>
                 </div>
-                
-                <div class="clearboth"></div>
             </div>
         </header>
         <?php } ?>
@@ -172,15 +167,53 @@
 
                     <div>
                         <div class="top">
-                            <div class="slogn">
-                                <img src="asset/image/get-help-<?php echo $_current_lang_index;?>.png" alt="get-help"/>
-                            </div>
-                            <div class="robot">
-                                <img src="asset/image/ai-robot.png" alt="ai-robot"/>
-                                <video id="ai-robot-video" muted autoplay loop playsinline>
-                                    <source type="video/mp4" src="asset/image/ai-robot-video.mp4"></source>
-                                </video>
-                                <a id="sound-control"><i class="fa fa-microphone-slash"></i></a>
+                            <div class="controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap; margin: 0 10px;">
+                                <!-- Buttons -->
+                                <?php if(empty($_current_member) || !empty($_current_member['expiration_ai_level'])) { ?>
+                                <x-chat-button
+                                    href="<?php echo $_page_base_url.'/account_submission'; ?>"
+                                    icon="🌍"
+                                    topText="I WANT TO" 
+                                    bottomText="MIGRATE" 
+                                    hoverColor="rgba(80, 145, 205, 0.8)"
+                                    class="with-ai" />
+                                <x-chat-button
+                                    href="<?php echo $_page_base_url.'/agents'; ?>"
+                                    icon="📚"
+                                    topText="I WANT TO" 
+                                    bottomText="STUDY" 
+                                    color="var(--color-blue, #5091cd)"
+                                    hoverColor="rgba(80, 145, 205, 0.8)"
+                                    class="with-human" />
+                                <?php } else { ?>
+                                <x-chat-button
+                                    href="<?php echo $_page_base_url.'/auto_fill'; ?>"
+                                    icon="🌍"
+                                    topText="I WANT TO" 
+                                    bottomText="MIGRATE" 
+                                    hoverColor="rgba(80, 145, 205, 0.8)"
+                                    class="with-ai" />
+                                <x-chat-button
+                                    href="<?php echo $_page_base_url.'/agents'; ?>"
+                                    icon="📚"
+                                    topText="I WANT TO" 
+                                    bottomText="STUDY" 
+                                    color="var(--color-blue, #5091cd)"
+                                    hoverColor="rgba(80, 145, 205, 0.8)"
+                                    class="with-human" />
+                                <?php } ?>
+
+                                <!-- Avatar on the right side -->
+                                <div class="robot-container">
+                                    <div class="robot" style="width: 110px; height: 110px; position: relative; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);">
+                                        <img src="asset/image/ai-robot.png" alt="ai-robot" style="width: 100%; height: 100%; object-fit: cover;"/>
+                                        <video id="ai-robot-video" muted autoplay loop playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+                                            <source type="video/mp4" src="asset/image/ai-robot-video.mp4"></source>
+                                        </video>
+                                        <a id="sound-control" style="position: absolute; bottom: 5px; right: 5px; color: white; font-size: 12px;"><i class="fa fa-microphone-slash"></i></a>
+                                    </div>
+                                    <!-- <span style="color: white; font-size: 12px; margin-top: 8px; text-align: center;">AI Assistant</span> -->
+                                </div>
                             </div>
                             <div class="clearboth"></div>
                         </div>
@@ -208,57 +241,6 @@
                             </form>
                         </div>
                         <div class="clearboth"></div>
-
-                        <div class="bottom">
-                            <div class="controls">
-                                <table>
-                                    <!-- <tr>
-                                        <td><div class="not-sure"><?php echo $_page_lang['chat_robot.not_sure'];?></div></td>
-                                        <td><a class="start-free" href="<?php echo $_page_base_url.'/free_assessment'; ?>"><?php echo $_page_lang['chat_robot.start_free'];?></a></td>
-                                    </tr> -->
-                                </table>
-
-                                <div>&nbsp;</div>
-
-                                <table>
-                                    <tr>
-                                        <?php if(empty($_current_member) || !empty($_current_member['expiration_ai_level'])) { ?>
-                                        <td>
-                                            <a class="with-ai" href="<?php echo $_page_base_url.'/account_submission'; ?>">
-                                                <div><?php echo $_page_lang['chat_robot.get_help_with'];?></div>
-                                                <div><?php echo $_page_lang['chat_robot.ai_agent'];?><small><?php echo $_page_lang['chat_robot.ai_consultant'];?></small></div>
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <a class="with-human" href="<?php echo $_page_base_url.'/agents'; ?>">
-                                                <div><?php echo $_page_lang['chat_robot.get_help_with'];?></div>
-                                                <div><?php echo $_page_lang['chat_robot.human_agent'];?><small><?php echo $_page_lang['chat_robot.human_consultant'];?></small></div>
-                                            </a>
-                                        </td>
-                                        <?php } else { ?>
-                                        <td>
-                                            <a class="with-ai" href="<?php echo $_page_base_url.'/auto_fill'; ?>">
-                                                <div><?php echo $_page_lang['chat_robot.get_help_with'];?></div>
-                                                <div style="display:flex; justify-content:center; align-items:center; text-align:center; height:70px;">
-                                                    <?php echo $_page_lang['chat_robot.autofill'];?>
-                                                <!-- <small><?php echo $_page_lang['chat_robot.ai_consultant'];?></small> -->
-                                                </div>
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <a class="with-human" href="<?php echo $_page_base_url.'/agents'; ?>" style="width:100%;">
-                                                <div><?php echo $_page_lang['chat_robot.get_help_with'];?></div>
-                                                <div style="display:flex; justify-content:center; align-items:center; text-align:center; height:70px;">
-                                                    <?php echo $_page_lang['chat_robot.human_agent'];?>
-                                                <!-- <small><?php echo $_page_lang['chat_robot.human_consultant'];?></small> -->
-                                                </div>
-                                            </a>
-                                        </td>
-                                        <?php } ?>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <div class="clearboth"></div>
@@ -279,9 +261,10 @@
             <div>Copyright @ <?php echo date('Y');?>. AI-mmi. All Rights Reserved</div>
         </footer>
         <?php } ?>
-        
-        <a class="floating-show-chat"><img src="asset/image/icon-floating-chat.jpg" alt="icon-floating-chat"/></a>
-        
+
+        <!-- Mobile Chat Button -->
+        <button class="mobile-chat-button" onclick="toggleMobileChat()">Chat with AIMMI</button>
+
         <div id="bottom-white-space" style="height:0px;"></div>
     </body>
 </html>
