@@ -269,12 +269,15 @@ function iweb_global_func() {
     loadArticle();
     
     iweb.form('#ask-form', 'json', function() {
+        console.log('Form submission started');
         if(!iweb.isValue($('#ask_question').val())) {
+            console.log('No question entered');
             return false;
         }
         $('main.page-body div.chat-area div.box').addClass('mask');
         return true;
     }, function(response_data) {
+        console.log('Form response received:', response_data);
         $('main.page-body div.chat-area div.box').removeClass('mask');
         $('#ask_question').val('');
         if(iweb.isMatch(response_data.status, 200)) {
@@ -286,28 +289,46 @@ function iweb_global_func() {
                 dialog_group += '<div class="txt">'+(response_data.content)+'</div>';
                 dialog_group += '</div><div class="clearboth"></div>';
 
-                $('main.page-body div.chat-area div.box > div.show-message').append(dialog_group).each(function() {
-                    var scroll_value = $('main.page-body div.chat-area div.box > div.show-message')[0].scrollHeight;
-                    $('main.page-body div.chat-area div.box > div.show-message').scrollTop(scroll_value);
-                    // show reply if need
-                    if(iweb.isValue(response_data.reply)) {
-                        var chat_timer = setTimeout(function() {
-                            clearTimeout(chat_timer);
-                            
-                            dialog_group = '<div class="dialog reply">';
-                            dialog_group += '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\''+(response_data.ai_owner_avatar)+'\')"></div></div>';
-                            dialog_group += '<div class="name">'+(response_data.ai_owner_name)+'</div>';
-                            dialog_group += '<div class="clearboth"></div>';
-                            dialog_group += '<div class="txt">'+(response_data.reply)+'</div>';
-                            dialog_group += '</div><div class="clearboth"></div>';
-                            
-                            $('main.page-body div.chat-area div.box > div.show-message').append(dialog_group).each(function() {
-                                var last_ask_dialog = ($('main.page-body div.chat-area div.box > div.show-message div.dialog.ask').last()).outerHeight();
-                                $('main.page-body div.chat-area div.box > div.show-message').scrollTop(scroll_value - last_ask_dialog);
-                            });
-                        }, 1000);
+                $('main.page-body div.chat-area div.box > div.show-message').append(dialog_group);
+                console.log('User message added, scrolling...');
+                setTimeout(function() {
+                    var element = $('main.page-body div.chat-area div.box > div.show-message')[0];
+                    if (element) {
+                        var scroll_value = element.scrollHeight;
+                        console.log('User message - Element found, scrolling to:', scroll_value, 'Current scrollTop:', element.scrollTop);
+                        element.scrollTop = scroll_value;
+                        console.log('After scroll - scrollTop:', element.scrollTop);
+                    } else {
+                        console.log('User message - Element not found!');
                     }
-                });
+                }, 100);
+                // show reply if need
+                if(iweb.isValue(response_data.reply)) {
+                    var chat_timer = setTimeout(function() {
+                        clearTimeout(chat_timer);
+
+                        dialog_group = '<div class="dialog reply">';
+                        dialog_group += '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\''+(response_data.ai_owner_avatar)+'\')"></div></div>';
+                        dialog_group += '<div class="name">'+(response_data.ai_owner_name)+'</div>';
+                        dialog_group += '<div class="clearboth"></div>';
+                        dialog_group += '<div class="txt">'+(response_data.reply)+'</div>';
+                        dialog_group += '</div><div class="clearboth"></div>';
+
+                        $('main.page-body div.chat-area div.box > div.show-message').append(dialog_group);
+                        console.log('AI reply added, scrolling...');
+                        setTimeout(function() {
+                            var element = $('main.page-body div.chat-area div.box > div.show-message')[0];
+                            if (element) {
+                                var scroll_value = element.scrollHeight;
+                                console.log('AI reply - Element found, scrolling to:', scroll_value, 'Current scrollTop:', element.scrollTop);
+                                element.scrollTop = scroll_value;
+                                console.log('After scroll - scrollTop:', element.scrollTop);
+                            } else {
+                                console.log('AI reply - Element not found!');
+                            }
+                        }, 100);
+                    }, 1000);
+                }
             }
         }
         else {
@@ -478,5 +499,25 @@ function setPostsFullScr() {
             new_height -= $('#account-publish-form div.details > div.action').outerHeight();
             $('#account-publish-form div.row div.iweb-input > div > textarea').css('height', parseInt(new_height-100));
         }
+    }
+}
+
+// Mobile Chat Toggle Function
+function toggleMobileChat() {
+    const chatArea = $('main.page-body div.chat-area');
+    const mobileButton = $('.mobile-chat-button');
+
+    if (chatArea.hasClass('show-mobile')) {
+        // Hide mobile chat
+        chatArea.removeClass('show-mobile');
+        mobileButton.removeClass('hidden');
+    } else {
+        // Show mobile chat
+        chatArea.addClass('show-mobile');
+        mobileButton.addClass('hidden');
+
+        // Calculate and set proper height for message area
+        var new_height = ($(window).height() - $('header.page-header').height() - 80);
+        $('main.page-body div.chat-area div.box > div.show-message').height(Math.max(300, parseInt(new_height)));
     }
 }
