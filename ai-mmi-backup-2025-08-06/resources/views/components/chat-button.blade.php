@@ -62,7 +62,6 @@ Props:
                 opacity: 0;"
          class="glass-shine"></div>
 
-    <div style="font-size: 24px; margin-bottom: 8px; position: relative; z-index: 2;">{{ $icon }}</div>
     <div style="position: relative; z-index: 2; text-align: center; width: 100%;">
         <div style="font-size: 14px; font-weight: 400; margin-bottom: 4px; opacity: 0.9;">{!! $topText !!}</div>
         <div style="width: 60%; height: 1px; background: rgba(255, 255, 255, 0.3); margin: 0 auto 4px;"></div>
