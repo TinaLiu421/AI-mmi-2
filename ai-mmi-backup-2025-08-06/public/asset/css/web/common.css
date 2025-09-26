@@ -1228,6 +1228,7 @@ footer.page-footer a:hover {
 .page-content.upgrade .info-area,
 .page-content.posts .info-area,
 .page-content.agent .info-area,
+.page-content.pay_success .info-area,
 .page-content.visa-options .info-area {
     width: 100% !important;
     flex: none !important;
