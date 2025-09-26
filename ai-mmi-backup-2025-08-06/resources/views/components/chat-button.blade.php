@@ -12,7 +12,6 @@ Props:
 
 @props([
     'href' => '#',
-    'icon' => '🔘',
     'topText' => 'I WANT TO',
     'bottomText' => 'MIGRATE',
     'color' => 'var(--color-primary, #bb002d)',
