@@ -1,6 +1,3 @@
-/* ========================================
-   CSS VARIABLES & DESIGN TOKENS
-   ======================================== */
 :root {
     /* Colors - Tech Theme */
     --primary-blue: #0066ff;
@@ -81,122 +78,6 @@
     --header-height: 80px; /* page header height */
 }
 
-/* ========================================
-   TYPOGRAPHY UTILITIES
-   ======================================== */
-
-/* Font Families */
-.font-sans {
-    font-family: "Inter", "Heebo", -apple-system, BlinkMacSystemFont, "Segoe UI",
-        Roboto, sans-serif;
-}
-
-.font-mono {
-    font-family: "JetBrains Mono", "SF Mono", Monaco, "Cascadia Code",
-        "Roboto Mono", monospace;
-}
-
-.font-display {
-    font-family: "Cal Sans", "Inter", system-ui, sans-serif;
-}
-
-/* Font Sizes */
-
-.text-sm {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-}
-.text-base {
-    font-size: 1rem;
-    line-height: 1.5rem;
-}
-.text-lg {
-    font-size: 1.125rem;
-    line-height: 1.75rem;
-}
-.text-xl {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-}
-.text-2xl {
-    font-size: 1.5rem;
-    line-height: 2rem;
-}
-.text-3xl {
-    font-size: 1.875rem;
-    line-height: 2.25rem;
-}
-.text-4xl {
-    font-size: 2.25rem;
-    line-height: 2.5rem;
-}
-.text-5xl {
-    font-size: 3rem;
-    line-height: 1;
-}
-.text-6xl {
-    font-size: 3.75rem;
-    line-height: 1;
-}
-
-/* Font Weights */
-.font-normal {
-    font-weight: 400;
-}
-.font-medium {
-    font-weight: 500;
-}
-.font-semibold {
-    font-weight: 600;
-}
-.font-bold {
-    font-weight: 700;
-}
-.font-extrabold {
-    font-weight: 800;
-}
-.font-black {
-    font-weight: 900;
-}
-
-/* Text Colors */
-.text-primary {
-    color: var(--primary-blue);
-}
-.text-secondary {
-    color: var(--secondary-purple);
-}
-.text-accent {
-    color: var(--accent-cyan);
-}
-.text-success {
-    color: var(--accent-green);
-}
-.text-danger {
-    color: var(--accent-red);
-}
-.text-neutral-900 {
-    color: var(--neutral-900);
-}
-.text-neutral-800 {
-    color: var(--neutral-800);
-}
-.text-neutral-700 {
-    color: var(--neutral-700);
-}
-.text-neutral-600 {
-    color: var(--neutral-600);
-}
-.text-neutral-500 {
-    color: var(--neutral-500);
-}
-.text-neutral-400 {
-    color: var(--neutral-400);
-}
-.text-white {
-    color: var(--white);
-}
-
 /* Text Utilities */
 .text-center {
     text-align: center;
@@ -269,13 +150,6 @@ html {
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-    background: var(--neutral-50);
-    color: var(--neutral-800);
-    font-size: 1rem;
-    line-height: 1.6;
 }
 
 body.iweb {
@@ -528,7 +402,7 @@ main.page-body .page-content {
 main.page-body .info-area {
     flex: 1;
     padding: var(--space-8);
-    background: var(--white);
+    background: var(--neutral-100);
     border-right: none;
     transition: var(--transition-normal);
     width: 100%;
@@ -677,7 +551,7 @@ main.page-body .chat-area .robot {
     border-radius: var(--radius-3xl);
     overflow: hidden;
     background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    border: white 1px solid;
     backdrop-filter: blur(10px);
     box-shadow: var(--shadow-glow);
     transition: var(--transition-normal);
@@ -700,6 +574,29 @@ main.page-body .chat-area .robot video {
 
 main.page-body .chat-area .robot a {
     display: none;
+}
+
+main.page-body .chat-area .robot a#sound-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    backdrop-filter: blur(4px);
+}
+
+main.page-body .chat-area .robot a#sound-control:hover {
+    background: rgba(0, 0, 0, 0.7);
+    transform: scale(1.1);
+}
+
+main.page-body .chat-area .robot a#sound-control i {
+    font-size: 12px;
+    color: white;
 }
 
 /* Chat Box */
@@ -782,14 +679,14 @@ main.page-body .chat-area .box.mask::before {
     }
 }
 
-/* Expand Buttons */
+/* Expand/Minimize Buttons */
 main.page-body .chat-area .box > a.btn-expand-full,
-main.page-body .chat-area .box > a.btn-expand-full-mobile {
+main.page-body .chat-area .box > a.btn-expand-full-mobile,
+main.page-body .chat-area .box > a.btn-minimize-full {
     position: absolute;
     top: var(--space-4);
-    right: var(--space-4);
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-lg);
@@ -803,12 +700,44 @@ main.page-body .chat-area .box > a.btn-expand-full-mobile {
     z-index: 5;
 }
 
+main.page-body .chat-area .box > a.btn-expand-full,
+main.page-body .chat-area .box > a.btn-expand-full-mobile {
+    right: var(--space-4);
+}
+
+main.page-body .chat-area .box > a.btn-minimize-full {
+    right: calc(var(--space-4));
+    display: none;
+}
+
+main.page-body .chat-area .box > a.btn-close-mobile {
+    left: var(--space-4);
+    display: none;
+}
+
+/* Show minimize button when chat is expanded */
+main.page-body .chat-area.show .box > a.btn-minimize-full {
+    display: flex;
+}
+
+/* Hide expand button when chat is expanded */
+main.page-body .chat-area.show .box > a.btn-expand-full {
+    display: none;
+}
+
 main.page-body .chat-area .box > a.btn-expand-full:hover,
-main.page-body .chat-area .box > a.btn-expand-full-mobile:hover {
+main.page-body .chat-area .box > a.btn-expand-full-mobile:hover,
+main.page-body .chat-area .box > a.btn-minimize-full:hover {
     background: rgba(255, 255, 255, 0.15);
     border-color: var(--accent-cyan);
     box-shadow: var(--shadow-glow-cyan);
     transform: scale(1.05);
+}
+
+main.page-body .chat-area .box > a.btn-minimize-full img {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0) invert(1);
 }
 
 /* Limit Warning */
@@ -1380,6 +1309,19 @@ footer.page-footer a:hover {
         z-index: 999;
     }
 
+    /* Show close button on mobile when chat is open */
+    main.page-body .chat-area.show-mobile .box > a.btn-close-mobile {
+        display: flex;
+        height: 36px;
+        padding: var(--space-2);
+    }
+
+    /* Hide expand/minimize buttons on mobile */
+    main.page-body .chat-area.show-mobile .box > a.btn-expand-full,
+    main.page-body .chat-area.show-mobile .box > a.btn-minimize-full {
+        display: none;
+    }
+
     main.page-body .chat-area .box .show-message .dialog .txt {
         max-width: 250px;
     }
@@ -1393,11 +1335,11 @@ footer.page-footer a:hover {
         background: var(--gradient-primary);
         color: white;
         padding: 12px 24px;
-        border-radius: 25px;
+        border-radius: var(--radius-full);
         box-shadow: 0 4px 20px rgba(187, 0, 45, 0.3);
-        border: none;
-        font-weight: 600;
-        font-size: 14px;
+        border: var(--primary-blue-dark) 2px solid;
+        font-weight: 800;
+        font-size: 16px;
         z-index: 1000;
         display: flex !important;
         align-items: center;
@@ -1458,7 +1400,6 @@ footer.page-footer a:hover {
         margin-right: 0;
     }
 
-    main.page-body .info-area,
     main.page-body .chat-area .box {
         margin: var(--space-4);
     }

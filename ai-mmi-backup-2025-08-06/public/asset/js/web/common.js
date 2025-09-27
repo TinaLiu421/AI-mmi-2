@@ -59,19 +59,39 @@ function iweb_global_func() {
         $('header.page-header div.controls > div.menu > a.open-menu').removeClass('show');
         $('header.page-header div.controls > div.menu > a.close-menu').removeClass('show');
         $('header.page-header div.controls > div.menu > a.hide-chat').removeClass('show');
-        
+
         $('main.page-body div.info-area').removeClass('hide');
         $('main.page-body div.chat-area').removeClass('hide');
         $('main.page-body div.info-area').removeClass('show').removeClass('show-mobile');
         $('main.page-body div.chat-area').removeClass('show').removeClass('show-mobile');
-        
+
         // target
         $('header.page-header div.controls > div.menu > a.hide-chat').addClass('show');
         $('header.page-header div.controls > div.menu > ul').removeClass('show');
         $('main.page-body div.info-area').addClass('hide');
         $('main.page-body div.chat-area').addClass('show');
-        
+
         var new_height = ($(window).height() - $('header.page-header').height() - $('div.chat-area div.top').height() - $('div.chat-area div.bottom').height());
+        new_height = new_height - 210;
+        $('main.page-body div.chat-area div.box > div.show-message').height(Math.max(0, parseInt(new_height)));
+    });
+
+    $(document).on('click', 'main.page-body div.chat-area div.box > a.btn-minimize-full', function() {
+        // reset all
+        $('header.page-header div.controls > div.menu > a.open-menu').removeClass('show');
+        $('header.page-header div.controls > div.menu > a.close-menu').removeClass('show');
+        $('header.page-header div.controls > div.menu > a.hide-chat').removeClass('show');
+
+        $('main.page-body div.info-area').removeClass('hide');
+        $('main.page-body div.chat-area').removeClass('hide');
+        $('main.page-body div.info-area').removeClass('show').removeClass('show-mobile');
+        $('main.page-body div.chat-area').removeClass('show').removeClass('show-mobile');
+
+        // target - return to normal view
+        $('header.page-header div.controls > div.menu > a.open-menu').addClass('show');
+        $('header.page-header div.controls > div.menu > ul').removeClass('show');
+
+        var new_height = ($(window).height() - $('header.page-header').height() - $('footer.page-footer').height() - $('div.chat-area div.top').height() - $('div.chat-area div.bottom').height());
         new_height = new_height - 210;
         $('main.page-body div.chat-area div.box > div.show-message').height(Math.max(0, parseInt(new_height)));
     });
@@ -90,6 +110,15 @@ function iweb_global_func() {
         var new_height = ($(window).height() - $('header.page-header').height() - $('div.chat-area div.top').height() - $('div.chat-area div.bottom').height());
         new_height = new_height - 110;
         $('main.page-body div.chat-area div.box > div.show-message').height(Math.max(0, parseInt(new_height)));
+    });
+
+    $(document).on('click', 'main.page-body div.chat-area div.box > a.btn-close-mobile', function() {
+        $('main.page-body div.chat-area').removeClass('show-mobile');
+        $('.mobile-chat-button').removeClass('hidden');
+    });
+
+    $(document).on('click', '.mobile-chat-button', function() {
+        toggleMobileChat();
     });
 
     // edit publish post

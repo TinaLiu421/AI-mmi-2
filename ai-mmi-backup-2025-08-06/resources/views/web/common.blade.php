@@ -171,12 +171,12 @@
                                 <!-- Buttons -->
                                 <?php if(empty($_current_member) || !empty($_current_member['expiration_ai_level'])) { ?>
                                 <x-chat-button
-                                    href="<?php echo $_page_base_url.'/account_submission'; ?>"
+                                    href="<?php echo $_page_base_url.'/upgrade'; ?>"
                                     topText="I like to" 
                                     bottomText="MIGRATE" 
                                     class="with-ai" />
                                 <x-chat-button
-                                    href="<?php echo $_page_base_url.'/agents'; ?>"
+                                    href="<?php echo $_page_base_url.'/apply'; ?>"
                                     topText="I like to" 
                                     bottomText="STUDY" 
                                     class="with-human" />
@@ -212,8 +212,11 @@
                             <a class="btn-expand-full">
                                 <img src="asset/image/icon-expand-full.png" alt="icon-expand-full"/>
                             </a>
-                            <a class="btn-expand-full-mobile">
-                                <img src="asset/image/icon-expand-full.png" alt="icon-expand-full"/>
+                            <a class="btn-minimize-full">
+                                <img src="asset/image/icon-minimize.png" alt="icon-minimize"/>
+                            </a>
+                            <a class="btn-close-mobile">
+                                <img src="asset/image/icon-close.png" alt="icon-close"/>
                             </a>
                             <?php if(!empty($_current_member['expiration_ai_level']) && (int)$_current_member['expiration_ai_level'] == 2) { ?>
                             <div class="limit-warning"><?php echo $_page_lang['chat_robot.limited'];?></div>
@@ -253,8 +256,7 @@
         <?php } ?>
 
         <!-- Mobile Chat Button -->
-        <button class="mobile-chat-button" onclick="toggleMobileChat()">Chat with AIMMI</button>
-
+        <button class="mobile-chat-button">Chat with AI-MMI</button>
         <div id="bottom-white-space" style="height:0px;"></div>
         <!-- {{-- Stripe Pricing Table script --}} -->
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
