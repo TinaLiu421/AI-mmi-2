@@ -5,9 +5,7 @@
     /* Colors - Tech Theme */
     --primary-blue: #0066ff;
     --primary-blue-dark: #0052cc;
-    --primary-blue-light: #338fff;
     --secondary-purple: #6366f1;
-    --secondary-purple-dark: #4f46e5;
     --accent-cyan: #06b6d4;
     --accent-green: #10b981;
     --accent-red: #ef4444;
@@ -35,11 +33,6 @@
         135deg,
         var(--accent-cyan) 0%,
         var(--primary-blue) 100%
-    );
-    --gradient-accent: linear-gradient(
-        135deg,
-        var(--secondary-purple) 0%,
-        var(--accent-cyan) 100%
     );
     --gradient-dark: linear-gradient(
         135deg,
@@ -69,7 +62,6 @@
     --space-10: 2.5rem;
     --space-12: 3rem;
     --space-16: 4rem;
-    --space-20: 5rem;
 
     /* Border Radius */
     --radius-sm: 0.125rem;
@@ -83,7 +75,10 @@
     /* Transitions */
     --transition-fast: all 0.15s ease-in-out;
     --transition-normal: all 0.25s ease-in-out;
-    --transition-slow: all 0.35s ease-in-out;
+    --header-control-size: 46px; /* default control (width/height/min-width) */
+    --header-control-avatar: 40px; /* avatar diameter */
+    --header-control-icon: 30px; /* inner icon size */
+    --header-height: 80px; /* page header height */
 }
 
 /* ========================================
@@ -145,15 +140,6 @@
 }
 
 /* Font Weights */
-.font-thin {
-    font-weight: 100;
-}
-.font-extralight {
-    font-weight: 200;
-}
-.font-light {
-    font-weight: 300;
-}
 .font-normal {
     font-weight: 400;
 }
@@ -312,7 +298,7 @@ header.page-header {
     left: 0;
     right: 0;
     z-index: 1000;
-    height: 80px;
+    height: var(--header-height);
     background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -425,105 +411,45 @@ header.page-header .controls {
     flex: 1;
 }
 
-/* Language Selector */
-header.page-header .controls .lang {
-    position: relative;
-    flex-shrink: 0;
-}
-
-header.page-header .controls .lang > a {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-lg);
-    color: var(--white);
-    text-decoration: none;
-    font-weight: 500;
-    transition: var(--transition-normal);
-    backdrop-filter: blur(10px);
-}
-
-header.page-header .controls .lang > a:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: var(--shadow-glow);
-}
-
-header.page-header .controls .lang > a img {
-    width: 16px !important;
-    height: 16px !important;
-}
-
-/* Member Section */
-header.page-header .controls .member {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-header.page-header .controls .member a {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-full);
-    color: var(--white);
-    text-decoration: none;
-    font-weight: 600;
-    transition: var(--transition-normal);
-    backdrop-filter: blur(10px);
-}
-
-header.page-header .controls .member a:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
-}
-
-header.page-header .controls .member a img {
-    width: 24px;
-    height: 24px;
-    filter: brightness(0) invert(1);
-}
-
-header.page-header .controls .member .avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-full);
-    background-size: cover;
-    background-position: center;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Mobile Menu */
+/* Unified header control styles (lang, member, menu) */
+header.page-header .controls .lang,
+header.page-header .controls .member,
 header.page-header .controls .menu {
     position: relative;
     flex-shrink: 0;
 }
 
+/* Shared control appearance for the three controls */
+header.page-header .controls .lang > a,
+header.page-header .controls .member a,
 header.page-header .controls .menu > a {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    gap: var(--space-2);
+    padding: var(--space-2);
+    height: var(--header-control-size);
+    min-width: var(--header-control-size);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-full);
+    color: var(--white);
+    text-decoration: none;
+    font-size: large;
+    font-weight: 800;
     transition: var(--transition-normal);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(8px);
+    justify-content: center;
 }
 
+header.page-header .controls .lang > a:hover,
+header.page-header .controls .member a:hover,
 header.page-header .controls .menu > a:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+    transform: translateY(-1px);
 }
 
+/* Visibility rules for menu control (JS toggles these) */
 header.page-header .controls .menu > a.show {
     display: flex;
 }
@@ -541,12 +467,48 @@ header.page-header .controls .menu ul li a {
     align-items: center;
 }
 
+/* Icon/image sizing inside controls */
+header.page-header .controls .lang > a img,
+header.page-header .controls .member a img,
+header.page-header .controls .menu > a img {
+    width: var(--header-control-icon) !important;
+    height: var(--header-control-icon) !important;
+    padding: var(--space-1);
+    object-fit: contain;
+    display: block;
+}
+
+/* Avatar specific overrides */
+header.page-header .controls .member .avatar {
+    width: var(--header-control-avatar);
+    height: var(--header-control-avatar);
+    border-radius: var(--radius-full);
+    background-size: cover;
+    background-position: center;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Ensure each control wrapper aligns consistently */
+header.page-header .controls > * {
+    display: flex;
+    align-items: center;
+}
+
+/* Accessible focus ring for keyboard users */
+header.page-header .controls .lang > a:focus,
+header.page-header .controls .member a:focus,
+header.page-header .controls .menu > a:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.18);
+    border-color: rgba(6, 182, 212, 0.6);
+}
+
 /* ========================================
    MAIN LAYOUT
    ======================================== */
 main.page-body {
     min-height: 100vh;
-    padding-top: 80px;
+    padding-top: var(--header-height);
     background: var(--neutral-50);
 }
 
@@ -556,7 +518,7 @@ main.page-body.full {
 
 main.page-body .page-content {
     display: flex;
-    min-height: calc(100vh - 80px);
+    min-height: calc(100vh - var(--header-height));
     max-width: 1920px;
     margin: 0 auto;
     margin-right: 450px;
@@ -591,7 +553,7 @@ main.page-body .chat-area {
     width: 450px;
     background: var(--gradient-dark);
     position: fixed;
-    top: 80px;
+    top: var(--header-height);
     right: 0;
     bottom: 0;
     display: flex;
@@ -627,7 +589,7 @@ main.page-body .chat-area.hide {
 main.page-body .chat-area.show {
     width: 100%;
     position: fixed;
-    top: 80px;
+    top: var(--header-height);
     left: 0;
     right: 0;
     bottom: 0;
@@ -636,7 +598,7 @@ main.page-body .chat-area.show {
 
 main.page-body .chat-area.show-mobile {
     position: fixed;
-    top: 80px;
+    top: var(--header-height);
     left: 0;
     right: 0;
     bottom: 0;
@@ -1213,22 +1175,7 @@ footer.page-footer a:hover {
 
 /* All pages use the remaining space after fixed chat */
 
-.page-content.account .info-area,
-.page-content.account-profile .info-area,
-.page-content.account-posts .info-area,
-.page-content.account-login .info-area,
-.page-content.account-register .info-area,
-.page-content.auto-fill .info-area,
-.page-content.auto-fill-index .info-area,
-.page-content.forum .info-area,
-.page-content.about-us .info-area,
-.page-content.terms .info-area,
-.page-content.privacy-statement .info-area,
-.page-content.apply .info-area,
-.page-content.upgrade .info-area,
-.page-content.posts .info-area,
-.page-content.agent .info-area,
-.page-content.pay_success .info-area,
+.page-content .info-area,
 .page-content.visa-options .info-area {
     width: 100% !important;
     flex: none !important;
@@ -1386,39 +1333,26 @@ footer.page-footer a:hover {
         gap: var(--space-2);
     }
 
-    header.page-header .controls .lang > a {
-        padding: 0 !important;
-        width: 40px;
-        height: 40px;
-        background: none !important;
-        border: none !important;
-        backdrop-filter: none !important;
-        justify-content: center;
-    }
-
-    header.page-header .controls .lang > a img {
-        width: 28px !important;
-        height: 28px !important;
+    /* smaller header control sizes on tablet */
+    :root {
+        --header-control-size: 40px;
+        --header-control-avatar: 36px;
+        --header-control-icon: 18px;
     }
 
     header.page-header .controls .lang > a span {
         display: none;
     }
 
-    header.page-header .controls .member a {
-        width: 40px;
-        height: 40px;
+    /* Hide sign-in text on smaller screens to avoid crowding */
+    header.page-header .controls .member a span {
+        display: none;
     }
 
-    header.page-header .controls .member a .avatar,
-    header.page-header .controls .member .avatar {
-        width: 36px;
-        height: 36px;
-    }
-
-    header.page-header .controls .menu > a {
-        width: 40px;
-        height: 40px;
+    header.page-header .controls .lang > a img,
+    header.page-header .controls .member a img,
+    header.page-header .controls .menu > a img {
+        padding: 0;
     }
 
     main.page-body .page-content {
@@ -1438,7 +1372,7 @@ footer.page-footer a:hover {
     main.page-body .chat-area.show-mobile {
         display: flex;
         position: fixed;
-        top: 80px;
+        top: var(--header-height);
         left: 0;
         right: 0;
         bottom: 0;
@@ -1503,36 +1437,11 @@ footer.page-footer a:hover {
         gap: var(--space-1);
     }
 
-    header.page-header .controls .lang > a {
-        padding: 0 !important;
-        width: 36px;
-        height: 36px;
-        background: none !important;
-        border: none !important;
-        backdrop-filter: none !important;
-        min-width: auto;
-        justify-content: center;
-    }
-
-    header.page-header .controls .lang > a img {
-        width: 24px !important;
-        height: 24px !important;
-    }
-
-    header.page-header .controls .member a {
-        width: 36px;
-        height: 36px;
-    }
-
-    header.page-header .controls .member a .avatar,
-    header.page-header .controls .member .avatar {
-        width: 32px;
-        height: 32px;
-    }
-
-    header.page-header .controls .menu > a {
-        width: 36px;
-        height: 36px;
+    /* mobile header control sizes */
+    :root {
+        --header-control-size: 36px;
+        --header-control-avatar: 32px;
+        --header-control-icon: 16px;
     }
 
     .header-dropdown {
