@@ -10,13 +10,21 @@ class Chatlog extends BaseModel {
         parent::__construct($data);
     }
     
-    public function getAll($member_id = 0, $date_int = '') {
+    public function getAll($member_id = 0, $date_int = '', $chat_mode = 'immigration') {
         // find max
         if(empty($date_int)) {
-            $date_int = DB::table($this->_chat_log_table)->where('target_date', '<=', (int)date('Ymd', strtotime($this->_today_date)))->max('target_date');
+            $date_int = DB::table($this->_chat_log_table)
+                ->where('target_date', '<=', (int)date('Ymd', strtotime($this->_today_date)))
+                ->where('member_id', '=', (int)$member_id)
+                ->where('chat_mode', '=', $chat_mode)
+                ->max('target_date');
         }
         else {
-            $date_int = DB::table($this->_chat_log_table)->where('target_date', '<', (int)$date_int)->max('target_date');
+            $date_int = DB::table($this->_chat_log_table)
+                ->where('target_date', '<', (int)$date_int)
+                ->where('member_id', '=', (int)$member_id)
+                ->where('chat_mode', '=', $chat_mode)
+                ->max('target_date');
         }
 
         return $this->setWhere([
@@ -25,6 +33,9 @@ class Chatlog extends BaseModel {
             ],
             [
                 'target_date', '=', (int)$date_int
+            ],
+            [
+                'chat_mode', '=', $chat_mode
             ]
         ])->setOrder(['id_asc'])->queryListData($this->_chat_log_table, false);
     }
@@ -38,7 +49,8 @@ class Chatlog extends BaseModel {
                     'member_id'     =>  $data['member_id'],
                     'target_date'   =>  $data['target_date'],
                     'type'          =>  'reply',
-                    'content'       =>  $data['reply']
+                    'content'       =>  $data['reply'],
+                    'chat_mode'     =>  isset($data['chat_mode']) ? $data['chat_mode'] : 'immigration'
                 ]);
             }
             

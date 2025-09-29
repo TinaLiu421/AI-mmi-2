@@ -40,10 +40,14 @@
         const _page_global_lang = JSON.parse('<?php echo json_encode($_page_global_lang); ?>');
         const _page_base_url = '<?php echo $_page_base_url; ?>';
         const _token = '<?php echo $_token; ?>';
+        const _current_member = <?php echo (!empty($_current_member)) ? json_encode($_current_member) : 'null'; ?>;
+        const _current_chat_mode = '<?php echo session('current_chat_mode', ''); ?>';
         </script>
         <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) { ?>
         <script src="<?php echo $js_file; ?>?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
         <?php }} ?>
+        <script src="asset/js/web/immigration-chat.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
+        <script src="asset/js/web/study-chat.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
         <script src="asset/js/web/common.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
 
         <!-- Google tag (gtag.js) -->
@@ -169,31 +173,24 @@
                         <div class="top">
                             <div class="controls">
                                 <!-- Buttons -->
-                                <?php if(empty($_current_member) || !empty($_current_member['expiration_ai_level'])) { ?>
-                                <x-chat-button
-                                    href="<?php echo $_page_base_url.'/upgrade'; ?>"
-                                    topText="I like to" 
-                                    bottomText="MIGRATE" 
-                                    class="with-ai" />
-                                <x-chat-button
-                                    href="<?php echo $_page_base_url.'/apply'; ?>"
-                                    topText="I like to" 
-                                    bottomText="STUDY" 
-                                    class="with-human" />
-                                <?php } else { ?>
-                                <x-chat-button
-                                    href="<?php echo $_page_base_url.'/upgrade'; ?>"
-                                    topText="I like to" 
-                                    bottomText="MIGRATE" 
-                                    class="with-ai" />
-                                <x-chat-button
-                                    href="<?php echo $_page_base_url.'/apply'; ?>"
-                                    topText="I like to" 
-                                    bottomText="STUDY" 
-                                    class="with-human" />
-                                <?php } ?>
+                                <!-- Immigration Button - Always available with limited access -->
+                                <div class="chat-mode-btn" data-mode="immigration">
+                                    <x-chat-button
+                                        href="javascript:void(0)"
+                                        bottomText="Migrate"
+                                        imgSrc="asset/image/migrate.png"
+                                        class="with-ai" />
+                                </div>
 
-                                <!-- Avatar on the right side -->
+                                <!-- Study Button - Always free -->
+                                <div class="chat-mode-btn" data-mode="study">
+                                    <x-chat-button
+                                        href="javascript:void(0)"
+                                        bottomText="Study"
+                                        imgSrc="asset/image/study.png"
+                                        class="with-ai" />
+                                </div>
+
                                 <div class="robot-container">
                                     <div class="robot" style="width: 110px; height: 110px; position: relative; border-radius: 12px; overflow: hidden;">
                                         <img src="asset/image/ai-robot.png" alt="ai-robot"/>
@@ -223,10 +220,18 @@
                             <?php } ?>
                             <div class="show-message">
                             </div>
-                            <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0">
+                            <div id="chat-mode-indicator" style="display: none; padding: 10px; background: #bb002d; color: white; text-align: center; font-weight: bold; margin-bottom: 10px;">
+                                Immigration Assessment Mode
+                            </div>
+                            <div id="study-mode-indicator" style="display: none; padding: 10px; background: #06b6d4; color: white; text-align: center; font-weight: bold; margin-bottom: 10px;">
+                                Study Assistant Mode - Free
+                            </div>
+                            <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0" data-chat-mode="">
                                 <div>@csrf</div>
+                                <input type="hidden" id="chat_mode" name="chat_mode" value="">
+                                <input type="hidden" id="question_number" name="question_number" value="1">
                                 <div class="input-question">
-                                    <input type="text" id="ask_question" name="question" placeholder="<?php echo $_page_lang['enter_question'];?>">
+                                    <input type="text" id="ask_question" name="question" placeholder="Please select 'I like to Immigrate' or 'I like to Study' first">
                                     <button type="submit">
                                         <img src="asset/image/icon-send.png" alt="icon-send"/>
                                     </button>

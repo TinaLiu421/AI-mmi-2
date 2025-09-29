@@ -173,7 +173,10 @@ header.page-header {
     right: 0;
     z-index: 1000;
     height: var(--header-height);
-    background: rgba(15, 23, 42, 0.95);
+    background: rgba(255, 255, 255, 0.741);
+    background-image: url("/asset/image/nav-background.jpg");
+    background-size: cover;
+    background-position: center;
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: var(--shadow-lg);
@@ -503,38 +506,6 @@ main.page-body .chat-area .controls {
     gap: var(--space-4);
     flex-wrap: wrap;
     margin: 0 var(--space-2);
-}
-
-/* Chat Buttons */
-main.page-body .chat-area .controls .with-ai,
-main.page-body .chat-area .controls .with-human {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-5);
-    border-radius: var(--radius-xl);
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.875rem;
-    transition: var(--transition-normal);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-main.page-body .chat-area .controls .with-ai {
-    background: linear-gradient(135deg, #bb002d 0%, #990022 100%);
-    color: var(--white);
-}
-
-main.page-body .chat-area .controls .with-human {
-    background: linear-gradient(135deg, #5091cd 0%, #4080bb 100%);
-    color: var(--white);
-}
-
-main.page-body .chat-area .controls .with-ai:hover,
-main.page-body .chat-area .controls .with-human:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-xl);
 }
 
 /* Robot Avatar */
@@ -881,8 +852,10 @@ main.page-body .chat-area .box .show-message .dialog .avatar img {
     height: 100%;
     object-fit: cover;
     position: absolute;
+    z-index: 1;
 }
 
+/* Ensure avatar div is above img if both exist */
 main.page-body .chat-area .box .show-message .dialog .avatar div {
     width: 100%;
     height: 100%;
@@ -890,6 +863,7 @@ main.page-body .chat-area .box .show-message .dialog .avatar div {
     background-position: center;
     position: absolute;
     border-radius: var(--radius-full);
+    z-index: 2;
 }
 
 /* Message Content */
@@ -955,6 +929,24 @@ main.page-body .chat-area .box form#ask-form {
     visibility: visible !important;
 }
 
+main.page-body .chat-area .box form#ask-form.hidden {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Ensure iweb dialogs appear above chat interface */
+.iweb-info-dialog,
+.iweb-alert-dialog,
+.iweb-confirm-dialog {
+    z-index: 9999 !important;
+}
+
+.iweb-info-dialog-backdrop,
+.iweb-alert-backdrop,
+.iweb-confirm-backdrop {
+    z-index: 9998 !important;
+}
+
 main.page-body .chat-area .box form .input-question > div {
     display: block !important;
     width: 100% !important;
@@ -982,9 +974,13 @@ main.page-body .chat-area .box form input[type="hidden"] {
 }
 
 main.page-body .chat-area .box .input-question {
-    display: flex !important;
+    display: none;
     gap: var(--space-3);
     align-items: flex-end;
+    visibility: hidden;
+}
+main.page-body .chat-area .box .input-question.show {
+    display: flex !important;
     visibility: visible !important;
 }
 
@@ -1015,6 +1011,15 @@ main.page-body .chat-area .box .input-question input[name="question"] {
 
 main.page-body .chat-area .box .input-question input::placeholder {
     color: rgba(255, 255, 255, 0.6);
+}
+main.page-body .chat-area .box .input-question input:disabled {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.4) !important;
+    cursor: not-allowed !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+main.page-body .chat-area .box .input-question input:disabled::placeholder {
+    color: rgba(255, 255, 255, 0.4);
 }
 
 main.page-body .chat-area .box .input-question input:focus {

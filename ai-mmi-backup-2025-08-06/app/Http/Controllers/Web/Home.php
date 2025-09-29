@@ -124,6 +124,11 @@ class Home extends WebController {
         // post
         $this->pageAction(function() {
             $question = $this->postParamValue('question');
+            $chat_mode = $this->postParamValue('chat_mode', 'immigration'); // default to immigration
+
+            // Save current chat mode to session
+            $this->setSession(['current_chat_mode' => $chat_mode]);
+
             if(!empty($question) && !empty($this->_current_member)) {
                 $can_do_reply = true;
                 if(!empty($this->_current_member['expiration_ai_level'])) {
@@ -139,7 +144,8 @@ class Home extends WebController {
                     $new_reply = '';
                     //$new_reply = $this->callDialogflowApi($this->postParamValue('question', ''));
                     if(empty($new_reply) || $this->toPlainText(strtolower($new_reply)) == 'unknown') {
-                        $new_reply = $this->callGeminiApi($this->postParamValue('question', ''));
+                        $enhanced_question = $this->buildModeSpecificPrompt($this->postParamValue('question', ''), $chat_mode);
+                        $new_reply = $this->callGeminiApi($enhanced_question);
                         //$new_reply = $this->callChatgptApi($this->postParamValue('question', ''));
                     }
                     
@@ -149,6 +155,7 @@ class Home extends WebController {
                         'type'          =>  'ask',
                         'content'       =>  $this->postParamValue('question', ''),
                         'reply'         =>  $new_reply,
+                        'chat_mode'     =>  $chat_mode,
                     ];
                     $this->loadModel('chatlog')->doSave($new_chatlog);
                     
@@ -170,6 +177,7 @@ class Home extends WebController {
                         'status'    =>  200,
                         'content'   =>  $new_chatlog['content'],
                         'reply'     =>  nl2br($new_chatlog['reply']),
+                        'chat_mode' =>  $chat_mode,
                         'member_owner_name' => $member_owner_name,
                         'member_owner_avatar' => $member_owner_avatar,
                         'ai_owner_name' => $ai_owner_name,
@@ -195,13 +203,22 @@ class Home extends WebController {
             }
         });
         
+        // Get current chat mode (from GET parameter, session, or default)
+        $current_chat_mode = $this->getParamValue('chat_mode');
+        if(empty($current_chat_mode)) {
+            $current_chat_mode = $this->getSession('current_chat_mode');
+        }
+        if(empty($current_chat_mode)) {
+            $current_chat_mode = 'immigration'; // default mode
+        }
+
         $max_date_int = $this->getSession('max_chat_date_int');
         if(!empty($init)) {
             $max_date_int = '';
         }
         $chat_message = [];
         if(!empty($this->_current_member)) {
-            $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int);
+            $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int, $current_chat_mode);
             if(!empty($chat_message)) {
                 foreach ($chat_message as $message_key => $message) { 
                     if(strtolower($message['type']) == 'ask') {
@@ -221,6 +238,7 @@ class Home extends WebController {
                         $chat_message[$message_key]['owner_avatar'] = 'asset/image/logo-mmi.png';
                     }
                     $chat_message[$message_key]['content'] = nl2br($message['content']);
+                    $chat_message[$message_key]['chat_mode'] = isset($message['chat_mode']) ? $message['chat_mode'] : 'immigration';
                     $max_date_int = $message['target_date'];
                 }
                 $this->setSession(['max_chat_date_int' => $max_date_int]);
@@ -276,7 +294,7 @@ class Home extends WebController {
 
     protected function callGeminiApi($query = '') {
         // Request URL
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCAH31vTsmetLcAmkKiWteEuviLFTfm-F8';
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyCAH31vTsmetLcAmkKiWteEuviLFTfm-F8';
 
         // Request data
         $data = array(
@@ -350,9 +368,21 @@ class Home extends WebController {
         $result_answer = '';
         if(!empty($query)) {
             // add your code here
-            
+
         }
-        
+
         return $result_answer;
     }
+
+    protected function buildModeSpecificPrompt($question, $mode) {
+        $system_prompts = [
+            'immigration' => "You are an expert immigration and migration consultant specializing in Australian immigration law and visa processes. You help people understand visa requirements, migration pathways, and provide accurate, up-to-date immigration advice. Always provide specific, actionable guidance about visa options, requirements, and processes. Be professional and empathetic in your responses.",
+            'study' => "You are a study abroad and education consultant specializing in international education opportunities, particularly in Australia. You help students find suitable courses, understand admission requirements, compare educational institutions, and navigate the student visa process. Provide comprehensive guidance about study options, costs, and academic pathways."
+        ];
+
+        $context_prompt = isset($system_prompts[$mode]) ? $system_prompts[$mode] : $system_prompts['immigration'];
+
+        return $context_prompt . "\n\nUser Question: " . $question . "\n\nPlease provide a helpful, accurate response:";
+    }
+
 }
