@@ -130,16 +130,10 @@ class Home extends WebController {
             $this->setSession(['current_chat_mode' => $chat_mode]);
 
             if(!empty($question) && !empty($this->_current_member)) {
-                $can_do_reply = true;
-                if(!empty($this->_current_member['expiration_ai_level'])) {
-                    if($this->_current_member['expiration_ai_level'] == 1) {
-                        $can_do_reply = false;
-                    }
-                    else if($this->_current_member['total_ask_question'] >= 3) {
-                        $can_do_reply = false;
-                    }
-                }
-                
+                // NEW SUBSCRIPTION SYSTEM: Check if member can ask question
+                $memberModel = $this->loadModel('member');
+                $can_do_reply = $memberModel->canAskQuestion($this->_current_member['id'], $chat_mode);
+
                 if($can_do_reply) {
                     $new_reply = '';
                     //$new_reply = $this->callDialogflowApi($this->postParamValue('question', ''));
@@ -158,7 +152,10 @@ class Home extends WebController {
                         'chat_mode'     =>  $chat_mode,
                     ];
                     $this->loadModel('chatlog')->doSave($new_chatlog);
-                    
+
+                    // Increment question usage in subscription
+                    $memberModel->incrementQuestionUsage($this->_current_member['id'], $chat_mode);
+
                     $member_owner_name = $this->_current_member['alias_name'];
                     $member_owner_avatar = 'asset/image/icon-member.png';
                     if(!empty($this->_current_member['avatar'])) {
@@ -189,7 +186,7 @@ class Home extends WebController {
                     [
                         'status'    =>  403,
                         'message'   =>  $this->_page_lang['please_renew_ai'],
-                        'url'       =>  $this->toURL('account_submission')
+                        'url'       =>  $this->toURL('upgrade')
                     ]);
                 }
             }

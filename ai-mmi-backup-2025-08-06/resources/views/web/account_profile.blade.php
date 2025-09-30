@@ -4,6 +4,7 @@
 <?php $_show_current_member_details = (!empty($_page_data['current_member_details']))?$_page_data['current_member_details']:[]; ?>
 <?php $_show_current_member_agent = (!empty($_page_data['current_member_agent']))?$_page_data['current_member_agent']:[]; ?>
 <?php $_show_current_member_lawfirm = (!empty($_page_data['current_member_lawfirm']))?$_page_data['current_member_lawfirm']:[]; ?>
+<?php $_subscription_info = (!empty($_page_data['subscription_info']))?$_page_data['subscription_info']:[]; ?>
 <div class="inner-panel full">
     <?php if(!empty($_show_current_member['coverphoto']) && file_exists('upload/member_coverphoto/'.$_show_current_member['coverphoto'])) { ?>
     <div class="banner" style="background-image:url('<?php echo 'upload/member_coverphoto/'.$_show_current_member['coverphoto']; ?>')"></div>
@@ -34,6 +35,100 @@
             <div class="total-followers">0 followers</div>
         </div>
         <div class="clearboth"></div>
+
+        <!-- Subscription Plan Display -->
+        @if(!empty($_subscription_info))
+        <div class="subscription-info">
+            <div class="subscription-info-header">
+                <div class="subscription-details">
+                    <h4>
+                        <i class="fa fa-star plan-icon"></i>
+                        {{ $planNames[$_subscription_info['plan_slug']] ?? ucfirst($_subscription_info['plan_slug']) }}
+                    </h4>
+
+                    @if($_subscription_info['plan_slug'] !== 'free')
+                        <p class="subscription-expiry">
+                            <i class="fa fa-clock-o"></i>
+                            <strong>Expires:</strong>
+                            @php
+                                if(!empty($_subscription_info['expires_at'])) {
+                                    $expiryDate = new DateTime($_subscription_info['expires_at']);
+                                    $now = new DateTime();
+                                    $diff = $now->diff($expiryDate);
+
+                                    if($expiryDate > $now) {
+                                        echo $expiryDate->format('M d, Y') .
+                                        ' <span class="text-success">(' . $diff->days . ' days left)</span>';
+                                    } else {
+                                        echo '<span class="text-danger">Expired on ' . $expiryDate->format('M d, Y') . '</span>';
+                                    }
+                                } else {
+                                    echo '<span class="text-success">Never (Lifetime)</span>';
+                                }
+                            @endphp
+                        </p>
+                    @endif
+                </div>
+
+                <div class="subscription-usage">
+                    <div class="usage-item">
+                        <strong>Immigration Questions:</strong>
+                        @php
+                            $migrationLimit = $_subscription_info['features']['migration_questions_limit'] ?? 0;
+                            $migrationUsed = $_subscription_info['migration_questions_used'] ?? 0;
+
+                            if($migrationLimit == -1) {
+                                echo '<span class="text-success">' . $migrationUsed . ' / Unlimited</span>';
+                            } else {
+                                $percentage = $migrationLimit > 0 ? ($migrationUsed / $migrationLimit * 100) : 0;
+                                $color = $percentage >= 80 ? 'text-danger' : ($percentage >= 50 ? 'text-warning' : 'text-success');
+                                echo '<span class="'.$color.'">' . $migrationUsed . ' / ' . $migrationLimit . '</span>';
+                            }
+                        @endphp
+                    </div>
+
+                    <div class="usage-item">
+                        <strong>Education Questions:</strong>
+                        @php
+                            $educationLimit = $_subscription_info['features']['education_questions_limit'] ?? 0;
+                            $educationUsed = $_subscription_info['education_questions_used'] ?? 0;
+
+                            if($educationLimit == -1) {
+                                echo '<span class="text-success">' . $educationUsed . ' / Unlimited</span>';
+                            } else {
+                                echo '<span>' . $educationUsed . ' / ' . $educationLimit . '</span>';
+                            }
+                        @endphp
+                    </div>
+
+                    @if(!empty($_subscription_info['human_agent_hours_limit']))
+                    <div class="usage-item">
+                        <strong>Human Agent Hours:</strong>
+                        @php
+                            $hoursLimit = $_subscription_info['human_agent_hours_limit'];
+                            $hoursUsed = $_subscription_info['human_agent_hours_used'] ?? 0;
+
+                            if($hoursLimit == -1) {
+                                echo '<span class="text-success">' . $hoursUsed . ' / Unlimited</span>';
+                            } else {
+                                echo '<span>' . $hoursUsed . ' / ' . $hoursLimit . ' hrs</span>';
+                            }
+                        @endphp
+                    </div>
+                    @endif
+
+                    @if($_subscription_info['plan_slug'] === 'free' || (!empty($_subscription_info['expires_at']) && strtotime($_subscription_info['expires_at']) < time()))
+                    <a href="{{ $_page_base_url.'/upgrade' }}" class="btn-upgrade">
+                        <i class="fa fa-arrow-up"></i> Upgrade Plan
+                    </a>
+                    @endif
+                </div>
+            </div>
+        </div>
+        @endif
+        <!-- End Subscription Plan Display -->
+
+
         <div class="tab">
             <?php if((int)$_show_current_member['type'] > 1) { ?>
             <a class="posts" href="<?php echo $_page_base_url.'/account/posts'.((!empty($_page_get_data['uid']))?'?uid='.$_page_get_data['uid']:''); ?>"><?php echo $_page_lang['tab_posts']; ?></a>

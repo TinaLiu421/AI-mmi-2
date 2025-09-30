@@ -931,4 +931,170 @@ class Member extends BaseModel {
             return $data;
         })->toArray(), true);
     }
+
+    // ===== SUBSCRIPTION METHODS =====
+
+    /**
+     * Get member's active subscription
+     */
+    public function getActiveSubscription($member_id)
+    {
+        return DB::table('member_subscriptions as ms')
+            ->join('subscription_plans as sp', 'ms.subscription_plan_id', '=', 'sp.id')
+            ->where('ms.member_id', $member_id)
+            ->whereIn('ms.status', ['active', 'trialing'])
+            ->where(function($query) {
+                $query->whereNull('ms.expires_at')
+                      ->orWhere('ms.expires_at', '>', now());
+            })
+            ->orderBy('sp.price', 'desc') // Get highest tier if multiple
+            ->select('ms.*', 'sp.slug as plan_slug', 'sp.features')
+            ->first();
+    }
+
+    /**
+     * Check if member can ask question
+     */
+    public function canAskQuestion($member_id, $mode = 'immigration')
+    {
+        // Normalize mode: 'immigration' -> 'migration' for database field names
+        $dbMode = $mode === 'immigration' ? 'migration' : $mode;
+
+        $subscription = $this->getActiveSubscription($member_id);
+
+        if (!$subscription) {
+            // No active subscription - use free plan limits
+            $freePlan = DB::table('subscription_plans')->where('slug', 'free')->first();
+            if (!$freePlan) {
+                return false;
+            }
+
+            $features = json_decode($freePlan->features, true);
+            $limit = $features[$dbMode . '_questions_limit'] ?? 0;
+
+            // Count questions asked
+            $asked = DB::table('chat_log')
+                ->where('member_id', $member_id)
+                ->where('chat_mode', $mode) // Use original mode for chat_log
+                ->where('type', 'ask')
+                ->where('status', '>', 0)
+                ->count();
+
+            return $limit === -1 || $asked < $limit;
+        }
+
+        // Has active subscription
+        $features = json_decode($subscription->features, true);
+        $limit = $features[$dbMode . '_questions_limit'] ?? 0;
+
+        if ($limit === -1) {
+            return true; // Unlimited
+        }
+
+        // Check usage
+        $usedField = $dbMode === 'migration' ? 'migration_questions_used' : 'education_questions_used';
+        return $subscription->$usedField < $limit;
+    }
+
+    /**
+     * Get member's current plan info
+     */
+    public function getCurrentPlanInfo($member_id)
+    {
+        $subscription = $this->getActiveSubscription($member_id);
+
+        if (!$subscription) {
+            // Return free plan info
+            $freePlan = DB::table('subscription_plans')->where('slug', 'free')->first();
+            return [
+                'plan_slug' => 'free',
+                'plan_name' => 'Free Plan',
+                'is_active' => true,
+                'features' => json_decode($freePlan->features ?? '{}', true),
+                'expires_at' => null,
+                'migration_questions_used' => DB::table('chat_log')
+                    ->where('member_id', $member_id)
+                    ->where('chat_mode', 'immigration')
+                    ->where('type', 'ask')
+                    ->count(),
+                'education_questions_used' => DB::table('chat_log')
+                    ->where('member_id', $member_id)
+                    ->where('chat_mode', 'education')
+                    ->where('type', 'ask')
+                    ->count(),
+            ];
+        }
+
+        $features = json_decode($subscription->features, true);
+        return [
+            'plan_slug' => $subscription->plan_slug,
+            'plan_name' => $subscription->plan_slug,
+            'is_active' => true,
+            'features' => $features,
+            'expires_at' => $subscription->expires_at,
+            'migration_questions_used' => $subscription->migration_questions_used,
+            'education_questions_used' => $subscription->education_questions_used,
+            'human_agent_hours_used' => $subscription->human_agent_hours_used,
+            'migration_questions_limit' => $features['migration_questions_limit'] ?? 0,
+            'education_questions_limit' => $features['education_questions_limit'] ?? 0,
+            'human_agent_hours_limit' => $features['human_agent_hours'] ?? 0,
+        ];
+    }
+
+    /**
+     * Increment question usage for subscription
+     */
+    public function incrementQuestionUsage($member_id, $mode = 'immigration')
+    {
+        // Normalize mode: 'immigration' -> 'migration' for database field names
+        $dbMode = $mode === 'immigration' ? 'migration' : $mode;
+
+        $subscription = $this->getActiveSubscription($member_id);
+
+        if ($subscription && $subscription->id) {
+            $field = $dbMode === 'migration' ? 'migration_questions_used' : 'education_questions_used';
+
+            DB::table('member_subscriptions')
+                ->where('id', $subscription->id)
+                ->increment($field);
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if member has feature access
+     */
+    public function hasFeatureAccess($member_id, $feature)
+    {
+        $subscription = $this->getActiveSubscription($member_id);
+
+        if (!$subscription) {
+            return false;
+        }
+
+        $features = json_decode($subscription->features, true);
+        return !empty($features[$feature]);
+    }
+
+    /**
+     * Get member's human agent hours remaining
+     */
+    public function getHumanAgentHoursRemaining($member_id)
+    {
+        $subscription = $this->getActiveSubscription($member_id);
+
+        if (!$subscription) {
+            return 0;
+        }
+
+        $features = json_decode($subscription->features, true);
+        $limit = $features['human_agent_hours'] ?? 0;
+
+        if ($limit === -1) {
+            return -1; // Unlimited
+        }
+
+        return max(0, $limit - $subscription->human_agent_hours_used);
+    }
 }

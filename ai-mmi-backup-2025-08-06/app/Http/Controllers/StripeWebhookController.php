@@ -7,12 +7,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Stripe\Stripe;
 use Stripe\Subscription;
+use App\Models\SubscriptionPlan;
+use App\Models\MemberSubscription;
+use Carbon\Carbon;
 
 class StripeWebhookController extends Controller
 {
     public function __construct()
     {
-        Stripe::setApiKey(config('services.stripe.secret')); // ← 关键
+        Stripe::setApiKey(config('services.stripe.secret'));
     }
     
     public function handle(Request $request)
@@ -69,23 +72,37 @@ class StripeWebhookController extends Controller
             $cusId = $session->customer ?? null;
             $sessId = $session->id ?? null;
 
-            $priceId = null; $productId = null;
-            $amount  = $session->amount_total ?? null; // 订阅时常为 null
+            $priceId = null;
+            $productId = null;
+            $amount  = $session->amount_total ?? null;
             $currency= $session->currency ?? null;
 
+            // Get member_id from session metadata
+            $memberId = $session->metadata->member_id ?? null;
+            $customerEmail = $session->customer_details->email ?? null;
+
+            // If no member_id in metadata, try to find by email
+            if (!$memberId && $customerEmail) {
+                $member = DB::table('member')->where('email', $customerEmail)->first();
+                $memberId = $member->id ?? null;
+            }
+
+            // Retrieve subscription details from Stripe
+            $stripeSubscription = null;
             if ($subId) {
-                $subscription = Subscription::retrieve($subId); 
-                $item = $subscription->items->data[0] ?? null;
+                $stripeSubscription = Subscription::retrieve($subId);
+                $item = $stripeSubscription->items->data[0] ?? null;
                 if ($item) {
                     $priceId   = $item->price->id ?? null;
                     $productId = $item->price->product ?? null;
                 }
             }
 
-            \DB::table('payments')->updateOrInsert(
+            // Save payment record
+            $payment = DB::table('payments')->updateOrInsert(
                 ['stripe_session_id' => $sessId],
                 [
-                    'user_id'                => null,
+                    'user_id'                => $memberId,
                     'stripe_customer_id'     => $cusId,
                     'stripe_subscription_id' => $subId,
                     'product_id'             => $productId,
@@ -99,49 +116,156 @@ class StripeWebhookController extends Controller
                 ]
             );
 
-            \Log::info('onCheckoutCompleted saved payment', ['session' => $sessId, 'sub' => $subId, 'price' => $priceId]);
+            // Get payment ID for linking
+            $paymentRecord = DB::table('payments')->where('stripe_session_id', $sessId)->first();
+
+            // Find subscription plan by price_id or product_id
+            $subscriptionPlan = null;
+            if ($priceId) {
+                $subscriptionPlan = SubscriptionPlan::findByStripePriceId($priceId);
+            }
+            if (!$subscriptionPlan && $productId) {
+                $subscriptionPlan = SubscriptionPlan::findByStripeProductId($productId);
+            }
+
+            // Create member subscription if we have all required data
+            if ($memberId && $subscriptionPlan && $stripeSubscription) {
+                $expiresAt = null;
+                if ($subscriptionPlan->duration_months > 0) {
+                    $expiresAt = Carbon::createFromTimestamp($stripeSubscription->current_period_end);
+                }
+
+                MemberSubscription::updateOrCreate(
+                    [
+                        'stripe_subscription_id' => $subId
+                    ],
+                    [
+                        'member_id' => $memberId,
+                        'subscription_plan_id' => $subscriptionPlan->id,
+                        'payment_id' => $paymentRecord->id ?? null,
+                        'stripe_customer_id' => $cusId,
+                        'status' => $stripeSubscription->status,
+                        'started_at' => Carbon::createFromTimestamp($stripeSubscription->start_date),
+                        'expires_at' => $expiresAt,
+                    ]
+                );
+
+                \Log::info('Created member subscription', [
+                    'member_id' => $memberId,
+                    'plan' => $subscriptionPlan->slug,
+                    'stripe_sub' => $subId
+                ]);
+            } else {
+                \Log::warning('Could not create member subscription - missing data', [
+                    'member_id' => $memberId,
+                    'plan_found' => $subscriptionPlan ? $subscriptionPlan->slug : 'none',
+                    'price_id' => $priceId,
+                    'product_id' => $productId
+                ]);
+            }
+
+            \Log::info('onCheckoutCompleted saved payment', [
+                'session' => $sessId,
+                'sub' => $subId,
+                'price' => $priceId,
+                'member' => $memberId
+            ]);
         } catch (\Throwable $e) {
-            \Log::error('onCheckoutCompleted error: '.$e->getMessage());
-            // 仍返回 200 避免 Stripe 重试风暴
+            \Log::error('onCheckoutCompleted error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 
     protected function onInvoicePaid($invoice)
     {
-        // 续费成功
-        $subId = $invoice->subscription;
-        $cusId = $invoice->customer;
+        try {
+            $subId = $invoice->subscription;
+            $cusId = $invoice->customer;
 
-        DB::table('payments')
-            ->where('stripe_subscription_id', $subId)
-            ->update([
-                'status'      => 'paid',
-                'raw_payload' => json_encode($invoice),
-                'updated_at'  => now(),
-            ]);
+            // Update payment record
+            DB::table('payments')
+                ->where('stripe_subscription_id', $subId)
+                ->update([
+                    'status'      => 'paid',
+                    'raw_payload' => json_encode($invoice),
+                    'updated_at'  => now(),
+                ]);
+
+            // Update member subscription status
+            $memberSubscription = MemberSubscription::where('stripe_subscription_id', $subId)->first();
+            if ($memberSubscription) {
+                $memberSubscription->status = 'active';
+                $memberSubscription->save();
+
+                \Log::info('Invoice paid - subscription updated', [
+                    'subscription_id' => $subId,
+                    'member_id' => $memberSubscription->member_id
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('onInvoicePaid error: '.$e->getMessage());
+        }
     }
 
     protected function onInvoiceFailed($invoice)
     {
-        $subId = $invoice->subscription;
+        try {
+            $subId = $invoice->subscription;
 
-        DB::table('payments')
-            ->where('stripe_subscription_id', $subId)
-            ->update([
-                'status'      => 'failed',
-                'raw_payload' => json_encode($invoice),
-                'updated_at'  => now(),
-            ]);
+            // Update payment record
+            DB::table('payments')
+                ->where('stripe_subscription_id', $subId)
+                ->update([
+                    'status'      => 'failed',
+                    'raw_payload' => json_encode($invoice),
+                    'updated_at'  => now(),
+                ]);
+
+            // Update member subscription status
+            $memberSubscription = MemberSubscription::where('stripe_subscription_id', $subId)->first();
+            if ($memberSubscription) {
+                $memberSubscription->status = 'past_due';
+                $memberSubscription->save();
+
+                \Log::warning('Invoice payment failed', [
+                    'subscription_id' => $subId,
+                    'member_id' => $memberSubscription->member_id
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('onInvoiceFailed error: '.$e->getMessage());
+        }
     }
 
     protected function onSubscriptionCanceled($subscription)
     {
-        DB::table('payments')
-            ->where('stripe_subscription_id', $subscription->id)
-            ->update([
-                'status'      => 'canceled',
-                'raw_payload' => json_encode($subscription),
-                'updated_at'  => now(),
-            ]);
+        try {
+            $subId = $subscription->id;
+
+            // Update payment record
+            DB::table('payments')
+                ->where('stripe_subscription_id', $subId)
+                ->update([
+                    'status'      => 'canceled',
+                    'raw_payload' => json_encode($subscription),
+                    'updated_at'  => now(),
+                ]);
+
+            // Update member subscription
+            $memberSubscription = MemberSubscription::where('stripe_subscription_id', $subId)->first();
+            if ($memberSubscription) {
+                $memberSubscription->status = 'canceled';
+                $memberSubscription->canceled_at = now();
+                $memberSubscription->save();
+
+                \Log::info('Subscription canceled', [
+                    'subscription_id' => $subId,
+                    'member_id' => $memberSubscription->member_id
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('onSubscriptionCanceled error: '.$e->getMessage());
+        }
     }
 }

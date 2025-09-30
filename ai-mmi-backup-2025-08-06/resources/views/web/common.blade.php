@@ -215,7 +215,22 @@
                             <a class="btn-close-mobile">
                                 <img src="asset/image/icon-close.png" alt="icon-close"/>
                             </a>
-                            <?php if(!empty($_current_member['expiration_ai_level']) && (int)$_current_member['expiration_ai_level'] == 2) { ?>
+                            <?php
+                            // Only show "limited free consultation" warning for free tier users
+                            // Hide for users with active paid subscriptions
+                            $showLimitedWarning = false;
+                            if(!empty($_current_member['expiration_ai_level']) && (int)$_current_member['expiration_ai_level'] == 2) {
+                                // Check if user has active paid subscription
+                                $memberModel = app('App\Models\Member', ['data' => []]);
+                                $subscription = $memberModel->getActiveSubscription($_current_member['id']);
+
+                                // Only show warning if no active subscription or on free plan
+                                if(!$subscription || (isset($subscription->plan_slug) && $subscription->plan_slug === 'free')) {
+                                    $showLimitedWarning = true;
+                                }
+                            }
+                            ?>
+                            <?php if($showLimitedWarning) { ?>
                             <div class="limit-warning"><?php echo $_page_lang['chat_robot.limited'];?></div>
                             <?php } ?>
                             <div class="show-message">
