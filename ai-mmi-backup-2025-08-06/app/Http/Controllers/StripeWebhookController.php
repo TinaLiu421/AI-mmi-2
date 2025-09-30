@@ -65,16 +65,20 @@ class StripeWebhookController extends Controller
     protected function onCheckoutCompleted($session)
     {
         try {
-            $subId = $session->subscription ?? null;
-            $cusId = $session->customer ?? null;
+            // 1) 把 member_id 拿出来
+            $memberId = $session->client_reference_id ?? null;
+
+            $subId  = $session->subscription ?? null;
+            $cusId  = $session->customer ?? null;
             $sessId = $session->id ?? null;
+            $email  = optional($session->customer_details)->email;
 
             $priceId = null; $productId = null;
-            $amount  = $session->amount_total ?? null; // 订阅时常为 null
+            $amount  = $session->amount_total ?? null;
             $currency= $session->currency ?? null;
 
             if ($subId) {
-                $subscription = Subscription::retrieve($subId); 
+                $subscription = \Stripe\Subscription::retrieve($subId);
                 $item = $subscription->items->data[0] ?? null;
                 if ($item) {
                     $priceId   = $item->price->id ?? null;
@@ -82,10 +86,23 @@ class StripeWebhookController extends Controller
                 }
             }
 
-            \DB::table('payments')->updateOrInsert(
+            // 2) 如果没拿到 memberId，用 email 兜底匹配你站内用户
+            if (!$memberId && $email) {
+                $memberId = DB::table('member')->where('email', $email)->value('id');
+            }
+
+            Log::info('checkout.completed links', [
+                'client_reference_id' => $session->client_reference_id ?? null,
+                'member_id_resolved'  => $memberId,
+                'email'               => $email,
+                'customer'            => $cusId,
+                'subscription'        => $subId,
+            ]);
+
+            DB::table('payments')->updateOrInsert(
                 ['stripe_session_id' => $sessId],
                 [
-                    'user_id'                => null,
+                    'member_id'              => $memberId,   // ← 关键：写入
                     'stripe_customer_id'     => $cusId,
                     'stripe_subscription_id' => $subId,
                     'product_id'             => $productId,
@@ -99,26 +116,37 @@ class StripeWebhookController extends Controller
                 ]
             );
 
-            \Log::info('onCheckoutCompleted saved payment', ['session' => $sessId, 'sub' => $subId, 'price' => $priceId]);
-        } catch (\Throwable $e) {
-            \Log::error('onCheckoutCompleted error: '.$e->getMessage());
-            // 仍返回 200 避免 Stripe 重试风暴
-        }
+            if ($memberId && $cusId) {
+                DB::table('member')->where('id', $memberId)
+                    ->update(['stripe_customer_id' => $cusId]);
+            }
+
+            Log::info('saved payment', ['member_id' => $memberId, 'customer' => $cusId, 'session' => $sessId]);
+            } catch (\Throwable $e) {
+                Log::error('onCheckoutCompleted error: '.$e->getMessage());
+            }
     }
 
     protected function onInvoicePaid($invoice)
     {
-        // 续费成功
         $subId = $invoice->subscription;
-        $cusId = $invoice->customer;
+        if (!$subId) return;
 
-        DB::table('payments')
+        // 回填 member_id（以防首次没写上）
+        $knownMemberId = DB::table('payments')
             ->where('stripe_subscription_id', $subId)
-            ->update([
-                'status'      => 'paid',
-                'raw_payload' => json_encode($invoice),
-                'updated_at'  => now(),
-            ]);
+            ->whereNotNull('member_id')
+            ->orderByDesc('id')
+            ->value('member_id');
+
+        $update = [
+            'status'      => 'paid',
+            'raw_payload' => json_encode($invoice),
+            'updated_at'  => now(),
+        ];
+        if ($knownMemberId) $update['member_id'] = $knownMemberId;
+
+        DB::table('payments')->where('stripe_subscription_id', $subId)->update($update);
     }
 
     protected function onInvoiceFailed($invoice)
@@ -144,4 +172,19 @@ class StripeWebhookController extends Controller
                 'updated_at'  => now(),
             ]);
     }
+
+    public function paySuccess(Request $request)
+    {
+        $sessionId = $request->query('session_id');
+        $memberId  = auth()->id();   // 登录会员就是 members.id
+
+        if ($sessionId && $memberId) {
+            DB::table('payments')
+                ->where('stripe_session_id', $sessionId)
+                ->update(['member_id' => $memberId, 'updated_at' => now()]);
+        }
+
+        return view('web.pay_success');
+    }
+
 }
