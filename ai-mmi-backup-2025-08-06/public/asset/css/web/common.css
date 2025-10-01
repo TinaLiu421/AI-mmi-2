@@ -1,7 +1,7 @@
 :root {
     /* Colors - Tech Theme */
     --primary-blue: #0066ff;
-    --primary-blue-dark: #0052cc;
+    --primary-blue-dark: #002065;
     --secondary-purple: #6366f1;
     --accent-cyan: #06b6d4;
     --accent-green: #10b981;
@@ -136,35 +136,18 @@
 /* ========================================
    RESET & BASE STYLES
    ======================================== */
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-html {
-    font-family: "Inter", "Heebo", -apple-system, BlinkMacSystemFont, "Segoe UI",
-        Roboto, sans-serif;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+* {
+    font-family: Heebo, Arial, "Microsoft JhengHei", 微軟正黑體, "Heiti TC",
+        PMingLiU, 新細明體;
 }
 
 body.iweb {
     max-width: 1920px;
-    margin: 0 auto;
-    min-height: 100vh;
-    background: linear-gradient(
-        135deg,
-        var(--neutral-50) 0%,
-        var(--neutral-100) 100%
-    );
+    margin: auto;
 }
 
 /* ========================================
-   MODERN HEADER
+   HEADER
    ======================================== */
 header.page-header {
     position: fixed;
@@ -386,7 +369,6 @@ header.page-header .controls .menu > a:focus {
 main.page-body {
     min-height: 100vh;
     padding-top: var(--header-height);
-    background: var(--neutral-50);
 }
 
 main.page-body.full {
@@ -402,13 +384,31 @@ main.page-body .page-content {
 }
 
 /* Info Area */
+
 main.page-body .info-area {
-    flex: 1;
-    padding: var(--space-8);
-    background: var(--neutral-100);
-    border-right: none;
-    transition: var(--transition-normal);
+    position: relative;
+    background-image: url("asset/image/panel-bg-top.png");
+    background-position: left top;
+    background-repeat: no-repeat;
+    background-size: 80%;
+    background-color: #f0f1f3;
+    float: left;
+    width: 67%;
+    min-height: 870px;
+    padding-bottom: 60px;
+}
+
+main.page-body .info-area:before {
+    position: absolute;
+    background-image: url("asset/image/panel-bg-bottom.png");
+    background-position: right bottom;
+    background-repeat: no-repeat;
+    background-size: 80%;
+    content: "";
+    bottom: 0px;
+    right: 0px;
     width: 100%;
+    height: 100%;
 }
 
 main.page-body .info-area.hide {
@@ -417,6 +417,63 @@ main.page-body .info-area.hide {
 
 main.page-body .info-area.show {
     display: block;
+}
+
+main.page-body .info-area > div {
+    position: relative;
+}
+
+/*Inner Panel */
+main.page-body .info-area > .inner-panel {
+    padding-top: 25px;
+    padding-left: 50px;
+    padding-right: 40px;
+}
+
+main.page-body .info-area > .inner-panel h1.title {
+    position: relative;
+    font-size: 40px;
+    color: var(--primary-blue-dark);
+}
+
+main.page-body .info-area > .inner-panel h1.title-small {
+    position: relative;
+    font-size: 24px;
+    color: var(--primary-blue-dark);
+}
+
+main.page-body .info-area > .inner-panel .top-brief {
+    padding-bottom: 10px;
+}
+
+main.page-body .info-area > .inner-panel .underline {
+    position: relative;
+}
+
+main.page-body .info-area > .inner-panel .underline:before {
+    position: absolute;
+    display: block;
+    background-color: var(--primary-blue-dark);
+    content: "";
+    left: 0px;
+    bottom: -8px;
+    width: 42px;
+    height: 8px;
+}
+
+main.page-body .info-area > .inner-panel .underline:after {
+    position: absolute;
+    display: block;
+    background-color: #bc012e;
+    content: "";
+    left: 42px;
+    bottom: -8px;
+    width: 18px;
+    height: 8px;
+}
+main.page-body .info-area > .inner-panel.full {
+    padding-left: 0px;
+    padding-right: 0px;
 }
 
 main.page-body .info-area.show-mobile {
@@ -889,12 +946,6 @@ main.page-body .chat-area.show .box .show-message .dialog .txt {
     min-width: 400px;
 }
 
-@media (min-width: 1400px) {
-    main.page-body .chat-area.show .box .show-message .dialog .txt {
-        max-width: 1000px;
-    }
-}
-
 main.page-body .chat-area .box .show-message .dialog.ask .txt {
     background: var(--gradient-primary);
     color: var(--white);
@@ -954,9 +1005,6 @@ main.page-body .chat-area .box form .input-question > div {
 }
 
 main.page-body .chat-area .box form .input-question > div.iweb-input {
-    display: block !important;
-    width: 100% !important;
-    flex: 1 !important;
     background: transparent !important;
     border: none !important;
     padding: 0 !important;
@@ -1109,16 +1157,9 @@ footer.page-footer a:hover {
 
 /* All pages use the remaining space after fixed chat */
 
-.page-content .info-area,
-.page-content.visa-options .info-area {
+.page-content .info-area {
     width: 100% !important;
     flex: none !important;
-}
-
-/* Hide only internal chat areas within page content, not the fixed chatbot */
-.page-content.account-profile .info-area .chat-area,
-.page-content.auto-fill .info-area .chat-area {
-    display: none !important;
 }
 
 /* Auto Fill page's own chat panel styles */
@@ -1256,6 +1297,30 @@ footer.page-footer a:hover {
     main.page-body .chat-area {
         width: 400px;
     }
+
+    main.page-body .info-area {
+        display: block;
+        width: 100%;
+        min-height: 480px;
+    }
+
+    main.page-body .info-area > .inner-panel.full {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    main.page-body .info-area > .inner-panel {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    main.page-body div.info-area > div.inner-panel h1.title {
+        font-size: 28px;
+    }
+
+    main.page-body div.info-area > div.inner-panel h1.title-small {
+        font-size: 20px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1295,6 +1360,7 @@ footer.page-footer a:hover {
 
     main.page-body .info-area {
         border-right: none;
+        padding: none;
     }
 
     /* Hide chat area by default on mobile */
@@ -1340,7 +1406,7 @@ footer.page-footer a:hover {
         background: var(--gradient-primary);
         color: white;
         padding: 12px 24px;
-        border-radius: var(--radius-full);
+        border-radius: var(--radius-2xl);
         box-shadow: 0 4px 20px rgba(187, 0, 45, 0.3);
         border: var(--primary-blue-dark) 2px solid;
         font-weight: 800;
@@ -1404,6 +1470,10 @@ footer.page-footer a:hover {
     main.page-body .page-content {
         margin-right: 0;
     }
+    main.page-body .info-area {
+        padding: var(--space-4);
+        border-right: none;
+    }
 
     main.page-body .chat-area .box {
         margin: var(--space-4);
@@ -1411,10 +1481,10 @@ footer.page-footer a:hover {
 
     main.page-body .chat-area {
         position: relative;
-        display: flex;
         top: auto;
         right: auto;
         bottom: auto;
+        display: none;
     }
 
     main.page-body .chat-area .top {
@@ -1734,4 +1804,248 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 
 .article-list .post .leavecomment button:hover {
     background: var(--neutral-300);
+}
+
+.article-list > .post .summary > .actions > .shareto {
+    position: relative;
+    display: none;
+    height: 20px;
+    vertical-align: middle;
+}
+
+.article-list > .post .summary > .actions > .shareto.show {
+    display: inline-block;
+}
+
+.article-list > .post .summary > .actions > .shareto > div {
+    position: absolute;
+    top: -48px;
+    left: -70px;
+    padding: 8px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    background: #fff;
+    border-radius: 8px;
+}
+
+.article-list > .post .summary > .actions > .shareto > div:before {
+    position: absolute;
+    content: "";
+    bottom: -4px;
+    left: 8px;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #fff;
+}
+
+.article-list > .post .summary > .actions > .shareto > div > a {
+    display: inline-block;
+    width: 30px;
+    margin: 0px 4px;
+    vertical-align: middle;
+}
+
+/* ===========================
+ Form Styles
+   =========================== */
+.form {
+    width: 100%;
+    margin-top: 30px;
+}
+
+.form .required {
+    text-align: right;
+    margin-bottom: 10px;
+}
+
+/* Row layout */
+.form .row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 18px;
+    width: 100%;
+}
+
+/* Labels */
+.form .row > label {
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: var(--neutral-800);
+}
+
+.form .row > label.none {
+    display: none;
+}
+
+/* Input values (static) */
+.form .input-value {
+    font-size: 14px;
+    padding: 8px 0;
+    line-height: 24px;
+    color: #444;
+}
+
+/* Text fields */
+.form .row .iweb-input > div > input,
+.form .row .iweb-input > div > textarea {
+    font-size: 18px;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    height: 46px;
+}
+
+/* Focus styles */
+.form .row .iweb-input > div > input:focus,
+.form .row .iweb-input > div > textarea:focus,
+.form .iweb-selector > .real > select:focus {
+    border-color: var(--primary-blue-dark);
+    box-shadow: 0 0 4px var(--accent-cyan);
+    outline: none;
+}
+
+/* Textarea height */
+.form .row .iweb-input > div > textarea {
+    min-height: 88px;
+    resize: vertical;
+}
+
+/* Selects */
+.form .iweb-selector > .real > select {
+    font-size: 16px;
+    height: 42px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Checkbox / Radio */
+.form .iweb-checkbox > .options,
+.form .iweb-radiobox > .options {
+    width: 22px;
+    height: 22px;
+    display: inline-block;
+    position: relative;
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.form .iweb-checkbox > .options > .checked:after {
+    font-size: 16px;
+    content: "✔";
+    color: var(--primary-blue-dark);
+    position: absolute;
+    left: 3px;
+    top: 10px;
+}
+
+.form .iweb-radiobox > .options > .checked:after {
+    content: "";
+    display: block;
+    width: 12px;
+    height: 12px;
+    background: var(--primary-blue-dark);
+    border-radius: 50%;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+}
+
+/* Checkbox messages */
+.form .iweb-checkbox .virtual-msg {
+    font-size: 15px;
+    margin-left: 30px;
+    color: #555;
+}
+
+/* Checkbox set */
+.form .iweb-checkbox-set > .iweb-checkbox {
+    width: 100%;
+}
+
+/* Actions */
+.form .action {
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.form .action a.btn,
+.form .action button.btn {
+    flex: 1;
+    min-width: 140px;
+    height: 44px;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    line-height: 44px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+}
+
+/* Specific button variants */
+.form .action a.btn-back {
+    background: transparent;
+    border: var(--primary-blue-dark);
+    border: 1px solid;
+    color: var(--primary-blue-dark);
+}
+
+.form .action a.btn-back:hover {
+    background: var(--primary-blue);
+    color: #fff;
+}
+
+.form .action button.btn-next {
+    background: var(--primary-blue-dark);
+    color: #fff;
+}
+
+.form .action button.btn-next:hover {
+    background: var(--primary-blue);
+    color: #fff;
+}
+
+.form .action button.btn-save {
+    width: 100%;
+    background: var(--accent-green);
+    color: #fff;
+}
+
+.form .action button.btn-save:hover {
+    background: var(--accent-green);
+}
+.form .group-title {
+    font-size: 20px;
+    margin-top: 20px;
+}
+
+/* Dialog close */
+.iweb-info-dialog.publish > div > .dialog-content > a.btn-close {
+    width: 30px;
+    height: 30px;
+    padding: 8px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    background: #f5f5f5;
+    cursor: pointer;
 }

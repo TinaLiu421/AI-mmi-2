@@ -1003,9 +1003,9 @@ function displayWelcomeMessage() {
             line-height: 1.5;
         ">
             Get instant accurate answers
-            <strong style="color:#0056b3;">24/7</strong>,
+            <strong style="color:#002065;">24/7</strong>,
             plus easy access to registered migration and education experts whenever you need a
-            <strong style="color:#0056b3;">human touch</strong>.
+            <strong style="color:#002065;">human touch</strong>.
         </div>
 
         <!-- Footer text -->

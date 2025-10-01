@@ -30,34 +30,33 @@
                 <a href="<?php echo $_page_base_url.'/account_forgot' ;?>"><u><?php echo $_page_lang['forgot_password']; ?>?</u></a>
             </div>
             
-            <?php /*
-            <div class="or">
-                <span><?php echo $_page_lang['account.or']; ?></span>
-            </div>
             
-            <div class="third-party"><!--
-                --><a href="#" class="google" data-method="2">
-                    <i class="fa fa-google"></i>
-                    <span><?php echo $_page_lang['account.with_google_in']; ?></span>
-                </a><!--
-                --><a href="#" class="fb" data-method="3">
-                    <i class="fa fa-facebook-square"></i>
-                    <span><?php echo $_page_lang['account.with_fb_in']; ?></span>
-                </a><!--
-                --><a href="#" class="apple" data-method="4">
-                    <i class="fa fa-apple"></i>
-                    <span><?php echo $_page_lang['account.with_apple_in']; ?></span>
-                </a><!--
-            --></div>
-             * 
-             */
-            ?>
 
             <div class="action">
                 <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration' ;?>"><?php echo $_page_lang['btn.sign_up_now']; ?></a>
                 <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.sign_in_now']; ?></button>
                 <div class="clearboth"></div>
             </div>
+
+            {{-- <div class="or">
+                <span><?php echo $_page_lang['account.or']; ?></span>
+            </div>
+
+            <div class="third-party">
+                <a href="#" class="google" data-method="2">
+                    <i class="fa fa-google"></i>
+                    <span><?php echo $_page_lang['account.with_google_in']; ?></span>
+                </a>
+                <a href="#" class="fb" data-method="3">
+                    <i class="fa fa-facebook-square"></i>
+                    <span><?php echo $_page_lang['account.with_fb_in']; ?></span>
+                </a>
+                <a href="#" class="apple" data-method="4">
+                    <i class="fa fa-apple"></i>
+                    <span><?php echo $_page_lang['account.with_apple_in']; ?></span>
+                </a>
+            </div> --}}
+
         </form>
     </div>
 </div>
