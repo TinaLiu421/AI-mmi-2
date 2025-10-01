@@ -205,7 +205,7 @@ return
         'content'               =>  'Message'
     ],
 
-    'our_terms'                 =>  'Terms of use',
-    'privacy_statement'         =>  'Privacy Statement',
-    'agree_to'                  =>  'I have read and agree to "<a href="{link_1}" target="_blank"><u>Terms of use</u></a>" & "<a href="{link_2}" target="_blank"><u>Privacy Statement</u></a>".'
+    'our_terms'                 =>  'Terms of Use, Privacy & Cookie Policy',
+    'privacy_statement'         =>  'Terms of Use, Privacy & Cookie Policy',
+    'agree_to'                  =>  'I have read and agree to the "<a href="{link_1}" target="_blank"><u>Terms of Use, Privacy & Cookie Policy</u></a>".'
 ];

@@ -205,7 +205,7 @@ return
         'content'               =>  '内容'
     ],
 
-    'our_terms'                 =>  '使用条款',
-    'privacy_statement'         =>  '隐私声明',
-    'agree_to'                  =>  '我已阅读并同意“<a href="{link_1}" target="_blank"><u>使用条款</u></a>” 和 “<a href="{link_2}" target="_blank"><u>隐私声明</u></a>”。'
+    'our_terms'                 =>  '使用条款、隐私政策及Cookie政策',
+    'privacy_statement'         =>  '使用条款、隐私政策及Cookie政策',
+    'agree_to'                  =>  '我已阅读并同意"<a href="{link_1}" target="_blank"><u>使用条款、隐私政策及Cookie政策</u></a>"。'
 ];

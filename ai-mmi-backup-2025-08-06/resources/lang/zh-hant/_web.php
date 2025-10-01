@@ -206,7 +206,7 @@ return
         'content'               =>  '内容'
     ],
 
-    'our_terms'                 =>  '使用條款',
-    'privacy_statement'         =>  '隱私聲明',
-    'agree_to'                  =>  '我已閱讀並同意“<a href="{link_1}" target="_blank"><u>使用條款</u></a>” 和 “<a href="{link_2}" target="_blank"><u>隱私聲明</u></a>”。'
+    'our_terms'                 =>  '使用條款、私隱政策及Cookie政策',
+    'privacy_statement'         =>  '使用條款、私隱政策及Cookie政策',
+    'agree_to'                  =>  '我已閱讀並同意"<a href="{link_1}" target="_blank"><u>使用條款、私隱政策及Cookie政策</u></a>"。'
 ];

@@ -248,10 +248,6 @@
         <?php if(!empty($_included_header_footer)) { ?>
         <footer class="page-footer">
             <div>
-                <a href="<?php echo $_page_base_url.'/terms'; ?>">
-                    <?php echo $_page_lang['our_terms'];?>
-                </a> 
-                | 
                 <a href="<?php echo $_page_base_url.'/privacy_statement'; ?>">
                     <?php echo $_page_lang['privacy_statement'];?>
                 </a>

@@ -127,7 +127,7 @@
             <div class="row agree">
                 <div class="iweb-checkbox-set">
                     <input type="checkbox" id="agree_to" name="agree_to" value="1" data-validation="required">
-                    <label for="agree_to"><?php echo str_replace(['{link_1}', '{link_2}'], [$_page_base_url.'/terms',$_page_base_url.'/privacy_statement'], $_page_lang['agree_to']); ?></label>
+                    <label for="agree_to"><?php echo str_replace('{link_1}', $_page_base_url.'/privacy_statement', $_page_lang['agree_to']); ?></label>
                 </div>
             </div>
             
