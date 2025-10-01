@@ -189,7 +189,7 @@ class Home extends WebController {
                     [
                         'status'    =>  403,
                         'message'   =>  $this->_page_lang['please_renew_ai'],
-                        'url'       =>  $this->toURL('account_submission')
+                        'url'       =>  $this->toURL('upgrade')
                     ]);
                 }
             }
