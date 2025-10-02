@@ -538,7 +538,33 @@ function iweb_global_func() {
                 console.log("No question entered");
                 return false;
             }
-            // No loading mask - removed for cleaner UX
+
+            // Show user's question immediately before sending
+            var userQuestion = $("#ask_question").val();
+            var userAvatar = _current_member && _current_member.avatar ?
+                (_current_member.type == 1 ? 'upload/member_avatar/' : 'upload/member_logo/') + _current_member.avatar :
+                'asset/image/icon-member.png';
+            var userName = _current_member && _current_member.name ? _current_member.name : 'You';
+
+            var dialog_group = '<div class="dialog ask">';
+            dialog_group += '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member">';
+            if (_current_member && _current_member.avatar) {
+                dialog_group += '<div style="background-image:url(\'' + userAvatar + '\')"></div>';
+            }
+            dialog_group += '</div>';
+            dialog_group += '<div class="name">' + userName + '</div>';
+            dialog_group += '<div class="clearboth"></div>';
+            dialog_group += '<div class="txt">' + userQuestion + '</div>';
+            dialog_group += '</div><div class="clearboth"></div>';
+
+            $("main.page-body div.chat-area div.box > div.show-message").append(dialog_group);
+
+            // Scroll to bottom
+            var element = $("main.page-body div.chat-area div.box > div.show-message")[0];
+            if (element) {
+                element.scrollTop = element.scrollHeight;
+            }
+
             return true;
         },
         function (response_data) {
@@ -546,96 +572,35 @@ function iweb_global_func() {
             // No loading mask to remove
             $("#ask_question").val("");
             if (iweb.isMatch(response_data.status, 200)) {
-                if (iweb.isValue(response_data.content)) {
-                    var dialog_group = '<div class="dialog ask">';
+                // User question is already shown immediately, just show AI reply
+                if (iweb.isValue(response_data.reply)) {
+                    var dialog_group = '<div class="dialog reply">';
                     dialog_group +=
                         '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'' +
-                        response_data.member_owner_avatar +
+                        response_data.ai_owner_avatar +
                         "')\"></div></div>";
                     dialog_group +=
                         '<div class="name">' +
-                        response_data.member_owner_name +
+                        response_data.ai_owner_name +
                         "</div>";
                     dialog_group += '<div class="clearboth"></div>';
                     dialog_group +=
-                        '<div class="txt">' + response_data.content + "</div>";
-                    dialog_group += '</div><div class="clearboth"></div>';
+                        '<div class="txt">' +
+                        response_data.reply +
+                        "</div>";
+                    dialog_group +=
+                        '</div><div class="clearboth"></div>';
 
                     $(
                         "main.page-body div.chat-area div.box > div.show-message"
                     ).append(dialog_group);
-                    console.log("User message added, scrolling...");
-                    setTimeout(function () {
-                        var element = $(
-                            "main.page-body div.chat-area div.box > div.show-message"
-                        )[0];
-                        if (element) {
-                            var scroll_value = element.scrollHeight;
-                            console.log(
-                                "User message - Element found, scrolling to:",
-                                scroll_value,
-                                "Current scrollTop:",
-                                element.scrollTop
-                            );
-                            element.scrollTop = scroll_value;
-                            console.log(
-                                "After scroll - scrollTop:",
-                                element.scrollTop
-                            );
-                        } else {
-                            console.log("User message - Element not found!");
-                        }
-                    }, 100);
-                    // show reply if need
-                    if (iweb.isValue(response_data.reply)) {
-                        var chat_timer = setTimeout(function () {
-                            clearTimeout(chat_timer);
+                    console.log("AI reply added, scrolling...");
 
-                            dialog_group = '<div class="dialog reply">';
-                            dialog_group +=
-                                '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'' +
-                                response_data.ai_owner_avatar +
-                                "')\"></div></div>";
-                            dialog_group +=
-                                '<div class="name">' +
-                                response_data.ai_owner_name +
-                                "</div>";
-                            dialog_group += '<div class="clearboth"></div>';
-                            dialog_group +=
-                                '<div class="txt">' +
-                                response_data.reply +
-                                "</div>";
-                            dialog_group +=
-                                '</div><div class="clearboth"></div>';
-
-                            $(
-                                "main.page-body div.chat-area div.box > div.show-message"
-                            ).append(dialog_group);
-                            console.log("AI reply added, scrolling...");
-                            setTimeout(function () {
-                                var element = $(
-                                    "main.page-body div.chat-area div.box > div.show-message"
-                                )[0];
-                                if (element) {
-                                    var scroll_value = element.scrollHeight;
-                                    console.log(
-                                        "AI reply - Element found, scrolling to:",
-                                        scroll_value,
-                                        "Current scrollTop:",
-                                        element.scrollTop
-                                    );
-                                    element.scrollTop = scroll_value;
-                                    console.log(
-                                        "After scroll - scrollTop:",
-                                        element.scrollTop
-                                    );
-                                } else {
-                                    console.log(
-                                        "AI reply - Element not found!"
-                                    );
-                                }
-                            }, 100);
-                        }, 1000);
+                    var element = $(
+                        "main.page-body div.chat-area div.box > div.show-message"
+                    )[0];
+                    if (element) {
+                        element.scrollTop = element.scrollHeight;
                     }
                 }
             } else {
