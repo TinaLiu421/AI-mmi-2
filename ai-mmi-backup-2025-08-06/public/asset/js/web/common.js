@@ -538,12 +538,12 @@ function iweb_global_func() {
                 console.log("No question entered");
                 return false;
             }
-            $("main.page-body div.chat-area div.box").addClass("mask");
+            // No loading mask - removed for cleaner UX
             return true;
         },
         function (response_data) {
             console.log("Form response received:", response_data);
-            $("main.page-body div.chat-area div.box").removeClass("mask");
+            // No loading mask to remove
             $("#ask_question").val("");
             if (iweb.isMatch(response_data.status, 200)) {
                 if (iweb.isValue(response_data.content)) {
@@ -954,6 +954,9 @@ function showWelcomeMessage() {
             "Skipping welcome message - user has active chat mode:",
             _current_chat_mode
         );
+        // User has active chat mode, ensure input is visible
+        $(".input-question").addClass("show");
+        $("#ask_question").prop("disabled", false);
         return;
     }
 
@@ -961,6 +964,9 @@ function showWelcomeMessage() {
     $.getJSON(_page_base_url + "/home/chat", function (data) {
         if (data && data.length > 0) {
             console.log("Skipping welcome message - user has chat history");
+            // User has chat history, ensure input is visible
+            $(".input-question").addClass("show");
+            $("#ask_question").prop("disabled", false);
             return;
         } else {
             // No chat history, show welcome message
@@ -978,7 +984,7 @@ function displayWelcomeMessage() {
         <div style="
                 font-size: 1.4rem;
                 border-radius: 8px;
-                color: white;
+                color: black;
                 text-align: center;
                 margin: 20px 0 40px 0;
             ">
@@ -986,18 +992,18 @@ function displayWelcomeMessage() {
                 <span style="
                     font-size: 1.6rem;
                     font-weight:700;
-                    color: white;
+                    color: black;
                 ">
                     Click one of the buttons above to get started!
                 </span>
         </div>
 
         <div style="
-            background: #ffffff;
+            background: #f3f4f6;
             border-radius: 12px;
             padding: 20px 15px 20px 15px;
             text-align: center;
-            color: #111827;
+            color: black;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             font-size: 1.4rem;
             line-height: 1.5;
@@ -1012,7 +1018,7 @@ function displayWelcomeMessage() {
         <div style="
             padding-top: 40px;
             text-align: center;
-            color: white;
+            color: black;
             font-size: 1.4rem;
             font-weight:700;
         ">
