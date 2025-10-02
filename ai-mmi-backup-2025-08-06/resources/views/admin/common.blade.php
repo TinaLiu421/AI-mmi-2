@@ -4,7 +4,7 @@
         <title><?php echo (!empty($_page_meta_data['title']))?$_page_meta_data['title']:''; ?></title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link href="asset/image/logo-mmi.png" rel="icon" type="image/x-icon">
+        <link href="/asset/image/logo-mmi.png" rel="icon" type="image/x-icon">
 
         <?php if(!empty($_page_csrf_token)) { ?>
         <meta name="csrf-token" content="<?php echo $_page_csrf_token; ?>">
@@ -22,25 +22,25 @@
         <link href="<?php echo $url; ?>" rel="alternate" hreflang="<?php echo $url_key; ?>">
         <?php }} ?>
         
-        <link href="public/asset/lib/icon/css/font-awesome.min.css" rel="stylesheet" type="text/css"/>
-        <link href="asset/lib/base/iweb.min.css" rel="stylesheet" type="text/css">
-        <link href="asset/lib/picker/datetime.min.css" rel="stylesheet" type="text/css">
-        <link href="asset/lib/picker/minicolors.min.css" rel="stylesheet" type="text/css">
-        <link href="asset/lib/3rd/rcrop.min.css" rel="stylesheet" type="text/css">
-        <link href="asset/lib/3rd/rtable.min.css" rel="stylesheet" type="text/css">
+        <link href="/asset/lib/icon/css/font-awesome.min.css" rel="stylesheet" type="text/css"/>
+        <link href="/asset/lib/base/iweb.min.css" rel="stylesheet" type="text/css">
+        <link href="/asset/lib/picker/datetime.min.css" rel="stylesheet" type="text/css">
+        <link href="/asset/lib/picker/minicolors.min.css" rel="stylesheet" type="text/css">
+        <link href="/asset/lib/3rd/rcrop.min.css" rel="stylesheet" type="text/css">
+        <link href="/asset/lib/3rd/rtable.min.css" rel="stylesheet" type="text/css">
         <?php if(!empty($_page_css_files)) { foreach ($_page_css_files as $css_file) { ?>
-        <link href="<?php echo $css_file; ?>" rel="stylesheet" type="text/css">
+        <link href="/<?php echo $css_file; ?>" rel="stylesheet" type="text/css">
         <?php }} ?>
         
-        <script src="asset/lib/base/jquery.min.js" type="text/javascript"></script>
-        <script src="asset/lib/base/iweb.min.js" type="text/javascript"></script>
-        <script src="asset/lib/picker/datetime.min.js" type="text/javascript"></script>
-        <script src="asset/lib/picker/minicolors.min.js" type="text/javascript"></script>
-        <script src="asset/lib/3rd/rcrop.min.js" type="text/javascript"></script>
-        <script src="asset/lib/3rd/rtable.min.js" type="text/javascript"></script>
-        <script src="asset/lib/3rd/jquery.s2t.js" type="text/javascript"></script>
+        <script src="/asset/lib/base/jquery.min.js" type="text/javascript"></script>
+        <script src="/asset/lib/base/iweb.min.js" type="text/javascript"></script>
+        <script src="/asset/lib/picker/datetime.min.js" type="text/javascript"></script>
+        <script src="/asset/lib/picker/minicolors.min.js" type="text/javascript"></script>
+        <script src="/asset/lib/3rd/rcrop.min.js" type="text/javascript"></script>
+        <script src="/asset/lib/3rd/rtable.min.js" type="text/javascript"></script>
+        <script src="/asset/lib/3rd/jquery.s2t.js" type="text/javascript"></script>
         <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) { ?>
-        <script src="<?php echo $js_file; ?>" type="text/javascript"></script>
+        <script src="/<?php echo $js_file; ?>" type="text/javascript"></script>
         <?php }} ?>
         <script type="text/javascript">
         const _page_global_lang = JSON.parse('<?php echo json_encode($_page_global_lang); ?>');
@@ -52,7 +52,7 @@
         <?php if(!empty($_included_header_footer)) { ?>
         <header class="page-header">
             <div class="logo">
-                <a href="<?php echo url($_mapping_data['module'].'/home');?>"><img src="asset/image/logo-mmi.png" alt="logo"></a>
+                <a href="<?php echo url($_mapping_data['module'].'/home');?>"><img src="/asset/image/logo-mmi.png" alt="logo"></a>
             </div>
             <div class="open">
                 <a href="#"><i class="fa fa-indent"></i></a>
