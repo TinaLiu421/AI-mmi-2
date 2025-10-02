@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class Account extends WebController {
     
@@ -358,12 +359,28 @@ class Account extends WebController {
             'organization_type' => $this->optionsToArray($list_organization_type)
         ]);
         
+    // ✅ search subscriptions table
+        $memberId = $this->_show_current_member['id'];
+        $currentSub = DB::table('subscriptions as s')
+            ->join('plans as p','p.id','=','s.plan_id')
+            ->where('s.member_id', $memberId)
+            ->where('s.status','active')
+            ->where(function($q){
+                $q->whereNull('s.ends_at')->orWhere('s.ends_at','>', now());
+            })
+            ->orderByDesc('s.started_at')
+            ->first(['p.name as plan_name','s.ends_at']);
+
+        // write the finals into _show_current_member
+        $this->_show_current_member['subscription_name']   = $currentSub->plan_name ?? 'Free Plan';
+        $this->_show_current_member['subscription_expiry'] = $currentSub?->ends_at;
+
         return $this->pageData([
-            'is_readonly'               =>  (md5(json_encode($this->_show_current_member))!=md5(json_encode($this->_current_member))),
-            'show_current_member'       =>  $this->_show_current_member,
-            'current_member_details'    =>  $this->_member_model->getDetailsByID($this->_show_current_member['id']),
-            'current_member_agent'      =>  $this->_member_model->getAgentByID($this->_show_current_member['id']),
-            'current_member_lawfirm'    =>  $this->_member_model->getLawFirmByID($this->_show_current_member['id'])
+            'is_readonly'               => (md5(json_encode($this->_show_current_member))!=md5(json_encode($this->_current_member))),
+            'show_current_member'       => $this->_show_current_member,
+            'current_member_details'    => $this->_member_model->getDetailsByID($this->_show_current_member['id']),
+            'current_member_agent'      => $this->_member_model->getAgentByID($this->_show_current_member['id']),
+            'current_member_lawfirm'    => $this->_member_model->getLawFirmByID($this->_show_current_member['id'])
         ])->pageView();
     }
     
