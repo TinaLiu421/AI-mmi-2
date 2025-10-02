@@ -173,23 +173,88 @@
                         <div class="top">
                             <div class="controls">
                                 <!-- Buttons -->
-                                <!-- Immigration Button - Always available with limited access -->
+                                <?php
+                                // Check subscription status - use $_current_member for chat area
+                                $has_migration = !empty($_current_member['has_migration_subscription']);
+                                $has_education = !empty($_current_member['has_education_subscription']);
+
+                                // Migration button logic
+                                if ($has_migration) {
+                                    $migration_btn_text = 'Upgrade';
+                                    $migration_btn_image = 'asset/image/upgrade.png';
+                                    $migration_btn_class = 'talk-to-agent';
+                                } else if ($has_education) {
+                                    // If user has education subscription but not migration, show Talk to Agent
+                                    $migration_btn_text = 'Talk to an Agent';
+                                    $migration_btn_image = 'asset/image/humanAgent.png';
+                                    $migration_btn_class = 'talk-to-agent';
+                                } else {
+                                    $migration_btn_text = 'Migrate';
+                                    $migration_btn_image = 'asset/image/Migrate.png';
+                                    $migration_btn_class = 'with-ai';
+                                }
+
+                                // Education button logic
+                                if ($has_education) {
+                                    $education_btn_text = 'Apply';
+                                    $education_btn_image = 'asset/image/apply.png';
+                                    $education_btn_class = 'talk-to-agent';
+                                } else if ($has_migration) {
+                                    // If user has migration subscription but not education, show Talk to Agent
+                                    $education_btn_text = 'Talk to an Agent';
+                                    $education_btn_image = 'asset/image/humanAgent.png';
+                                    $education_btn_class = 'talk-to-agent';
+                                } else {
+                                    $education_btn_text = 'Study';
+                                    $education_btn_image = 'asset/image/study.png';
+                                    $education_btn_class = 'with-ai';
+                                }
+
+                                // Default chat mode based on subscription
+                                $default_chat_mode = 'immigration'; // default
+                                if ($has_migration) {
+                                    $default_chat_mode = 'immigration';
+                                } elseif ($has_education) {
+                                    $default_chat_mode = 'study';
+                                }
+
+                                if ($migration_btn_text === 'Upgrade') {
+                                        $migration_btn_href = '/upgrade';
+                                    } elseif ($migration_btn_text === 'Talk to an Agent') {
+                                        $migration_btn_href = '/agents';
+                                    } else {
+                                        $migration_btn_href = 'javascript:void(0)';
+                                    }
+
+                                    if ($education_btn_text === 'Apply') {
+                                        $education_btn_href = '/apply';
+                                    } elseif ($education_btn_text === 'Talk to an Agent') {
+                                        $education_btn_href = '/agents';
+                                    } else {
+                                        $education_btn_href = 'javascript:void(0)';
+                                    }
+                                ?>
+
+                                <!-- Immigration/Migration Button -->
                                 <div class="chat-mode-btn" data-mode="immigration">
                                     <x-chat-button
                                         href="javascript:void(0)"
-                                        bottomText="Migrate"
-                                        imgSrc="asset/image/migrate.png"
-                                        class="with-ai" />
+                                        bottomText="<?php echo $migration_btn_text; ?>"
+                                        imgSrc="<?php echo $migration_btn_image; ?>"
+                                        class="<?php echo $migration_btn_class; ?>" />
                                 </div>
 
-                                <!-- Study Button - Always free -->
+                                <!-- Education/Study Button -->
                                 <div class="chat-mode-btn" data-mode="study">
                                     <x-chat-button
                                         href="javascript:void(0)"
-                                        bottomText="Study"
-                                        imgSrc="asset/image/study.png"
-                                        class="with-ai" />
+                                        bottomText="<?php echo $education_btn_text; ?>"
+                                        imgSrc="<?php echo $education_btn_image; ?>"
+                                        class="<?php echo $education_btn_class; ?>" />
                                 </div>
+
+                                <!-- Hidden input to store default chat mode -->
+                                <input type="hidden" id="default_chat_mode" value="<?php echo $default_chat_mode; ?>">
 
                                 <div class="robot-container">
                                     <div class="robot" style="width: 110px; height: 110px; position: relative; border-radius: 12px; overflow: hidden;">
@@ -215,15 +280,19 @@
                             <a class="btn-close-mobile">
                                 <img src="asset/image/icon-close.png" alt="icon-close"/>
                             </a>
-                            <?php if(!empty($_current_member['expiration_ai_level']) && (int)$_current_member['expiration_ai_level'] == 2) { ?>
+                            <?php
+                            // Only show warning if user has NO active subscriptions AND expiration_ai_level is 2
+                            $has_any_subscription = !empty($_current_member['has_migration_subscription']) || !empty($_current_member['has_education_subscription']);
+                            if(!$has_any_subscription && !empty($_current_member['expiration_ai_level']) && (int)$_current_member['expiration_ai_level'] == 2) {
+                            ?>
                             <div class="limit-warning"><?php echo $_page_lang['chat_robot.limited'];?></div>
                             <?php } ?>
                             <div class="show-message">
                             </div>
-                            <div id="chat-mode-indicator" style="display: none; padding: 10px; background: #bb002d; color: white; text-align: center; font-weight: bold; margin-bottom: 10px;">
+                            <div id="chat-mode-indicator" style="display: none; padding: 1px; background: #bb002d; color: white; text-align: center; font-weight: bold; margin-bottom: 10px;">
                                 Immigration Assessment Mode
                             </div>
-                            <div id="study-mode-indicator" style="display: none; padding: 10px; background: #06b6d4; color: white; text-align: center; font-weight: bold; margin-bottom: 10px;">
+                            <div id="study-mode-indicator" style="display: none; padding: 1px; background: #06b6d4; color: white; text-align: center; font-weight: bold; margin-bottom: 10px;">
                                 Study Assistant Mode - Free
                             </div>
                             <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0" data-chat-mode="">

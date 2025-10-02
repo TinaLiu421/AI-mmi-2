@@ -78,8 +78,74 @@ class Member extends BaseModel {
             if(strtotime($target_member['expiration_date_visa_submission_human']) < strtotime($this->_today_date)) {
                 $target_member['expiration_huma_level'] = 1;
             }
+
+            // Fetch active subscriptions with plan details
+            $active_subscriptions = DB::table('subscriptions')
+                ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
+                ->where('subscriptions.member_id', '=', $target_member['id'])
+                ->where('subscriptions.status', '=', 'active')
+                ->where(function($q) {
+                    $q->whereNull('subscriptions.ends_at')
+                      ->orWhere('subscriptions.ends_at', '>', now());
+                })
+                ->select(
+                    'plans.id as plan_id',
+                    'plans.code as plan_code',
+                    'plans.name as plan_name',
+                    'plans.business_domain',
+                    'subscriptions.started_at',
+                    'subscriptions.ends_at'
+                )
+                ->get();
+
+            // Organize subscriptions by type
+            $has_migration = false;
+            $has_education = false;
+            $primary_subscription = null;
+            $subscription_names = [];
+
+            foreach ($active_subscriptions as $sub) {
+                $subscription_names[] = $sub->plan_name;
+
+                if ($sub->business_domain === 'migration') {
+                    $has_migration = true;
+                    if (!$primary_subscription) {
+                        $primary_subscription = $sub;
+                    }
+                }
+                if ($sub->business_domain === 'education') {
+                    $has_education = true;
+                    if (!$primary_subscription && !$has_migration) {
+                        $primary_subscription = $sub;
+                    }
+                }
+                if ($sub->business_domain === 'combined') {
+                    $has_migration = true;
+                    $has_education = true;
+                    if (!$primary_subscription) {
+                        $primary_subscription = $sub;
+                    }
+                }
+            }
+
+            // Set subscription data
+            $target_member['active_subscriptions'] = $active_subscriptions->toArray();
+            $target_member['has_migration_subscription'] = $has_migration;
+            $target_member['has_education_subscription'] = $has_education;
+
+            if ($primary_subscription) {
+                $target_member['subscription_name'] = implode(', ', $subscription_names);
+                $target_member['subscription_plan_type'] = $primary_subscription->business_domain;
+                $target_member['subscription_expiry'] = $primary_subscription->ends_at;
+                $target_member['primary_plan_code'] = $primary_subscription->plan_code;
+            } else {
+                $target_member['subscription_name'] = null;
+                $target_member['subscription_plan_type'] = null;
+                $target_member['subscription_expiry'] = null;
+                $target_member['primary_plan_code'] = null;
+            }
         }
-        
+
         return $target_member;
     }
     
@@ -220,12 +286,78 @@ class Member extends BaseModel {
                 if(strtotime($target_member['expiration_date_visa_submission_human']) < strtotime($this->_today_date)) {
                     $target_member['expiration_huma_level'] = 1;
                 }
+
+                // Fetch active subscriptions with plan details
+                $active_subscriptions = DB::table('subscriptions')
+                    ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
+                    ->where('subscriptions.member_id', '=', $target_member['id'])
+                    ->where('subscriptions.status', '=', 'active')
+                    ->where(function($q) {
+                        $q->whereNull('subscriptions.ends_at')
+                          ->orWhere('subscriptions.ends_at', '>', now());
+                    })
+                    ->select(
+                        'plans.id as plan_id',
+                        'plans.code as plan_code',
+                        'plans.name as plan_name',
+                        'plans.business_domain',
+                        'subscriptions.started_at',
+                        'subscriptions.ends_at'
+                    )
+                    ->get();
+
+                // Organize subscriptions by type
+                $has_migration = false;
+                $has_education = false;
+                $primary_subscription = null;
+                $subscription_names = [];
+
+                foreach ($active_subscriptions as $sub) {
+                    $subscription_names[] = $sub->plan_name;
+
+                    if ($sub->business_domain === 'migration') {
+                        $has_migration = true;
+                        if (!$primary_subscription) {
+                            $primary_subscription = $sub;
+                        }
+                    }
+                    if ($sub->business_domain === 'education') {
+                        $has_education = true;
+                        if (!$primary_subscription && !$has_migration) {
+                            $primary_subscription = $sub;
+                        }
+                    }
+                    if ($sub->business_domain === 'combined') {
+                        $has_migration = true;
+                        $has_education = true;
+                        if (!$primary_subscription) {
+                            $primary_subscription = $sub;
+                        }
+                    }
+                }
+
+                // Set subscription data
+                $target_member['active_subscriptions'] = $active_subscriptions->toArray();
+                $target_member['has_migration_subscription'] = $has_migration;
+                $target_member['has_education_subscription'] = $has_education;
+
+                if ($primary_subscription) {
+                    $target_member['subscription_name'] = implode(', ', $subscription_names);
+                    $target_member['subscription_plan_type'] = $primary_subscription->business_domain;
+                    $target_member['subscription_expiry'] = $primary_subscription->ends_at;
+                    $target_member['primary_plan_code'] = $primary_subscription->plan_code;
+                } else {
+                    $target_member['subscription_name'] = null;
+                    $target_member['subscription_plan_type'] = null;
+                    $target_member['subscription_expiry'] = null;
+                    $target_member['primary_plan_code'] = null;
+                }
             }
         }
-        
+
         return $target_member;
     }
-    
+
     public function doLogin($member_id = '', $password = '') {
         if(!empty((string)$member_id) && !empty((string)$password)) {
             // fetch user by name or email

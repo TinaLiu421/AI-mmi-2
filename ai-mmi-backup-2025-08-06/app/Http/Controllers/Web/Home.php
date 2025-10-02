@@ -131,15 +131,31 @@ class Home extends WebController {
 
             if(!empty($question) && !empty($this->_current_member)) {
                 $can_do_reply = true;
-                if(!empty($this->_current_member['expiration_ai_level'])) {
-                    if($this->_current_member['expiration_ai_level'] == 1) {
-                        $can_do_reply = false;
-                    }
-                    else if($this->_current_member['total_ask_question'] >= 3) {
-                        $can_do_reply = false;
+
+                // Check subscription-based access
+                $has_migration_sub = !empty($this->_current_member['has_migration_subscription']);
+                $has_education_sub = !empty($this->_current_member['has_education_subscription']);
+
+                // If user has active subscription for the chat mode, allow unlimited access
+                if ($chat_mode === 'immigration' && $has_migration_sub) {
+                    $can_do_reply = true;
+                } else if ($chat_mode === 'study' && $has_education_sub) {
+                    $can_do_reply = true;
+                } else if ($chat_mode === 'study') {
+                    // Study chat is always free/unlimited
+                    $can_do_reply = true;
+                } else {
+                    // For free users on immigration chat, check old expiration logic
+                    if(!empty($this->_current_member['expiration_ai_level'])) {
+                        if($this->_current_member['expiration_ai_level'] == 1) {
+                            $can_do_reply = false;
+                        }
+                        else if($this->_current_member['total_ask_question'] >= 3) {
+                            $can_do_reply = false;
+                        }
                     }
                 }
-                
+
                 if($can_do_reply) {
                     $new_reply = '';
                     //$new_reply = $this->callDialogflowApi($this->postParamValue('question', ''));

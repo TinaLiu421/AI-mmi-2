@@ -64,7 +64,16 @@ $(document).ready(function() {
 
     // Initialize on page load
     setTimeout(function() {
-        checkExistingChatMode();
+        // Check if there's a default chat mode based on subscription
+        var defaultMode = $('#default_chat_mode').val();
+
+        if (defaultMode && !$('#ask-form').attr('data-chat-mode')) {
+            // Auto-select default mode based on subscription
+            console.log('Auto-selecting chat mode based on subscription:', defaultMode);
+            $('.chat-mode-btn[data-mode="' + defaultMode + '"]').trigger('click');
+        } else {
+            checkExistingChatMode();
+        }
     }, 500); // Small delay to ensure other page elements are loaded
 
     // Handle chat mode button clicks
