@@ -188,6 +188,49 @@ div.page-content.account div.tab-details div.ac-type {
     border-radius: 20px;
 }
 
+div.page-content.account div.tab-details div.subscription-info {
+    float: left;
+    margin-left: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+div.page-content.account div.tab-details div.subscription-info > div {
+    background: #f1f5f9;
+    font-size: 14px;
+    color: #334155;
+    height: 40px;
+    line-height: 40px;
+    padding: 0px 20px;
+    border-radius: 20px;
+}
+
+div.page-content.account div.tab-details div.subscription-info strong {
+    color: #1e293b;
+}
+
+div.page-content.account div.tab-details div.subscription-info a.cancel-subscription-btn {
+    background: #fee2e2;
+    font-size: 14px;
+    color: #dc2626;
+    height: 40px;
+    line-height: 40px;
+    padding: 0px 20px;
+    border-radius: 20px;
+    text-decoration: none;
+    transition: all 0.25s ease-in-out;
+}
+
+div.page-content.account div.tab-details div.subscription-info a.cancel-subscription-btn:hover {
+    background: #fecaca;
+    color: #b91c1c;
+}
+
+div.page-content.account div.tab-details div.subscription-info a.cancel-subscription-btn i {
+    margin-right: 5px;
+}
+
 div.page-content.account div.tab-details div.further-tips {
     background: #f8e5e9;
     float: right;
@@ -539,6 +582,18 @@ div.page-content.account div.article-list > div.post:nth-child(1) {
     
     div.page-content.account div.tab-details div.ac-type {
         float: none;
+        text-align: center;
+    }
+
+    div.page-content.account div.tab-details div.subscription-info {
+        float: none;
+        margin-left: 0;
+        margin-top: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    div.page-content.account div.tab-details div.subscription-info > div {
         text-align: center;
     }
     

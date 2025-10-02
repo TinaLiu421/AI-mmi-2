@@ -51,7 +51,21 @@
                 <div class="ac-type">
                     <?php echo $_page_lang['account.ac_type_'.$_show_current_member['type']]; ?>
                 </div>
-                
+
+                <div class="subscription-info">
+                    <div class="subscription-name">
+                        <strong>Subscription:</strong> <?php echo !empty($_show_current_member['subscription_name']) ? $_show_current_member['subscription_name'] : 'Free Plan'; ?>
+                    </div>
+                    <div class="subscription-expiry">
+                        <strong>Expires:</strong> <?php echo !empty($_show_current_member['subscription_expiry']) ? date('M d, Y', strtotime($_show_current_member['subscription_expiry'])) : 'N/A'; ?>
+                    </div>
+                    <?php if(!empty($_show_current_member['subscription_name']) && $_show_current_member['subscription_name'] != 'Free Plan') { ?>
+                    <a href="#" class="cancel-subscription-btn" onclick="confirmCancelSubscription(event)">
+                        <i class="fa fa-times-circle"></i> Cancel
+                    </a>
+                    <?php } ?>
+                </div>
+
                 <?php if(empty($_show_current_member['remark'])) { ?>
                 <div class="further-tips">
                     <i class="fa fa-info-circle"></i>
@@ -483,6 +497,15 @@
             
             <div class="ac-type">
                 <?php echo $_page_lang['account.ac_type_'.$_show_current_member['type']]; ?>
+            </div>
+
+            <div class="subscription-info">
+                <div class="subscription-name">
+                    <strong>Subscription:</strong> <?php echo !empty($_show_current_member['subscription_name']) ? $_show_current_member['subscription_name'] : 'Free Plan'; ?>
+                </div>
+                <div class="subscription-expiry">
+                    <strong>Expires:</strong> <?php echo !empty($_show_current_member['subscription_expiry']) ? date('M d, Y', strtotime($_show_current_member['subscription_expiry'])) : 'N/A'; ?>
+                </div>
             </div>
 
             <div class="clearboth"></div>
