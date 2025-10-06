@@ -59,11 +59,6 @@
                     <div class="subscription-expiry">
                         <strong>Expires:</strong> <?php echo !empty($_show_current_member['subscription_expiry']) ? date('M d, Y', strtotime($_show_current_member['subscription_expiry'])) : 'N/A'; ?>
                     </div>
-                    <?php if(!empty($_show_current_member['subscription_name']) && $_show_current_member['subscription_name'] != 'Free Plan') { ?>
-                    <a href="#" class="cancel-subscription-btn" onclick="confirmCancelSubscription(event)">
-                        <i class="fa fa-times-circle"></i> Cancel
-                    </a>
-                    <?php } ?>
                 </div>
 
                 <?php if(empty($_show_current_member['remark'])) { ?>
