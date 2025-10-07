@@ -6,6 +6,8 @@ use App\Http\Controllers\WebController;
 use Google\Cloud\Dialogflow\V2\SessionsClient;
 use Google\Cloud\Dialogflow\V2\TextInput;
 use Google\Cloud\Dialogflow\V2\QueryInput;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon; 
 
 
 class Home extends WebController {
@@ -160,20 +162,35 @@ class Home extends WebController {
                     $new_reply = '';
                     //$new_reply = $this->callDialogflowApi($this->postParamValue('question', ''));
                     if(empty($new_reply) || $this->toPlainText(strtolower($new_reply)) == 'unknown') {
-                        $enhanced_question = $this->buildModeSpecificPrompt($this->postParamValue('question', ''), $chat_mode);
-                        $new_reply = $this->callGeminiApi($enhanced_question);
-                        //$new_reply = $this->callChatgptApi($this->postParamValue('question', ''));
+                        $rawQuestion = $this->postParamValue('question', '');
+                        $new_reply   = $this->callGeminiApi($rawQuestion, $chat_mode);
                     }
                     
-                    $new_chatlog = [
-                        'member_id'     =>  $this->_current_member['id'],
-                        'target_date'   =>  date('Ymd', strtotime($this->_today_date)),
-                        'type'          =>  'ask',
-                        'content'       =>  $this->postParamValue('question', ''),
-                        'reply'         =>  $new_reply,
-                        'chat_mode'     =>  $chat_mode,
-                    ];
-                    $this->loadModel('chatlog')->doSave($new_chatlog);
+                    try {
+                        DB::table('chat_log')->insert([
+                            'member_id'   => $this->_current_member['id'],
+                            'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
+                            'type'        => 'member',                 // 你表里的发送者类型
+                            'content'     => $rawQuestion,
+                            'chat_mode'   => $chat_mode,
+                            'status'      => 1,
+                            'created_at'  => Carbon::now(),
+                            'updated_at'  => Carbon::now(),
+                        ]);
+
+                        DB::table('chat_log')->insert([
+                            'member_id'   => $this->_current_member['id'],
+                            'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
+                            'type'        => 'ai',
+                            'content'     => $new_reply,
+                            'chat_mode'   => $chat_mode,
+                            'status'      => 1,
+                            'created_at'  => Carbon::now(),
+                            'updated_at'  => Carbon::now(),
+                        ]);
+                    } catch (\Throwable $e) {
+                        // 不阻断主流程
+                    }
                     
                     $member_owner_name = $this->_current_member['alias_name'];
                     $member_owner_avatar = 'asset/image/icon-member.png';
@@ -188,16 +205,19 @@ class Home extends WebController {
                     $ai_owner_name = 'AI-mmi';
                     $ai_owner_avatar = 'asset/image/logo-mmi.png';
                     
-                    $this->pageResult(
-                    [
-                        'status'    =>  200,
-                        'content'   =>  $new_chatlog['content'],
-                        'reply'     =>  nl2br($new_chatlog['reply']),
-                        'chat_mode' =>  $chat_mode,
-                        'member_owner_name' => $member_owner_name,
-                        'member_owner_avatar' => $member_owner_avatar,
-                        'ai_owner_name' => $ai_owner_name,
-                        'ai_owner_avatar' => $ai_owner_avatar,
+                    $this->pageResult([
+                        'status'    => 200,
+                        'content'   => nl2br($rawQuestion),
+                        'reply'     => nl2br($new_reply),
+                        'chat_mode' => $chat_mode,
+                        'member_owner_name'   => $this->_current_member['alias_name'],
+                        'member_owner_avatar' => !empty($this->_current_member['avatar'])
+                            ? (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
+                                ? 'upload/member_avatar/'.$this->_current_member['avatar']
+                                : 'upload/member_logo/'.$this->_current_member['avatar'])
+                            : 'asset/image/icon-member.png',
+                        'ai_owner_name'       => 'AI-mmi',
+                        'ai_owner_avatar'     => 'asset/image/logo-mmi.png',
                     ]);
                 }
                 else {
@@ -308,77 +328,88 @@ class Home extends WebController {
         return $result_answer;
     }
 
-    protected function callGeminiApi($query = '') {
-        // Request URL
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyCAH31vTsmetLcAmkKiWteEuviLFTfm-F8';
+    protected function callGeminiApi($question = '', $chat_mode = 'immigration') {
+        if (empty($question)) return '';
 
-        // Request data
-        $data = array(
-            'contents' => array(
-                array(
-                    'parts' => array(
-                        array(
-                            'text' => $query
-                        )
-                    )
-                )
-            )
-        );
+        // 1) 当前用户
+        $member = $this->_current_member;
+        if (empty($member)) return 'Please login first.';
 
-        // Convert data to JSON format
-        $jsonData = json_encode($data);
+        // 2) 取最近 10 轮（20 条）历史，按时间升序
+        $history = DB::table('chat_log')
+            ->where('member_id', $member['id'])
+            ->where('chat_mode', $chat_mode)
+            ->orderBy('id', 'desc')
+            ->limit(20)                      
+            ->get()
+            ->reverse();
 
-        // Set request header
-        $headers = array(
+        $contents = [];
+        foreach ($history as $msg) {
+            $t    = strtolower($msg->type ?? '');
+            $role = ($t === 'ai') ? 'model' : 'user';   // 'member'/'ask' 都归为 user
+            $text = (string)($msg->content ?? '');
+            if ($text === '') continue;
+            if (mb_strlen($text) > 2000) {              // 防止 prompt 过大
+                $text = mb_substr($text, 0, 2000) . '...';
+            }
+            $contents[] = ['role' => $role, 'parts' => [['text' => $text]]];
+        }
+
+        // 3) 追加当前问题
+        $contents[] = ['role' => 'user', 'parts' => [['text' => $question]]];
+
+        // 4) 发送请求（建议把 key 改到 .env）
+        $apiKey = 'AIzaSyCAH31vTsmetLcAmkKiWteEuviLFTfm-F8';
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+        $body = [
+            'contents' => $contents,
+            'generationConfig' => [
+                        'temperature'       => 0.9,
+                        'maxOutputTokens'   => 2048,   
+                        'topK'              => 40,
+                        'topP'              => 0.95,
+                        'candidateCount'    => 1,
+                        
+                        'responseMimeType'  => 'text/plain',
+                    ],
+        ];
+
+        $jsonData = json_encode($body, JSON_UNESCAPED_UNICODE);
+
+        $headers  = [
             'Content-Type: application/json',
-            'Content-Length: ' . strlen($jsonData)
-        );
+        ];
 
-        // Initialize cURL
         $ch = curl_init();
-
-        // Set cURL options
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
-        // Execute cURL request and get response
-        $response = curl_exec($ch);
-
-        // Check if an error occurred
-        if(curl_errno($ch)){
-            //echo 'Curl error: ' . curl_error($ch);
-            return '';
+        $resp = curl_exec($ch);
+        if (curl_errno($ch)) {
+            $err = curl_error($ch);
+            curl_close($ch);
+            return '[Error] ' . $err;
         }
-
-        // Close cURL resource
         curl_close($ch);
-        
-        
-        $result_answer = '';
-        $response = (array)json_decode($response, true);
 
-        if(!empty($response['error'])) {
-            $result_answer = (!empty($response['error']['message']))?$response['error']['message']:'';
+        $data = json_decode($resp, true);
+        if (isset($data['error'])) {
+            return '[Upstream Error] ' . ($data['error']['message'] ?? 'Unknown error');
         }
-        else if(!empty($response['candidates'])) {
-            if(!empty($response['candidates'][0])) {
-                if(!empty($response['candidates'][0]['content'])) {
-                    if(!empty($response['candidates'][0]['content']['parts'])) {
-                        if(!empty($response['candidates'][0]['content']['parts'][0])) {
-                            if(!empty($response['candidates'][0]['content']['parts'][0]['text'])) {
-                                $result_answer = $response['candidates'][0]['content']['parts'][0]['text'];
-                            }
-                        }
-                    }
-                }
-            }
+
+        $answer = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        if ($answer === '') {
+            $answer = 'Sorry, I could not generate a response this time.';
         }
-  
-        return $result_answer;
+        return $answer;
     }
+
     
     protected function callChatgptApi($query = '') {
         $result_answer = '';
@@ -392,8 +423,8 @@ class Home extends WebController {
 
     protected function buildModeSpecificPrompt($question, $mode) {
         $system_prompts = [
-            'immigration' => "You are an expert immigration and migration consultant specializing in Australian immigration law and visa processes. You help people understand visa requirements, migration pathways, and provide accurate, up-to-date immigration advice. Always provide specific, actionable guidance about visa options, requirements, and processes. Be professional and empathetic in your responses.",
-            'study' => "You are a study abroad and education consultant specializing in international education opportunities, particularly in Australia. You help students find suitable courses, understand admission requirements, compare educational institutions, and navigate the student visa process. Provide comprehensive guidance about study options, costs, and academic pathways."
+            'immigration' => "",
+            'study' => ""
         ];
 
         $context_prompt = isset($system_prompts[$mode]) ? $system_prompts[$mode] : $system_prompts['immigration'];
