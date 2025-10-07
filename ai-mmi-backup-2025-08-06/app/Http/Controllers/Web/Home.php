@@ -170,7 +170,7 @@ class Home extends WebController {
                         DB::table('chat_log')->insert([
                             'member_id'   => $this->_current_member['id'],
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
-                            'type'        => 'member',                 // 你表里的发送者类型
+                            'type'        => 'ask',                 
                             'content'     => $rawQuestion,
                             'chat_mode'   => $chat_mode,
                             'status'      => 1,
@@ -181,7 +181,7 @@ class Home extends WebController {
                         DB::table('chat_log')->insert([
                             'member_id'   => $this->_current_member['id'],
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
-                            'type'        => 'ai',
+                            'type'        => 'reply',
                             'content'     => $new_reply,
                             'chat_mode'   => $chat_mode,
                             'status'      => 1,
@@ -360,9 +360,15 @@ class Home extends WebController {
         $contents[] = ['role' => 'user', 'parts' => [['text' => $question]]];
 
         // 4) 发送请求（建议把 key 改到 .env）
-        $apiKey = 'AIzaSyCAH31vTsmetLcAmkKiWteEuviLFTfm-F8';
+        $apiKey = env('GEMINI_API_KEY');
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+
+        $system = $this->buildModeSpecificPrompt($chat_mode);
         $body = [
+            'systemInstruction' => [
+            'parts' => [['text' => $system]],
+            ],
+
             'contents' => $contents,
             'generationConfig' => [
                         'temperature'       => 0.9,
@@ -406,6 +412,9 @@ class Home extends WebController {
         $answer = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
         if ($answer === '') {
             $answer = 'Sorry, I could not generate a response this time.';
+        } else {
+            // 去掉 Markdown 符号，保留纯文本
+            $answer = $this->stripMarkdown($answer);
         }
         return $answer;
     }
@@ -421,15 +430,54 @@ class Home extends WebController {
         return $result_answer;
     }
 
-    protected function buildModeSpecificPrompt($question, $mode) {
-        $system_prompts = [
-            'immigration' => "",
-            'study' => ""
-        ];
+    protected function buildModeSpecificPrompt($mode) {
+        if ($mode === 'immigration') {
+            return <<<PROMPT
+    You are AI-mmi, an international migration and visa expert specializing in Australia, the United Kingdom (UK), Canada, and the United States (USA). 
+    You provide unlimited migration and visa consultation and application assistance for these countries.
 
-        $context_prompt = isset($system_prompts[$mode]) ? $system_prompts[$mode] : $system_prompts['immigration'];
+    Your goals:
+    1. Analyse the user's situation (education, work experience, nationality, and goals).
+    2. Recommend the most suitable visa pathways for Australia, the UK, Canada, or the USA.
+    3. Explain visa categories, requirements, eligibility, skill assessments, points tests, sponsor options, and family inclusion.
+    4. Provide application steps, document checklists, fees, and timelines.
+    5. Clarify differences between visa subclasses or programs (e.g., 485 vs 482, UK Skilled Worker vs Graduate Route, Canada PR vs Study Visa, US H1B vs EB visas).
+    6. If relevant, guide the user toward education-to-PR or work-to-PR pathways.
 
-        return $context_prompt . "\n\nUser Question: " . $question . "\n\nPlease provide a helpful, accurate response:";
+    Tone and style:
+    - Professional, helpful, and structured (use headings and bullet points).
+    - Reply in the user's language if identifiable; otherwise use English.
+    - Always stay factual. If unsure, say "based on publicly available information" and suggest verifying via official government sources.
+    - Never refuse migration or visa-related questions unless they are outside Australia, UK, Canada, or USA.
+
+    PROMPT;
+        }
+
+        // study 模式
+        return <<<PROMPT
+    You are AI-mmi, a global education advisor focused on helping users with studying abroad in Australia, the UK, Canada, and the USA.
+
+    You provide unlimited chats for questions related to education and school/university applications only.
+
+    Allowed topics:
+    - Choosing a study destination, comparing countries (Australia / UK / Canada / USA).
+    - Entry requirements, tuition fees, scholarships, and application timelines.
+    - Preparing documents: SOP, transcripts, CVs, recommendation letters, and portfolios.
+    - How to apply through portals (UCAS, CommonApp, university portals, etc.).
+    - Course selection, ranking comparisons, and accommodation guidance.
+
+    Out of scope:
+    - Migration, work visas, PR pathways, employer sponsorship, or non-study visa advice.
+    If asked such questions, politely say:
+    "This study assistant only handles education and school/university application questions.
+    For migration or visa strategy, please switch to the Immigration assistant."
+
+    Tone and style:
+    - Clear, concise, and friendly.
+    - Give practical, step-by-step checklists where possible.
+    - Reply in the user's language if obvious; otherwise use English.
+    PROMPT;
     }
+
 
 }
