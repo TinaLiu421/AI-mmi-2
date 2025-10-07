@@ -166,117 +166,10 @@
                 <div class="info-area">
                     @yield('content')
                 </div>
-                <div class="chat-area"
-                    style="background:url('asset/image/chat-bg.jpg') no-repeat center center; background-size:cover;">
+                <div class="chat-area">
 
                     <div>
-                        <div class="top">
-                            <div class="controls">
-                                <!-- Buttons -->
-                                <?php
-                                // Check subscription status - use $_current_member for chat area
-                                $has_migration = !empty($_current_member['has_migration_subscription']);
-                                $has_education = !empty($_current_member['has_education_subscription']);
-
-                                // Migration button logic
-                                if ($has_migration) {
-                                    $migration_btn_text = 'Upgrade';
-                                    $migration_btn_image = 'asset/image/upgrade.png';
-                                    $migration_btn_class = 'talk-to-agent';
-                                } else if ($has_education) {
-                                    // If user has education subscription but not migration, show Talk to Agent
-                                    $migration_btn_text = 'Talk to an Agent';
-                                    $migration_btn_image = 'asset/image/humanAgent.png';
-                                    $migration_btn_class = 'talk-to-agent';
-                                } else {
-                                    $migration_btn_text = 'Migrate';
-                                    $migration_btn_image = 'asset/image/Migrate.png';
-                                    $migration_btn_class = 'with-ai';
-                                }
-
-                                // Education button logic
-                                if ($has_education) {
-                                    $education_btn_text = 'Apply';
-                                    $education_btn_image = 'asset/image/apply.png';
-                                    $education_btn_class = 'talk-to-agent';
-                                } else if ($has_migration) {
-                                    // If user has migration subscription but not education, show Talk to Agent
-                                    $education_btn_text = 'Talk to an Agent';
-                                    $education_btn_image = 'asset/image/humanAgent.png';
-                                    $education_btn_class = 'talk-to-agent';
-                                } else {
-                                    $education_btn_text = 'Study';
-                                    $education_btn_image = 'asset/image/study.png';
-                                    $education_btn_class = 'with-ai';
-                                }
-
-                                // Default chat mode based on subscription
-                                $default_chat_mode = 'immigration'; // default
-                                if ($has_migration) {
-                                    $default_chat_mode = 'immigration';
-                                } elseif ($has_education) {
-                                    $default_chat_mode = 'study';
-                                }
-
-                                if ($migration_btn_text === 'Upgrade') {
-                                        $migration_btn_href = '/upgrade';
-                                    } elseif ($migration_btn_text === 'Talk to an Agent') {
-                                        $migration_btn_href = '/agents';
-                                    } else {
-                                        $migration_btn_href = 'javascript:void(0)';
-                                    }
-
-                                    if ($education_btn_text === 'Apply') {
-                                        $education_btn_href = '/apply';
-                                    } elseif ($education_btn_text === 'Talk to an Agent') {
-                                        $education_btn_href = '/agents';
-                                    } else {
-                                        $education_btn_href = 'javascript:void(0)';
-                                    }
-                                ?>
-
-                                <!-- Immigration/Migration Button -->
-                                <div class="chat-mode-btn" data-mode="immigration">
-                                    <x-chat-button
-                                        href="javascript:void(0)"
-                                        bottomText="<?php echo $migration_btn_text; ?>"
-                                        imgSrc="<?php echo $migration_btn_image; ?>"
-                                        class="<?php echo $migration_btn_class; ?>" />
-                                </div>
-
-                                <!-- Education/Study Button -->
-                                <div class="chat-mode-btn" data-mode="study">
-                                    <x-chat-button
-                                        href="javascript:void(0)"
-                                        bottomText="<?php echo $education_btn_text; ?>"
-                                        imgSrc="<?php echo $education_btn_image; ?>"
-                                        class="<?php echo $education_btn_class; ?>" />
-                                </div>
-
-                                <!-- Hidden input to store default chat mode -->
-                                <input type="hidden" id="default_chat_mode" value="<?php echo $default_chat_mode; ?>">
-
-                                <div class="robot-container">
-                                    <div class="robot" style="width: 110px; height: 110px; position: relative; border-radius: 12px; overflow: hidden;">
-                                        <img src="asset/image/ai-robot.png" alt="ai-robot"/>
-                                        <video id="ai-robot-video" muted autoplay loop playsinline>
-                                            <source type="video/mp4" src="asset/image/ai-robot-video.mp4"></source>
-                                        </video>
-                                        <a id="sound-control" style="position: absolute; bottom: 5px; right: 5px; color: white; font-size: 12px;"><i class="fa fa-microphone-slash"></i></a>
-                                    </div>
-                                    <!-- <span style="color: white; font-size: 12px; margin-top: 8px; text-align: center;">AI Assistant</span> -->
-                                </div>
-                            </div>
-                            <div class="clearboth"></div>
-                        </div>
-                        
                         <div class="box">
-                            <a class="btn-expand-full">
-                                <img src="asset/image/icon-expand-full.png" alt="icon-expand-full"/>
-                            </a>
-                            <a class="btn-minimize-full">
-                                <img src="asset/image/icon-minimize.png" alt="icon-minimize"/>
-                            </a>
                             <a class="btn-close-mobile">
                                 <img src="asset/image/icon-close.png" alt="icon-close"/>
                             </a>
@@ -288,22 +181,37 @@
                             <div class="limit-warning"><?php echo $_page_lang['chat_robot.limited'];?></div>
                             <?php } ?>
                             <div class="show-message">
+                                <!-- Get Started Button Container -->
+                                <div class="get-started-container">
+                                    <x-chat-button
+                                        id="btn-get-started"
+                                        href="<?php echo $_page_base_url.'/account_login'; ?>"
+                                        bottomText="Sign In To Get Started"
+                                        class="btn-get-started" />
+                                </div>
                             </div>
-                            <div id="chat-mode-indicator" style="display: none; padding: 1px; background: #bb002d; color: white; text-align: center; font-weight: bold; margin-bottom: 10px;">
-                                Immigration Assessment Mode
-                            </div>
-                            <div id="study-mode-indicator" style="display: none; padding: 1px; background: #06b6d4; color: white; text-align: center; font-weight: bold; margin-bottom: 10px;">
-                                Study Assistant Mode - Free
-                            </div>
+
                             <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0" data-chat-mode="">
                                 <div>@csrf</div>
                                 <input type="hidden" id="chat_mode" name="chat_mode" value="">
                                 <input type="hidden" id="question_number" name="question_number" value="1">
-                                <div class="input-question">
-                                    <input type="text" id="ask_question" name="question" placeholder="Please select 'I like to Immigrate' or 'I like to Study' first">
-                                    <button type="submit">
-                                        <img src="asset/image/icon-send.png" alt="icon-send"/>
-                                    </button>
+                                <div class="input-question show">
+                                    <div class="robot-container">
+                                        <div class="robot">
+                                            <video id="chat-robot-video" autoplay loop muted playsinline>
+                                                <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
+                                            </video>
+                                            <a id="sound-control" href="javascript:void(0);">
+                                                <i class="fa fa-microphone"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="input-wrapper">
+                                        <textarea type="text" id="ask_question" name="question" placeholder="Ask me about migration and study..."></textarea>
+                                        <button type="submit">
+                                            <img src="asset/image/icon-send.png" alt="icon-send"/>
+                                        </button>
+                                    </div>
                                 </div>
                             </form>
                         </div>

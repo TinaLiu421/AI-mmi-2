@@ -3,51 +3,55 @@ Reusable Chat Button Component
 
 Props:
 - href: Link URL
-- topText: Text on top (optional)
-- bottomText: Text on bottom (optional)
+- bottomText: Text to display
 - imgSrc: Image URL (optional)
-- color: Background color (default: #4f46e5)
-- hoverColor: Hover background color (default: #3730a3)
+- color: Background color (default: gradient blue)
+- hoverColor: Hover background color (optional)
 - class: Additional CSS classes
 --}}
 
 @props([
     'href' => '#',
-    'bottomText' => 'MIGRATE',
+    'bottomText' => 'Get Started',
     'imgSrc' => null,
-    'color' => 'var(--color-primary, #bb002d)',
-    'hoverColor' => 'rgba(187, 0, 45, 0.8)',
+    'color' => 'linear-gradient(135deg, #002065 0%, #0066ff 100%)',
+    'hoverColor' => 'linear-gradient(135deg, #001a54 0%, #0052cc 100%)',
     'class' => ''
 ])
 
 <a href="{{ $href }}"
-   class="{{ $class }}"
-   style="display: flex;
+   class="{{ $class }} chat-button"
+   style="display: inline-flex;
           flex-direction: column;
-          border-radius: 12%;
-          border: 1px solid white;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border-radius: 16px;
+          border: 2px solid #cbd5e1;
           overflow: hidden;
-          width: 120px;
-          height: 110px;
+          min-width: 140px;
+          padding: 20px 32px;
           text-align: center;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;"
-   onmouseover="this.style.transform='translateY(-2px)';"
-   onmouseout="this.style.transform='translateY(0)';">
+          background: {{ $color }};
+          color: white;
+          text-decoration: none;
+          font-size: 1.1rem;
+          font-weight: 700;
+          box-shadow: 0 4px 12px rgba(0, 32, 101, 0.2);
+          transition: all 0.3s ease;"
+   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0, 32, 101, 0.3)'; this.style.background='{{ $hoverColor }}';"
+   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 32, 101, 0.2)'; this.style.background='{{ $color }}';">
 
-    @if($imgSrc)
-        <div style="flex: 1; display:flex; align-items:center; justify-content:center; background: var(--chat-light);">
-            <img src="{{ $imgSrc }}" alt="Button Image" style="max-width: 80%; max-height: 80%;">
-        </div>
-    @else
-         <div style="flex: 1; background: var(--chat-light); color: #ffffff; font-size: 32px; font-weight: 950; display:flex; align-items:center; justify-content:center; width: 100%; margin:0; padding:0;">
-        {!! $bottomText !!}
-    </div>
-    @endif
+    <span>{!! $bottomText !!}</span>
 </a>
 
 <style>
-:root {
-    --chat-dark: #5091cd; /* dark blue for top */
-    --chat-light: #bb002d; /* red */
+/* Responsive for mobile */
+@media (max-width: 768px) {
+    .chat-button {
+        min-width: 120px !important;
+        padding: 16px 24px !important;
+        font-size: 1rem !important;
+    }
 }
 </style>

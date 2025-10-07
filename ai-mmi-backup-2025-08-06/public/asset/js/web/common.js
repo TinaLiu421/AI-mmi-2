@@ -114,97 +114,6 @@ function iweb_global_func() {
 
     $(document).on(
         "click",
-        "a.floating-show-chat, main.page-body div.chat-area div.box > a.btn-expand-full",
-        function () {
-            // reset all
-            $(
-                "header.page-header div.controls > div.menu > a.open-menu"
-            ).removeClass("show");
-            $(
-                "header.page-header div.controls > div.menu > a.close-menu"
-            ).removeClass("show");
-            $(
-                "header.page-header div.controls > div.menu > a.hide-chat"
-            ).removeClass("show");
-
-            $("main.page-body div.info-area").removeClass("hide");
-            $("main.page-body div.chat-area").removeClass("hide");
-            $("main.page-body div.info-area")
-                .removeClass("show")
-                .removeClass("show-mobile");
-            $("main.page-body div.chat-area")
-                .removeClass("show")
-                .removeClass("show-mobile");
-
-            // target
-            $(
-                "header.page-header div.controls > div.menu > a.hide-chat"
-            ).addClass("show");
-            $("header.page-header div.controls > div.menu > ul").removeClass(
-                "show"
-            );
-            $("main.page-body div.info-area").addClass("hide");
-            $("main.page-body div.chat-area").addClass("show");
-
-            var new_height =
-                $(window).height() -
-                $("header.page-header").height() -
-                $("div.chat-area div.top").height() -
-                $("div.chat-area div.bottom").height();
-            new_height = new_height - 210;
-            $("main.page-body div.chat-area div.box > div.show-message").height(
-                Math.max(0, parseInt(new_height))
-            );
-        }
-    );
-
-    $(document).on(
-        "click",
-        "main.page-body div.chat-area div.box > a.btn-minimize-full",
-        function () {
-            // reset all
-            $(
-                "header.page-header div.controls > div.menu > a.open-menu"
-            ).removeClass("show");
-            $(
-                "header.page-header div.controls > div.menu > a.close-menu"
-            ).removeClass("show");
-            $(
-                "header.page-header div.controls > div.menu > a.hide-chat"
-            ).removeClass("show");
-
-            $("main.page-body div.info-area").removeClass("hide");
-            $("main.page-body div.chat-area").removeClass("hide");
-            $("main.page-body div.info-area")
-                .removeClass("show")
-                .removeClass("show-mobile");
-            $("main.page-body div.chat-area")
-                .removeClass("show")
-                .removeClass("show-mobile");
-
-            // target - return to normal view
-            $(
-                "header.page-header div.controls > div.menu > a.open-menu"
-            ).addClass("show");
-            $("header.page-header div.controls > div.menu > ul").removeClass(
-                "show"
-            );
-
-            var new_height =
-                $(window).height() -
-                $("header.page-header").height() -
-                $("footer.page-footer").height() -
-                $("div.chat-area div.top").height() -
-                $("div.chat-area div.bottom").height();
-            new_height = new_height - 210;
-            $("main.page-body div.chat-area div.box > div.show-message").height(
-                Math.max(0, parseInt(new_height))
-            );
-        }
-    );
-
-    $(document).on(
-        "click",
         "header.page-header div.controls > div.lang > a",
         function () {
             if (
@@ -220,23 +129,6 @@ function iweb_global_func() {
                     "header.page-header div.controls > div.lang > div.options"
                 ).addClass("show");
             }
-        }
-    );
-
-    $(document).on(
-        "click",
-        "main.page-body div.chat-area div.box > a.btn-expand-full-mobile",
-        function () {
-            $("main.page-body div.chat-area").addClass("show-mobile");
-            var new_height =
-                $(window).height() -
-                $("header.page-header").height() -
-                $("div.chat-area div.top").height() -
-                $("div.chat-area div.bottom").height();
-            new_height = new_height - 110;
-            $("main.page-body div.chat-area div.box > div.show-message").height(
-                Math.max(0, parseInt(new_height))
-            );
         }
     );
 
@@ -529,6 +421,14 @@ function iweb_global_func() {
 
     loadArticle();
 
+    // Handle Enter key to submit form (Shift+Enter for new line)
+    $(document).on("keydown", "#ask_question", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            $("#ask-form").submit();
+        }
+    });
+
     iweb.form(
         "#ask-form",
         "json",
@@ -541,26 +441,55 @@ function iweb_global_func() {
 
             // Show user's question immediately before sending
             var userQuestion = $("#ask_question").val();
-            var userAvatar = _current_member && _current_member.avatar ?
-                (_current_member.type == 1 ? 'upload/member_avatar/' : 'upload/member_logo/') + _current_member.avatar :
-                'asset/image/icon-member.png';
-            var userName = _current_member && _current_member.name ? _current_member.name : 'You';
+            var userAvatar =
+                _current_member && _current_member.avatar
+                    ? (_current_member.type == 1
+                          ? "upload/member_avatar/"
+                          : "upload/member_logo/") + _current_member.avatar
+                    : "asset/image/icon-member.png";
+            var userName =
+                _current_member && _current_member.name
+                    ? _current_member.name
+                    : "You";
 
             var dialog_group = '<div class="dialog ask">';
-            dialog_group += '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member">';
+            dialog_group +=
+                '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member">';
             if (_current_member && _current_member.avatar) {
-                dialog_group += '<div style="background-image:url(\'' + userAvatar + '\')"></div>';
+                dialog_group +=
+                    "<div style=\"background-image:url('" +
+                    userAvatar +
+                    "')\"></div>";
             }
-            dialog_group += '</div>';
-            dialog_group += '<div class="name">' + userName + '</div>';
+            dialog_group += "</div>";
+            dialog_group += '<div class="name">' + userName + "</div>";
             dialog_group += '<div class="clearboth"></div>';
-            dialog_group += '<div class="txt">' + userQuestion + '</div>';
+            dialog_group += '<div class="txt">' + userQuestion + "</div>";
             dialog_group += '</div><div class="clearboth"></div>';
 
-            $("main.page-body div.chat-area div.box > div.show-message").append(dialog_group);
+            $("main.page-body div.chat-area div.box > div.show-message").append(
+                dialog_group
+            );
+
+            // Clear the textarea immediately
+            $("#ask_question").val("");
+
+            // Add thinking indicator with animated dots
+            var thinkingIndicator =
+                '<div class="dialog reply thinking-indicator">';
+            thinkingIndicator +=
+                '<div class="avatar"><img src="/asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>';
+            thinkingIndicator +=
+                '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+            thinkingIndicator += '</div><div class="clearboth"></div>';
+            $("main.page-body div.chat-area div.box > div.show-message").append(
+                thinkingIndicator
+            );
 
             // Scroll to bottom
-            var element = $("main.page-body div.chat-area div.box > div.show-message")[0];
+            var element = $(
+                "main.page-body div.chat-area div.box > div.show-message"
+            )[0];
             if (element) {
                 element.scrollTop = element.scrollHeight;
             }
@@ -569,8 +498,10 @@ function iweb_global_func() {
         },
         function (response_data) {
             console.log("Form response received:", response_data);
-            // No loading mask to remove
-            $("#ask_question").val("");
+
+            // Remove thinking indicator
+            $(".thinking-indicator").remove();
+
             if (iweb.isMatch(response_data.status, 200)) {
                 // User question is already shown immediately, just show AI reply
                 if (iweb.isValue(response_data.reply)) {
@@ -585,11 +516,8 @@ function iweb_global_func() {
                         "</div>";
                     dialog_group += '<div class="clearboth"></div>';
                     dialog_group +=
-                        '<div class="txt">' +
-                        response_data.reply +
-                        "</div>";
-                    dialog_group +=
-                        '</div><div class="clearboth"></div>';
+                        '<div class="txt">' + response_data.reply + "</div>";
+                    dialog_group += '</div><div class="clearboth"></div>';
 
                     $(
                         "main.page-body div.chat-area div.box > div.show-message"
@@ -638,14 +566,14 @@ function iweb_global_func_done() {
                 .removeClass("fa-microphone-slash")
                 .removeClass("fa-microphone")
                 .addClass("fa-microphone-slash");
-            $("#ai-robot-video").prop("muted", true);
+            $("#chat-robot-video").prop("muted", true);
         } else {
             $(this).addClass("opened");
             $("a#sound-control > i")
                 .removeClass("fa-microphone-slash")
                 .removeClass("fa-microphone")
                 .addClass("fa-microphone");
-            $("#ai-robot-video").prop("muted", false);
+            $("#chat-robot-video").prop("muted", false);
         }
     });
 
@@ -678,7 +606,7 @@ function iweb_global_func_done() {
         ) {
             loadChatMessage(1);
         }
-    }, 600); // Wait for immigration-chat.js to potentially set the mode
+    }, 300); // Wait for immigration-chat.js to potentially set the mode
     //$('main.page-body div.chat-area div.box > div.show-message').scrollTop($('main.page-body div.chat-area div.box > div.show-message')[0].scrollHeight);
 }
 
@@ -762,7 +690,7 @@ function resetPageView() {
         .removeClass("fa-microphone-slash")
         .removeClass("fa-microphone")
         .addClass("fa-microphone-slash");
-    $("#ai-robot-video").prop("muted", true);
+    $("#chat-robot-video").prop("muted", true);
 }
 
 function loadArticle() {
@@ -922,6 +850,7 @@ function showWelcomeMessage() {
         // User has active chat mode, ensure input is visible
         $(".input-question").addClass("show");
         $("#ask_question").prop("disabled", false);
+        $(".robot-container").show(); // Show robot when not showing welcome
         return;
     }
 
@@ -932,6 +861,7 @@ function showWelcomeMessage() {
             // User has chat history, ensure input is visible
             $(".input-question").addClass("show");
             $("#ask_question").prop("disabled", false);
+            $(".robot-container").show(); // Show robot when not showing welcome
             return;
         } else {
             // No chat history, show welcome message
@@ -945,62 +875,164 @@ function showWelcomeMessage() {
 
 function displayWelcomeMessage() {
     const welcomeMessage = `
-        <!-- Top white section -->
-        <div style="
-                font-size: 1.4rem;
-                border-radius: 8px;
-                color: black;
-                text-align: center;
-                margin: 20px 0 40px 0;
-            ">
-                Questions on migration or study?<br>
-                <span style="
-                    font-size: 1.6rem;
-                    font-weight:700;
-                    color: black;
-                ">
-                    Click one of the buttons above to get started!
-                </span>
-        </div>
+        <div class="welcome-message">
+            <div class="welcome-message__video-container">
+                <div class="welcome-message__video-wrapper">
+                    <video id="welcome-robot-video" autoplay loop muted playsinline>
+                        <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
+                    </video>
+                    <a id="welcome-sound-control" href="javascript:void(0);" title="Click to unmute">
+                        <i class="fa fa-microphone-slash"></i>
+                    </a>
+                </div>
+            </div>
 
-        <div style="
-            background: #f3f4f6;
-            border-radius: 12px;
-            padding: 20px 15px 20px 15px;
-            text-align: center;
-            color: black;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            font-size: 1.4rem;
-            line-height: 1.5;
-        ">
-            Get instant accurate answers
-            <strong style="color:#002065;">24/7</strong>,
-            plus easy access to registered migration and education experts whenever you need a
-            <strong style="color:#002065;">human touch</strong>.
-        </div>
+            <div class="welcome-message__transcript">
+                <div class="welcome-message__transcript-line"></div>
+            </div>
 
-        <!-- Footer text -->
-        <div style="
-            padding-top: 40px;
-            text-align: center;
-            color: black;
-            font-size: 1.4rem;
-            font-weight:700;
-        ">
-            AI-powered Migration & Study Support - With Instant Access to Human Expert
+            <div class="welcome-message__footer">
+                AI-powered Migration & Study Support - With Instant Access to Human Expert
+            </div>
         </div>
     `;
 
-    $("main.page-body div.chat-area div.box > div.show-message").html(
+    // Prepend welcome message before the button (button stays in place from blade)
+    $("main.page-body div.chat-area div.box > div.show-message").prepend(
         welcomeMessage
     );
 
-    // Hide expand button when welcome message is displayed
-    $("main.page-body div.chat-area div.box > a.btn-expand-full").hide();
-    $("main.page-body div.chat-area div.box > a.btn-expand-full-mobile").hide();
+    // Show Get Started button
+    $(".get-started-container").addClass("show");
 
-    // Hide entire form container when welcome message is displayed
-    $("#ask-form").addClass("hidden");
-    $(".input-question").removeClass("show");
-    $("#ask_question").prop("disabled", true);
+    // Hide chat robot video during welcome message
+    $(".robot-container").hide();
+
+    // Ensure video plays (some browsers need this)
+    setTimeout(function () {
+        var video = document.getElementById("welcome-robot-video");
+        if (video) {
+            video.muted = true; // Must be muted for autoplay
+            video.play().catch(function (error) {
+                console.log("Video autoplay failed:", error);
+            });
+        }
+    }, 100);
+
+    // Welcome video sound control
+    $(document).off("click", "#welcome-sound-control");
+    $(document).on("click", "#welcome-sound-control", function () {
+        var video = document.getElementById("welcome-robot-video");
+        if ($(this).hasClass("opened")) {
+            $(this).removeClass("opened");
+            $(this).attr("title", "Click to unmute");
+            $("#welcome-sound-control > i")
+                .removeClass("fa-microphone-slash")
+                .removeClass("fa-microphone")
+                .addClass("fa-microphone-slash");
+            if (video) video.muted = true;
+        } else {
+            $(this).addClass("opened");
+            $(this).attr("title", "Click to mute");
+            $("#welcome-sound-control > i")
+                .removeClass("fa-microphone-slash")
+                .removeClass("fa-microphone")
+                .addClass("fa-microphone");
+            if (video) video.muted = false;
+        }
+    });
+
+    // Animate transcript
+    animateWelcomeTranscript();
+}
+
+function animateWelcomeTranscript() {
+    // Sync subtitles with video timestamps (in seconds) - typewriter style
+    const subtitles = [
+        { time: 0, text: "Hi there! I'm AI-mmi" },
+        {
+            time: 2,
+            text: "your smart companion for migration and education planning.",
+        },
+        {
+            time: 5,
+            text: "I can help you explore study options, understand different migration pathways, and get ready for your move abroad",
+        },
+        { time: 12, text: "all in one easy-to-use platform." },
+        {
+            time: 14,
+            text: "Whether you'd like to do it yourself with our personalized guided tools,",
+        },
+        {
+            time: 17,
+            text: "or connect with a trusted professional, I'm here to make your journey smoother, more affordable, and stress-free.",
+        },
+        {
+            time: 24,
+            text: "From choosing the right university or course, exploring visa options for your dream destination,",
+        },
+        {
+            time: 29,
+            text: "preparing documents, arranging English lessons, finding accommodation or jobs, to relocation services",
+        },
+        { time: 35, text: "even moving your pets!" },
+        {
+            time: 38,
+            text: "I'll help you stay informed and organized every step of the way.",
+        },
+        {
+            time: 42,
+            text: "If you haven't signed up yet go ahead and create your free AI-mmi account to start planning your study or migration journey today!",
+        },
+    ];
+
+    const video = document.getElementById("welcome-robot-video");
+    const transcriptElement = $(".welcome-message__transcript-line");
+    let currentSubtitleIndex = -1;
+    let typingTimeout = null;
+
+    function typeText(text, charIndex = 0) {
+        if (!transcriptElement.length) return;
+
+        if (charIndex <= text.length) {
+            transcriptElement.text(text.substring(0, charIndex));
+            transcriptElement.addClass("show");
+            typingTimeout = setTimeout(function () {
+                typeText(text, charIndex + 1);
+            }, 50); // Typing speed
+        }
+    }
+
+    function updateSubtitle() {
+        if (!transcriptElement.length || !video) return;
+
+        const currentTime = video.currentTime;
+
+        // Find the current subtitle based on video time
+        for (let i = subtitles.length - 1; i >= 0; i--) {
+            if (currentTime >= subtitles[i].time) {
+                if (currentSubtitleIndex !== i) {
+                    currentSubtitleIndex = i;
+
+                    // Clear any ongoing typing
+                    if (typingTimeout) {
+                        clearTimeout(typingTimeout);
+                    }
+
+                    // Start typing new text
+                    typeText(subtitles[currentSubtitleIndex].text);
+                }
+                break;
+            }
+        }
+    }
+
+    // Update subtitle based on video time
+    if (video) {
+        video.addEventListener("timeupdate", updateSubtitle);
+        video.addEventListener("seeked", updateSubtitle);
+
+        // Initial subtitle
+        typeText(subtitles[0].text);
+    }
 }
