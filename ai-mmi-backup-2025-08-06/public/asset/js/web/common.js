@@ -3,8 +3,7 @@ var article_loading = false;
 var article_loading_enable = true;
 
 function iweb_global_func() {
-    // show welcome message
-    showWelcomeMessage();
+    // Welcome message is now handled by welcome_message.js
     $(document).on(
         "click",
         "header.page-header div.controls > div.menu > a.open-menu",
@@ -446,7 +445,7 @@ function iweb_global_func() {
                     ? (_current_member.type == 1
                           ? "upload/member_avatar/"
                           : "upload/member_logo/") + _current_member.avatar
-                    : "asset/image/icon-member.png";
+                    : "asset/image/icon-member2.png";
             var userName =
                 _current_member && _current_member.name
                     ? _current_member.name
@@ -598,15 +597,13 @@ function iweb_global_func_done() {
         }
     );
 
-    // Only load chat if no specific mode is being restored
+    // Load chat history after a short delay
     setTimeout(function () {
-        if (
-            !$("#chat_mode").val() &&
-            (!_current_chat_mode || _current_chat_mode === "")
-        ) {
+        // Always load chat history if user is logged in
+        if (_current_member) {
             loadChatMessage(1);
         }
-    }, 300); // Wait for immigration-chat.js to potentially set the mode
+    }, 300);
     //$('main.page-body div.chat-area div.box > div.show-message').scrollTop($('main.page-body div.chat-area div.box > div.show-message')[0].scrollHeight);
 }
 
@@ -815,17 +812,14 @@ function setPostsFullScr() {
 
 // Mobile Chat Toggle Function
 function toggleMobileChat() {
-    const chatArea = $("main.page-body div.chat-area");
-    const mobileButton = $(".mobile-chat-button");
-
-    if (chatArea.hasClass("show-mobile")) {
+    if ($("main.page-body div.chat-area").hasClass("show-mobile")) {
         // Hide mobile chat
-        chatArea.removeClass("show-mobile");
-        mobileButton.removeClass("hidden");
+        $("main.page-body div.chat-area").removeClass("show-mobile");
+        $(".mobile-chat-button").removeClass("hidden");
     } else {
         // Show mobile chat
-        chatArea.addClass("show-mobile");
-        mobileButton.addClass("hidden");
+        $("main.page-body div.chat-area").addClass("show-mobile");
+        $(".mobile-chat-button").addClass("hidden");
 
         // Calculate and set proper height for message area
         var new_height =
@@ -833,206 +827,21 @@ function toggleMobileChat() {
         $("main.page-body div.chat-area div.box > div.show-message").height(
             Math.max(300, parseInt(new_height))
         );
-    }
-}
 
-function showWelcomeMessage() {
-    // Check if user has an active chat mode or existing chat history
-    if (
-        typeof _current_chat_mode !== "undefined" &&
-        _current_chat_mode &&
-        _current_chat_mode !== ""
-    ) {
-        console.log(
-            "Skipping welcome message - user has active chat mode:",
-            _current_chat_mode
-        );
-        // User has active chat mode, ensure input is visible
-        $(".input-question").addClass("show");
-        $("#ask_question").prop("disabled", false);
-        $(".robot-container").show(); // Show robot when not showing welcome
-        return;
-    }
-
-    // Check if there's any chat history by making a quick AJAX call
-    $.getJSON(_page_base_url + "/home/chat", function (data) {
-        if (data && data.length > 0) {
-            console.log("Skipping welcome message - user has chat history");
-            // User has chat history, ensure input is visible
-            $(".input-question").addClass("show");
-            $("#ask_question").prop("disabled", false);
-            $(".robot-container").show(); // Show robot when not showing welcome
-            return;
-        } else {
-            // No chat history, show welcome message
-            displayWelcomeMessage();
+        // Scroll to bottom to show most recent messages
+        var element = $(
+            "main.page-body div.chat-area div.box > div.show-message"
+        )[0];
+        if (element) {
+            element.scrollTop = element.scrollHeight;
         }
-    }).fail(function () {
-        // If AJAX fails (user not logged in), show welcome message
-        displayWelcomeMessage();
-    });
-}
 
-function displayWelcomeMessage() {
-    const welcomeMessage = `
-        <div class="welcome-message">
-            <div class="welcome-message__video-container">
-                <div class="welcome-message__video-wrapper">
-                    <video id="welcome-robot-video" autoplay loop muted playsinline>
-                        <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
-                    </video>
-                    <a id="welcome-sound-control" href="javascript:void(0);" title="Click to unmute">
-                        <i class="fa fa-microphone-slash"></i>
-                    </a>
-                </div>
-            </div>
-
-            <div class="welcome-message__transcript">
-                <div class="welcome-message__transcript-line"></div>
-            </div>
-
-            <div class="welcome-message__footer">
-                AI-powered Migration & Study Support - With Instant Access to Human Expert
-            </div>
-        </div>
-    `;
-
-    // Prepend welcome message before the button (button stays in place from blade)
-    $("main.page-body div.chat-area div.box > div.show-message").prepend(
-        welcomeMessage
-    );
-
-    // Show Get Started button
-    $(".get-started-container").addClass("show");
-
-    // Hide chat robot video during welcome message
-    $(".robot-container").hide();
-
-    // Ensure video plays (some browsers need this)
-    setTimeout(function () {
-        var video = document.getElementById("welcome-robot-video");
-        if (video) {
-            video.muted = true; // Must be muted for autoplay
-            video.play().catch(function (error) {
-                console.log("Video autoplay failed:", error);
-            });
-        }
-    }, 100);
-
-    // Welcome video sound control
-    $(document).off("click", "#welcome-sound-control");
-    $(document).on("click", "#welcome-sound-control", function () {
-        var video = document.getElementById("welcome-robot-video");
-        if ($(this).hasClass("opened")) {
-            $(this).removeClass("opened");
-            $(this).attr("title", "Click to unmute");
-            $("#welcome-sound-control > i")
-                .removeClass("fa-microphone-slash")
-                .removeClass("fa-microphone")
-                .addClass("fa-microphone-slash");
-            if (video) video.muted = true;
-        } else {
-            $(this).addClass("opened");
-            $(this).attr("title", "Click to mute");
-            $("#welcome-sound-control > i")
-                .removeClass("fa-microphone-slash")
-                .removeClass("fa-microphone")
-                .addClass("fa-microphone");
-            if (video) video.muted = false;
-        }
-    });
-
-    // Animate transcript
-    animateWelcomeTranscript();
-}
-
-function animateWelcomeTranscript() {
-    // Sync subtitles with video timestamps (in seconds) - typewriter style
-    const subtitles = [
-        { time: 0, text: "Hi there! I'm AI-mmi" },
-        {
-            time: 2,
-            text: "your smart companion for migration and education planning.",
-        },
-        {
-            time: 5,
-            text: "I can help you explore study options, understand different migration pathways, and get ready for your move abroad",
-        },
-        { time: 12, text: "all in one easy-to-use platform." },
-        {
-            time: 14,
-            text: "Whether you'd like to do it yourself with our personalized guided tools,",
-        },
-        {
-            time: 17,
-            text: "or connect with a trusted professional, I'm here to make your journey smoother, more affordable, and stress-free.",
-        },
-        {
-            time: 24,
-            text: "From choosing the right university or course, exploring visa options for your dream destination,",
-        },
-        {
-            time: 29,
-            text: "preparing documents, arranging English lessons, finding accommodation or jobs, to relocation services",
-        },
-        { time: 35, text: "even moving your pets!" },
-        {
-            time: 38,
-            text: "I'll help you stay informed and organized every step of the way.",
-        },
-        {
-            time: 42,
-            text: "If you haven't signed up yet go ahead and create your free AI-mmi account to start planning your study or migration journey today!",
-        },
-    ];
-
-    const video = document.getElementById("welcome-robot-video");
-    const transcriptElement = $(".welcome-message__transcript-line");
-    let currentSubtitleIndex = -1;
-    let typingTimeout = null;
-
-    function typeText(text, charIndex = 0) {
-        if (!transcriptElement.length) return;
-
-        if (charIndex <= text.length) {
-            transcriptElement.text(text.substring(0, charIndex));
-            transcriptElement.addClass("show");
-            typingTimeout = setTimeout(function () {
-                typeText(text, charIndex + 1);
-            }, 50); // Typing speed
-        }
-    }
-
-    function updateSubtitle() {
-        if (!transcriptElement.length || !video) return;
-
-        const currentTime = video.currentTime;
-
-        // Find the current subtitle based on video time
-        for (let i = subtitles.length - 1; i >= 0; i--) {
-            if (currentTime >= subtitles[i].time) {
-                if (currentSubtitleIndex !== i) {
-                    currentSubtitleIndex = i;
-
-                    // Clear any ongoing typing
-                    if (typingTimeout) {
-                        clearTimeout(typingTimeout);
-                    }
-
-                    // Start typing new text
-                    typeText(subtitles[currentSubtitleIndex].text);
-                }
-                break;
-            }
-        }
-    }
-
-    // Update subtitle based on video time
-    if (video) {
-        video.addEventListener("timeupdate", updateSubtitle);
-        video.addEventListener("seeked", updateSubtitle);
-
-        // Initial subtitle
-        typeText(subtitles[0].text);
+        // Reset sound control to muted
+        $("a#sound-control").removeClass("opened");
+        $("a#sound-control > i")
+            .removeClass("fa-microphone-slash")
+            .removeClass("fa-microphone")
+            .addClass("fa-microphone-slash");
+        $("#chat-robot-video").prop("muted", true);
     }
 }

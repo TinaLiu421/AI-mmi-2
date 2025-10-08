@@ -46,6 +46,10 @@
         <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) { ?>
         <script src="<?php echo $js_file; ?>?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
         <?php }} ?>
+        <!-- Welcome message module (must load before common.js) -->
+        <link href="asset/css/web/welcome_message.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
+        <script src="asset/js/web/welcome_message.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
+        <!-- Chat modules -->
         <script src="asset/js/web/immigration-chat.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
         <script src="asset/js/web/study-chat.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
         <script src="asset/js/web/common.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
@@ -181,14 +185,8 @@
                             <div class="limit-warning"><?php echo $_page_lang['chat_robot.limited'];?></div>
                             <?php } ?>
                             <div class="show-message">
-                                <!-- Get Started Button Container -->
-                                <div class="get-started-container">
-                                    <x-chat-button
-                                        id="btn-get-started"
-                                        href="<?php echo $_page_base_url.'/account_login'; ?>"
-                                        bottomText="Sign In To Get Started"
-                                        class="btn-get-started" />
-                                </div>
+                                <!-- Welcome Message Component -->
+                                <x-welcome-message />
                             </div>
 
                             <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0" data-chat-mode="">

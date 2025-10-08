@@ -1,13 +1,5 @@
 {{--
 Reusable Chat Button Component
-
-Props:
-- href: Link URL
-- bottomText: Text to display
-- imgSrc: Image URL (optional)
-- color: Background color (default: gradient blue)
-- hoverColor: Hover background color (optional)
-- class: Additional CSS classes
 --}}
 
 @props([
@@ -21,15 +13,14 @@ Props:
 
 <a href="{{ $href }}"
    class="{{ $class }} chat-button"
-   style="display: inline-flex;
+   style="display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 8px;
           border-radius: 16px;
           border: 2px solid #cbd5e1;
           overflow: hidden;
-          min-width: 140px;
+          min-width: 240px;
           padding: 20px 32px;
           text-align: center;
           background: {{ $color }};
@@ -49,7 +40,6 @@ Props:
 /* Responsive for mobile */
 @media (max-width: 768px) {
     .chat-button {
-        min-width: 120px !important;
         padding: 16px 24px !important;
         font-size: 1rem !important;
     }
