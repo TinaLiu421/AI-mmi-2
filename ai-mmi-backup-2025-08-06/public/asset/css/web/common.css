@@ -110,7 +110,7 @@ header.page-header {
 header.page-header > div {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* pushes logo left, controls right */
+    justify-content: space-between;
     height: 100%;
     padding: 0 var(--space-6);
     max-width: 1920px;
@@ -963,28 +963,39 @@ main.page-body .chat-area .box .input-question .robot-container {
     flex: 0 0 auto;
 }
 
-/* Input wrapper */
-main.page-body .chat-area .box .input-question .input-wrapper {
-    flex: 1 1 auto; /* grow to fill remaining space */
+.input-wrapper {
     display: flex;
+    flex: 1 1 auto;
     align-items: center;
     height: 100px;
-    justify-content: space-between;
     background: var(--neutral-200);
     border: 1px solid var(--neutral-300);
     border-radius: var(--radius-xl);
     backdrop-filter: blur(10px);
     transition: var(--transition-normal);
+    padding: 4px;
     min-height: 56px;
     min-width: 0; /* important for flex children */
-    padding: 0 8px;
 }
 
-main.page-body .chat-area .box .input-question .input-wrapper textarea {
-    flex: 1 1 auto;
+.input-wrapper .iweb-input {
+    flex: 1 1 0;
+    min-width: 0; /* allow shrinking */
+    display: flex; /* so textarea inside can expand */
+    align-items: center;
+}
+
+.input-wrapper .iweb-input > div {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.input-wrapper textarea {
+    flex: 1 1 0;
     min-width: 0;
     height: 100%;
-    resize: none; /* prevent manual resizing */
+    width: 100%;
+    box-sizing: border-box;
     background: transparent;
     border: none;
     padding: 12px;
@@ -995,38 +1006,39 @@ main.page-body .chat-area .box .input-question .input-wrapper textarea {
     line-height: 1.5;
 }
 
-main.page-body .chat-area .box .input-question textarea::placeholder {
+.input-wrapper textarea::placeholder {
     color: var(--neutral-400);
 }
 
 /* Focus effect */
-main.page-body .chat-area .box .input-question .input-wrapper:focus-within {
+.input-wrapper:focus-within {
     border-color: var(--accent-cyan);
     box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
 }
 
 /* Remove focus styles from textarea and button */
-main.page-body .chat-area .box .input-question .input-wrapper textarea:focus,
-main.page-body .chat-area .box .input-question .input-wrapper button:focus {
+.input-wrapper textarea:focus,
+.input-wrapper button:focus {
     outline: none !important;
     border: none !important;
     box-shadow: none !important;
 }
 
 /* Send button */
-main.page-body .chat-area .box .input-question button {
+.input-wrapper button {
+    flex: 0 0 auto;
     width: 56px;
     height: 56px;
+    display: flex;
     background: transparent;
     border: none;
-    display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: var(--transition-normal);
 }
 
-main.page-body .chat-area .box .input-question button:hover {
+.input-wrapper button:hover {
     transform: scale(1.02);
 }
 
@@ -1420,12 +1432,12 @@ footer.page-footer a:hover {
         height: 54px;
     }
 
-    main.page-body .chat-area .box .input-question .input-wrapper {
+    .input-wrapper {
         height: 60px;
         min-height: 48px;
     }
 
-    main.page-body .chat-area .box .input-question .input-wrapper textarea {
+    .input-wrapper textarea {
         padding: 8px;
         font-size: 0.85rem;
     }
