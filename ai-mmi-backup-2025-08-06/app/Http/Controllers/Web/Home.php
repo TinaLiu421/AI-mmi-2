@@ -189,7 +189,7 @@ class Home extends WebController {
                             'updated_at'  => Carbon::now('UTC'),
                         ]);
                     } catch (\Throwable $e) {
-                        // 不阻断主流程
+                        
                     }
                     
                     $member_owner_name = $this->_current_member['alias_name'];
@@ -345,11 +345,11 @@ class Home extends WebController {
     protected function callGeminiApi($question = '', $chat_mode = 'immigration') {
         if (empty($question)) return '';
 
-        // 1) 当前用户
+        // 1) Current User
         $member = $this->_current_member;
         if (empty($member)) return 'Please login first.';
 
-        // 2) 取最近 10 轮（20 条）历史，按时间升序
+        // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
         $history = DB::table('chat_log')
             ->where('member_id', $member['id'])
             ->where('chat_mode', $chat_mode)
@@ -361,19 +361,19 @@ class Home extends WebController {
         $contents = [];
         foreach ($history as $msg) {
             $t    = strtolower($msg->type ?? '');
-            $role = ($t === 'ai') ? 'model' : 'user';   // 'member'/'ask' 都归为 user
+            $role = ($t === 'ai') ? 'model' : 'user';   
             $text = (string)($msg->content ?? '');
             if ($text === '') continue;
-            if (mb_strlen($text) > 2000) {              // 防止 prompt 过大
+            if (mb_strlen($text) > 2000) {              
                 $text = mb_substr($text, 0, 2000) . '...';
             }
             $contents[] = ['role' => $role, 'parts' => [['text' => $text]]];
         }
 
-        // 3) 追加当前问题
+        // 3) Add to current issue
         $contents[] = ['role' => 'user', 'parts' => [['text' => $question]]];
 
-        // 4) 发送请求（建议把 key 改到 .env）
+        // 4)  Send Request
         $apiKey = env('GEMINI_API_KEY');
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
 
@@ -427,7 +427,7 @@ class Home extends WebController {
         if ($answer === '') {
             $answer = 'Sorry, I could not generate a response this time.';
         } else {
-            // 去掉 Markdown 符号，保留纯文本
+            // Remove Markdown symbols and retain plain text.
             $answer = $this->stripMarkdown($answer);
         }
         return $answer;
@@ -467,7 +467,7 @@ class Home extends WebController {
     PROMPT;
         }
 
-        // study 模式
+        // study mode
         return <<<PROMPT
     You are AI-mmi, a global education advisor focused on helping users with studying abroad in Australia, the UK, Canada, and the USA.
 

@@ -3,17 +3,52 @@ var article_loading = false;
 var article_loading_enable = true;
 
 function formatUtcIsoToLocalTime(isoString) {
+  try {
+    const d = new Date(isoString);
+    return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(d);
+  } catch (e) {
+    return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date());
+  }
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function renderBubble({ role, avatar, name, text, createdAtIso }) {
+  const timeLocal = formatUtcIsoToLocalTime(createdAtIso || new Date().toISOString());
+  return `
+    <div class="dialog ${role}">
+      <div class="avatar">
+        <img src="asset/image/icon-member.png" alt="icon-member">
+        <div style="background-image:url('${avatar || ''}')"></div>
+      </div>
+      <div class="name">${escapeHtml(name || '')}</div>
+      <div class="time">${timeLocal}</div>
+      <div class="clearboth"></div>
+      <div class="txt">${text}</div>
+    </div>
+    <div class="clearboth"></div>
+  `;
+}
+
+function formatUtcIsoToLocalTime(isoString) {
     try {
         const d = new Date(isoString);
-        // timeStyle:'short' 会自动按用户地区输出 09:05 / 9:05 AM 等格式
+        // timeStyle:‘short’ will automatically output times in formats like 09:05 / 9:05 AM based on the user's region.
         return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(d);
     } catch (e) {
-        // 兜底：当前本地时间
+        // Bottom line: Current local time
         return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date());
     }
 }
 
-// 生成时间标签 HTML（你之前时间是在气泡上方单独一行）
+// Generate Timestamp HTML
 function buildTimeLineHtml(text) {
     return '<div class="time">' + text + '</div>';
 }
@@ -468,29 +503,19 @@ function iweb_global_func() {
                     ? _current_member.name
                     : "You";
 
-            // ==== 新增：立刻用本地时间显示（以浏览器时间为准）====
-            var userLocalTime = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date());
-            var timeLine = buildTimeLineHtml(userLocalTime);
-            $("main.page-body div.chat-area div.box > div.show-message").append(timeLine);
+            const nowIso = new Date().toISOString(); // First use the browser's local timestamp (ISO)
+            const userHtml = renderBubble({
+            role: 'ask',
+            avatar: (_current_member && _current_member.avatar)
+                    ? ((_current_member.type == 1 ? "upload/member_avatar/" : "upload/member_logo/") + _current_member.avatar)
+                    : 'asset/image/icon-member.png',
+            name:  (_current_member && _current_member.name) ? _current_member.name : 'You',
+            text:  escapeHtml(userQuestion),
+            createdAtIso: nowIso
+            });
 
-            var dialog_group = '<div class="dialog ask">';
-            dialog_group +=
-                '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member">';
-            if (_current_member && _current_member.avatar) {
-                dialog_group +=
-                    "<div style=\"background-image:url('" +
-                    userAvatar +
-                    "')\"></div>";
-            }
-            dialog_group += "</div>";
-            dialog_group += '<div class="name">' + userName + "</div>";
-            dialog_group += '<div class="clearboth"></div>';
-            dialog_group += '<div class="txt">' + userQuestion + "</div>";
-            dialog_group += '</div><div class="clearboth"></div>';
+            $("main.page-body div.chat-area div.box > div.show-message").append(userHtml);
 
-            $("main.page-body div.chat-area div.box > div.show-message").append(
-                dialog_group
-            );
 
             // Clear the textarea immediately
             $("#ask_question").val("");
@@ -527,30 +552,16 @@ function iweb_global_func() {
                 // User question is already shown immediately, just show AI reply
                 if (iweb.isValue(response_data.reply)) {
 
-                    // ==== 新增：把后端 UTC 时间转为本地时间并插入 ====
-                    if (response_data.reply_created_at) {
-                        var local = formatUtcIsoToLocalTime(response_data.reply_created_at);
-                        var timeLine = buildTimeLineHtml(local);
-                        $("main.page-body div.chat-area div.box > div.show-message").append(timeLine);
-                    }
+                    const replyHtml = renderBubble({
+                        role: 'reply',
+                        avatar: response_data.ai_owner_avatar || 'asset/image/logo-mmi.png',
+                        name:  response_data.ai_owner_name  || 'AI-mmi',
+                        text:  response_data.reply, 
+                        createdAtIso: response_data.reply_created_at || new Date().toISOString()
+                    });
+                    $("main.page-body div.chat-area div.box > div.show-message").append(replyHtml);
 
-                    var dialog_group = '<div class="dialog reply">';
-                    dialog_group +=
-                        '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'' +
-                        response_data.ai_owner_avatar +
-                        "')\"></div></div>";
-                    dialog_group +=
-                        '<div class="name">' +
-                        response_data.ai_owner_name +
-                        "</div>";
-                    dialog_group += '<div class="clearboth"></div>';
-                    dialog_group +=
-                        '<div class="txt">' + response_data.reply + "</div>";
-                    dialog_group += '</div><div class="clearboth"></div>';
 
-                    $(
-                        "main.page-body div.chat-area div.box > div.show-message"
-                    ).append(dialog_group);
                     console.log("AI reply added, scrolling...");
 
                     var element = $(
@@ -772,31 +783,22 @@ function loadChatMessage(init) {
             var dialog_group = "";
             var dialog_date_int = 0;
             $.each(data, function (key, value) {
-                dialog_group += '<div class="dialog ' + value.type + '">';
-                dialog_group += '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'' + value.owner_avatar + "')\"></div></div>";
-                dialog_group += '<div class="name">' + value.owner_name + '</div>';
+                const role = (String(value.type || '').toLowerCase() === 'ask' || String(value.type || '').toLowerCase() === 'member')
+                            ? 'ask'
+                            : 'reply';
 
-                
-                if (value.created_time) {
-                
-                    const dateObj = new Date(value.created_time);
-                    
+                const bubbleHtml = renderBubble({
+                    role,
+                    avatar: value.owner_avatar || (role === 'reply' ? 'asset/image/logo-mmi.png' : 'asset/image/icon-member.png'),
+                    name:   value.owner_name   || (role === 'reply' ? 'AI-mmi' : 'You'),
+                    text:   value.content,  
+                    createdAtIso: value.created_time 
+                });
 
-                    const formatted = dateObj.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false, 
-                    });
-
-                    dialog_group += '<div class="time">' + formatted + '</div>';
-                }
-
-                dialog_group += '<div class="clearboth"></div>';
-                dialog_group += '<div class="txt">' + value.content + '</div>';
-                dialog_group += '</div><div class="clearboth"></div>';
-
+                dialog_group += bubbleHtml;
                 dialog_date_int = value.target_date;
             });
+
             dialog_group =
                 '<div id="chat-' +
                 dialog_date_int +
