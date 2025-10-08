@@ -111,14 +111,14 @@
                             <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_current_member['avatar']; ?>')"></div>
                             <?php } ?>
                             <?php } else { ?>
-                            <img src="asset/image/icon-member.png" alt="icon-member"/>
+                            <img src="asset/image/icon-member1.png" alt="icon-member"/>
                             <?php } ?>
                         </a>
                     </div>
                     <?php } else { ?>
                     <div class="member">
                         <a href="<?php echo $_page_base_url.'/account_login' ;?>">
-                            <img src="asset/image/icon-member.png" alt="icon-member"/>
+                            <img src="asset/image/icon-member1.png" alt="icon-member"/>
                             <span><?php echo $_page_lang['sign_in']; ?></span>
                         </a>
                     </div>
