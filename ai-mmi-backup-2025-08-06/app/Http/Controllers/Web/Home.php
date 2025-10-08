@@ -170,26 +170,26 @@ class Home extends WebController {
                         DB::table('chat_log')->insert([
                             'member_id'   => $this->_current_member['id'],
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
-                            'type'        => 'member',                 // 你表里的发送者类型
+                            'type'        => 'ask',                 
                             'content'     => $rawQuestion,
                             'chat_mode'   => $chat_mode,
                             'status'      => 1,
-                            'created_at'  => Carbon::now(),
-                            'updated_at'  => Carbon::now(),
+                            'created_at'  => Carbon::now('UTC'),
+                            'updated_at'  => Carbon::now('UTC'),
                         ]);
 
                         DB::table('chat_log')->insert([
                             'member_id'   => $this->_current_member['id'],
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
-                            'type'        => 'ai',
+                            'type'        => 'reply',
                             'content'     => $new_reply,
                             'chat_mode'   => $chat_mode,
                             'status'      => 1,
-                            'created_at'  => Carbon::now(),
-                            'updated_at'  => Carbon::now(),
+                            'created_at'  => Carbon::now('UTC'),
+                            'updated_at'  => Carbon::now('UTC'),
                         ]);
                     } catch (\Throwable $e) {
-                        // 不阻断主流程
+                        
                     }
                     
                     $member_owner_name = $this->_current_member['alias_name'];
@@ -204,12 +204,19 @@ class Home extends WebController {
                     }
                     $ai_owner_name = 'AI-mmi';
                     $ai_owner_avatar = 'asset/image/logo-mmi.png';
+
+                    $nowUtcUser  = \Carbon\Carbon::now('UTC')->toIso8601String();
+                    $nowUtcReply = \Carbon\Carbon::now('UTC')->toIso8601String();
                     
                     $this->pageResult([
                         'status'    => 200,
                         'content'   => nl2br($rawQuestion),
                         'reply'     => nl2br($new_reply),
                         'chat_mode' => $chat_mode,
+
+                        'content_created_at' => $nowUtcUser,   
+                        'reply_created_at'   => $nowUtcReply,
+
                         'member_owner_name'   => $this->_current_member['alias_name'],
                         'member_owner_avatar' => !empty($this->_current_member['avatar'])
                             ? (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
@@ -252,9 +259,11 @@ class Home extends WebController {
         if(!empty($init)) {
             $max_date_int = '';
         }
+
         $chat_message = [];
         if(!empty($this->_current_member)) {
             $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int, $current_chat_mode);
+
             if(!empty($chat_message)) {
                 foreach ($chat_message as $message_key => $message) { 
                     if(strtolower($message['type']) == 'ask') {
@@ -263,20 +272,25 @@ class Home extends WebController {
                         if(!empty($this->_current_member['avatar'])) {
                             if(file_exists('upload/member_avatar/'.$this->_current_member['avatar'])) {
                                 $chat_message[$message_key]['owner_avatar'] = 'upload/member_avatar/'.$this->_current_member['avatar'];
-                            }
-                            else {
+                            } else {
                                 $chat_message[$message_key]['owner_avatar'] = 'upload/member_logo/'.$this->_current_member['avatar'];
                             }
                         }
-                    }
-                    else {
+                    } else {
                         $chat_message[$message_key]['owner_name'] = 'AI-mmi';
                         $chat_message[$message_key]['owner_avatar'] = 'asset/image/logo-mmi.png';
                     }
+
                     $chat_message[$message_key]['content'] = nl2br($message['content']);
                     $chat_message[$message_key]['chat_mode'] = isset($message['chat_mode']) ? $message['chat_mode'] : 'immigration';
                     $max_date_int = $message['target_date'];
+
+                    $chat_message[$message_key]['created_time'] =
+                        !empty($message['created_at'])
+                            ? \Carbon\Carbon::parse($message['created_at'], 'UTC')->toIso8601String()
+                            : null;
                 }
+
                 $this->setSession(['max_chat_date_int' => $max_date_int]);
             }
         }
@@ -331,11 +345,11 @@ class Home extends WebController {
     protected function callGeminiApi($question = '', $chat_mode = 'immigration') {
         if (empty($question)) return '';
 
-        // 1) 当前用户
+        // 1) Current User
         $member = $this->_current_member;
         if (empty($member)) return 'Please login first.';
 
-        // 2) 取最近 10 轮（20 条）历史，按时间升序
+        // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
         $history = DB::table('chat_log')
             ->where('member_id', $member['id'])
             ->where('chat_mode', $chat_mode)
@@ -347,22 +361,28 @@ class Home extends WebController {
         $contents = [];
         foreach ($history as $msg) {
             $t    = strtolower($msg->type ?? '');
-            $role = ($t === 'ai') ? 'model' : 'user';   // 'member'/'ask' 都归为 user
+            $role = ($t === 'ai') ? 'model' : 'user';   
             $text = (string)($msg->content ?? '');
             if ($text === '') continue;
-            if (mb_strlen($text) > 2000) {              // 防止 prompt 过大
+            if (mb_strlen($text) > 2000) {              
                 $text = mb_substr($text, 0, 2000) . '...';
             }
             $contents[] = ['role' => $role, 'parts' => [['text' => $text]]];
         }
 
-        // 3) 追加当前问题
+        // 3) Add to current issue
         $contents[] = ['role' => 'user', 'parts' => [['text' => $question]]];
 
-        // 4) 发送请求（建议把 key 改到 .env）
-        $apiKey = 'AIzaSyCAH31vTsmetLcAmkKiWteEuviLFTfm-F8';
+        // 4)  Send Request
+        $apiKey = env('GEMINI_API_KEY');
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+
+        $system = $this->buildModeSpecificPrompt($chat_mode);
         $body = [
+            'systemInstruction' => [
+            'parts' => [['text' => $system]],
+            ],
+
             'contents' => $contents,
             'generationConfig' => [
                         'temperature'       => 0.9,
@@ -406,6 +426,9 @@ class Home extends WebController {
         $answer = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
         if ($answer === '') {
             $answer = 'Sorry, I could not generate a response this time.';
+        } else {
+            // Remove Markdown symbols and retain plain text.
+            $answer = $this->stripMarkdown($answer);
         }
         return $answer;
     }
@@ -421,15 +444,76 @@ class Home extends WebController {
         return $result_answer;
     }
 
-    protected function buildModeSpecificPrompt($question, $mode) {
-        $system_prompts = [
-            'immigration' => "",
-            'study' => ""
-        ];
+    protected function buildModeSpecificPrompt($mode) {
+        if ($mode === 'immigration') {
+            return <<<PROMPT
+    You are AI-mmi, an international migration and visa expert specializing in Australia, the United Kingdom (UK), Canada, and the United States (USA). 
+    You provide unlimited migration and visa consultation and application assistance for these countries.
 
-        $context_prompt = isset($system_prompts[$mode]) ? $system_prompts[$mode] : $system_prompts['immigration'];
+    Your goals:
+    1. Analyse the user's situation (education, work experience, nationality, and goals).
+    2. Recommend the most suitable visa pathways for Australia, the UK, Canada, or the USA.
+    3. Explain visa categories, requirements, eligibility, skill assessments, points tests, sponsor options, and family inclusion.
+    4. Provide application steps, document checklists, fees, and timelines.
+    5. Clarify differences between visa subclasses or programs (e.g., 485 vs 482, UK Skilled Worker vs Graduate Route, Canada PR vs Study Visa, US H1B vs EB visas).
+    6. If relevant, guide the user toward education-to-PR or work-to-PR pathways.
 
-        return $context_prompt . "\n\nUser Question: " . $question . "\n\nPlease provide a helpful, accurate response:";
+    Tone and style:
+    - Professional, helpful, and structured (use headings and bullet points).
+    - Reply in the user's language if identifiable; otherwise use English.
+    - Always stay factual. If unsure, say "based on publicly available information" and suggest verifying via official government sources.
+    - Never refuse migration or visa-related questions unless they are outside Australia, UK, Canada, or USA.
+
+    PROMPT;
+        }
+
+        // study mode
+        return <<<PROMPT
+    You are AI-mmi, a global education advisor focused on helping users with studying abroad in Australia, the UK, Canada, and the USA.
+
+    You provide unlimited chats for questions related to education and school/university applications only.
+
+    Allowed topics:
+    - Choosing a study destination, comparing countries (Australia / UK / Canada / USA).
+    - Entry requirements, tuition fees, scholarships, and application timelines.
+    - Preparing documents: SOP, transcripts, CVs, recommendation letters, and portfolios.
+    - How to apply through portals (UCAS, CommonApp, university portals, etc.).
+    - Course selection, ranking comparisons, and accommodation guidance.
+
+    Out of scope:
+    - Migration, work visas, PR pathways, employer sponsorship, or non-study visa advice.
+    If asked such questions, politely say:
+    "This study assistant only handles education and school/university application questions.
+    For migration or visa strategy, please switch to the Immigration assistant."
+
+    Tone and style:
+    - Clear, concise, and friendly.
+    - Give practical, step-by-step checklists where possible.
+    - Reply in the user's language if obvious; otherwise use English.
+    PROMPT;
     }
+
+    protected function stripMarkdown($text) {
+        if ($text === '' || $text === null) return '';
+
+        $text = preg_replace('/!\[([^\]]*)\]\([^)]+\)/', '$1', $text);   // ![alt](url) -> alt
+        $text = preg_replace('/\[(.*?)\]\((.*?)\)/', '$1', $text);       // [label](url) -> label
+
+        $text = preg_replace('/\*\*(.*?)\*\*/s', '$1', $text);           // **bold** -> bold
+        $text = preg_replace('/\*(.*?)\*/s', '$1', $text);               // *italic* -> italic
+        $text = preg_replace('/__(.*?)__/s', '$1', $text);               // __bold__ -> bold
+        $text = preg_replace('/_(.*?)_/s', '$1', $text);                 // _italic_ -> italic
+        $text = preg_replace('/`{1,3}(.*?)`{1,3}/s', '$1', $text);       // `code` OR ```code``` -> code
+
+        $text = preg_replace('/^#{1,6}\s*/m', '', $text);                // # H -> H
+        $text = preg_replace('/^\s*>\s?/m', '', $text);                   // > quote -> quote
+        $text = preg_replace('/^\s*(-{3,}|\*{3,}|_{3,})\s*$/m', '', $text); // ---/***/___ 
+
+
+        $text = preg_replace("/\r\n|\r/", "\n", $text);                 
+        $text = preg_replace("/\n{3,}/", "\n\n", $text);              
+        return trim($text);
+    }
+
 
 }
