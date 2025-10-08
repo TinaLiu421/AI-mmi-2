@@ -49,7 +49,7 @@ function initWelcomeMessage() {
     }
 
     // Check for chat history
-    $.getJSON(_page_base_url + "/home/chat/1", function (data) {
+    $.getJSON(_page_base_url + "/home/chat", function (data) {
         if (data && data.length > 0) {
             $(".welcome-message").remove();
         } else {
@@ -82,7 +82,7 @@ function setChatMode(mode) {
     // Remove welcome message and show chat
     removeWelcomeAndShowChat();
 
-    // Load chat history for this mode (this will also set session on server)
+    // Load chat history for this mode (this will also save mode to session via GET parameter)
     if (typeof loadChatMessage === "function") {
         loadChatMessage(1);
     }
