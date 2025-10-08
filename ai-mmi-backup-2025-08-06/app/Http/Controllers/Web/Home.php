@@ -479,5 +479,27 @@ class Home extends WebController {
     PROMPT;
     }
 
+    protected function stripMarkdown($text) {
+        if ($text === '' || $text === null) return '';
+
+        $text = preg_replace('/!\[([^\]]*)\]\([^)]+\)/', '$1', $text);   // ![alt](url) -> alt
+        $text = preg_replace('/\[(.*?)\]\((.*?)\)/', '$1', $text);       // [label](url) -> label
+
+        $text = preg_replace('/\*\*(.*?)\*\*/s', '$1', $text);           // **bold** -> bold
+        $text = preg_replace('/\*(.*?)\*/s', '$1', $text);               // *italic* -> italic
+        $text = preg_replace('/__(.*?)__/s', '$1', $text);               // __bold__ -> bold
+        $text = preg_replace('/_(.*?)_/s', '$1', $text);                 // _italic_ -> italic
+        $text = preg_replace('/`{1,3}(.*?)`{1,3}/s', '$1', $text);       // `code` OR ```code``` -> code
+
+        $text = preg_replace('/^#{1,6}\s*/m', '', $text);                // # H -> H
+        $text = preg_replace('/^\s*>\s?/m', '', $text);                   // > quote -> quote
+        $text = preg_replace('/^\s*(-{3,}|\*{3,}|_{3,})\s*$/m', '', $text); // ---/***/___ 
+
+
+        $text = preg_replace("/\r\n|\r/", "\n", $text);                 
+        $text = preg_replace("/\n{3,}/", "\n\n", $text);              
+        return trim($text);
+    }
+
 
 }
