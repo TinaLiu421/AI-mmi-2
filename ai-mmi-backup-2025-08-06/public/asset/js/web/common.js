@@ -22,10 +22,11 @@ function escapeHtml(s) {
 
 function renderBubble({ role, avatar, name, text, createdAtIso }) {
   const timeLocal = formatUtcIsoToLocalTime(createdAtIso || new Date().toISOString());
+  const baseIcon = role === 'reply' ? 'asset/image/logo-mmi.png' : 'asset/image/icon-member.png';
   return `
     <div class="dialog ${role}">
       <div class="avatar">
-        <img src="asset/image/icon-member.png" alt="icon-member">
+        <img src="${baseIcon}" alt="icon-member">
         <div style="background-image:url('${avatar || ''}')"></div>
       </div>
       <div class="name">${escapeHtml(name || '')}</div>
@@ -523,7 +524,7 @@ function iweb_global_func() {
             var thinkingIndicator =
                 '<div class="dialog reply thinking-indicator">';
             thinkingIndicator +=
-                '<div class="avatar"><img src="/asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>';
+                '<div class="avatar"><img src="asset/image/logo-mmi.png" alt="icon-member"><div style="background-image:url(\'asset/image/logo-mmi.png\')"></div></div>';
             thinkingIndicator +=
                 '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
             thinkingIndicator += '</div><div class="clearboth"></div>';
