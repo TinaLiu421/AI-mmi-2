@@ -21,12 +21,15 @@ Options are dynamically rendered from the welcome_message.js configuration.
         <div class="welcome-message__transcript-line"></div>
     </div>
 
-    <div class="welcome-message__question">
-    <x-chat-button 
-        href="{{ url('/account_login') }}"
-        bottomText="Get Started"
-        class="welcome-chat-btn"
-    />
+    <div class="welcome-message__buttons">
+        <button class="welcome-option-btn" data-mode="immigration">
+            <i class="fa fa-plane"></i>
+            <span>I would like to Immigrate</span>
+        </button>
+        <button class="welcome-option-btn" data-mode="study">
+            <i class="fa fa-graduation-cap"></i>
+            <span>I would like to Study</span>
+        </button>
     </div>
 
     <div class="welcome-message__footer">

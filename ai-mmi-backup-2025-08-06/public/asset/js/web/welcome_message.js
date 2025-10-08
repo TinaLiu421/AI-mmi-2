@@ -70,8 +70,36 @@ function removeWelcomeAndShowChat() {
     $(".robot-container").show();
 }
 
+function setChatMode(mode) {
+    // Set chat mode in session via AJAX
+    $.ajax({
+        url: _page_base_url + "/home/set-chat-mode",
+        type: "POST",
+        data: {
+            _token: _token,
+            chat_mode: mode,
+        },
+        success: function () {
+            $("#chat_mode").val(mode);
+
+            if (typeof restoreChatModeUI === "function") {
+                restoreChatModeUI(mode);
+            }
+            removeWelcomeAndShowChat();
+
+            if (typeof loadChatMessage === "function") {
+                loadChatMessage(1);
+            }
+        },
+        error: function () {
+            console.error("Failed to set chat mode");
+            // Still show chat even if session save fails
+            removeWelcomeAndShowChat();
+        },
+    });
+}
+
 function displayWelcomeMessage() {
-    // Make sure welcome message element exists
     if ($(".welcome-message").length === 0) {
         return;
     }
@@ -84,7 +112,6 @@ function displayWelcomeMessage() {
 }
 
 function initializeWelcomeVideo() {
-    // Ensure video plays (some browsers need this)
     setTimeout(function () {
         const video = document.getElementById("welcome-robot-video");
         if (video) {
@@ -176,6 +203,11 @@ $(document).ready(function () {
         $(".welcome-message").remove();
     }
 
-    // Initialize welcome message logic
     initWelcomeMessage();
+
+    // Handle chat mode button clicks
+    $(document).on("click", ".welcome-option-btn", function () {
+        var mode = $(this).data("mode");
+        setChatMode(mode);
+    });
 });
