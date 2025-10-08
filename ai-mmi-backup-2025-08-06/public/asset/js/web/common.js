@@ -2,6 +2,22 @@ var article_page = 1;
 var article_loading = false;
 var article_loading_enable = true;
 
+function formatUtcIsoToLocalTime(isoString) {
+    try {
+        const d = new Date(isoString);
+        // timeStyle:'short' 会自动按用户地区输出 09:05 / 9:05 AM 等格式
+        return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(d);
+    } catch (e) {
+        // 兜底：当前本地时间
+        return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date());
+    }
+}
+
+// 生成时间标签 HTML（你之前时间是在气泡上方单独一行）
+function buildTimeLineHtml(text) {
+    return '<div class="time">' + text + '</div>';
+}
+
 function iweb_global_func() {
     // show welcome message
     showWelcomeMessage();
@@ -452,6 +468,11 @@ function iweb_global_func() {
                     ? _current_member.name
                     : "You";
 
+            // ==== 新增：立刻用本地时间显示（以浏览器时间为准）====
+            var userLocalTime = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date());
+            var timeLine = buildTimeLineHtml(userLocalTime);
+            $("main.page-body div.chat-area div.box > div.show-message").append(timeLine);
+
             var dialog_group = '<div class="dialog ask">';
             dialog_group +=
                 '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member">';
@@ -505,6 +526,14 @@ function iweb_global_func() {
             if (iweb.isMatch(response_data.status, 200)) {
                 // User question is already shown immediately, just show AI reply
                 if (iweb.isValue(response_data.reply)) {
+
+                    // ==== 新增：把后端 UTC 时间转为本地时间并插入 ====
+                    if (response_data.reply_created_at) {
+                        var local = formatUtcIsoToLocalTime(response_data.reply_created_at);
+                        var timeLine = buildTimeLineHtml(local);
+                        $("main.page-body div.chat-area div.box > div.show-message").append(timeLine);
+                    }
+
                     var dialog_group = '<div class="dialog reply">';
                     dialog_group +=
                         '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'' +
@@ -744,15 +773,28 @@ function loadChatMessage(init) {
             var dialog_date_int = 0;
             $.each(data, function (key, value) {
                 dialog_group += '<div class="dialog ' + value.type + '">';
-                dialog_group +=
-                    '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'' +
-                    value.owner_avatar +
-                    "')\"></div></div>";
-                dialog_group +=
-                    '<div class="name">' + value.owner_name + "</div>";
+                dialog_group += '<div class="avatar"><img src="asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'' + value.owner_avatar + "')\"></div></div>";
+                dialog_group += '<div class="name">' + value.owner_name + '</div>';
+
+                
+                if (value.created_time) {
+                
+                    const dateObj = new Date(value.created_time);
+                    
+
+                    const formatted = dateObj.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false, 
+                    });
+
+                    dialog_group += '<div class="time">' + formatted + '</div>';
+                }
+
                 dialog_group += '<div class="clearboth"></div>';
-                dialog_group += '<div class="txt">' + value.content + "</div>";
+                dialog_group += '<div class="txt">' + value.content + '</div>';
                 dialog_group += '</div><div class="clearboth"></div>';
+
                 dialog_date_int = value.target_date;
             });
             dialog_group =
@@ -1035,4 +1077,5 @@ function animateWelcomeTranscript() {
         // Initial subtitle
         typeText(subtitles[0].text);
     }
+
 }

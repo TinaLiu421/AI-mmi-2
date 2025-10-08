@@ -174,8 +174,8 @@ class Home extends WebController {
                             'content'     => $rawQuestion,
                             'chat_mode'   => $chat_mode,
                             'status'      => 1,
-                            'created_at'  => Carbon::now(),
-                            'updated_at'  => Carbon::now(),
+                            'created_at'  => Carbon::now('UTC'),
+                            'updated_at'  => Carbon::now('UTC'),
                         ]);
 
                         DB::table('chat_log')->insert([
@@ -185,8 +185,8 @@ class Home extends WebController {
                             'content'     => $new_reply,
                             'chat_mode'   => $chat_mode,
                             'status'      => 1,
-                            'created_at'  => Carbon::now(),
-                            'updated_at'  => Carbon::now(),
+                            'created_at'  => Carbon::now('UTC'),
+                            'updated_at'  => Carbon::now('UTC'),
                         ]);
                     } catch (\Throwable $e) {
                         // 不阻断主流程
@@ -204,12 +204,19 @@ class Home extends WebController {
                     }
                     $ai_owner_name = 'AI-mmi';
                     $ai_owner_avatar = 'asset/image/logo-mmi.png';
+
+                    $nowUtcUser  = \Carbon\Carbon::now('UTC')->toIso8601String();
+                    $nowUtcReply = \Carbon\Carbon::now('UTC')->toIso8601String();
                     
                     $this->pageResult([
                         'status'    => 200,
                         'content'   => nl2br($rawQuestion),
                         'reply'     => nl2br($new_reply),
                         'chat_mode' => $chat_mode,
+
+                        'content_created_at' => $nowUtcUser,   
+                        'reply_created_at'   => $nowUtcReply,
+
                         'member_owner_name'   => $this->_current_member['alias_name'],
                         'member_owner_avatar' => !empty($this->_current_member['avatar'])
                             ? (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
@@ -252,9 +259,11 @@ class Home extends WebController {
         if(!empty($init)) {
             $max_date_int = '';
         }
+
         $chat_message = [];
         if(!empty($this->_current_member)) {
             $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int, $current_chat_mode);
+
             if(!empty($chat_message)) {
                 foreach ($chat_message as $message_key => $message) { 
                     if(strtolower($message['type']) == 'ask') {
@@ -263,20 +272,25 @@ class Home extends WebController {
                         if(!empty($this->_current_member['avatar'])) {
                             if(file_exists('upload/member_avatar/'.$this->_current_member['avatar'])) {
                                 $chat_message[$message_key]['owner_avatar'] = 'upload/member_avatar/'.$this->_current_member['avatar'];
-                            }
-                            else {
+                            } else {
                                 $chat_message[$message_key]['owner_avatar'] = 'upload/member_logo/'.$this->_current_member['avatar'];
                             }
                         }
-                    }
-                    else {
+                    } else {
                         $chat_message[$message_key]['owner_name'] = 'AI-mmi';
                         $chat_message[$message_key]['owner_avatar'] = 'asset/image/logo-mmi.png';
                     }
+
                     $chat_message[$message_key]['content'] = nl2br($message['content']);
                     $chat_message[$message_key]['chat_mode'] = isset($message['chat_mode']) ? $message['chat_mode'] : 'immigration';
                     $max_date_int = $message['target_date'];
+
+                    $chat_message[$message_key]['created_time'] =
+                        !empty($message['created_at'])
+                            ? \Carbon\Carbon::parse($message['created_at'], 'UTC')->toIso8601String()
+                            : null;
                 }
+
                 $this->setSession(['max_chat_date_int' => $max_date_int]);
             }
         }
