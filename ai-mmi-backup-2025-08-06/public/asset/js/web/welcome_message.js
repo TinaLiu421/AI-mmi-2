@@ -71,32 +71,21 @@ function removeWelcomeAndShowChat() {
 }
 
 function setChatMode(mode) {
-    // Set chat mode in session via AJAX
-    $.ajax({
-        url: _page_base_url + "/home/set-chat-mode",
-        type: "POST",
-        data: {
-            _token: _token,
-            chat_mode: mode,
-        },
-        success: function () {
-            $("#chat_mode").val(mode);
+    // Set the hidden input value
+    $("#chat_mode").val(mode);
 
-            if (typeof restoreChatModeUI === "function") {
-                restoreChatModeUI(mode);
-            }
-            removeWelcomeAndShowChat();
+    // Update UI based on mode
+    if (typeof restoreChatModeUI === "function") {
+        restoreChatModeUI(mode);
+    }
 
-            if (typeof loadChatMessage === "function") {
-                loadChatMessage(1);
-            }
-        },
-        error: function () {
-            console.error("Failed to set chat mode");
-            // Still show chat even if session save fails
-            removeWelcomeAndShowChat();
-        },
-    });
+    // Remove welcome message and show chat
+    removeWelcomeAndShowChat();
+
+    // Load chat history for this mode (this will also set session on server)
+    if (typeof loadChatMessage === "function") {
+        loadChatMessage(1);
+    }
 }
 
 function displayWelcomeMessage() {
