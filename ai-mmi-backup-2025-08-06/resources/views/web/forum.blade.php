@@ -89,7 +89,7 @@
                     <textarea id="forum_content" name="forum_content" data-validation="required"></textarea>
                 </div>
                 <div class="row">
-                    <button type="submit" class="btn"><?php echo $_page_lang['btn.pubish']; ?></button>
+                    <button type="submit" class="btn"><?php echo $_page_lang['btn.publish']; ?></button>
                 </div>
             </form>
         </div>

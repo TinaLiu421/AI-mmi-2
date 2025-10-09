@@ -239,7 +239,7 @@ return
         'pay_now'               =>  'Pay Now',
         'to_profile'            =>  'Take me to my profile',
         'save'                  =>  'Save',
-        'pubish'                =>  'Pubish',
+        'publish'                =>  'Publish',
         'search'                =>  'Search',
         'send'                  =>  'Send',
         'read_more'             =>  'Read More'

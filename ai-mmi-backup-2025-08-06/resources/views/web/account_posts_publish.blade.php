@@ -114,7 +114,7 @@ $_show_posts = array_merge([
             <div class="clearboth"></div>
 
             <div class="action">
-                <button type="submit" class="btn btn-save"><?php echo $_page_lang['btn.pubish']; ?></button>
+                <button type="submit" class="btn btn-save"><?php echo $_page_lang['btn.publish']; ?></button>
                 <div class="clearboth"></div>
             </div>
         </div>
