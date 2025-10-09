@@ -2,6 +2,12 @@ var article_page = 1;
 var article_loading = false;
 var article_loading_enable = true;
 
+$.ajaxSetup({
+  headers: {
+    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+  }
+});
+
 function formatUtcIsoToLocalTime(isoString) {
   try {
     const d = new Date(isoString);
@@ -36,6 +42,80 @@ function renderBubble({ role, avatar, name, text, createdAtIso }) {
     <div class="clearboth"></div>
   `;
 }
+
+// --- 主题判断（多语言关键词，尽量宽松）---
+function isStudyQuery(text) {
+  if (!text) return false;
+  const s = text.toLowerCase();
+  const kw = [
+    // EN
+    'study','studies','student','school','college','university','course','degree',
+    'admission','application','scholarship','tuition','ucas','commonapp',
+    // ZH
+    '留学','学校','大学','学院','课程','专业','申请','录取','奖学金','学费','入学','文书','sop','推荐信',
+    // Others
+    'ielts','toefl','pte','gpa','ranking'
+  ];
+  return kw.some(k => s.includes(k));
+}
+
+function isMigrationQuery(text) {
+  if (!text) return false;
+  const s = text.toLowerCase();
+  const kw = [
+    // EN
+    'visa','migration','immigration','pr','permanent residence','skilled','482','485','189','190','491',
+    'sponsor','sponsorship','work visa','h1b','eb','green card',
+    // ZH
+    '移民','签证','工签','学签','永居','绿卡','担保','打分','凑分','州担','雇主担保','技术移民',
+    // Countries
+    'australia','uk','united kingdom','canada','usa','united states','美国','英国','澳大利亚','加拿大'
+  ];
+  return kw.some(k => s.includes(k));
+}
+
+// --- 构建“付费操作”气泡（一个新的 reply 气泡）---
+function buildActionsReplyBubble() {
+  const html = `
+    <div class="dialog reply">
+      <div class="avatar">
+        <img src="asset/image/icon-member.png" alt="icon-member">
+        <div style="background-image:url('asset/image/logo-mmi.png')"></div>
+      </div>
+      <div class="name">AI-mmi</div>
+      <div class="clearboth"></div>
+
+      <div class="txt">
+        <p>Please try using the buttons below to access more professional services from AI-mmi:</p>
+        <div class="mmi-cta-group">
+          <a class="mmi-cta-btn" href="${_page_base_url}/upgrade">Upgrade</a>
+          <a class="mmi-cta-btn" href="${_page_base_url}/apply">Apply</a>
+          <a class="mmi-cta-btn" href="${_page_base_url}/agent">Agent</a>
+        </div>
+      </div>
+    </div>
+    <div class="clearboth"></div>
+  `;
+  return html;
+}
+
+// （可选）简单样式，若你已有按钮样式可忽略
+(function injectAIActionsCss() {
+  if (document.getElementById('ai-actions-inline-style')) return;
+  const css = `
+    .ai-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+    .ai-actions .ai-btn {
+      display:inline-block; padding:8px 14px; border-radius:6px;
+      border:1px solid #e0e0e0; text-decoration:none; font-weight:600;
+    }
+    .ai-actions .ai-btn:hover { filter:brightness(0.95); }
+  `;
+  const style = document.createElement('style');
+  style.id = 'ai-actions-inline-style';
+  style.appendChild(document.createTextNode(css));
+  document.head.appendChild(style);
+})();
+
 
 function formatUtcIsoToLocalTime(isoString) {
     try {
@@ -491,6 +571,10 @@ function iweb_global_func() {
 
             // Show user's question immediately before sending
             var userQuestion = $("#ask_question").val();
+
+            // 记录本轮问句（供成功回调里判断主题）
+            window.__lastUserQuestion = userQuestion;
+            
             var userAvatar =
                 _current_member && _current_member.avatar
                     ? (_current_member.type == 1
@@ -560,6 +644,14 @@ function iweb_global_func() {
                     });
                     $("main.page-body div.chat-area div.box > div.show-message").append(replyHtml);
 
+                    // ... 已有：append(replyHtml) 之后
+                    const userQ = (window.__lastUserQuestion || '').trim();
+
+                    // 只有当“用户问了留学/移民相关”的时候，追加按钮气泡
+                    if (isStudyQuery(userQ) || isMigrationQuery(userQ)) {
+                    const actionsHtml = buildActionsReplyBubble();
+                    $("main.page-body div.chat-area div.box > div.show-message").append(actionsHtml);
+                    }
 
                     console.log("AI reply added, scrolling...");
 
