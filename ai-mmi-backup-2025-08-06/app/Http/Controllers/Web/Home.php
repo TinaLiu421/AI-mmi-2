@@ -163,7 +163,12 @@ class Home extends WebController {
                     //$new_reply = $this->callDialogflowApi($this->postParamValue('question', ''));
                     if(empty($new_reply) || $this->toPlainText(strtolower($new_reply)) == 'unknown') {
                         $rawQuestion = $this->postParamValue('question', '');
-                        $new_reply   = $this->callGeminiApi($rawQuestion, $chat_mode);
+
+                        // ① 从 Free Assessment 构建画像文本（新的 JSON 解析方式）
+                        $fa_ctx = $this->buildFAContext($this->_current_member['id']);
+
+                        // ② 调用 Gemini API，并将画像作为上下文
+                        $new_reply = $this->callGeminiApi($rawQuestion, $chat_mode);
                     }
                     
                     try {
@@ -349,6 +354,9 @@ class Home extends WebController {
         $member = $this->_current_member;
         if (empty($member)) return 'Please login first.';
 
+        // ➕ 读取 Free Assessment 画像
+        $fa_ctx = $this->buildFAContext($member['id']);
+
         // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
         $history = DB::table('chat_log')
             ->where('member_id', $member['id'])
@@ -378,6 +386,17 @@ class Home extends WebController {
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
 
         $system = $this->buildModeSpecificPrompt($chat_mode);
+
+        if (!empty($fa_ctx)) {
+            $system .= "\n\n[User Profile from Free Assessment]\n{$fa_ctx}\n"
+                    . "Please incorporate the above information into your response. If any part conflicts with policy,
+                     the policy shall prevail, and you must indicate the key information that needs to be supplemented.";
+        } else {
+            // 没有画像就提醒模型给“通用答案+需要补充哪些信息”
+            $system .= "\n\n(No Free Assessment image. Please provide general recommendations 
+            first and list the key information that needs to be supplemented.)";
+        }
+
         $body = [
             'systemInstruction' => [
             'parts' => [['text' => $system]],
@@ -515,5 +534,126 @@ class Home extends WebController {
         return trim($text);
     }
 
+    public function fa_me() {
+        if (empty($this->_current_member)) {
+            return response()->json(['has_profile' => false]);
+        }
+        $mid = $this->_current_member['id'];
+        $fa = \DB::table('free_assessment')
+            ->where(function($q) use ($mid) {
+                $q->where('member_id', $mid);
+                // ->orWhere('user_id', $mid)
+                // ->orWhere('uid', $mid);
+            })
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$fa) {
+            return response()->json(['has_profile' => false]);
+        }
+        return response()->json([
+            'has_profile' => true,
+            // 前端现在只要判断有/无，不回大量隐私字段
+            // 若要预填/展示摘要，可再挑字段返回
+        ]);
+    }
+
+    private function buildFAContext($memberId): string
+    {
+        $row = DB::table('free_assessment')
+            ->select('questions','answers')
+            ->where(function($q) use ($memberId) {
+                $q->where('member_id', $memberId);
+                // ->orWhere('user_id', $memberId)
+                // ->orWhere('uid', $memberId);
+            })
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$row) return '';
+
+        // 解析 JSON
+        $questions = json_decode($row->questions ?? '[]', true) ?: [];
+        $answers   = json_decode($row->answers   ?? '[]', true) ?: [];
+
+        // 工具：把“题号的答案编号/自由文本”映射成可读字符串
+        $pick = function(string $qNo) use ($questions, $answers) {
+            if (!array_key_exists($qNo, $answers)) return null;
+            $ansKey = (string)$answers[$qNo];
+
+            if (isset($questions[$qNo]['answers']) && is_array($questions[$qNo]['answers']) &&
+                array_key_exists($ansKey, $questions[$qNo]['answers'])) {
+                $text = (string)$questions[$qNo]['answers'][$ansKey];
+            } else {
+                // 自由文本（如专业/职业）
+                $text = (string)$answers[$qNo];
+            }
+            // 还原 &gt; 等 HTML 实体
+            return html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        };
+
+        // 按你题号取值（可根据实际题库增减）
+        $agreeAssess   = $pick('1');  // Yes/No
+        $country       = $pick('2');  // Britain/United States/Canada/Australia
+        $visaType      = $pick('3');  // Skilled/Student/Family/Employer sponsorship...
+        $education     = $pick('4');  // Secondary/Diploma/Bachelor/Master/Doctoral
+        $age           = $pick('5');  // 18-25/25-33/...
+        $hasEnglish    = $pick('6');  // Yes/No
+        $ieltsResult   = $pick('7');  // IELTS 6/7/8/No result
+        $occupation    = $pick('8');  // 自由文本，如 “software engineer”
+        $workYears     = $pick('9');  // >1 / 1-3 / 3-5 / ...
+        $localYears    = $pick('10'); // 目标国家本地工作年限
+        $hasOffer      = $pick('11'); // Yes/No
+
+        // 组装对回答有用的“画像事实”
+        $parts = [];
+        if ($country)     $parts[] = "目标国家: {$country}";
+        if ($visaType)    $parts[] = "意向签证类型: {$visaType}";
+        if ($education)   $parts[] = "最高学历: {$education}";
+        if ($age)         $parts[] = "年龄段: {$age}";
+        if ($hasEnglish)  $parts[] = "是否完成英语考试: {$hasEnglish}";
+        if ($ieltsResult) $parts[] = "英语成绩/档位: {$ieltsResult}";
+        if ($occupation)  $parts[] = "职业(ANZSCO 方向): {$occupation}";
+        if ($workYears)   $parts[] = "累计全职工作年限: {$workYears}";
+        if ($localYears)  $parts[] = "目标国本地工作年限: {$localYears}";
+        if ($hasOffer)    $parts[] = "是否拥有目标国 job offer: {$hasOffer}";
+
+        // 可选：给模型的判断提示（不替代政策判断）
+        $hints = [];
+        if ($visaType && stripos($visaType, 'Student') !== false) {
+            $hints[] = '用户倾向学生签路径；请结合专业、学制与毕业后路径（各国毕业工签/485/PSW）。';
+        }
+        if ($visaType && stripos($visaType, 'Skilled') !== false) {
+            $hints[] = '用户关注技术移民；请结合年龄、学历、英语档位与工作年限做初筛。';
+        }
+        if ($hasOffer === 'Yes') {
+            $hints[] = '已有 job offer；请优先评估雇主担保/工签路径。';
+        }
+        if ($education && (stripos($education, 'Secondary') !== false || stripos($education, 'Diploma') !== false)) {
+            $hints[] = '学历低于本科，部分技术移民可能受限；请说明替代路径或补救方案。';
+        }
+        if ($hasEnglish === 'No') {
+            $hints[] = '暂无英语成绩；请提示目标路径的最低英语要求与过渡方案。';
+        }
+
+        // 可选：缺口提示，便于模型在答案中提示还需哪些信息
+        $missing = [];
+        if (!$country)   $missing[] = '目标国家';
+        if (!$visaType)  $missing[] = '意向签证类型';
+        if (!$education) $missing[] = '最高学历';
+        if (!$hasEnglish)$missing[] = '英语考试是否完成';
+        if (!$occupation)$missing[] = '职业/工种';
+        if (!$workYears) $missing[] = '累计工作年限';
+
+        // 拼装输出
+        $ctx = '';
+        if ($parts)  $ctx .= implode("\n", $parts);
+        if ($hints)  $ctx .= "\n【系统提示】\n" . implode("\n", $hints);
+        if ($missing) $ctx .= "\n【缺少关键信息】" . implode('、', $missing) . "。";
+
+        return trim($ctx);
+    }
 
 }

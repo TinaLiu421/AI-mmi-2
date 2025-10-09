@@ -236,5 +236,22 @@
         <div id="bottom-white-space" style="height:0px;"></div>
         <!-- {{-- Stripe Pricing Table script --}} -->
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+
+    <script>
+    // 如果页面是通过“后退缓存（bfcache）”恢复的，强制刷新一次
+    window.addEventListener('pageshow', function (e) {
+    const nav = performance.getEntriesByType('navigation')[0];
+    const isBFCache = e.persisted || (nav && nav.type === 'back_forward');
+    if (isBFCache) {
+        // 避免死循环：只在第一次恢复时刷
+        if (!window.__reloaded_after_bfcache__) {
+        window.__reloaded_after_bfcache__ = true;
+        location.reload(); // 硬刷新（从服务器拿新页面）
+        }
+    }
+    });
+    </script>
+
+
     </body>
 </html>

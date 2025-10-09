@@ -43,6 +43,23 @@ function renderBubble({ role, avatar, name, text, createdAtIso }) {
   `;
 }
 
+function buildTopButtonsHintBubble() {
+  return `
+    <div class="dialog reply">
+      <div class="avatar">
+        <img src="asset/image/icon-member.png" alt="icon-member">
+        <div style="background-image:url('asset/image/logo-mmi.png')"></div>
+      </div>
+      <div class="name">AI-mmi</div>
+      <div class="clearboth"></div>
+      <div class="txt">
+        <p>Please select the buttons at the top of the chat window to access the full range of AI-mmi services.</p>
+      </div>
+    </div>
+    <div class="clearboth"></div>
+  `;
+}
+
 // --- 主题判断（多语言关键词，尽量宽松）---
 function isStudyQuery(text) {
   if (!text) return false;
@@ -74,49 +91,6 @@ function isMigrationQuery(text) {
   return kw.some(k => s.includes(k));
 }
 
-// --- 构建“付费操作”气泡（一个新的 reply 气泡）---
-function buildActionsReplyBubble() {
-  const html = `
-    <div class="dialog reply">
-      <div class="avatar">
-        <img src="asset/image/icon-member.png" alt="icon-member">
-        <div style="background-image:url('asset/image/logo-mmi.png')"></div>
-      </div>
-      <div class="name">AI-mmi</div>
-      <div class="clearboth"></div>
-
-      <div class="txt">
-        <p>Please try using the buttons below to access more professional services from AI-mmi:</p>
-        <div class="mmi-cta-group">
-          <a class="mmi-cta-btn" href="${_page_base_url}/upgrade">Upgrade</a>
-          <a class="mmi-cta-btn" href="${_page_base_url}/apply">Apply</a>
-          <a class="mmi-cta-btn" href="${_page_base_url}/agent">Agent</a>
-        </div>
-      </div>
-    </div>
-    <div class="clearboth"></div>
-  `;
-  return html;
-}
-
-// （可选）简单样式，若你已有按钮样式可忽略
-(function injectAIActionsCss() {
-  if (document.getElementById('ai-actions-inline-style')) return;
-  const css = `
-    .ai-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
-    .ai-actions .ai-btn {
-      display:inline-block; padding:8px 14px; border-radius:6px;
-      border:1px solid #e0e0e0; text-decoration:none; font-weight:600;
-    }
-    .ai-actions .ai-btn:hover { filter:brightness(0.95); }
-  `;
-  const style = document.createElement('style');
-  style.id = 'ai-actions-inline-style';
-  style.appendChild(document.createTextNode(css));
-  document.head.appendChild(style);
-})();
-
-
 function formatUtcIsoToLocalTime(isoString) {
     try {
         const d = new Date(isoString);
@@ -126,6 +100,11 @@ function formatUtcIsoToLocalTime(isoString) {
         // Bottom line: Current local time
         return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date());
     }
+}
+
+function scrollChatToBottom() {
+  const el = $("main.page-body div.chat-area div.box > div.show-message")[0];
+  if (el) el.scrollTop = el.scrollHeight;
 }
 
 // Generate Timestamp HTML
@@ -647,10 +626,38 @@ function iweb_global_func() {
                     // ... 已有：append(replyHtml) 之后
                     const userQ = (window.__lastUserQuestion || '').trim();
 
-                    // 只有当“用户问了留学/移民相关”的时候，追加按钮气泡
+                    // 命中留学/移民话题 → 拉取画像 → 分支渲染
                     if (isStudyQuery(userQ) || isMigrationQuery(userQ)) {
-                    const actionsHtml = buildActionsReplyBubble();
-                    $("main.page-body div.chat-area div.box > div.show-message").append(actionsHtml);
+                    const fetchFA = () => fetch(`${_page_base_url}/home/fa_me`, { credentials: 'include' })
+                                            .then(r => r.json()).catch(() => ({ has_profile:false }));
+                    (window.__fa_cache__ ? Promise.resolve(window.__fa_cache__) : fetchFA().then(d => (window.__fa_cache__ = d)))
+                    .then(fa => {
+                        if (!fa || !fa.has_profile) {
+                        const cta = `
+                            <div class="dialog reply">
+                            <div class="avatar">
+                                <img src="asset/image/icon-member.png" alt="icon-member">
+                                <div style="background-image:url('asset/image/logo-mmi.png')"></div>
+                            </div>
+                            <div class="name">AI-mmi</div>
+                            <div class="clearboth"></div>
+                            <div class="txt">
+                                <p>To provide you with more precise recommendations, we suggest completing a Free Assessment first.</p>
+                                <div class="ai-actions">
+                                <a class="ai-btn" href="${_page_base_url}/free_assessment">Go fill out the free assessment</a>
+                                </div>
+                            </div>
+                            </div>
+                            <div class="clearboth"></div>`;
+                        $("main.page-body div.chat-area div.box > div.show-message").append(cta);
+                        scrollChatToBottom();
+                        }
+                        
+                        const hint = buildTopButtonsHintBubble();
+                        $("main.page-body div.chat-area div.box > div.show-message").append(hint);
+                        scrollChatToBottom(); // 追加提示后再滚动一次
+                        
+                    });
                     }
 
                     console.log("AI reply added, scrolling...");

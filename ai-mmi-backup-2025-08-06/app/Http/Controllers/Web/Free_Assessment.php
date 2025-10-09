@@ -12,6 +12,7 @@ class Free_Assessment extends WebController {
             $this->_free_assessment_model = $this->loadModel('free_assessment');
             $questions = $this->default_questions();
             if($new_free_assessment_id = $this->_free_assessment_model->doSave([
+                'member_id'         =>  $this->_current_member['id'],
                 'questions'         =>  $questions,
                 'answers'           =>  $this->postParamValue('answers'),
                 'full_name'         =>  $this->postParamValue('full_name'),
