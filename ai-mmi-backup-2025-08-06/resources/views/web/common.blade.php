@@ -238,15 +238,15 @@
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
 
     <script>
-    // 如果页面是通过“后退缓存（bfcache）”恢复的，强制刷新一次
+    // If the page is restored via “backward cache (bfcache)”, force a refresh once.
     window.addEventListener('pageshow', function (e) {
     const nav = performance.getEntriesByType('navigation')[0];
     const isBFCache = e.persisted || (nav && nav.type === 'back_forward');
     if (isBFCache) {
-        // 避免死循环：只在第一次恢复时刷
+        // Avoid infinite loops: Only refresh during the first recovery.
         if (!window.__reloaded_after_bfcache__) {
         window.__reloaded_after_bfcache__ = true;
-        location.reload(); // 硬刷新（从服务器拿新页面）
+        location.reload(); // Hard refresh (fetch new page from server)
         }
     }
     });

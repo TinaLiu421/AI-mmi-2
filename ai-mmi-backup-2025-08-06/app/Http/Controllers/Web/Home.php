@@ -354,7 +354,7 @@ class Home extends WebController {
         $member = $this->_current_member;
         if (empty($member)) return 'Please login first.';
 
-        // ➕ 读取 Free Assessment 画像
+        //  Read Free Assessment Profile
         $fa_ctx = $this->buildFAContext($member['id']);
 
         // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
@@ -392,7 +392,7 @@ class Home extends WebController {
                     . "Please incorporate the above information into your response. If any part conflicts with policy,
                      the policy shall prevail, and you must indicate the key information that needs to be supplemented.";
         } else {
-            // 没有画像就提醒模型给“通用答案+需要补充哪些信息”
+            // If no portrait is provided, prompt the model to give a “generic response + what additional information is needed.”
             $system .= "\n\n(No Free Assessment image. Please provide general recommendations 
             first and list the key information that needs to be supplemented.)";
         }
@@ -542,8 +542,6 @@ class Home extends WebController {
         $fa = \DB::table('free_assessment')
             ->where(function($q) use ($mid) {
                 $q->where('member_id', $mid);
-                // ->orWhere('user_id', $mid)
-                // ->orWhere('uid', $mid);
             })
             ->whereNull('deleted_at')
             ->orderByDesc('id')
@@ -554,8 +552,6 @@ class Home extends WebController {
         }
         return response()->json([
             'has_profile' => true,
-            // 前端现在只要判断有/无，不回大量隐私字段
-            // 若要预填/展示摘要，可再挑字段返回
         ]);
     }
 
@@ -565,8 +561,6 @@ class Home extends WebController {
             ->select('questions','answers')
             ->where(function($q) use ($memberId) {
                 $q->where('member_id', $memberId);
-                // ->orWhere('user_id', $memberId)
-                // ->orWhere('uid', $memberId);
             })
             ->whereNull('deleted_at')
             ->orderByDesc('id')
@@ -574,11 +568,11 @@ class Home extends WebController {
 
         if (!$row) return '';
 
-        // 解析 JSON
+        // Parsing JSON
         $questions = json_decode($row->questions ?? '[]', true) ?: [];
         $answers   = json_decode($row->answers   ?? '[]', true) ?: [];
 
-        // 工具：把“题号的答案编号/自由文本”映射成可读字符串
+        // Tool: Map “Question Number/Answer Number/Free Text” to a readable string
         $pick = function(string $qNo) use ($questions, $answers) {
             if (!array_key_exists($qNo, $answers)) return null;
             $ansKey = (string)$answers[$qNo];
@@ -587,14 +581,14 @@ class Home extends WebController {
                 array_key_exists($ansKey, $questions[$qNo]['answers'])) {
                 $text = (string)$questions[$qNo]['answers'][$ansKey];
             } else {
-                // 自由文本（如专业/职业）
+                // Free text (e.g., profession/occupation)
                 $text = (string)$answers[$qNo];
             }
-            // 还原 &gt; 等 HTML 实体
+            // Render &gt; as HTML entities
             return html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         };
 
-        // 按你题号取值（可根据实际题库增减）
+        // Assign values based on question numbers (adjustable according to the actual question bank)
         $agreeAssess   = $pick('1');  // Yes/No
         $country       = $pick('2');  // Britain/United States/Canada/Australia
         $visaType      = $pick('3');  // Skilled/Student/Family/Employer sponsorship...
@@ -602,56 +596,59 @@ class Home extends WebController {
         $age           = $pick('5');  // 18-25/25-33/...
         $hasEnglish    = $pick('6');  // Yes/No
         $ieltsResult   = $pick('7');  // IELTS 6/7/8/No result
-        $occupation    = $pick('8');  // 自由文本，如 “software engineer”
+        $occupation    = $pick('8');  // Free text, such as “software engineer”
         $workYears     = $pick('9');  // >1 / 1-3 / 3-5 / ...
-        $localYears    = $pick('10'); // 目标国家本地工作年限
+        $localYears    = $pick('10'); // Years of local work experience in the target country
         $hasOffer      = $pick('11'); // Yes/No
 
-        // 组装对回答有用的“画像事实”
+        // Assemble “portrait facts” that are useful for answering questions.
         $parts = [];
-        if ($country)     $parts[] = "目标国家: {$country}";
-        if ($visaType)    $parts[] = "意向签证类型: {$visaType}";
-        if ($education)   $parts[] = "最高学历: {$education}";
-        if ($age)         $parts[] = "年龄段: {$age}";
-        if ($hasEnglish)  $parts[] = "是否完成英语考试: {$hasEnglish}";
-        if ($ieltsResult) $parts[] = "英语成绩/档位: {$ieltsResult}";
-        if ($occupation)  $parts[] = "职业(ANZSCO 方向): {$occupation}";
-        if ($workYears)   $parts[] = "累计全职工作年限: {$workYears}";
-        if ($localYears)  $parts[] = "目标国本地工作年限: {$localYears}";
-        if ($hasOffer)    $parts[] = "是否拥有目标国 job offer: {$hasOffer}";
+        if ($country)     $parts[] = "Target Country: {$country}";
+        if ($visaType)    $parts[] = "Intended Visa Type: {$visaType}";
+        if ($education)   $parts[] = "Highest level of education attained: {$education}";
+        if ($age)         $parts[] = "Age group: {$age}";
+        if ($hasEnglish)  $parts[] = "Has the English exam been completed: {$hasEnglish}";
+        if ($ieltsResult) $parts[] = "English Score/Level: {$ieltsResult}";
+        if ($occupation)  $parts[] = "Occupation (ANZSCO Direction): {$occupation}";
+        if ($workYears)   $parts[] = "Total years of full-time work experience: {$workYears}";
+        if ($localYears)  $parts[] = "Years of local work experience in the target country: {$localYears}";
+        if ($hasOffer)    $parts[] = "Have a job offer in the target country: {$hasOffer}";
 
-        // 可选：给模型的判断提示（不替代政策判断）
+        // Optional: Provide judgment prompts for the model (does not replace policy decisions)
         $hints = [];
         if ($visaType && stripos($visaType, 'Student') !== false) {
-            $hints[] = '用户倾向学生签路径；请结合专业、学制与毕业后路径（各国毕业工签/485/PSW）。';
+            $hints[] = 'Students tend to prioritize visa pathways; please consider your major, program duration, 
+            and post-graduation options (including work visas in various countries, H-1B, PSW, etc.).';
         }
         if ($visaType && stripos($visaType, 'Skilled') !== false) {
-            $hints[] = '用户关注技术移民；请结合年龄、学历、英语档位与工作年限做初筛。';
+            $hints[] = 'Users are interested in skilled migration; conduct an initial 
+            screening based on age, education level, English proficiency level, and years of work experience.';
         }
         if ($hasOffer === 'Yes') {
-            $hints[] = '已有 job offer；请优先评估雇主担保/工签路径。';
+            $hints[] = 'A job offer has been received; please prioritize evaluating the employer sponsorship/work visa pathway.';
         }
         if ($education && (stripos($education, 'Secondary') !== false || stripos($education, 'Diploma') !== false)) {
-            $hints[] = '学历低于本科，部分技术移民可能受限；请说明替代路径或补救方案。';
+            $hints[] = "Applicants with educational qualifications below a bachelor's degree 
+            may face restrictions for certain skilled migration pathways; please outline alternative routes or remedial measures.";
         }
         if ($hasEnglish === 'No') {
-            $hints[] = '暂无英语成绩；请提示目标路径的最低英语要求与过渡方案。';
+            $hints[] = 'No English scores available; please indicate the minimum English requirement for the target pathway and the transition plan.';
         }
 
-        // 可选：缺口提示，便于模型在答案中提示还需哪些信息
+        // Optional: Gap prompts, enabling the model to indicate what additional information is needed in the answer.
         $missing = [];
-        if (!$country)   $missing[] = '目标国家';
-        if (!$visaType)  $missing[] = '意向签证类型';
-        if (!$education) $missing[] = '最高学历';
-        if (!$hasEnglish)$missing[] = '英语考试是否完成';
-        if (!$occupation)$missing[] = '职业/工种';
-        if (!$workYears) $missing[] = '累计工作年限';
+        if (!$country)   $missing[] = 'Target Country';
+        if (!$visaType)  $missing[] = 'Intended Visa Type';
+        if (!$education) $missing[] = 'Highest level of education attained';
+        if (!$hasEnglish)$missing[] = 'Has the English exam been completed';
+        if (!$occupation)$missing[] = 'Occupation/Job Type';
+        if (!$workYears) $missing[] = 'Total years of service';
 
-        // 拼装输出
+        // Assembly output
         $ctx = '';
         if ($parts)  $ctx .= implode("\n", $parts);
-        if ($hints)  $ctx .= "\n【系统提示】\n" . implode("\n", $hints);
-        if ($missing) $ctx .= "\n【缺少关键信息】" . implode('、', $missing) . "。";
+        if ($hints)  $ctx .= "\n【System Prompt】\n" . implode("\n", $hints);
+        if ($missing) $ctx .= "\n【Lack of critical information】" . implode('、', $missing) . "。";
 
         return trim($ctx);
     }

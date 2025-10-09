@@ -60,7 +60,7 @@ function buildTopButtonsHintBubble() {
   `;
 }
 
-// --- 主题判断（多语言关键词，尽量宽松）---
+// --- Topic Determination (Multilingual Keywords, as Broadly as Possible) ---
 function isStudyQuery(text) {
   if (!text) return false;
   const s = text.toLowerCase();
@@ -551,7 +551,7 @@ function iweb_global_func() {
             // Show user's question immediately before sending
             var userQuestion = $("#ask_question").val();
 
-            // 记录本轮问句（供成功回调里判断主题）
+            // Record the current round's question (for topic identification in successful callback)
             window.__lastUserQuestion = userQuestion;
             
             var userAvatar =
@@ -623,10 +623,9 @@ function iweb_global_func() {
                     });
                     $("main.page-body div.chat-area div.box > div.show-message").append(replyHtml);
 
-                    // ... 已有：append(replyHtml) 之后
                     const userQ = (window.__lastUserQuestion || '').trim();
 
-                    // 命中留学/移民话题 → 拉取画像 → 分支渲染
+                    // Hit study abroad/immigration topic → Pull profile → Branch rendering
                     if (isStudyQuery(userQ) || isMigrationQuery(userQ)) {
                     const fetchFA = () => fetch(`${_page_base_url}/home/fa_me`, { credentials: 'include' })
                                             .then(r => r.json()).catch(() => ({ has_profile:false }));
@@ -655,7 +654,7 @@ function iweb_global_func() {
                         
                         const hint = buildTopButtonsHintBubble();
                         $("main.page-body div.chat-area div.box > div.show-message").append(hint);
-                        scrollChatToBottom(); // 追加提示后再滚动一次
+                        scrollChatToBottom(); 
                         
                     });
                     }
