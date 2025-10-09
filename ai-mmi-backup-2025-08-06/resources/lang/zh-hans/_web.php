@@ -133,7 +133,7 @@ return
         'pay_now'               =>  '立即付款',
         'to_profile'            =>  '进入我的个人资料',
         'save'                  =>  '储存',
-        'pubish'                =>  '发布',
+        'publish'                =>  '发布',
         'search'                =>  '搜寻',
         'send'                  =>  '发送',
         'read_more'             =>  '查看更多'

@@ -49,7 +49,7 @@ function initWelcomeMessage() {
     }
 
     // Check for chat history
-    $.getJSON(_page_base_url + "/home/chat/1", function (data) {
+    $.getJSON(_page_base_url + "/home/chat", function (data) {
         if (data && data.length > 0) {
             $(".welcome-message").remove();
         } else {
@@ -70,8 +70,25 @@ function removeWelcomeAndShowChat() {
     $(".robot-container").show();
 }
 
+function setChatMode(mode) {
+    // Set the hidden input value
+    $("#chat_mode").val(mode);
+
+    // Update UI based on mode
+    if (typeof restoreChatModeUI === "function") {
+        restoreChatModeUI(mode);
+    }
+
+    // Remove welcome message and show chat
+    removeWelcomeAndShowChat();
+
+    // Load chat history for this mode (this will also save mode to session via GET parameter)
+    if (typeof loadChatMessage === "function") {
+        loadChatMessage(1);
+    }
+}
+
 function displayWelcomeMessage() {
-    // Make sure welcome message element exists
     if ($(".welcome-message").length === 0) {
         return;
     }
@@ -84,7 +101,6 @@ function displayWelcomeMessage() {
 }
 
 function initializeWelcomeVideo() {
-    // Ensure video plays (some browsers need this)
     setTimeout(function () {
         const video = document.getElementById("welcome-robot-video");
         if (video) {
@@ -176,6 +192,11 @@ $(document).ready(function () {
         $(".welcome-message").remove();
     }
 
-    // Initialize welcome message logic
     initWelcomeMessage();
+
+    // Handle chat mode button clicks
+    $(document).on("click", ".welcome-option-btn", function () {
+        var mode = $(this).data("mode");
+        setChatMode(mode);
+    });
 });

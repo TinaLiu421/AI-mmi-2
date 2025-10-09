@@ -9,32 +9,42 @@ $.ajaxSetup({
 });
 
 function formatUtcIsoToLocalTime(isoString) {
-  try {
-    const d = new Date(isoString);
-    return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(d);
-  } catch (e) {
-    return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date());
-  }
+    try {
+        const d = new Date(isoString);
+        return new Intl.DateTimeFormat(undefined, {
+            timeStyle: "short",
+        }).format(d);
+    } catch (e) {
+        return new Intl.DateTimeFormat(undefined, {
+            timeStyle: "short",
+        }).format(new Date());
+    }
 }
 
 function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#039;');
+    return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function renderBubble({ role, avatar, name, text, createdAtIso }) {
-  const timeLocal = formatUtcIsoToLocalTime(createdAtIso || new Date().toISOString());
-  return `
+    const timeLocal = formatUtcIsoToLocalTime(
+        createdAtIso || new Date().toISOString()
+    );
+    const baseIcon =
+        role === "reply"
+            ? "asset/image/logo-mmi.png"
+            : "asset/image/icon-member.png";
+    return `
     <div class="dialog ${role}">
       <div class="avatar">
-        <img src="asset/image/icon-member.png" alt="icon-member">
-        <div style="background-image:url('${avatar || ''}')"></div>
+        <img src="${baseIcon}" alt="icon-member">
+        <div style="background-image:url('${avatar || ""}')"></div>
       </div>
-      <div class="name">${escapeHtml(name || '')}</div>
+      <div class="name">${escapeHtml(name || "")}</div>
       <div class="time">${timeLocal}</div>
       <div class="clearboth"></div>
       <div class="txt">${text}</div>
@@ -109,11 +119,10 @@ function scrollChatToBottom() {
 
 // Generate Timestamp HTML
 function buildTimeLineHtml(text) {
-    return '<div class="time">' + text + '</div>';
+    return '<div class="time">' + text + "</div>";
 }
 
 function iweb_global_func() {
-    // Welcome message is now handled by welcome_message.js
     $(document).on(
         "click",
         "header.page-header div.controls > div.menu > a.open-menu",
@@ -538,76 +547,52 @@ function iweb_global_func() {
         }
     });
 
+    // Skip if already initialized to prevent duplicate submissions
+    if ($("#ask-form").hasClass("form-initialized")) return;
+    $("#ask-form").addClass("form-initialized");
+
     iweb.form(
         "#ask-form",
         "json",
         function () {
-            console.log("Form submission started");
-            if (!iweb.isValue($("#ask_question").val())) {
-                console.log("No question entered");
-                return false;
-            }
+            if (!iweb.isValue($("#ask_question").val())) return false;
 
-            // Show user's question immediately before sending
-            var userQuestion = $("#ask_question").val();
-
-            // Record the current round's question (for topic identification in successful callback)
-            window.__lastUserQuestion = userQuestion;
-            
-            var userAvatar =
-                _current_member && _current_member.avatar
-                    ? (_current_member.type == 1
-                          ? "upload/member_avatar/"
-                          : "upload/member_logo/") + _current_member.avatar
-                    : "asset/image/icon-member2.png";
-            var userName =
-                _current_member && _current_member.name
-                    ? _current_member.name
-                    : "You";
-
-            const nowIso = new Date().toISOString(); // First use the browser's local timestamp (ISO)
-            const userHtml = renderBubble({
-            role: 'ask',
-            avatar: (_current_member && _current_member.avatar)
-                    ? ((_current_member.type == 1 ? "upload/member_avatar/" : "upload/member_logo/") + _current_member.avatar)
-                    : 'asset/image/icon-member.png',
-            name:  (_current_member && _current_member.name) ? _current_member.name : 'You',
-            text:  escapeHtml(userQuestion),
-            createdAtIso: nowIso
-            });
-
-            $("main.page-body div.chat-area div.box > div.show-message").append(userHtml);
-
-
-            // Clear the textarea immediately
-            $("#ask_question").val("");
-
-            // Add thinking indicator with animated dots
-            var thinkingIndicator =
-                '<div class="dialog reply thinking-indicator">';
-            thinkingIndicator +=
-                '<div class="avatar"><img src="/asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>';
-            thinkingIndicator +=
-                '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
-            thinkingIndicator += '</div><div class="clearboth"></div>';
-            $("main.page-body div.chat-area div.box > div.show-message").append(
-                thinkingIndicator
+            const userQuestion = $("#ask_question").val();
+            const userAvatar = _current_member?.avatar
+                ? (_current_member.type == 1
+                      ? "upload/member_avatar/"
+                      : "upload/member_logo/") + _current_member.avatar
+                : "asset/image/icon-member2.png";
+            const userName = _current_member?.name || "You";
+            const chatContainer = $(
+                "main.page-body div.chat-area div.box > div.show-message"
             );
 
-            // Scroll to bottom
-            var element = $(
-                "main.page-body div.chat-area div.box > div.show-message"
-            )[0];
-            if (element) {
-                element.scrollTop = element.scrollHeight;
-            }
+            // Show user's question
+            chatContainer.append(
+                renderBubble({
+                    role: "ask",
+                    avatar: userAvatar,
+                    name: userName,
+                    text: escapeHtml(userQuestion),
+                    createdAtIso: new Date().toISOString(),
+                })
+            );
 
+            $("#ask_question").val("");
+
+            // Add thinking indicator
+            chatContainer.append(
+                '<div class="dialog reply thinking-indicator">' +
+                    '<div class="avatar"><img src="asset/image/logo-mmi.png" alt="icon-member"><div style="background-image:url(\'asset/image/logo-mmi.png\')"></div></div>' +
+                    '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
+                    '</div><div class="clearboth"></div>'
+            );
+
+            chatContainer[0].scrollTop = chatContainer[0].scrollHeight;
             return true;
         },
         function (response_data) {
-            console.log("Form response received:", response_data);
-
-            // Remove thinking indicator
             $(".thinking-indicator").remove();
 
             if (iweb.isMatch(response_data.status, 200)) {
@@ -871,23 +856,34 @@ function loadChatMessage(init) {
         requestData.chat_mode = currentMode;
     }
 
-    console.log("Loading chat for mode:", currentMode, "URL:", url);
-
     $.getJSON(url, requestData, function (data) {
         if (iweb.isValue(data)) {
+            // Remove welcome message when loading chat history
+            if (iweb.isValue(init)) {
+                $(".welcome-message").remove();
+            }
+
             var dialog_group = "";
             var dialog_date_int = 0;
             $.each(data, function (key, value) {
-                const role = (String(value.type || '').toLowerCase() === 'ask' || String(value.type || '').toLowerCase() === 'member')
-                            ? 'ask'
-                            : 'reply';
+                const role =
+                    String(value.type || "").toLowerCase() === "ask" ||
+                    String(value.type || "").toLowerCase() === "member"
+                        ? "ask"
+                        : "reply";
 
                 const bubbleHtml = renderBubble({
                     role,
-                    avatar: value.owner_avatar || (role === 'reply' ? 'asset/image/logo-mmi.png' : 'asset/image/icon-member.png'),
-                    name:   value.owner_name   || (role === 'reply' ? 'AI-mmi' : 'You'),
-                    text:   value.content,  
-                    createdAtIso: value.created_time 
+                    avatar:
+                        value.owner_avatar ||
+                        (role === "reply"
+                            ? "asset/image/logo-mmi.png"
+                            : "asset/image/icon-member.png"),
+                    name:
+                        value.owner_name ||
+                        (role === "reply" ? "AI-mmi" : "You"),
+                    text: value.content,
+                    createdAtIso: value.created_time,
                 });
 
                 dialog_group += bubbleHtml;
@@ -986,5 +982,4 @@ function toggleMobileChat() {
             .addClass("fa-microphone-slash");
         $("#chat-robot-video").prop("muted", true);
     }
-
 }
