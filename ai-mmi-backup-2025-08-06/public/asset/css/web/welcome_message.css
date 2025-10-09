@@ -205,7 +205,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(0, 102, 255, 0.15);
-    min-width: 240px;
+    min-width: 180px;
 }
 
 .welcome-option-btn:hover {
@@ -275,6 +275,7 @@
         padding: 14px 20px;
         font-size: 0.95rem;
         gap: 10px;
+        min-width: 100px;
     }
 
     .welcome-option-btn i {

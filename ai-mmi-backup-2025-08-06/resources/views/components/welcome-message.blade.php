@@ -24,11 +24,11 @@ Options are dynamically rendered from the welcome_message.js configuration.
     <div class="welcome-message__buttons">
         <button class="welcome-option-btn" data-mode="immigration">
             <i class="fa fa-plane"></i>
-            <span>I would like to Immigrate</span>
+            <span>Migrate</span>
         </button>
         <button class="welcome-option-btn" data-mode="study">
             <i class="fa fa-graduation-cap"></i>
-            <span>I would like to Study</span>
+            <span>Study</span>
         </button>
     </div>
 
