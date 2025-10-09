@@ -236,5 +236,22 @@
         <div id="bottom-white-space" style="height:0px;"></div>
         <!-- {{-- Stripe Pricing Table script --}} -->
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+
+    <script>
+    // If the page is restored via “backward cache (bfcache)”, force a refresh once.
+    window.addEventListener('pageshow', function (e) {
+    const nav = performance.getEntriesByType('navigation')[0];
+    const isBFCache = e.persisted || (nav && nav.type === 'back_forward');
+    if (isBFCache) {
+        // Avoid infinite loops: Only refresh during the first recovery.
+        if (!window.__reloaded_after_bfcache__) {
+        window.__reloaded_after_bfcache__ = true;
+        location.reload(); // Hard refresh (fetch new page from server)
+        }
+    }
+    });
+    </script>
+
+
     </body>
 </html>

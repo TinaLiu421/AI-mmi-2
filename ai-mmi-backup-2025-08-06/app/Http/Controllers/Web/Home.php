@@ -163,7 +163,12 @@ class Home extends WebController {
                     //$new_reply = $this->callDialogflowApi($this->postParamValue('question', ''));
                     if(empty($new_reply) || $this->toPlainText(strtolower($new_reply)) == 'unknown') {
                         $rawQuestion = $this->postParamValue('question', '');
-                        $new_reply   = $this->callGeminiApi($rawQuestion, $chat_mode);
+
+                        // ① 从 Free Assessment 构建画像文本（新的 JSON 解析方式）
+                        $fa_ctx = $this->buildFAContext($this->_current_member['id']);
+
+                        // ② 调用 Gemini API，并将画像作为上下文
+                        $new_reply = $this->callGeminiApi($rawQuestion, $chat_mode);
                     }
                     
                     try {
@@ -349,6 +354,9 @@ class Home extends WebController {
         $member = $this->_current_member;
         if (empty($member)) return 'Please login first.';
 
+        //  Read Free Assessment Profile
+        $fa_ctx = $this->buildFAContext($member['id']);
+
         // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
         $history = DB::table('chat_log')
             ->where('member_id', $member['id'])
@@ -378,6 +386,17 @@ class Home extends WebController {
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
 
         $system = $this->buildModeSpecificPrompt($chat_mode);
+
+        if (!empty($fa_ctx)) {
+            $system .= "\n\n[User Profile from Free Assessment]\n{$fa_ctx}\n"
+                    . "Please incorporate the above information into your response. If any part conflicts with policy,
+                     the policy shall prevail, and you must indicate the key information that needs to be supplemented.";
+        } else {
+            // If no portrait is provided, prompt the model to give a “generic response + what additional information is needed.”
+            $system .= "\n\n(No Free Assessment image. Please provide general recommendations 
+            first and list the key information that needs to be supplemented.)";
+        }
+
         $body = [
             'systemInstruction' => [
             'parts' => [['text' => $system]],
@@ -515,5 +534,123 @@ class Home extends WebController {
         return trim($text);
     }
 
+    public function fa_me() {
+        if (empty($this->_current_member)) {
+            return response()->json(['has_profile' => false]);
+        }
+        $mid = $this->_current_member['id'];
+        $fa = \DB::table('free_assessment')
+            ->where(function($q) use ($mid) {
+                $q->where('member_id', $mid);
+            })
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$fa) {
+            return response()->json(['has_profile' => false]);
+        }
+        return response()->json([
+            'has_profile' => true,
+        ]);
+    }
+
+    private function buildFAContext($memberId): string
+    {
+        $row = DB::table('free_assessment')
+            ->select('questions','answers')
+            ->where(function($q) use ($memberId) {
+                $q->where('member_id', $memberId);
+            })
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$row) return '';
+
+        // Parsing JSON
+        $questions = json_decode($row->questions ?? '[]', true) ?: [];
+        $answers   = json_decode($row->answers   ?? '[]', true) ?: [];
+
+        // Tool: Map “Question Number/Answer Number/Free Text” to a readable string
+        $pick = function(string $qNo) use ($questions, $answers) {
+            if (!array_key_exists($qNo, $answers)) return null;
+            $ansKey = (string)$answers[$qNo];
+
+            if (isset($questions[$qNo]['answers']) && is_array($questions[$qNo]['answers']) &&
+                array_key_exists($ansKey, $questions[$qNo]['answers'])) {
+                $text = (string)$questions[$qNo]['answers'][$ansKey];
+            } else {
+                // Free text (e.g., profession/occupation)
+                $text = (string)$answers[$qNo];
+            }
+            // Render &gt; as HTML entities
+            return html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        };
+
+        // Assign values based on question numbers (adjustable according to the actual question bank)
+        $agreeAssess   = $pick('1');  // Yes/No
+        $country       = $pick('2');  // Britain/United States/Canada/Australia
+        $visaType      = $pick('3');  // Skilled/Student/Family/Employer sponsorship...
+        $education     = $pick('4');  // Secondary/Diploma/Bachelor/Master/Doctoral
+        $age           = $pick('5');  // 18-25/25-33/...
+        $hasEnglish    = $pick('6');  // Yes/No
+        $ieltsResult   = $pick('7');  // IELTS 6/7/8/No result
+        $occupation    = $pick('8');  // Free text, such as “software engineer”
+        $workYears     = $pick('9');  // >1 / 1-3 / 3-5 / ...
+        $localYears    = $pick('10'); // Years of local work experience in the target country
+        $hasOffer      = $pick('11'); // Yes/No
+
+        // Assemble “portrait facts” that are useful for answering questions.
+        $parts = [];
+        if ($country)     $parts[] = "Target Country: {$country}";
+        if ($visaType)    $parts[] = "Intended Visa Type: {$visaType}";
+        if ($education)   $parts[] = "Highest level of education attained: {$education}";
+        if ($age)         $parts[] = "Age group: {$age}";
+        if ($hasEnglish)  $parts[] = "Has the English exam been completed: {$hasEnglish}";
+        if ($ieltsResult) $parts[] = "English Score/Level: {$ieltsResult}";
+        if ($occupation)  $parts[] = "Occupation (ANZSCO Direction): {$occupation}";
+        if ($workYears)   $parts[] = "Total years of full-time work experience: {$workYears}";
+        if ($localYears)  $parts[] = "Years of local work experience in the target country: {$localYears}";
+        if ($hasOffer)    $parts[] = "Have a job offer in the target country: {$hasOffer}";
+
+        // Optional: Provide judgment prompts for the model (does not replace policy decisions)
+        $hints = [];
+        if ($visaType && stripos($visaType, 'Student') !== false) {
+            $hints[] = 'Students tend to prioritize visa pathways; please consider your major, program duration, 
+            and post-graduation options (including work visas in various countries, H-1B, PSW, etc.).';
+        }
+        if ($visaType && stripos($visaType, 'Skilled') !== false) {
+            $hints[] = 'Users are interested in skilled migration; conduct an initial 
+            screening based on age, education level, English proficiency level, and years of work experience.';
+        }
+        if ($hasOffer === 'Yes') {
+            $hints[] = 'A job offer has been received; please prioritize evaluating the employer sponsorship/work visa pathway.';
+        }
+        if ($education && (stripos($education, 'Secondary') !== false || stripos($education, 'Diploma') !== false)) {
+            $hints[] = "Applicants with educational qualifications below a bachelor's degree 
+            may face restrictions for certain skilled migration pathways; please outline alternative routes or remedial measures.";
+        }
+        if ($hasEnglish === 'No') {
+            $hints[] = 'No English scores available; please indicate the minimum English requirement for the target pathway and the transition plan.';
+        }
+
+        // Optional: Gap prompts, enabling the model to indicate what additional information is needed in the answer.
+        $missing = [];
+        if (!$country)   $missing[] = 'Target Country';
+        if (!$visaType)  $missing[] = 'Intended Visa Type';
+        if (!$education) $missing[] = 'Highest level of education attained';
+        if (!$hasEnglish)$missing[] = 'Has the English exam been completed';
+        if (!$occupation)$missing[] = 'Occupation/Job Type';
+        if (!$workYears) $missing[] = 'Total years of service';
+
+        // Assembly output
+        $ctx = '';
+        if ($parts)  $ctx .= implode("\n", $parts);
+        if ($hints)  $ctx .= "\n【System Prompt】\n" . implode("\n", $hints);
+        if ($missing) $ctx .= "\n【Lack of critical information】" . implode('、', $missing) . "。";
+
+        return trim($ctx);
+    }
 
 }
