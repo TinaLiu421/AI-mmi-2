@@ -12,7 +12,7 @@ class StripeWebhookController extends Controller
 {
     public function __construct()
     {
-        Stripe::setApiKey(config('services.stripe.secret')); // ← 关键
+        Stripe::setApiKey(config('services.stripe.secret')); 
     }
     
     public function handle(Request $request)
@@ -94,8 +94,8 @@ class StripeWebhookController extends Controller
                     $first = $sess->line_items->data[0] ?? null;
                     if ($first) {
                         $price   = $first->price ?? null;
-                        $priceId = $price?->id ?? null;
-                        $productId = $price?->product ?? null;
+                        $priceId   = $first->price->id ?? null;
+                        $productId = $first->price->product ?? null;
                     }
                 } catch (\Throwable $e) {
                     Log::warning('fetch session line_items failed: '.$e->getMessage(), ['session_id'=>$sessId]);

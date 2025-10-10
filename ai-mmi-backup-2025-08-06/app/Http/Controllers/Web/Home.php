@@ -386,14 +386,6 @@ class Home extends WebController {
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
 
         $system = $this->buildModeSpecificPrompt($chat_mode);
-        // Control response length and style
-        $system .= "\n\n[Instruction for response style]\n"
-                . "Please answer user questions concisely and with clear focus,"
-                . "each response should be kept to no more than 5 paragraphs or 250 words,"
-                . "ensure that facts are accurate and information is complete,"
-                . "if the content is too extensive, please first list the key points and then provide a brief explanation."
-                . "\nIf the user requests further details, additional information can be provided.";
-
 
         if (!empty($fa_ctx)) {
             $system .= "\n\n[User Profile from Free Assessment]\n{$fa_ctx}\n"
@@ -412,8 +404,8 @@ class Home extends WebController {
 
             'contents' => $contents,
             'generationConfig' => [
-                        'temperature'       => 0.9,
-                        'maxOutputTokens'   => 2048,   
+                        'temperature'       => 0.7,
+                        'maxOutputTokens'   => 1024,   
                         'topK'              => 40,
                         'topP'              => 0.95,
                         'candidateCount'    => 1,
@@ -491,6 +483,12 @@ class Home extends WebController {
     - Always stay factual. If unsure, say "based on publicly available information" and suggest verifying via official government sources.
     - Never refuse migration or visa-related questions unless they are outside Australia, UK, Canada, or USA.
 
+    Response length and structure:
+    - Keep answers concise and focused.
+    - Limit to **3–4 short paragraphs or under 150 words** unless the user explicitly asks for details.
+    - Prioritize accuracy and completeness of key information over verbosity.
+    - If content is lengthy, first summarise key points, then offer to expand if needed.
+
     PROMPT;
         }
 
@@ -517,6 +515,11 @@ class Home extends WebController {
     - Clear, concise, and friendly.
     - Give practical, step-by-step checklists where possible.
     - Reply in the user's language if obvious; otherwise use English.
+
+    Response length and structure:
+    - Keep responses short, practical, and to the point.
+    - Prefer bullet points and short sentences.
+    - Limit to **3–4 short paragraphs** or **about 150–200 words** unless the user explicitly requests a detailed explanation.
     PROMPT;
     }
 
