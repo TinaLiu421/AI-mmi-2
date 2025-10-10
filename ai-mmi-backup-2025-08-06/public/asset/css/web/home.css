@@ -12,7 +12,7 @@ div.page-content.home div.banner > div.mobile {
 
 div.page-content.home div.news-event {
     position: relative;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
 }
 
 div.page-content.home div.news-event div.hslider {
@@ -29,7 +29,7 @@ div.page-content.home div.news-event div.hslider a.link > div.photo {
     position: relative;
     border: 1px solid #dbdbdb;
     border-radius: 4px;
-    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
     overflow: hidden;
 }
 
@@ -46,10 +46,14 @@ div.page-content.home div.news-event div.hslider a.link > div.photo > iframe {
     border: 0px;
 }
 
-div.page-content.home div.news-event div.hslider a.link:hover > div.photo:after {
+div.page-content.home
+    div.news-event
+    div.hslider
+    a.link:hover
+    > div.photo:after {
     position: absolute;
-    background: rgba(0,0,0,0.5);
-    content: '';
+    background: rgba(0, 0, 0, 0.5);
+    content: "";
     top: 0px;
     left: 0px;
     right: 0px;
@@ -59,11 +63,15 @@ div.page-content.home div.news-event div.hslider a.link:hover > div.photo:after 
 div.page-content.home div.news-event div.hslider a.link > div.title {
     font-size: 18px;
     font-weight: bold;
-    line-height: 24px;
-    padding: 10px 0px;
-    /*white-space: nowrap;
+    line-height: 1.33em;
+    padding: 10px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
     text-overflow: ellipsis;
-    overflow: hidden;*/
+    max-height: calc(1.33em * 3.3);
 }
 
 div.page-content.home div.news-event div.hslider div.slick-item {
@@ -75,12 +83,12 @@ div.page-content.home div.news-event div.hslider div.slick-track {
     margin: 0px;
 }
 
-div.page-content.home div.news-event div.hslider .slick-prev, 
+div.page-content.home div.news-event div.hslider .slick-prev,
 div.page-content.home div.news-event div.hslider .slick-next {
     background: none;
     top: 36%;
     border-radius: 0px;
-    box-shadow: none!important;
+    box-shadow: none !important;
 }
 
 div.page-content.home div.news-event div.hslider .slick-prev {
@@ -91,7 +99,7 @@ div.page-content.home div.news-event div.hslider .slick-next {
     right: 12px;
 }
 
-div.page-content.home div.news-event div.hslider .slick-prev > i, 
+div.page-content.home div.news-event div.hslider .slick-prev > i,
 div.page-content.home div.news-event div.hslider .slick-next > i {
     border-color: #ccc;
 }
