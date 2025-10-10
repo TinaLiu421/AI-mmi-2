@@ -141,21 +141,19 @@ function initializeWelcomeVideo() {
     $(document).off("click", "#welcome-sound-control");
     $(document).on("click", "#welcome-sound-control", function () {
         const video = document.getElementById("welcome-robot-video");
+        const icon = $("#welcome-sound-control > i");
+
         if ($(this).hasClass("opened")) {
+            // Currently unmuted → mute
             $(this).removeClass("opened");
             $(this).attr("title", "Click to unmute");
-            $("#welcome-sound-control > i")
-                .removeClass("fa-microphone-slash")
-                .removeClass("fa-microphone")
-                .addClass("fa-microphone");
+            icon.removeClass("fa-microphone").addClass("fa-microphone-slash");
             if (video) video.muted = true;
         } else {
+            // Currently muted → unmute
             $(this).addClass("opened");
             $(this).attr("title", "Click to mute");
-            $("#welcome-sound-control > i")
-                .removeClass("fa-microphone-slash")
-                .removeClass("fa-microphone")
-                .addClass("fa-microphone-slash");
+            icon.removeClass("fa-microphone-slash").addClass("fa-microphone");
             if (video) video.muted = false;
         }
     });
