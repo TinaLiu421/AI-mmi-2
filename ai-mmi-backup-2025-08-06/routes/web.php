@@ -22,3 +22,4 @@ Route::get('/home/fa_me', [Home::class, 'fa_me']);
 Route::any('{segments?}', [App\Http\Controllers\RouteMapping::class, 'index'])->where('segments', '^(?!stripe)([0-9a-zA-Z_\-\/]+)?$');
 
 
+
