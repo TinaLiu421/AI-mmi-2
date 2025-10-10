@@ -301,6 +301,22 @@ function iweb_global_func() {
         function () {
             $("main.page-body div.chat-area").removeClass("show-mobile");
             $(".mobile-chat-button").removeClass("hidden");
+
+            // Stop the welcome video if it's playing
+            const welcomeVideo = document.getElementById("welcome-robot-video");
+            if (welcomeVideo) {
+                welcomeVideo.pause();
+                welcomeVideo.currentTime = 0;
+                welcomeVideo.muted = true;
+            }
+
+            // Reset the welcome sound control button
+            const soundControl = $("#welcome-sound-control");
+            soundControl.removeClass("opened");
+            soundControl.attr("title", "Click to unmute");
+            $("#welcome-sound-control > i")
+                .removeClass("fa-microphone")
+                .addClass("fa-microphone-slash");
         }
     );
 
