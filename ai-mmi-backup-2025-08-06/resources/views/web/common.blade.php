@@ -4,7 +4,7 @@
         <base href="{{ url('/') }}/">
         <title><?php echo (!empty($_page_meta_data['title']))?$_page_meta_data['title']:''; ?></title>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
         <link href="asset/image/logo-mmi.png" rel="icon" type="image/x-icon">
     
         <?php if(!empty($_page_csrf_token)) { ?>
