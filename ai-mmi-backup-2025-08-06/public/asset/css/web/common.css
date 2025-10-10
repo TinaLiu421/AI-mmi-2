@@ -850,7 +850,7 @@ main.page-body .chat-area .box .show-message .dialog .name {
 }
 
 main.page-body .chat-area .box .show-message .dialog .txt {
-    max-width: 280px;
+    max-width: 90%;
     padding: var(--space-4) var(--space-5);
     border-radius: var(--radius-2xl);
     font-size: 1rem;
@@ -1379,54 +1379,45 @@ footer.page-footer a:hover {
     }
 
     main.page-body .chat-area .box .show-message .dialog .txt {
-        max-width: 80%;
+        max-width: 90%;
     }
 
     /* Mobile Chat Button */
     .mobile-chat-button {
         position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: linear-gradient(135deg, var(--primary-blue) 0%, #0066ff 100%);
+        bottom: 0;
+        background: linear-gradient(
+            135deg,
+            var(--primary-blue-dark) 0%,
+            #0066ff 100%
+        );
         color: white;
         padding: 16px 32px;
-        border-radius: 50px;
         box-shadow: 0 8px 24px rgba(0, 102, 255, 0.35),
-                    0 4px 12px rgba(0, 102, 255, 0.2);
+            0 4px 12px rgba(0, 102, 255, 0.2);
         border: none;
-        font-weight: 700;
-        font-size: 17px;
+        font-weight: 900;
+        font-size: 20px;
         letter-spacing: 0.3px;
+        gap: 12px;
         z-index: 1000;
         display: flex !important;
         align-items: center;
         justify-content: center;
-        gap: 10px;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         backdrop-filter: blur(10px);
         text-decoration: none;
-        min-width: 220px;
+        width: 100vh;
         -webkit-tap-highlight-color: transparent;
         user-select: none;
-        animation: pulse-scale 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse-scale {
-        0%, 100% {
-            transform: translateX(-50%) scale(1);
-        }
-        50% {
-            transform: translateX(-50%) scale(1.02);
-        }
     }
 
     .mobile-chat-button:hover,
     .mobile-chat-button:active {
         transform: translateX(-50%) translateY(-3px) scale(1.05);
         box-shadow: 0 12px 32px rgba(0, 102, 255, 0.45),
-                    0 6px 16px rgba(0, 102, 255, 0.3);
+            0 6px 16px rgba(0, 102, 255, 0.3);
         animation: none;
     }
 
@@ -1547,7 +1538,7 @@ footer.page-footer a:hover {
     }
 
     main.page-body .chat-area .box .show-message .dialog .txt {
-        max-width: 75%;
+        max-width: 90%;
         padding: var(--space-3) var(--space-4);
     }
 
