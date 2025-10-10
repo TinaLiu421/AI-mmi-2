@@ -256,7 +256,7 @@
         <?php } ?>
 
         <!-- Mobile Chat Button -->
-        <button class="mobile-chat-button">Chat with AI-MMI</button>
+        <button class="mobile-chat-button">Chat with AI-mmi</button>
         <div id="bottom-white-space" style="height:0px;"></div>
         <!-- {{-- Stripe Pricing Table script --}} -->
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>

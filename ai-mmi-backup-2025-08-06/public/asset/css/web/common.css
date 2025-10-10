@@ -979,7 +979,7 @@ main.page-body .chat-area .box .input-question .robot-container {
     flex: 1 1 0;
     min-width: 0; /* allow shrinking */
     display: flex; /* so textarea inside can expand */
-    align-items: center;
+    align-items: stretch;
 }
 
 .input-wrapper .iweb-input > div {
@@ -1385,35 +1385,55 @@ footer.page-footer a:hover {
     /* Mobile Chat Button */
     .mobile-chat-button {
         position: fixed;
-        bottom: 20px;
+        bottom: 24px;
         left: 50%;
         transform: translateX(-50%);
-        background: var(--gradient-primary);
+        background: linear-gradient(135deg, var(--primary-blue) 0%, #0066ff 100%);
         color: white;
-        padding: 12px 24px;
-        border-radius: var(--radius-2xl);
-        box-shadow: 0 4px 20px rgba(187, 0, 45, 0.3);
-        border: var(--primary-blue-dark) 2px solid;
-        font-weight: 800;
-        font-size: 16px;
+        padding: 16px 32px;
+        border-radius: 50px;
+        box-shadow: 0 8px 24px rgba(0, 102, 255, 0.35),
+                    0 4px 12px rgba(0, 102, 255, 0.2);
+        border: none;
+        font-weight: 700;
+        font-size: 17px;
+        letter-spacing: 0.3px;
         z-index: 1000;
         display: flex !important;
         align-items: center;
-        gap: 8px;
+        justify-content: center;
+        gap: 10px;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         backdrop-filter: blur(10px);
         text-decoration: none;
+        min-width: 220px;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        animation: pulse-scale 2s ease-in-out infinite;
     }
 
-    .mobile-chat-button:hover {
-        transform: translateX(-50%) translateY(-2px);
-        box-shadow: 0 6px 25px rgba(187, 0, 45, 0.4);
+    @keyframes pulse-scale {
+        0%, 100% {
+            transform: translateX(-50%) scale(1);
+        }
+        50% {
+            transform: translateX(-50%) scale(1.02);
+        }
+    }
+
+    .mobile-chat-button:hover,
+    .mobile-chat-button:active {
+        transform: translateX(-50%) translateY(-3px) scale(1.05);
+        box-shadow: 0 12px 32px rgba(0, 102, 255, 0.45),
+                    0 6px 16px rgba(0, 102, 255, 0.3);
+        animation: none;
     }
 
     .mobile-chat-button::before {
         content: "💬";
-        font-size: 16px;
+        font-size: 20px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
     }
 
     /* Hide mobile chat button when chat is open */

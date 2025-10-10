@@ -1,5 +1,6 @@
 .welcome-message {
-    padding: var(--space-6) var(--space-4);
+    padding: var(--space-16) var(--space-4) var(--space-12) var(--space-4);
+
     text-align: center;
     display: none !important; /* Hidden by default, shown by JS */
     flex-direction: column;
@@ -229,6 +230,11 @@
 }
 
 @media (max-width: 768px) {
+    .welcome-message {
+        padding: var(--space-8) var(--space-2) !important;
+        min-height: 350px;
+    }
+
     .welcome-message__video-wrapper {
         width: 160px;
         height: 160px;
@@ -253,11 +259,6 @@
 }
 
 @media (max-width: 480px) {
-    .welcome-message {
-        padding: var(--space-4) var(--space-2);
-        min-height: 350px;
-    }
-
     .welcome-message__video-wrapper {
         width: 140px;
         height: 140px;
