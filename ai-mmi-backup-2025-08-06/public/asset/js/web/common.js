@@ -3,29 +3,30 @@ var article_loading = false;
 var article_loading_enable = true;
 
 $.ajaxSetup({
-  headers: {
-    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-  }
+    headers: {
+        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+    },
 });
 
 function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#039;');
+    return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function renderBubble({ role, avatar, name, text, createdAtIso }) {
-  const timeLocal = formatUtcIsoToLocalTime(createdAtIso || new Date().toISOString());
-  return `
+    const timeLocal = formatUtcIsoToLocalTime(
+        createdAtIso || new Date().toISOString()
+    );
+    return `
     <div class="dialog ${role}">
       <div class="avatar">
-        <img src="asset/image/icon-member.png" alt="icon-member">
-        <div style="background-image:url('${avatar || ''}')"></div>
+        <div style="background-image:url('${avatar || ""}')"></div>
       </div>
-      <div class="name">${escapeHtml(name || '')}</div>
+      <div class="name">${escapeHtml(name || "")}</div>
       <div class="time">${timeLocal}</div>
       <div class="clearboth"></div>
       <div class="txt">${text}</div>
@@ -35,14 +36,8 @@ function renderBubble({ role, avatar, name, text, createdAtIso }) {
 }
 
 function buildTopButtonsHintBubble() {
-  return `
+    return `
     <div class="dialog reply">
-      <div class="avatar">
-        <img src="asset/image/icon-member.png" alt="icon-member">
-        <div style="background-image:url('asset/image/logo-mmi.png')"></div>
-      </div>
-      <div class="name">AI-mmi</div>
-      <div class="clearboth"></div>
       <div class="txt">
         <p>Please select the buttons at the top of the chat window to access the full range of AI-mmi services.</p>
       </div>
@@ -53,54 +48,122 @@ function buildTopButtonsHintBubble() {
 
 // --- Topic Determination (Multilingual Keywords, as Broadly as Possible) ---
 function isStudyQuery(text) {
-  if (!text) return false;
-  const s = text.toLowerCase();
-  const kw = [
-    // EN
-    'study','studies','student','school','college','university','course','degree',
-    'admission','application','scholarship','tuition','ucas','commonapp',
-    // ZH
-    '留学','学校','大学','学院','课程','专业','申请','录取','奖学金','学费','入学','文书','sop','推荐信',
-    // Others
-    'ielts','toefl','pte','gpa','ranking'
-  ];
-  return kw.some(k => s.includes(k));
+    if (!text) return false;
+    const s = text.toLowerCase();
+    const kw = [
+        // EN
+        "study",
+        "studies",
+        "student",
+        "school",
+        "college",
+        "university",
+        "course",
+        "degree",
+        "admission",
+        "application",
+        "scholarship",
+        "tuition",
+        "ucas",
+        "commonapp",
+        // ZH
+        "留学",
+        "学校",
+        "大学",
+        "学院",
+        "课程",
+        "专业",
+        "申请",
+        "录取",
+        "奖学金",
+        "学费",
+        "入学",
+        "文书",
+        "sop",
+        "推荐信",
+        // Others
+        "ielts",
+        "toefl",
+        "pte",
+        "gpa",
+        "ranking",
+    ];
+    return kw.some((k) => s.includes(k));
 }
 
 function isMigrationQuery(text) {
-  if (!text) return false;
-  const s = text.toLowerCase();
-  const kw = [
-    // EN
-    'visa','migration','immigration','pr','permanent residence','skilled','482','485','189','190','491',
-    'sponsor','sponsorship','work visa','h1b','eb','green card',
-    // ZH
-    '移民','签证','工签','学签','永居','绿卡','担保','打分','凑分','州担','雇主担保','技术移民',
-    // Countries
-    'australia','uk','united kingdom','canada','usa','united states','美国','英国','澳大利亚','加拿大'
-  ];
-  return kw.some(k => s.includes(k));
+    if (!text) return false;
+    const s = text.toLowerCase();
+    const kw = [
+        // EN
+        "visa",
+        "migration",
+        "immigration",
+        "pr",
+        "permanent residence",
+        "skilled",
+        "482",
+        "485",
+        "189",
+        "190",
+        "491",
+        "sponsor",
+        "sponsorship",
+        "work visa",
+        "h1b",
+        "eb",
+        "green card",
+        // ZH
+        "移民",
+        "签证",
+        "工签",
+        "学签",
+        "永居",
+        "绿卡",
+        "担保",
+        "打分",
+        "凑分",
+        "州担",
+        "雇主担保",
+        "技术移民",
+        // Countries
+        "australia",
+        "uk",
+        "united kingdom",
+        "canada",
+        "usa",
+        "united states",
+        "美国",
+        "英国",
+        "澳大利亚",
+        "加拿大",
+    ];
+    return kw.some((k) => s.includes(k));
 }
 
 function formatUtcIsoToLocalTime(isoString) {
     try {
         const d = new Date(isoString);
         // timeStyle:‘short’ will automatically output times in formats like 09:05 / 9:05 AM based on the user's region.
-        return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(d);
+        return new Intl.DateTimeFormat(undefined, {
+            timeStyle: "short",
+        }).format(d);
     } catch (e) {
         // Bottom line: Current local time
-        return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date());
+        return new Intl.DateTimeFormat(undefined, {
+            timeStyle: "short",
+        }).format(new Date());
     }
 }
 
 function scrollChatToBottom() {
-  const el = $("main.page-body div.chat-area div.box > div.show-message")[0];
-  if (el) el.scrollTop = el.scrollHeight;
+    const el = $("main.page-body div.chat-area div.box > div.show-message")[0];
+    if (el) el.scrollTop = el.scrollHeight;
 }
 
 // Generate Timestamp HTML
 function buildTimeLineHtml(text) {
-    return '<div class="time">' + text + '</div>';
+    return '<div class="time">' + text + "</div>";
 }
 
 function iweb_global_func() {
@@ -544,7 +607,7 @@ function iweb_global_func() {
 
             // Record the current round's question (for topic identification in successful callback)
             window.__lastUserQuestion = userQuestion;
-            
+
             var userAvatar =
                 _current_member && _current_member.avatar
                     ? (_current_member.type == 1
@@ -558,17 +621,24 @@ function iweb_global_func() {
 
             const nowIso = new Date().toISOString(); // First use the browser's local timestamp (ISO)
             const userHtml = renderBubble({
-            role: 'ask',
-            avatar: (_current_member && _current_member.avatar)
-                    ? ((_current_member.type == 1 ? "upload/member_avatar/" : "upload/member_logo/") + _current_member.avatar)
-                    : 'asset/image/icon-member.png',
-            name:  (_current_member && _current_member.name) ? _current_member.name : 'You',
-            text:  escapeHtml(userQuestion),
-            createdAtIso: nowIso
+                role: "ask",
+                avatar:
+                    _current_member && _current_member.avatar
+                        ? (_current_member.type == 1
+                              ? "upload/member_avatar/"
+                              : "upload/member_logo/") + _current_member.avatar
+                        : "asset/image/icon-member.png",
+                name:
+                    _current_member && _current_member.name
+                        ? _current_member.name
+                        : "You",
+                text: escapeHtml(userQuestion),
+                createdAtIso: nowIso,
             });
 
-            $("main.page-body div.chat-area div.box > div.show-message").append(userHtml);
-
+            $("main.page-body div.chat-area div.box > div.show-message").append(
+                userHtml
+            );
 
             // Clear the textarea immediately
             $("#ask_question").val("");
@@ -577,7 +647,7 @@ function iweb_global_func() {
             var thinkingIndicator =
                 '<div class="dialog reply thinking-indicator">';
             thinkingIndicator +=
-                '<div class="avatar"><img src="/asset/image/icon-member.png" alt="icon-member"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>';
+                '<div class="avatar"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>';
             thinkingIndicator +=
                 '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
             thinkingIndicator += '</div><div class="clearboth"></div>';
@@ -604,50 +674,58 @@ function iweb_global_func() {
             if (iweb.isMatch(response_data.status, 200)) {
                 // User question is already shown immediately, just show AI reply
                 if (iweb.isValue(response_data.reply)) {
-
                     const replyHtml = renderBubble({
-                        role: 'reply',
-                        avatar: response_data.ai_owner_avatar || 'asset/image/logo-mmi.png',
-                        name:  response_data.ai_owner_name  || 'AI-mmi',
-                        text:  response_data.reply, 
-                        createdAtIso: response_data.reply_created_at || new Date().toISOString()
+                        role: "reply",
+                        avatar:
+                            response_data.ai_owner_avatar ||
+                            "asset/image/logo-mmi.png",
+                        name: response_data.ai_owner_name || "AI-mmi",
+                        text: response_data.reply,
+                        createdAtIso:
+                            response_data.reply_created_at ||
+                            new Date().toISOString(),
                     });
-                    $("main.page-body div.chat-area div.box > div.show-message").append(replyHtml);
+                    $(
+                        "main.page-body div.chat-area div.box > div.show-message"
+                    ).append(replyHtml);
 
-                    const userQ = (window.__lastUserQuestion || '').trim();
+                    const userQ = (window.__lastUserQuestion || "").trim();
 
                     // Hit study abroad/immigration topic → Pull profile → Branch rendering
                     if (isStudyQuery(userQ) || isMigrationQuery(userQ)) {
-                    const fetchFA = () => fetch(`${_page_base_url}/home/fa_me`, { credentials: 'include' })
-                                            .then(r => r.json()).catch(() => ({ has_profile:false }));
-                    (window.__fa_cache__ ? Promise.resolve(window.__fa_cache__) : fetchFA().then(d => (window.__fa_cache__ = d)))
-                    .then(fa => {
-                        if (!fa || !fa.has_profile) {
-                        const cta = `
-                            <div class="dialog reply">
-                            <div class="avatar">
-                                <img src="asset/image/icon-member.png" alt="icon-member">
-                                <div style="background-image:url('asset/image/logo-mmi.png')"></div>
-                            </div>
-                            <div class="name">AI-mmi</div>
-                            <div class="clearboth"></div>
+                        const fetchFA = () =>
+                            fetch(`${_page_base_url}/home/fa_me`, {
+                                credentials: "include",
+                            })
+                                .then((r) => r.json())
+                                .catch(() => ({ has_profile: false }));
+                        (window.__fa_cache__
+                            ? Promise.resolve(window.__fa_cache__)
+                            : fetchFA().then((d) => (window.__fa_cache__ = d))
+                        ).then((fa) => {
+                            if (!fa || !fa.has_profile) {
+                                const cta = `
+                            <div class="dialog reply no-avatar">
                             <div class="txt">
                                 <p>To provide you with more precise recommendations, we suggest completing a Free Assessment first.</p>
-                                <div class="ai-actions">
-                                <a class="ai-btn" href="${_page_base_url}/free_assessment">Go fill out the free assessment</a>
+                                <div class="ai-actions" style="margin-top: 15px;">
+                                <a class="ai-btn" href="${_page_base_url}/free_assessment" style="display: inline-block; background: #012069; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: background 0.3s ease; box-shadow: 0 2px 8px rgba(1, 32, 105, 0.3);">Fill out the free assessment here!</a>
                                 </div>
                             </div>
                             </div>
                             <div class="clearboth"></div>`;
-                        $("main.page-body div.chat-area div.box > div.show-message").append(cta);
-                        scrollChatToBottom();
-                        }
-                        
-                        const hint = buildTopButtonsHintBubble();
-                        $("main.page-body div.chat-area div.box > div.show-message").append(hint);
-                        scrollChatToBottom(); 
-                        
-                    });
+                                $(
+                                    "main.page-body div.chat-area div.box > div.show-message"
+                                ).append(cta);
+                                scrollChatToBottom();
+                            }
+
+                            const hint = buildTopButtonsHintBubble();
+                            $(
+                                "main.page-body div.chat-area div.box > div.show-message"
+                            ).append(hint);
+                            scrollChatToBottom();
+                        });
                     }
 
                     console.log("AI reply added, scrolling...");
@@ -864,16 +942,24 @@ function loadChatMessage(init) {
             var dialog_group = "";
             var dialog_date_int = 0;
             $.each(data, function (key, value) {
-                const role = (String(value.type || '').toLowerCase() === 'ask' || String(value.type || '').toLowerCase() === 'member')
-                            ? 'ask'
-                            : 'reply';
+                const role =
+                    String(value.type || "").toLowerCase() === "ask" ||
+                    String(value.type || "").toLowerCase() === "member"
+                        ? "ask"
+                        : "reply";
 
                 const bubbleHtml = renderBubble({
                     role,
-                    avatar: value.owner_avatar || (role === 'reply' ? 'asset/image/logo-mmi.png' : 'asset/image/icon-member.png'),
-                    name:   value.owner_name   || (role === 'reply' ? 'AI-mmi' : 'You'),
-                    text:   value.content,  
-                    createdAtIso: value.created_time 
+                    avatar:
+                        value.owner_avatar ||
+                        (role === "reply"
+                            ? "asset/image/logo-mmi.png"
+                            : "asset/image/icon-member.png"),
+                    name:
+                        value.owner_name ||
+                        (role === "reply" ? "AI-mmi" : "You"),
+                    text: value.content,
+                    createdAtIso: value.created_time,
                 });
 
                 dialog_group += bubbleHtml;
@@ -972,5 +1058,4 @@ function toggleMobileChat() {
             .addClass("fa-microphone-slash");
         $("#chat-robot-video").prop("muted", true);
     }
-
 }

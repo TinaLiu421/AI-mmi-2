@@ -2225,7 +2225,6 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
     display: flex;
     gap: 10px;
     padding: 15px;
-    padding-left: 60px;
     background: transparent;
     border-bottom: 2px solid var(--neutral-200);
     justify-content: center;
