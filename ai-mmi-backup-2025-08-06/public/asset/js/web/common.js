@@ -596,7 +596,13 @@ function iweb_global_func() {
         "#ask-form",
         "json",
         function () {
-            console.log("Form submission started");
+            if (!_current_member) {
+                iweb.alert("Sign in to get full chat features.", function () {
+                    window.location.href = "/account_login";
+                });
+                return false;
+            }
+
             if (!iweb.isValue($("#ask_question").val())) {
                 console.log("No question entered");
                 return false;
