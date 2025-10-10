@@ -48,6 +48,53 @@ $(document).ready(function () {
     // Make restoreChatModeUI available globally for welcome_message.js
     window.restoreChatModeUI = restoreChatModeUI;
 
+    // Shared function to show greeting or load history based on chat history
+    function showGreetingOrLoadHistory(mode) {
+        $.getJSON(_page_base_url + "/home/chat/1", { chat_mode: mode }, function(data) {
+            const hasHistory = data && data.length > 0;
+
+            if (!hasHistory) {
+                // Show initial greeting only if no chat history
+                let greetingText = "";
+                if (mode === "immigration") {
+                    greetingText = "Hi! I am your professional immigration assistant. Ask me anything about immigration, visas, or migration pathways, and we can start from there!";
+                } else if (mode === "study") {
+                    greetingText = "Hi! I am your professional study assistant. Ask me anything about studying abroad, universities, or courses, and we can start from there!";
+                }
+
+                const initialGreetingHtml = `
+                    <div class="dialog reply initial-greeting">
+                        <div class="avatar">
+                            <div style="background-image:url('/asset/image/logo-mmi.png')"></div>
+                        </div>
+                        <div class="name">AI-mmi</div>
+                        <div class="time">${new Intl.DateTimeFormat(undefined, {timeStyle: "short"}).format(new Date())}</div>
+                        <div class="clearboth"></div>
+                        <div class="txt">${greetingText}</div>
+                    </div>
+                    <div class="clearboth"></div>
+                `;
+                $("main.page-body div.chat-area div.box > div.show-message").append(initialGreetingHtml);
+
+                // Scroll to show the greeting
+                setTimeout(function() {
+                    const element = $("main.page-body div.chat-area div.box > div.show-message")[0];
+                    if (element) {
+                        element.scrollTop = element.scrollHeight;
+                    }
+                }, 100);
+            } else {
+                // Load chat history
+                if (typeof loadChatMessage === "function") {
+                    loadChatMessage(1);
+                }
+            }
+        });
+    }
+
+    // Make it globally available for welcome_message.js
+    window.showGreetingOrLoadHistory = showGreetingOrLoadHistory;
+
     // Check for existing chat mode on page load and restore for returning users
     function initializeChatOnLoad() {
         // Check if we have a saved chat mode from session
@@ -141,9 +188,8 @@ $(document).ready(function () {
 
         restoreChatModeUI(mode);
 
-        if (typeof loadChatMessage === "function") {
-            loadChatMessage(1);
-        }
+        // Use shared function to show greeting or load history
+        showGreetingOrLoadHistory(mode);
 
         $(".chat-mode-btn").removeClass("active");
         $(this).addClass("active");

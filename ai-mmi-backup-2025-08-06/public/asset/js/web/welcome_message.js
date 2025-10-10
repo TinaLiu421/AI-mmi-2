@@ -116,9 +116,9 @@ function setChatMode(mode) {
         restoreChatModeUI(mode);
     }
 
-    // Load chat history for this mode
-    if (typeof loadChatMessage === "function") {
-        loadChatMessage(1);
+    // Use shared function to show greeting or load history
+    if (typeof showGreetingOrLoadHistory === "function") {
+        showGreetingOrLoadHistory(mode);
     }
 
     console.log("Chat mode set to:", mode);
@@ -129,14 +129,11 @@ function displayWelcomeMessage() {
         return;
     }
 
-    // Show welcome message and hide chat UI
     $(".robot-container").hide();
-    $(".input-question").removeClass("show").hide();
+    $(".input-question").addClass("show").show();
     $(".chat-mode-switcher").hide();
-    $("#ask_question").prop("disabled", true);
+    $("#ask_question").prop("disabled", false);
     $(".welcome-message").addClass("show").show();
-
-    // Clear any existing chat mode
     $("#chat_mode").val("");
 
     initializeWelcomeVideo();
