@@ -1,14 +1,25 @@
-// Immigration Chat Functionality
+// This file handles ALL chat history loading and mode management
 $(document).ready(function () {
-    // Function to restore chat mode UI
     function restoreChatModeUI(mode) {
         if (!mode) return;
 
-        // Set the chat mode
+        // Set chat mode
         $("#chat_mode").val(mode);
         $("#ask-form").attr("data-chat-mode", mode);
 
-        // Show/hide appropriate mode indicators
+        // Show the switcher
+        $(".chat-mode-switcher").show();
+
+        // Hide all buttons first
+        $(".chat-mode-switcher .chat-mode-btn").hide();
+
+        if (mode === "immigration") {
+            $('.chat-mode-btn[data-group="immigration"]').show();
+        } else if (mode === "study") {
+            $('.chat-mode-btn[data-group="study"]').show();
+        }
+
+        // Update placeholders & indicators
         if (mode === "immigration") {
             $("#chat-mode-indicator").show();
             $("#study-mode-indicator").hide();
@@ -25,16 +36,20 @@ $(document).ready(function () {
             );
         }
 
-        // Enable the input field and show the form
+        // Enable input & show UI
         $("#ask_question").prop("disabled", false);
         $("#ask-form").removeClass("hidden");
         $(".input-question").addClass("show");
+        $(".robot-container").show();
 
         console.log("Restored chat mode UI for:", mode);
     }
 
-    // Check for existing chat mode on page load and restore UI if needed
-    function checkExistingChatMode() {
+    // Make restoreChatModeUI available globally for welcome_message.js
+    window.restoreChatModeUI = restoreChatModeUI;
+
+    // Check for existing chat mode on page load and restore for returning users
+    function initializeChatOnLoad() {
         // Check if we have a saved chat mode from session
         if (
             typeof _current_chat_mode !== "undefined" &&
@@ -46,51 +61,71 @@ $(document).ready(function () {
                 _current_chat_mode
             );
             restoreChatModeUI(_current_chat_mode);
-            // Load chat history for this mode
-            loadChatMessage(1);
+            if (typeof loadChatMessage === "function") {
+                loadChatMessage(1);
+            }
             return;
         }
 
-        // If no session mode, check if user has any chat history and restore appropriate mode
-        $.getJSON(_page_base_url + "/home/chat", function (data) {
-            if (data && data.length > 0) {
-                var firstMessage = data[0];
-                var mode = firstMessage.chat_mode || "immigration";
-                console.log("Restoring chat mode from history:", mode);
-                restoreChatModeUI(mode);
-                // Load chat history for this mode
-                loadChatMessage(1);
-            }
-        }).fail(function () {
-            console.log("No chat history or user not logged in");
+        // If no session mode, check both immigration and study for any history
+        var immigrationCheck = $.getJSON(_page_base_url + "/home/chat/1", {
+            chat_mode: "immigration",
         });
+        var studyCheck = $.getJSON(_page_base_url + "/home/chat/1", {
+            chat_mode: "study",
+        });
+
+        $.when(immigrationCheck, studyCheck).then(
+            function (immigrationData, studyData) {
+                var hasImmigrationHistory =
+                    immigrationData[0] && immigrationData[0].length > 0;
+                var hasStudyHistory = studyData[0] && studyData[0].length > 0;
+
+                if (hasImmigrationHistory) {
+                    restoreChatModeUI("immigration");
+                    if (typeof loadChatMessage === "function") {
+                        loadChatMessage(1);
+                    }
+                } else if (hasStudyHistory) {
+                    restoreChatModeUI("study");
+                    if (typeof loadChatMessage === "function") {
+                        loadChatMessage(1);
+                    }
+                } else {
+                    console.log("No chat history found - new user");
+                }
+            },
+            function () {
+                console.log("Error checking chat history");
+            }
+        );
     }
 
-    // Initialize on page load
+    // Initialize on page load with a delay to ensure welcome_message.js runs first
     setTimeout(function () {
-        // Only restore existing chat mode, don't auto-select
-        checkExistingChatMode();
-    }, 500); // Small delay to ensure other page elements are loaded
+        initializeChatOnLoad();
+    }, 500);
 
-    // Handle chat mode button clicks
+    // Unified handler for chat mode buttons (switch or navigate)
     $(document).on("click", ".chat-mode-btn", function (e) {
-        // Check if this button should navigate (talk-to-agent class)
-        var chatButton = $(this).find(".chat-button");
-        if (chatButton.hasClass("talk-to-agent")) {
-            // Allow default navigation for talk-to-agent buttons
-            return true;
+        const link = $(this).data("link");
+        const mode = $(this).data("mode");
+
+        if (link) {
+            window.location.href = link;
+            return;
         }
 
         e.preventDefault();
+        if (!mode) return;
 
-        var mode = $(this).data("mode");
-        var currentMode = $("#ask-form").attr("data-chat-mode");
+        const currentMode = $("#ask-form").attr("data-chat-mode");
 
-        // Set the chat mode FIRST
+        // Update chat mode
         $("#chat_mode").val(mode);
         $("#ask-form").attr("data-chat-mode", mode);
 
-        // If switching modes, clear the chat history and load new mode's history
+        // If switching between modes, clear and reload chat
         if (currentMode && currentMode !== mode) {
             $("main.page-body div.chat-area div.box > div.show-message").html(
                 ""
@@ -102,77 +137,32 @@ $(document).ready(function () {
                 mode,
                 "- loading new chat history"
             );
-
-            // Load chat history for the new mode after a short delay
-            setTimeout(function () {
-                loadChatMessage(1);
-            }, 100);
         }
 
-        // Show/hide appropriate mode indicators
-        if (mode === "immigration") {
-            $("#chat-mode-indicator").show();
-            $("#study-mode-indicator").hide();
-            $("#ask_question").attr(
-                "placeholder",
-                "Ask about immigration, visas, or migration..."
-            );
-        } else if (mode === "study") {
-            $("#study-mode-indicator").show();
-            $("#chat-mode-indicator").hide();
-            $("#ask_question").attr(
-                "placeholder",
-                "Ask about study options, education, or courses..."
-            );
+        restoreChatModeUI(mode);
+
+        if (typeof loadChatMessage === "function") {
+            loadChatMessage(1);
         }
 
-        // Enable the input field and show the form
-        $("#ask_question").prop("disabled", false);
-        $("#ask-form").removeClass("hidden");
-        $(".input-question").addClass("show");
-
-        // Clear welcome message and show expand button
-        if (
-            $("main.page-body div.chat-area div.box > div.show-message")
-                .html()
-                .includes("Click one of the buttons above")
-        ) {
-            $("main.page-body div.chat-area div.box > div.show-message").html(
-                ""
-            );
-        }
-
-        // Show expand buttons
-        $("main.page-body div.chat-area div.box > a.btn-expand-full").show();
-        $(
-            "main.page-body div.chat-area div.box > a.btn-expand-full-mobile"
-        ).show();
-
-        // Add visual feedback to selected button
         $(".chat-mode-btn").removeClass("active");
         $(this).addClass("active");
 
-        // Load chat history for the selected mode
-        loadChatMessage(1);
-
-        // Focus on input field
         $("#ask_question").focus();
-
-        console.log("Chat mode set to:", mode);
     });
 
-    // Handle direct clicks on the chat-button component inside chat-mode-btn
     $(document).on("click", ".chat-mode-btn .chat-button", function (e) {
-        // Check if this is a talk-to-agent button - allow navigation
-        if ($(this).hasClass("talk-to-agent")) {
-            // Allow default navigation
-            return true;
+        const parent = $(this).closest(".chat-mode-btn");
+        const link = parent.data("link");
+
+        if (link) {
+            window.location.href = link;
+            return;
         }
 
         e.preventDefault();
         e.stopPropagation();
 
-        // Trigger the parent chat-mode-btn click
-        $(this).closest(".chat-mode-btn").trigger("click");
+        parent.trigger("click");
     });
 });

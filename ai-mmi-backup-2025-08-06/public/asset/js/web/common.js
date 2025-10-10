@@ -720,13 +720,8 @@ function iweb_global_func_done() {
         }
     );
 
-    // Load chat history after a short delay
-    setTimeout(function () {
-        // Always load chat history if user is logged in
-        if (_current_member) {
-            loadChatMessage(1);
-        }
-    }, 300);
+    // Chat history loading is now handled by immigration-chat.js
+    // Only loads when user selects a mode from welcome message
     //$('main.page-body div.chat-area div.box > div.show-message').scrollTop($('main.page-body div.chat-area div.box > div.show-message')[0].scrollHeight);
 }
 
@@ -858,11 +853,6 @@ function loadChatMessage(init) {
 
     $.getJSON(url, requestData, function (data) {
         if (iweb.isValue(data)) {
-            // Remove welcome message when loading chat history
-            if (iweb.isValue(init)) {
-                $(".welcome-message").remove();
-            }
-
             var dialog_group = "";
             var dialog_date_int = 0;
             $.each(data, function (key, value) {

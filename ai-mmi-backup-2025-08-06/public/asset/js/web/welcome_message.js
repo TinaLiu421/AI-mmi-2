@@ -1,6 +1,7 @@
 /**
  * Welcome Message Module
  * Handles the chatbot welcome message display
+ * This file ONLY manages welcome message visibility - does NOT load chat history
  */
 
 const WELCOME_SUBTITLES = [
@@ -42,50 +43,69 @@ const WELCOME_SUBTITLES = [
 ];
 
 function initWelcomeMessage() {
-    // If user has chat mode set, remove welcome message only
-    if (_current_chat_mode && _current_chat_mode !== "") {
-        $(".welcome-message").remove();
+    // If session has a mode, user is returning - skip welcome
+    if (
+        typeof _current_chat_mode !== "undefined" &&
+        _current_chat_mode &&
+        _current_chat_mode !== ""
+    ) {
+        $(".welcome-message").removeClass("show").hide();
         return;
     }
 
-    // Check for chat history
-    $.getJSON(_page_base_url + "/home/chat", function (data) {
-        if (data && data.length > 0) {
-            $(".welcome-message").remove();
-        } else {
+    // Check both immigration and study chat history using the /1 endpoint like loadChatMessage does
+    var immigrationCheck = $.getJSON(_page_base_url + "/home/chat/1", {
+        chat_mode: "immigration",
+    });
+    var studyCheck = $.getJSON(_page_base_url + "/home/chat/1", {
+        chat_mode: "study",
+    });
+
+    $.when(immigrationCheck, studyCheck).then(
+        function (immigrationData, studyData) {
+            var hasImmigrationHistory =
+                immigrationData[0] && immigrationData[0].length > 0;
+            var hasStudyHistory = studyData[0] && studyData[0].length > 0;
+
+            if (hasImmigrationHistory || hasStudyHistory) {
+                $(".welcome-message").removeClass("show").hide();
+            } else {
+                displayWelcomeMessage();
+            }
+        },
+        function () {
             displayWelcomeMessage();
         }
-    }).fail(function () {
-        displayWelcomeMessage();
-    });
+    );
 }
 
 function removeWelcomeAndShowChat() {
-    // Remove welcome message completely
-    $(".welcome-message").remove();
-
-    // Show chat UI
-    $(".input-question").addClass("show");
-    $("#ask_question").prop("disabled", false);
+    // Remove welcome message and show chat UI
+    $(".welcome-message").removeClass("show").hide();
+    $(".input-question").addClass("show").show();
     $(".robot-container").show();
+    $("#ask_question").prop("disabled", false);
 }
 
 function setChatMode(mode) {
-    // Set the hidden input value
+    // Set the chat mode
     $("#chat_mode").val(mode);
+    $("#ask-form").attr("data-chat-mode", mode);
+
+    // Remove welcome message and show chat UI
+    removeWelcomeAndShowChat();
 
     // Update UI based on mode
     if (typeof restoreChatModeUI === "function") {
         restoreChatModeUI(mode);
     }
 
-    // Remove welcome message and show chat
-    removeWelcomeAndShowChat();
-
-    // Load chat history for this mode (this will also save mode to session via GET parameter)
+    // Load chat history for this mode
     if (typeof loadChatMessage === "function") {
         loadChatMessage(1);
     }
+
+    console.log("Chat mode set to:", mode);
 }
 
 function displayWelcomeMessage() {
@@ -93,9 +113,16 @@ function displayWelcomeMessage() {
         return;
     }
 
-    // Show welcome message - display only, no interactive buttons
+    // Show welcome message and hide chat UI
     $(".robot-container").hide();
+    $(".input-question").removeClass("show").hide();
+    $(".chat-mode-switcher").hide();
+    $("#ask_question").prop("disabled", true);
     $(".welcome-message").addClass("show").show();
+
+    // Clear any existing chat mode
+    $("#chat_mode").val("");
+
     initializeWelcomeVideo();
     animateWelcomeTranscript();
 }
@@ -104,14 +131,13 @@ function initializeWelcomeVideo() {
     setTimeout(function () {
         const video = document.getElementById("welcome-robot-video");
         if (video) {
-            video.muted = true; // Must be muted for autoplay
+            video.muted = true;
             video.play().catch(function (error) {
                 console.log("Video autoplay failed:", error);
             });
         }
     }, 100);
 
-    // Welcome video sound control
     $(document).off("click", "#welcome-sound-control");
     $(document).on("click", "#welcome-sound-control", function () {
         const video = document.getElementById("welcome-robot-video");
@@ -149,7 +175,7 @@ function animateWelcomeTranscript() {
             transcriptElement.addClass("show");
             typingTimeout = setTimeout(function () {
                 typeText(text, charIndex + 1);
-            }, 50); // Typing speed
+            }, 50);
         }
     }
 
@@ -187,14 +213,9 @@ function animateWelcomeTranscript() {
 
 // Auto-initialize when document is ready
 $(document).ready(function () {
-    // Remove welcome message immediately if user has chat mode
-    if (_current_chat_mode && _current_chat_mode !== "") {
-        $(".welcome-message").remove();
-    }
-
     initWelcomeMessage();
 
-    // Handle chat mode button clicks
+    // Handle welcome message button clicks
     $(document).on("click", ".welcome-option-btn", function () {
         var mode = $(this).data("mode");
         setChatMode(mode);

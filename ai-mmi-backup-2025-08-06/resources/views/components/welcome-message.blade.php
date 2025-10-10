@@ -24,15 +24,15 @@ Options are dynamically rendered from the welcome_message.js configuration.
     <div class="welcome-message__buttons">
         <button class="welcome-option-btn" data-mode="immigration">
             <i class="fa fa-plane"></i>
-            <span>Migrate</span>
+            <span><?php echo $_page_lang['chat_robot.migrate']; ?></span>
         </button>
         <button class="welcome-option-btn" data-mode="study">
             <i class="fa fa-graduation-cap"></i>
-            <span>Study</span>
+            <span><?php echo $_page_lang['chat_robot.study']; ?></span>
         </button>
     </div>
 
     <div class="welcome-message__footer">
-        AI-powered Migration & Study Support - With Instant Access to Human Expert
+        <?php echo $_page_lang['chat_robot.welcome_footer']; ?>
     </div>
 </div>

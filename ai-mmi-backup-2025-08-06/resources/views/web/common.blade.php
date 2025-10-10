@@ -184,9 +184,33 @@
                             ?>
                             <div class="limit-warning"><?php echo $_page_lang['chat_robot.limited'];?></div>
                             <?php } ?>
+
+                            <!-- Chat Mode Switcher -->
+                            <div class="chat-mode-switcher" style="display: none;">
+                                <!-- Immigration chat buttons -->
+                                <button class="chat-mode-btn" data-mode="immigration" data-group="study" title="<?php echo $_page_lang['chat_robot.switch_to_immigration']; ?>">
+                                    <i class="fa fa-plane"></i><span><?php echo $_page_lang['chat_robot.immigration']; ?></span>
+                                </button>
+                                <button class="chat-mode-btn" data-mode="study" data-group="immigration" title="<?php echo $_page_lang['chat_robot.switch_to_study']; ?>">
+                                    <i class="fa fa-graduation-cap"></i><span><?php echo $_page_lang['chat_robot.study']; ?></span>
+                                </button>
+                                <button class="chat-mode-btn" data-link="/agents" data-group="immigration" title="<?php echo $_page_lang['chat_robot.talk_to_agent']; ?>">
+                                    <i class="fa fa-user"></i><span><?php echo $_page_lang['chat_robot.talk_to_agent']; ?></span>
+                                </button>
+                                <button class="chat-mode-btn" data-link="/agents" data-group="study" title="<?php echo $_page_lang['chat_robot.talk_to_agent']; ?>">
+                                    <i class="fa fa-user"></i><span><?php echo $_page_lang['chat_robot.talk_to_agent']; ?></span>
+                                </button>
+                                <button class="chat-mode-btn" data-link="/upgrade" data-group="immigration" title="<?php echo $_page_lang['chat_robot.upgrade_plan']; ?>">
+                                    <i class="fa fa-star"></i><span><?php echo $_page_lang['chat_robot.upgrade']; ?></span>
+                                </button>
+                                <button class="chat-mode-btn" data-link="/apply" data-group="study" title="<?php echo $_page_lang['chat_robot.apply_for_study']; ?>">
+                                    <i class="fa fa-paper-plane"></i><span><?php echo $_page_lang['chat_robot.apply']; ?></span>
+                                </button>
+                            </div>
+
                             <div class="show-message">
                                 <!-- Welcome Message Component -->
-                                <x-welcome-message />
+                                @include('components.welcome-message')
                             </div>
 
                             <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0" data-chat-mode="">

@@ -15,7 +15,7 @@ return
     'all_country'               =>  'All Country',
     'countries'                 =>  'Countries',
     'enter_question'            =>  'Ask your question here.',
-    'chat_robot'                =>  
+    'chat_robot'                =>
     [
         'not_sure'              =>  'Can I migrate?',
         'start_free'            =>  'Free Assessment',
@@ -26,8 +26,19 @@ return
         'ai_consultant'         =>  'AI Migration Consultant',
         'human_consultant'      =>  'Human Migration Consultant',
         'start_free_thanks'     =>  'Thanks for your inputs, we are now ready to send you a preliminary assessment.',
-        'limited'               =>  'limited free consultation',
+        'limited'               =>  'limited ',
         'autofill'              =>  'Migration',
+        'immigration'           =>  'Immigration',
+        'study'                 =>  'Study',
+        'talk_to_agent'         =>  'Talk to Agent',
+        'upgrade'               =>  'Upgrade',
+        'apply'                 =>  'Apply',
+        'switch_to_immigration' =>  'Switch to Immigration Chat',
+        'switch_to_study'       =>  'Switch to Study Chat',
+        'upgrade_plan'          =>  'Upgrade Plan',
+        'apply_for_study'       =>  'Apply for Study',
+        'migrate'               =>  'Migrate',
+        'welcome_footer'        =>  'AI-powered Migration & Study Support - With Instant Access to Human Expert',
     ],
     'follow'                    =>  'Follow',
     'total_comments'            =>  '{num} Comments',
@@ -133,7 +144,7 @@ return
         'pay_now'               =>  'Pay Now',
         'to_profile'            =>  'Take me to my profile',
         'save'                  =>  'Save',
-        'pubish'                =>  'Pubish',
+        'publish'                =>  'Publish',
         'search'                =>  'Search',
         'send'                  =>  'Send',
         'read_more'             =>  'Read More'

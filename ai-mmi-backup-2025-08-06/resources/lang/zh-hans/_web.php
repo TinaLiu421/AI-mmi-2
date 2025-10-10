@@ -15,7 +15,7 @@ return
     'all_country'               =>  '所有国家',
     'countries'                 =>  '国家',
     'enter_question'            =>  '在这里提出您的问题。',
-    'chat_robot'                =>  
+    'chat_robot'                =>
     [
         'not_sure'              =>  '我可以移民吗？',
         'start_free'            =>  '免费评估',
@@ -28,6 +28,17 @@ return
         'start_free_thanks'     =>  '感谢您的资料，我们现在准备向您发送初步评估。',
         'limited'               =>  '有限度免费谘询',
         'autofill'              =>  '自动表格填写',
+        'immigration'           =>  '移民',
+        'study'                 =>  '留学',
+        'talk_to_agent'         =>  '联络顾问',
+        'upgrade'               =>  '升级',
+        'apply'                 =>  '申请',
+        'switch_to_immigration' =>  '切换至移民谘询',
+        'switch_to_study'       =>  '切换至留学谘询',
+        'upgrade_plan'          =>  '升级方案',
+        'apply_for_study'       =>  '申请留学',
+        'migrate'               =>  '移民',
+        'welcome_footer'        =>  'AI智能移民及留学支援 - 即时连接专业顾问',
     ],
     'follow'                    =>  '追踪',
     'total_comments'            =>  '{num} 评语',

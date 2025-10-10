@@ -15,7 +15,7 @@ return
     'all_country'               =>  '所有國家',
     'countries'                 =>  '國家',
     'enter_question'            =>  '在這裡提出您的問題。',
-    'chat_robot'                =>  
+    'chat_robot'                =>
     [
         'not_sure'              =>  '我可以移民嗎？',
         'start_free'            =>  '免費評估',
@@ -28,6 +28,17 @@ return
         'start_free_thanks'     =>  '感謝您的資料，我們現在準備向您發送初步評估。',
         'limited'               =>  '有限度免費諮詢',
         'autofill'              =>  '自動表格填寫',
+        'immigration'           =>  '移民',
+        'study'                 =>  '留學',
+        'talk_to_agent'         =>  '聯絡顧問',
+        'upgrade'               =>  '升級',
+        'apply'                 =>  '申請',
+        'switch_to_immigration' =>  '切換至移民諮詢',
+        'switch_to_study'       =>  '切換至留學諮詢',
+        'upgrade_plan'          =>  '升級方案',
+        'apply_for_study'       =>  '申請留學',
+        'migrate'               =>  '移民',
+        'welcome_footer'        =>  'AI智能移民及留學支援 - 即時連接專業顧問',
     ],
     'follow'                    =>  '追蹤',
     'total_comments'            =>  '{num} 評語',

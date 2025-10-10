@@ -492,11 +492,6 @@ main.page-body .chat-area .controls {
     margin: 0 var(--space-2);
 }
 
-/* Robot Avatar - in input area */
-main.page-body .chat-area .input-question .robot-container {
-    flex: 0 0 auto;
-}
-
 main.page-body .chat-area .input-question .robot {
     width: 100px;
     height: 100px;
@@ -564,7 +559,6 @@ main.page-body .chat-area .box {
     border: 1px solid var(--neutral-200);
     backdrop-filter: blur(20px);
     overflow: hidden;
-    padding-top: 18px;
 }
 
 main.page-body .chat-area.show .box {
@@ -633,8 +627,11 @@ main.page-body .chat-area .box.mask::before {
 }
 
 main.page-body .chat-area .box > a.btn-close-mobile {
+    position: absolute;
+    top: 15px;
     left: var(--space-4);
     display: none;
+    z-index: 10;
 }
 
 /* Expand/Minimize Buttons - currently not used
@@ -698,16 +695,16 @@ main.page-body .chat-area .box > a.btn-minimize-full img {
 /* Limit Warning */
 main.page-body .chat-area .box .limit-warning {
     position: absolute;
-    top: var(--space-4);
+    top: 80px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--accent-red);
+    background: rgba(243, 67, 67, 0.9);
     color: var(--white);
     padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-full);
     font-size: 0.875rem;
     font-weight: 600;
-    z-index: 5;
+    z-index: 15;
     animation: slideInDown 0.3s ease-out;
 }
 
@@ -1367,15 +1364,18 @@ footer.page-footer a:hover {
     /* Show close button on mobile when chat is open */
     main.page-body .chat-area.show-mobile .box > a.btn-close-mobile {
         display: flex;
+        align-items: center;
+        justify-content: center;
         width: 32px;
         height: 32px;
         padding: 0;
+        cursor: pointer;
     }
 
     main.page-body .chat-area.show-mobile .box > a.btn-close-mobile img {
         width: 20px;
         height: 20px;
-        margin-left: 8px;
+        margin-left: 0;
     }
 
     main.page-body .chat-area .box .show-message .dialog .txt {
@@ -2218,4 +2218,105 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
     border-radius: 50%;
     background: #f5f5f5;
     cursor: pointer;
+}
+
+/* Chat Mode Switcher */
+.chat-mode-switcher {
+    display: flex;
+    gap: 10px;
+    padding: 15px;
+    padding-left: 60px;
+    background: transparent;
+    border-bottom: 2px solid var(--neutral-200);
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* Base style for all buttons */
+.chat-mode-switcher .chat-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 2px solid var(--neutral-400);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--neutral-700);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+/* Mode switcher buttons (Immigration/Study) - distinct style */
+.chat-mode-switcher .chat-mode-btn[data-mode] {
+    border: 2px solid var(--primary-blue);
+    background: var(--neutral-50);
+    color: var(--primary-blue);
+    box-shadow: var(--shadow-sm);
+}
+
+.chat-mode-switcher .chat-mode-btn[data-mode]:hover {
+    background: var(--primary-blue);
+    color: var(--white);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.chat-mode-switcher .chat-mode-btn[data-mode].active {
+    background: var(--gradient-primary);
+    border-color: var(--primary-blue);
+    color: var(--white);
+    box-shadow: var(--shadow-glow);
+}
+
+/* Action buttons (Agent, Upgrade, Apply) - standard style */
+.chat-mode-switcher .chat-mode-btn[data-link] {
+    border: 2px solid var(--neutral-300);
+    background: var(--white);
+    color: var(--neutral-600);
+}
+
+.chat-mode-switcher .chat-mode-btn[data-link]:hover {
+    border-color: var(--neutral-500);
+    color: var(--neutral-800);
+    background: var(--neutral-100);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.chat-mode-switcher .chat-mode-btn i {
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    .chat-mode-switcher {
+        padding: 10px;
+        padding-left: 60px;
+    }
+
+    .chat-mode-switcher .chat-mode-btn {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+
+    /* Hide text for mode switcher buttons (Immigration/Study) - show only icons */
+    .chat-mode-switcher .chat-mode-btn[data-mode] span {
+        display: none;
+    }
+
+    .chat-mode-switcher .chat-mode-btn[data-mode] i {
+        font-size: 18px;
+    }
+
+    /* Show text for action buttons (Agent/Upgrade/Apply) - hide icons */
+    .chat-mode-switcher .chat-mode-btn[data-link] i {
+        display: none;
+    }
+
+    .chat-mode-switcher .chat-mode-btn[data-link] span {
+        display: inline;
+    }
 }
