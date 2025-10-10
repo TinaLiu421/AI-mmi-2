@@ -84,14 +84,18 @@
             
             <div class="action">
                 <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration' ;?>"><?php echo $_page_lang['btn.back']; ?></a>
-                <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.continue']; ?></button>
+                <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.submit']; ?></button>
                 <div class="clearboth"></div>
             </div>
         </form>
     </div>
-    
-    <?php } else { ?>
-    
+
+    <?php }
+
+    /*
+    // UNUSED: Preference step has been removed - account is created directly on first form submission
+    else { ?>
+
     <?php
     $_page_data['preference'] = array_merge([
         'migration_destination'  => 0,
@@ -99,7 +103,7 @@
         'interested_topic'       => []
     ], ((!empty($_page_data['preference']))?$_page_data['preference']:[]))
     ?>
-    
+
     <h1 class="title"><?php echo $_page_lang['choose_your_preference']; ?></h1>
     <div class="underline"></div>
     <div class="clearboth"></div>
@@ -110,7 +114,7 @@
 
             <div class="required"><span style="color:red;">*</span> <?php echo $_page_lang['required']; ?></div>
             <div class="clearboth"></div>
-            
+
             <div class="row">
                 <label for="migration_destination"><?php echo $_page_lang['account.migration_destination']; ?></label>
                 <select id="migration_destination" name="migration_destination">
@@ -121,7 +125,7 @@
                 </select>
             </div>
             <div class="clearboth"></div>
-            
+
             <div class="row">
                 <label for="interested_visa"><?php echo $_page_lang['account.interested_visa']; ?> <span style="color:red;">*</span></label>
                 <select id="interested_visa" name="interested_visa" data-validation="required">
@@ -132,7 +136,7 @@
                 </select>
             </div>
             <div class="clearboth"></div>
-            
+
             <div class="row">
                 <label for="interested_topic"><?php echo $_page_lang['account.interested_topic']; ?> <span style="color:red;">*</span></label>
                 <div class="iweb-checkbox-set">
@@ -143,7 +147,7 @@
                 </div>
             </div>
             <div class="clearboth"></div>
-            
+
             <div class="action">
                 <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration/individual' ;?>"><?php echo $_page_lang['btn.back']; ?></a>
                 <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.submit']; ?></button>
@@ -151,7 +155,8 @@
             </div>
         </form>
     </div>
-    
-    <?php } ?>
+
+    <?php }
+    */ ?>
 </div>
 @endsection

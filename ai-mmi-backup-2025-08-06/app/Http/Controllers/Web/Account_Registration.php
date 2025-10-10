@@ -54,71 +54,30 @@ class Account_Registration extends WebController {
                 // save data into session
                 if(!$validator->fails()) {
                     if(empty($this->_member_model->getByEmail($this->_page_post_data['email']))) {
-                        $this->setSession(['temp_individual_account' => $this->_page_post_data]);
-                        $this->pageResult(
+                        // Create account directly without preference step
+                        $new_member =
                         [
-                            'status'    =>  200,
-                            'message'   =>  '',
-                            'url'       =>  $this->toURL([$this->_mapping_data['class'], $this->_mapping_data['function'], 'preference'])
-                        ]);
-                    }
-                    else {
-                        $this->pageResult(
-                        [
-                            'status'    =>  400,
-                            'message'   =>  $this->_page_lang['duplicate_email']
-                        ]);
-                    }
-                }
-                else {
-                    $this->pageResult(
-                    [
-                        'status'    =>  400,
-                        'message'   =>  $this->_page_lang['bad_request']
-                    ]);
-                }
-            }
-            else {
-                // do checking
-                $validator = Validator::make($this->_page_post_data, 
-                [
-                    'interested_visa'   =>  'required',
-                    'interested_topic'  =>  'required'
-                ]);
-   
-                if(!$validator->fails()) {
-                    $this->setSession(['temp_individual_account_preference' => $this->_page_post_data]);
-                    $temp_individual_account = $this->getSession('temp_individual_account');
-                    $temp_individual_account_preference = $this->getSession('temp_individual_account_preference');
-                    
-                    // try to save into db
-                    if(!empty($temp_individual_account) && !empty($temp_individual_account_preference)) {
-                        $new_member = 
-                        [
-                            'method'                =>  ((!empty($temp_individual_account['method']))?max(1, $temp_individual_account['method']):0),
+                            'method'                =>  ((!empty($this->_page_post_data['method']))?max(1, $this->_page_post_data['method']):0),
                             'type'                  =>  1,
-                            'full_name'             =>  implode(' ', array_filter([$temp_individual_account['first_name'], $temp_individual_account['last_name']])),
-                            'first_name'            =>  $temp_individual_account['first_name'],
-                            'last_name'             =>  $temp_individual_account['last_name'],
-                            'email'                 =>  $temp_individual_account['email'],
-                            'password'              =>  $temp_individual_account['password'],
-                            'repeat_password'       =>  $temp_individual_account['repeat_password'],
-                            'migration_destination' =>  ((!empty($temp_individual_account_preference['migration_destination']))?(int)$temp_individual_account_preference['migration_destination']:0),
-                            'interested_visa'       =>  ((!empty($temp_individual_account_preference['interested_visa']))?(int)$temp_individual_account_preference['interested_visa']:0),
-                            'interested_topic'      =>  $temp_individual_account_preference['interested_topic'],
-                            'verified_token'        =>  md5($temp_individual_account['email'].'@'.md5(uniqid(rand()))),
+                            'full_name'             =>  implode(' ', array_filter([$this->_page_post_data['first_name'], $this->_page_post_data['last_name']])),
+                            'first_name'            =>  $this->_page_post_data['first_name'],
+                            'last_name'             =>  $this->_page_post_data['last_name'],
+                            'email'                 =>  $this->_page_post_data['email'],
+                            'password'              =>  $this->_page_post_data['password'],
+                            'repeat_password'       =>  $this->_page_post_data['repeat_password'],
+                            'migration_destination' =>  0,
+                            'interested_visa'       =>  0,
+                            'interested_topic'      =>  '',
+                            'verified_token'        =>  md5($this->_page_post_data['email'].'@'.md5(uniqid(rand()))),
                             'verified'              =>  0,
-                            'third_party_token'     =>  ((!empty($temp_individual_account['third_party_token']))?$temp_individual_account['third_party_token']:'')
+                            'third_party_token'     =>  ((!empty($this->_page_post_data['third_party_token']))?$this->_page_post_data['third_party_token']:'')
                         ];
                         $new_member['alias_name'] = $new_member['full_name'];
                         if($new_member['method'] > 1) {
                             $new_member['verified'] =  1;
                         }
-                        
+
                         if($result = $this->_member_model->doSave($new_member, 0, true)) {
-                            $this->delSession('temp_individual_account');
-                            $this->delSession('temp_individual_account_preference');
-                            
                             // email verification if need
                             if((int)$new_member['method'] == 1) {
                                 $link = $this->toURL('account_registration/verification').'?token='.$new_member['verified_token'];
@@ -156,7 +115,7 @@ class Account_Registration extends WebController {
                         $this->pageResult(
                         [
                             'status'    =>  400,
-                            'message'   =>  $this->_page_lang['bad_request']
+                            'message'   =>  $this->_page_lang['duplicate_email']
                         ]);
                     }
                 }
@@ -168,37 +127,130 @@ class Account_Registration extends WebController {
                     ]);
                 }
             }
+            // UNUSED: Preference step has been removed - account is created directly on first submission
+            // else {
+            //     // do checking
+            //     $validator = Validator::make($this->_page_post_data,
+            //     [
+            //         'interested_visa'   =>  'required',
+            //         'interested_topic'  =>  'required'
+            //     ]);
+
+            //     if(!$validator->fails()) {
+            //         $this->setSession(['temp_individual_account_preference' => $this->_page_post_data]);
+            //         $temp_individual_account = $this->getSession('temp_individual_account');
+            //         $temp_individual_account_preference = $this->getSession('temp_individual_account_preference');
+
+            //         // try to save into db
+            //         if(!empty($temp_individual_account) && !empty($temp_individual_account_preference)) {
+            //             $new_member =
+            //             [
+            //                 'method'                =>  ((!empty($temp_individual_account['method']))?max(1, $temp_individual_account['method']):0),
+            //                 'type'                  =>  1,
+            //                 'full_name'             =>  implode(' ', array_filter([$temp_individual_account['first_name'], $temp_individual_account['last_name']])),
+            //                 'first_name'            =>  $temp_individual_account['first_name'],
+            //                 'last_name'             =>  $temp_individual_account['last_name'],
+            //                 'email'                 =>  $temp_individual_account['email'],
+            //                 'password'              =>  $temp_individual_account['password'],
+            //                 'repeat_password'       =>  $temp_individual_account['repeat_password'],
+            //                 'migration_destination' =>  ((!empty($temp_individual_account_preference['migration_destination']))?(int)$temp_individual_account_preference['migration_destination']:0),
+            //                 'interested_visa'       =>  ((!empty($temp_individual_account_preference['interested_visa']))?(int)$temp_individual_account_preference['interested_visa']:0),
+            //                 'interested_topic'      =>  $temp_individual_account_preference['interested_topic'],
+            //                 'verified_token'        =>  md5($temp_individual_account['email'].'@'.md5(uniqid(rand()))),
+            //                 'verified'              =>  0,
+            //                 'third_party_token'     =>  ((!empty($temp_individual_account['third_party_token']))?$temp_individual_account['third_party_token']:'')
+            //             ];
+            //             $new_member['alias_name'] = $new_member['full_name'];
+            //             if($new_member['method'] > 1) {
+            //                 $new_member['verified'] =  1;
+            //             }
+
+            //             if($result = $this->_member_model->doSave($new_member, 0, true)) {
+            //                 $this->delSession('temp_individual_account');
+            //                 $this->delSession('temp_individual_account_preference');
+
+            //                 // email verification if need
+            //                 if((int)$new_member['method'] == 1) {
+            //                     $link = $this->toURL('account_registration/verification').'?token='.$new_member['verified_token'];
+            //                     $subject = 'Email Verification';
+            //                     $body = '<p>Hello '.$new_member['full_name'].',</p>';
+            //                     $body.= '<p>You registered an account on AI-mmi, before being able to use your account you need to verify that this is your email address by clicking below link:';
+            //                     $body.= '<p><a href="'.$link.'" target="_blank">'.$link.'</a></p>';
+            //                     $body.= '<p>Kind Regards';
+            //                     $this->sendEmail($new_member['email'], $subject, $body);
+            //                     $this->pageResult(
+            //                     [
+            //                         'status'    =>  200,
+            //                         'message'   =>  '<strong>'.$this->_page_lang['registration_success'].'</strong><br/>'.str_replace('{email}', $new_member['email'], $this->_page_lang['email_verification_link']),
+            //                         'url'       =>  $this->toURL('account_login')
+            //                     ]);
+            //                 }
+            //                 else {
+            //                     $this->pageResult(
+            //                     [
+            //                         'status'    =>  200,
+            //                         'message'   =>  $this->_page_lang['registration_success'],
+            //                         'url'       =>  $this->toURL('account_login')
+            //                     ]);
+            //                 }
+            //             }
+            //             else {
+            //                 $this->pageResult(
+            //                 [
+            //                     'status'    =>  $this->_user_model->getResultCode(),
+            //                     'message'   =>  $this->_user_model->getResultMessage()
+            //                 ]);
+            //             }
+            //         }
+            //         else {
+            //             $this->pageResult(
+            //             [
+            //                 'status'    =>  400,
+            //                 'message'   =>  $this->_page_lang['bad_request']
+            //             ]);
+            //         }
+            //     }
+            //     else {
+            //         $this->pageResult(
+            //         [
+            //             'status'    =>  400,
+            //             'message'   =>  $this->_page_lang['bad_request']
+            //         ]);
+            //     }
+            // }
         }, $parameter);
         
-        // next step
-        if(!empty($parameter)) {
-            if($parameter!='preference') {
-                $this->doRedirect($this->toURL([$this->_mapping_data['class']]));
-            }
-            else {
-                if(empty($this->getSession('temp_individual_account'))) {
-                    $this->doRedirect($this->toURL([$this->_mapping_data['class'], $this->_mapping_data['function']]));
-                }
-                
-                // get options
-                $list_countries = $this->loadModel('pages', ['table' => 'country'])->getAll($this->_current_lang_index, null, false);
-                $list_interest_visas = $this->loadModel('pages', ['table' => 'interest_visa'])->getAll($this->_current_lang_index, null, false);
-                $list_interest_topics = $this->loadModel('pages', ['table' => 'interest_topic'])->getAll($this->_current_lang_index, null, false);
-                $this->pageOptions(
-                [
-                    'countries' => $this->optionsToArray($list_countries),
-                    'interest_visas' => $this->optionsToArray($list_interest_visas),
-                    'interest_topics' => $this->optionsToArray($list_interest_topics)
-                ]);
-            }
-        }
+        // UNUSED: Preference step view logic - no longer needed
+        // // next step
+        // if(!empty($parameter)) {
+        //     if($parameter!='preference') {
+        //         $this->doRedirect($this->toURL([$this->_mapping_data['class']]));
+        //     }
+        //     else {
+        //         if(empty($this->getSession('temp_individual_account'))) {
+        //             $this->doRedirect($this->toURL([$this->_mapping_data['class'], $this->_mapping_data['function']]));
+        //         }
+
+        //         // get options
+        //         $list_countries = $this->loadModel('pages', ['table' => 'country'])->getAll($this->_current_lang_index, null, false);
+        //         $list_interest_visas = $this->loadModel('pages', ['table' => 'interest_visa'])->getAll($this->_current_lang_index, null, false);
+        //         $list_interest_topics = $this->loadModel('pages', ['table' => 'interest_topic'])->getAll($this->_current_lang_index, null, false);
+        //         $this->pageOptions(
+        //         [
+        //             'countries' => $this->optionsToArray($list_countries),
+        //             'interest_visas' => $this->optionsToArray($list_interest_visas),
+        //             'interest_topics' => $this->optionsToArray($list_interest_topics)
+        //         ]);
+        //     }
+        // }
         
         // load view
+        // UNUSED: Session variables related to removed preference step
         return $this->pageData(
         [
             'parameter'     =>  $parameter,
-            'account'       =>  $this->getSession('temp_individual_account'),
-            'preference'    =>  $this->getSession('temp_individual_account_preference')
+            // 'account'       =>  $this->getSession('temp_individual_account'),
+            // 'preference'    =>  $this->getSession('temp_individual_account_preference')
         ])->pageView();
     }
     

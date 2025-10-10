@@ -12,23 +12,31 @@ function iweb_self_func() {
         return true;
     } ,function(response_data) {
         if(iweb.isMatch(response_data.status, 200)) {
-            window.location.href = response_data.url;
+            if(iweb.isValue(response_data.message)) {
+                iweb.alert(response_data.message, function() {
+                    window.location.href = response_data.url;
+                });
+            }
+            else {
+                window.location.href = response_data.url;
+            }
         }
         else {
             iweb.alert(response_data.message);
         }
     });
     
-    iweb.form('#account-individual-preference-form', 'json', null, function(response_data) {
-        if(iweb.isMatch(response_data.status, 200)) {
-            iweb.alert(response_data.message, function() {
-                window.location.href = response_data.url;
-            });
-        }
-        else {
-            iweb.alert(response_data.message);
-        }
-    });
+    // UNUSED: Preference form has been removed
+    // iweb.form('#account-individual-preference-form', 'json', null, function(response_data) {
+    //     if(iweb.isMatch(response_data.status, 200)) {
+    //         iweb.alert(response_data.message, function() {
+    //             window.location.href = response_data.url;
+    //         });
+    //     }
+    //     else {
+    //         iweb.alert(response_data.message);
+    //     }
+    // });
     
     // logo
     $(document).on('change', '#mylogo', function() {
