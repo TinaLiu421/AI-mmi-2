@@ -386,6 +386,14 @@ class Home extends WebController {
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
 
         $system = $this->buildModeSpecificPrompt($chat_mode);
+        // Control response length and style
+        $system .= "\n\n[Instruction for response style]\n"
+                . "Please answer user questions concisely and with clear focus,"
+                . "each response should be kept to no more than 5 paragraphs or 250 words,"
+                . "ensure that facts are accurate and information is complete,"
+                . "if the content is too extensive, please first list the key points and then provide a brief explanation."
+                . "\nIf the user requests further details, additional information can be provided.";
+
 
         if (!empty($fa_ctx)) {
             $system .= "\n\n[User Profile from Free Assessment]\n{$fa_ctx}\n"
