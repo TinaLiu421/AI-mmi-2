@@ -1386,11 +1386,7 @@ footer.page-footer a:hover {
     .mobile-chat-button {
         position: fixed;
         bottom: 0;
-        background: linear-gradient(
-            135deg,
-            var(--primary-blue-dark) 0%,
-            #0066ff 100%
-        );
+        background: var(--primary-blue-dark);
         color: white;
         padding: 16px 32px;
         box-shadow: 0 8px 24px rgba(0, 102, 255, 0.35),
