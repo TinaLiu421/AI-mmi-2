@@ -7,22 +7,28 @@ class Upgrade extends WebController
 {
     public function index()
     {
-        // 1) 页面 Meta
+        $member = $this->_current_member ?? null;
+
+        if (empty($member)) {
+            // Retrieve the current full URL, ensuring proper redirection after login
+            $currentUrl = url()->current();
+            // Generate a login page link with the redirect parameter included
+            $loginUrl = $this->toURL('account_login') . '?redirect=' . urlencode($currentUrl);
+            return redirect()->to($loginUrl);
+        }
+
+        // Logged in: Upgrade page rendering normally
         $this->pageMeta([
             'title'       => $this->_page_lang['upgrade'] ?? 'Upgrade',
             'description' => '',
             'image'       => ''
         ]);
 
-        // 2) 业务数据（示例：给前端塞 Stripe 定价表参数）
-        //    你也可以从 config/.env 里读 key/id，再传给视图
         $data = [
             'pricing_table_id' => env('STRIPE_PRICING_TABLE_ID_1'),
             'stripe_pk'        => env('STRIPE_KEY'),
         ];
 
-        // 3) 渲染
         return $this->pageData($data)->pageView();
-        
     }
 }
