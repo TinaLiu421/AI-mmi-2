@@ -85,6 +85,22 @@ function removeWelcomeAndShowChat() {
     $(".input-question").addClass("show").show();
     $(".robot-container").show();
     $("#ask_question").prop("disabled", false);
+
+    // Stop the welcome video if it's playing
+    const welcomeVideo = document.getElementById("welcome-robot-video");
+    if (welcomeVideo) {
+        welcomeVideo.pause();
+        welcomeVideo.currentTime = 0;
+        welcomeVideo.muted = true;
+    }
+
+    // Reset the welcome sound control button
+    const soundControl = $("#welcome-sound-control");
+    soundControl.removeClass("opened");
+    soundControl.attr("title", "Click to unmute");
+    $("#welcome-sound-control > i")
+        .removeClass("fa-microphone")
+        .addClass("fa-microphone-slash");
 }
 
 function setChatMode(mode) {
