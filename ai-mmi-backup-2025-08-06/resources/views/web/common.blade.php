@@ -177,13 +177,6 @@
                             <a class="btn-close-mobile">
                                 <img src="asset/image/icon-close.png" alt="icon-close"/>
                             </a>
-                            <?php
-                            // Only show warning if user has NO active subscriptions AND expiration_ai_level is 2
-                            $has_any_subscription = !empty($_current_member['has_migration_subscription']) || !empty($_current_member['has_education_subscription']);
-                            if(!$has_any_subscription && !empty($_current_member['expiration_ai_level']) && (int)$_current_member['expiration_ai_level'] == 2) {
-                            ?>
-                            <div class="limit-warning"><?php echo $_page_lang['chat_robot.limited'];?></div>
-                            <?php } ?>
 
                             <!-- Chat Mode Switcher -->
                             <div class="chat-mode-switcher" style="display: none;">
