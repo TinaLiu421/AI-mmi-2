@@ -1,191 +1,86 @@
-/* Main Headline */
-.service-provider-info .main-headline {
-    color: var(--primary-blue);
-    font-size: 28px;
-    margin-bottom: 20px;
-    font-weight: 700;
-    line-height: 1.4;
-}
-
-/* Intro Text */
-.service-provider-info .intro-text {
-    font-size: 18px;
-    line-height: 1.8;
-    margin-bottom: 20px;
-    color: var(--neutral-800);
-}
-
-/* Free Join Highlight */
-.service-provider-info .free-join-highlight {
-    font-size: 22px;
-    font-weight: bold;
-    color: var(--primary-blue-dark);
-    margin: 30px 0 20px 0;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-/* Section Boxes */
-.service-provider-info .info-section {
+div.card-section {
+    margin-top: 30px;
+    background: #fff;
     padding: 30px;
-    border-radius: var(--radius-xl);
-    margin: 40px 0;
-    transition: var(--transition-normal);
+    border-radius: 8px;
+    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.2);
 }
 
-.service-provider-info .info-section:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-xl);
-}
-
-.service-provider-info .why-join-section {
-    background: var(--neutral-50);
-    border-left: 4px solid var(--primary-blue);
-    box-shadow: var(--shadow-md);
-}
-
-/* Section Titles */
-.service-provider-info .section-title {
-    color: var(--primary-blue-dark);
+div.card-section h3.card-title {
+    color: #012069;
     font-size: 24px;
-    margin-bottom: 20px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    margin-bottom: 15px;
+    font-weight: bold;
 }
 
-.service-provider-info .list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+div.card-section .iweb-editor ul,
+div.card-section .iweb-editor ol {
+    margin-top: 10px;
 }
 
-.service-provider-info .list li {
-    padding: 10px 0;
-    font-size: 17px;
+div.card-section .iweb-editor li {
+    margin-bottom: 8px;
     line-height: 1.6;
-    color: var(--neutral-800);
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
 }
 
-.service-provider-info .list li::before {
-    color: var(--primary-blue);
-    font-weight: bold;
-    flex-shrink: 0;
-    width: 24px;
-    text-align: center;
+/* Form Section Styling */
+div.form {
+    margin-top: 10px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.2);
+    margin-bottom: 60px;
 }
 
-.service-provider-info .list li::before {
-    content: "•";
-    font-size: 20px;
-}
-
-.service-provider-info .list li strong {
-    color: var(--neutral-800);
-}
-
-/* Call to Action Section */
-.service-provider-info .cta-section {
-    background: var(--gradient-primary);
-    padding: 40px;
-    border-radius: var(--radius-xl);
-    margin: 40px 0;
-    text-align: center;
-    color: var(--white);
-    box-shadow: var(--shadow-glow);
-}
-
-.service-provider-info .cta-title {
-    font-size: 28px;
-    margin-bottom: 20px;
-    color: var(--white);
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-}
-
-.service-provider-info .cta-text {
+div.form p {
     font-size: 18px;
-    line-height: 1.8;
-    margin-bottom: 30px;
-    color: var(--white);
+    line-height: 1.6;
+    margin-bottom: 20px;
 }
 
-.service-provider-info .cta-button {
+h2.top-title {
+    color: #012069;
+    margin-top: 40px;
+}
+
+/* Button Styling */
+div.shorcut {
+    position: relative;
+    margin-top: 30px;
+    text-align: center;
+}
+
+div.shorcut > a {
+    background: #002065;
     display: inline-block;
-    padding: 16px 40px;
-    background: var(--white);
-    color: var(--primary-blue);
-    font-size: 20px;
+    padding: 10px 20px;
+    font-size: 18px;
     font-weight: bold;
-    border-radius: var(--radius-full);
+    color: #fff;
+    border-radius: 8px;
     text-decoration: none;
-    box-shadow: var(--shadow-xl);
-    transition: var(--transition-normal);
+    transition: all 0.3s ease;
 }
 
-.service-provider-info .cta-button:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+div.shorcut > a:hover {
+    background: #0066ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 32, 101, 0.3);
 }
 
-@media (max-width: 768px) {
-    .service-provider-info .main-headline {
-        font-size: 24px;
-    }
-
-    .service-provider-info .intro-text {
-        font-size: 14px;
-    }
-
-    .service-provider-info .free-join-highlight {
-        font-size: 18px;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .service-provider-info .info-section {
+/* Responsive Design */
+@media only screen and (max-width: 768px) {
+    div.card-section {
         padding: 20px;
-        margin: 30px 0;
+        margin-top: 20px;
     }
 
-    .service-provider-info .section-title {
+    div.card-section h3.card-title {
         font-size: 20px;
-        flex-direction: column;
-        align-items: flex-start;
     }
 
-    .service-provider-info .list li {
-        font-size: 15px;
-        padding: 8px 0;
-    }
-
-    .service-provider-info .list li::before {
-        width: 20px;
-    }
-
-    .service-provider-info .cta-section {
-        padding: 30px 20px;
-    }
-
-    .service-provider-info .cta-title {
-        font-size: 22px;
-        flex-direction: column;
-    }
-
-    .service-provider-info .cta-text {
-        font-size: 16px;
-    }
-
-    .service-provider-info .cta-button {
-        padding: 14px 30px;
-        font-size: 18px;
+    div.form {
+        padding: 15px;
     }
 }
