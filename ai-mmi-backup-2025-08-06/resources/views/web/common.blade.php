@@ -72,6 +72,12 @@
                 </a>
 
                 <div class="controls">
+                     <div class="service_provider_info">
+                        <a href="<?php echo $_page_base_url.'/service_provider_info'; ?>">
+                            <img src="asset/image/service_provider.png" alt="icon-service-provider"/>
+                            <span><?php echo $_page_lang['service_provider']; ?></span>
+                        </a>
+                    </div>
                     <div class="lang">
                         <a>
                             <img src="asset/image/icon-lang.png" alt="icon-lang"/>
@@ -123,7 +129,6 @@
                         </a>
                     </div>
                     <?php } ?>
-                    
                     <div class="menu">
                         <a class="open-menu show"><img src="asset/image/icon-menu.png" alt="icon-menu"/></a>
                         <a class="close-menu"><img src="asset/image/icon-close.png" alt="icon-close"/></a>
@@ -236,7 +241,6 @@
                 <div class="clearboth"></div>
             </div>
         </main>
-        
         <?php if(!empty($_included_header_footer)) { ?>
         <footer class="page-footer">
             <div>
@@ -268,7 +272,5 @@
     }
     });
     </script>
-
-
     </body>
 </html>

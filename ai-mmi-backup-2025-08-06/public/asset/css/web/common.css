@@ -213,16 +213,18 @@ header.page-header .controls {
     flex: 1;
 }
 
-/* Unified header control styles (lang, member, menu) */
+/* Unified header control styles (lang, member, menu, sp) */
 header.page-header .controls .lang,
 header.page-header .controls .member,
+header.page-header .controls .service_provider_info,
 header.page-header .controls .menu {
     position: relative;
     flex-shrink: 0;
 }
 
-/* Shared control appearance for the three controls */
+/* Shared control appearance for controls */
 header.page-header .controls .lang > a,
+header.page-header .controls .service_provider_info > a,
 header.page-header .controls .member a,
 header.page-header .controls .menu > a {
     display: flex;
@@ -245,6 +247,7 @@ header.page-header .controls .menu > a {
 
 header.page-header .controls .lang > a:hover,
 header.page-header .controls .member a:hover,
+header.page-header .controls .service_provider_info > a:hover,
 header.page-header .controls .menu > a:hover {
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.22);
@@ -272,6 +275,7 @@ header.page-header .controls .menu ul li a {
 /* Icon/image sizing inside controls */
 header.page-header .controls .lang > a img,
 header.page-header .controls .member a img,
+header.page-header .controls .service_provider_info > a img,
 header.page-header .controls .menu > a img {
     width: var(--header-control-icon) !important;
     height: var(--header-control-icon) !important;
@@ -298,6 +302,7 @@ header.page-header .controls > * {
 
 /* Accessible focus ring for keyboard users */
 header.page-header .controls .lang > a:focus,
+header.page-header .controls .service_provider_info > a:focus,
 header.page-header .controls .member a:focus,
 header.page-header .controls .menu > a:focus {
     outline: none;
@@ -1313,7 +1318,8 @@ footer.page-footer a:hover {
         --header-control-icon: 18px;
     }
 
-    header.page-header .controls .lang > a span {
+    header.page-header .controls .lang > a span,
+    header.page-header .controls .service_provider_info > a span {
         display: none;
     }
 
@@ -1324,6 +1330,7 @@ footer.page-footer a:hover {
 
     header.page-header .controls .lang > a img,
     header.page-header .controls .member a img,
+    header.page-header .controls .service_provider_info > a img,
     header.page-header .controls .menu > a img {
         padding: 0;
     }

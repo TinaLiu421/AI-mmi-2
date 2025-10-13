@@ -6,6 +6,7 @@ return
     'lang_zh_hans'              =>  '简',
     'sign_in'                   =>  'Sign In',
     'sign_out'                  =>  'Sign Out',
+    'service_provider'          =>  'Service Provider',
     'about_us'                  =>  'About Us',
     'visa_options'              =>  'Visa Options',
     'faqs'                      =>  'FAQS',
@@ -218,5 +219,40 @@ return
 
     'our_terms'                 =>  'Terms of Use, Privacy & Cookie Policy',
     'privacy_statement'         =>  'Terms of Use, Privacy & Cookie Policy',
-    'agree_to'                  =>  'I have read and agree to the "<a href="{link_1}" target="_blank"><u>Terms of Use, Privacy & Cookie Policy</u></a>".'
+    'agree_to'                  =>  'I have read and agree to the "<a href="{link_1}" target="_blank"><u>Terms of Use, Privacy & Cookie Policy</u></a>".',
+
+    'service_provider_info'     =>
+    [
+        'title'                 =>  'Service Provider',
+        'headline'              =>  'Join the AI-mmi Global Network of Service Providers',
+        'subheadline'           =>  'Connect directly with migrants, students, and global movers — all in one smart platform',
+        'intro_1'               =>  'AI-mmi is one of the world\'s first AI-driven migration and education platforms, connecting millions of global movers — from aspiring students to skilled professionals and families — with trusted service providers like you.',
+        'intro_2'               =>  'Whether you\'re a university, college, migration agent, lawyer, English tutor, relocation company, housing provider, or employer, AI-mmi helps you reach qualified clients actively planning their move — in Australia, Canada, the U.S., Europe, and beyond.',
+        'intro_3'               =>  'And the best part?',
+        'free_join'             =>  'It\'s completely free to join.',
+        'verified_only'         =>  'Only verified service providers can post and offer their services on AI-mmi — giving you quality visibility and direct engagement with real users who need what you offer.',
+        'why_join_title'        =>  'Why Join AI-mmi',
+        'benefit_1'             =>  'Reach high-intent clients — migrants, students, and professionals ready to take action',
+        'benefit_2'             =>  'Be discovered easily — appear in AI-powered search and recommendation results',
+        'benefit_3'             =>  'Showcase your services — list your offerings, credentials, and contact options',
+        'benefit_4'             =>  'Receive direct inquiries — users can message or connect with you instantly through the platform',
+        'benefit_5'             =>  'Build trust globally — verified profiles and reviews enhance your credibility',
+        'who_can_join_title'    =>  'Who Can Join',
+        'who_1'                 =>  'Universities, colleges, schools, and education agents',
+        'who_2'                 =>  'Registered migration agents and immigration lawyers',
+        'who_3'                 =>  'English and language tutors or schools',
+        'who_4'                 =>  'Relocation and settlement service providers',
+        'who_5'                 =>  'Pet transport and relocation experts',
+        'who_6'                 =>  'Homeowners offering accommodation for students or new arrivals',
+        'who_7'                 =>  'Employers looking to hire international talent',
+        'who_8'                 =>  'Any other service provider supporting migrants or global learners',
+        'how_it_works_title'    =>  'How It Works',
+        'step_1'                =>  'Register for free as a verified service provider on AI-mmi.',
+        'step_2'                =>  'Create your profile — add your logo, description, and contact info.',
+        'step_3'                =>  'List your services — specify what you offer and which countries you serve.',
+        'step_4'                =>  'Connect with clients — receive inquiries directly from users seeking support.',
+        'cta_title'             =>  'Join the Global Migration & Education Ecosystem',
+        'cta_text'              =>  'AI-mmi empowers people to move, study, and start new lives abroad — and we rely on trusted professionals like you to make that journey successful. Join us today to expand your reach, grow your business, and be part of a smarter, AI-powered migration future.',
+        'join_button'           =>  'Join Now for Free'
+    ]
 ];
