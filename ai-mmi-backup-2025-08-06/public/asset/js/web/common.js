@@ -688,8 +688,6 @@ function iweb_global_func() {
             return true;
         },
         function (response_data) {
-            console.log("Form response received:", response_data);
-
             // Remove thinking indicator
             $(".thinking-indicator").remove();
 
@@ -711,53 +709,15 @@ function iweb_global_func() {
                         "main.page-body div.chat-area div.box > div.show-message"
                     ).append(replyHtml);
 
-                    const userQ = (window.__lastUserQuestion || "").trim();
-
-                    // Hit study abroad/immigration topic → Pull profile → Branch rendering
-                    if (isStudyQuery(userQ) || isMigrationQuery(userQ)) {
-                        const fetchFA = () =>
-                            fetch(`${_page_base_url}/home/fa_me`, {
-                                credentials: "include",
-                            })
-                                .then((r) => r.json())
-                                .catch(() => ({ has_profile: false }));
-                        (window.__fa_cache__
-                            ? Promise.resolve(window.__fa_cache__)
-                            : fetchFA().then((d) => (window.__fa_cache__ = d))
-                        ).then((fa) => {
-                            if (!fa || !fa.has_profile) {
-                                const cta = `
-                            <div class="dialog reply no-avatar">
-                            <div class="txt">
-                                <p>To provide you with more precise recommendations, we suggest completing a Free Assessment first.</p>
-                                <div class="ai-actions" style="margin-top: 15px;">
-                                <a class="ai-btn" href="${_page_base_url}/free_assessment" style="display: inline-block; background: #012069; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: background 0.3s ease; box-shadow: 0 2px 8px rgba(1, 32, 105, 0.3);">Fill out the free assessment here!</a>
-                                </div>
-                            </div>
-                            </div>
-                            <div class="clearboth"></div>`;
-                                $(
-                                    "main.page-body div.chat-area div.box > div.show-message"
-                                ).append(cta);
-                                scrollChatToBottom();
-                            }
-
-                            const hint = buildTopButtonsHintBubble();
-                            $(
-                                "main.page-body div.chat-area div.box > div.show-message"
-                            ).append(hint);
-                            scrollChatToBottom();
-                        });
+                    // Show flow prompt if available
+                    if (response_data.flow_prompt) {
+                        $(
+                            "main.page-body div.chat-area div.box > div.show-message"
+                        ).append(response_data.flow_prompt);
                     }
 
-                    console.log("AI reply added, scrolling...");
-
-                    var element = $(
-                        "main.page-body div.chat-area div.box > div.show-message"
-                    )[0];
-                    if (element) {
-                        element.scrollTop = element.scrollHeight;
-                    }
+                    // Scroll chat to bottom after response
+                    scrollChatToBottom();
                 }
             } else {
                 iweb.alert(response_data.message, function () {

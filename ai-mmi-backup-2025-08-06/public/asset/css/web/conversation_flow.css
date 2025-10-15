@@ -1,0 +1,57 @@
+/* Action buttons within chat dialogs */
+.dialog .txt .ai-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.dialog .txt .ai-actions .ai-btn {
+    display: inline-block;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+/* Primary button - main call to action */
+.dialog .txt .ai-actions .ai-btn[style*="background: #012069"] {
+    background: #012069 !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(1, 32, 105, 0.3);
+}
+
+.dialog .txt .ai-actions .ai-btn[style*="background: #012069"]:hover {
+    background: #001a52 !important;
+    box-shadow: 0 4px 12px rgba(1, 32, 105, 0.5);
+    transform: translateY(-2px);
+}
+
+/* Secondary button - alternative action */
+.dialog .txt .ai-actions .ai-btn[style*="background: #f1f5f9"] {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border: 1px solid #cbd5e1;
+}
+
+.dialog .txt .ai-actions .ai-btn[style*="background: #f1f5f9"]:hover {
+    background: #e2e8f0 !important;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .dialog .txt .ai-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .dialog .txt .ai-actions .ai-btn {
+        width: 100%;
+        padding: 14px 20px;
+        font-size: 15px;
+    }
+}

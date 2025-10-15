@@ -49,6 +49,8 @@
         <!-- Welcome message module (must load before common.js) -->
         <link href="asset/css/web/welcome_message.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
         <script src="asset/js/web/welcome_message.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
+        <!-- Conversation flow styles -->
+        <link href="asset/css/web/conversation_flow.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
         <!-- Chat modules -->
         <script src="asset/js/web/immigration-chat.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
         <script src="asset/js/web/study-chat.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
