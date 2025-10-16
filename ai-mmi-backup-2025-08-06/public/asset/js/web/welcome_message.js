@@ -43,40 +43,20 @@ const WELCOME_SUBTITLES = [
 ];
 
 function initWelcomeMessage() {
-    // If session has a mode, user is returning - skip welcome
-    if (
-        typeof _current_chat_mode !== "undefined" &&
-        _current_chat_mode &&
-        _current_chat_mode !== ""
-    ) {
-        $(".welcome-message").removeClass("show").hide();
-        return;
-    }
+    // Check if user has any chat history
+    $.getJSON(_page_base_url + "/home/chat/1")
+        .done(function (data) {
+            var hasChatHistory = data && data.length > 0;
 
-    // Check both immigration and study chat history using the /1 endpoint like loadChatMessage does
-    var immigrationCheck = $.getJSON(_page_base_url + "/home/chat/1", {
-        chat_mode: "immigration",
-    });
-    var studyCheck = $.getJSON(_page_base_url + "/home/chat/1", {
-        chat_mode: "study",
-    });
-
-    $.when(immigrationCheck, studyCheck).then(
-        function (immigrationData, studyData) {
-            var hasImmigrationHistory =
-                immigrationData[0] && immigrationData[0].length > 0;
-            var hasStudyHistory = studyData[0] && studyData[0].length > 0;
-
-            if (hasImmigrationHistory || hasStudyHistory) {
+            if (hasChatHistory) {
                 $(".welcome-message").removeClass("show").hide();
             } else {
                 displayWelcomeMessage();
             }
-        },
-        function () {
+        })
+        .fail(function () {
             displayWelcomeMessage();
-        }
-    );
+        });
 }
 
 function removeWelcomeAndShowChat() {
@@ -85,6 +65,9 @@ function removeWelcomeAndShowChat() {
     $(".input-question").addClass("show").show();
     $(".robot-container").show();
     $("#ask_question").prop("disabled", false);
+
+    // Show chat action buttons
+    $(".chat-action-buttons").show();
 
     // Stop the welcome video if it's playing
     const welcomeVideo = document.getElementById("welcome-robot-video");
@@ -103,25 +86,16 @@ function removeWelcomeAndShowChat() {
         .addClass("fa-microphone-slash");
 }
 
-function setChatMode(mode) {
-    // Set the chat mode
-    $("#chat_mode").val(mode);
-    $("#ask-form").attr("data-chat-mode", mode);
-
+function startChat() {
     // Remove welcome message and show chat UI
     removeWelcomeAndShowChat();
 
-    // Update UI based on mode
-    if (typeof restoreChatModeUI === "function") {
-        restoreChatModeUI(mode);
+    // Load chat history or show greeting
+    if (typeof loadChatMessage === "function") {
+        loadChatMessage(1); // Load initial chat history
     }
 
-    // Use shared function to show greeting or load history
-    if (typeof showGreetingOrLoadHistory === "function") {
-        showGreetingOrLoadHistory(mode);
-    }
-
-    console.log("Chat mode set to:", mode);
+    console.log("Chat started");
 }
 
 function displayWelcomeMessage() {
@@ -131,10 +105,11 @@ function displayWelcomeMessage() {
 
     $(".robot-container").hide();
     $(".input-question").addClass("show").show();
-    $(".chat-mode-switcher").hide();
     $("#ask_question").prop("disabled", false);
     $(".welcome-message").addClass("show").show();
-    $("#chat_mode").val("");
+
+    // Hide chat action buttons when welcome is showing
+    $(".chat-action-buttons").hide();
 
     initializeWelcomeVideo();
     animateWelcomeTranscript();
@@ -228,7 +203,6 @@ $(document).ready(function () {
 
     // Handle welcome message button clicks
     $(document).on("click", ".welcome-option-btn", function () {
-        var mode = $(this).data("mode");
-        setChatMode(mode);
+        startChat();
     });
 });

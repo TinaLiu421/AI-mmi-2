@@ -127,10 +127,6 @@ class Home extends WebController {
         // post
         $this->pageAction(function() {
             $question = $this->postParamValue('question');
-            $chat_mode = $this->postParamValue('chat_mode', 'immigration'); // default to immigration
-
-            // Save current chat mode to session
-            $this->setSession(['current_chat_mode' => $chat_mode]);
 
             if(!empty($question) && !empty($this->_current_member)) {
                 $can_do_reply = true;
@@ -138,20 +134,11 @@ class Home extends WebController {
                 // Check subscription-based access
                 $has_migration_sub = !empty($this->_current_member['has_migration_subscription']);
                 $has_education_sub = !empty($this->_current_member['has_education_subscription']);
+                $has_subscription = $has_migration_sub || $has_education_sub;
 
-                // If user has active subscription for the chat mode, allow unlimited access
-                if ($chat_mode === 'immigration' && $has_migration_sub) {
-                    $can_do_reply = true;
-                } else if ($chat_mode === 'study' && $has_education_sub) {
-                    $can_do_reply = true;
-                } else if ($chat_mode === 'study') {
-                    // Study chat is always free/unlimited
-                    $can_do_reply = true;
-                } else {
-                    // Immigration chat is now unlimited for all users
-                    // Conversation flow will promote subscription at strategic points
-                    $can_do_reply = true;
-                }
+                // Chat is now unlimited for all users
+                // Conversation flow will promote subscription at strategic points
+                $can_do_reply = true;
 
                 if($can_do_reply) {
                     $rawQuestion = $this->postParamValue('question', '');
@@ -166,8 +153,7 @@ class Home extends WebController {
                     }
 
                     // Call Gemini API with user question and subscription status
-                    $has_subscription = $has_migration_sub || $has_education_sub;
-                    $new_reply = $this->callGeminiApi($rawQuestion, $chat_mode, $has_subscription);
+                    $new_reply = $this->callGeminiApi($rawQuestion, $has_subscription);
 
                     // Validate reply is not empty
                     if(empty($new_reply)) {
@@ -182,9 +168,8 @@ class Home extends WebController {
                         DB::table('chat_log')->insert([
                             'member_id'   => $this->_current_member['id'],
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
-                            'type'        => 'ask',                 
+                            'type'        => 'ask',
                             'content'     => $rawQuestion,
-                            'chat_mode'   => $chat_mode,
                             'status'      => 1,
                             'created_at'  => Carbon::now('UTC'),
                             'updated_at'  => Carbon::now('UTC'),
@@ -195,35 +180,22 @@ class Home extends WebController {
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
                             'type'        => 'reply',
                             'content'     => $new_reply,
-                            'chat_mode'   => $chat_mode,
                             'status'      => 1,
                             'created_at'  => Carbon::now('UTC'),
                             'updated_at'  => Carbon::now('UTC'),
                         ]);
                     } catch (\Throwable $e) {
-                        
+
                     }
-                    
-                    $member_owner_name = $this->_current_member['alias_name'];
-                    $member_owner_avatar = 'asset/image/icon-member.png';
-                    if(!empty($this->_current_member['avatar'])) {
-                        if(file_exists('upload/member_avatar/'.$this->_current_member['avatar'])) {
-                            $member_owner_avatar = 'upload/member_avatar/'.$this->_current_member['avatar'];
-                        }
-                        else {
-                            $member_owner_avatar = 'upload/member_logo/'.$this->_current_member['avatar'];
-                        }
-                    }
-                    $ai_owner_name = 'AI-mmi';
-                    $ai_owner_avatar = 'asset/image/logo-mmi.png';
 
                     $nowUtcUser  = Carbon::now('UTC')->toIso8601String();
                     $nowUtcReply = Carbon::now('UTC')->toIso8601String();
 
                     // Check conversation flow for promotional/guidance prompts
-                    $flowService = new ConversationFlowService($this->_current_member['id'], $chat_mode);
+                    $flowService = new ConversationFlowService($this->_current_member['id']);
                     $userProfile = [
-                        'has_subscription' => $has_migration_sub || $has_education_sub
+                        'has_subscription' => $has_subscription,
+                        'subscription_tier' => $this->_current_member['primary_plan_code'] ?? 'free'
                     ];
 
                     try {
@@ -237,7 +209,6 @@ class Home extends WebController {
                         'status'    => 200,
                         'content'   => nl2br($rawQuestion),
                         'reply'     => nl2br($new_reply),
-                        'chat_mode' => $chat_mode,
 
                         'content_created_at' => $nowUtcUser,
                         'reply_created_at'   => $nowUtcReply,
@@ -274,15 +245,6 @@ class Home extends WebController {
             }
         });
         
-        // Get current chat mode (from GET parameter, session, or default)
-        $current_chat_mode = $this->getParamValue('chat_mode');
-        if(empty($current_chat_mode)) {
-            $current_chat_mode = $this->getSession('current_chat_mode');
-        }
-        if(empty($current_chat_mode)) {
-            $current_chat_mode = 'immigration'; // default mode
-        }
-
         $max_date_int = $this->getSession('max_chat_date_int');
         if(!empty($init)) {
             $max_date_int = '';
@@ -290,10 +252,10 @@ class Home extends WebController {
 
         $chat_message = [];
         if(!empty($this->_current_member)) {
-            $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int, $current_chat_mode);
+            $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int);
 
             if(!empty($chat_message)) {
-                foreach ($chat_message as $message_key => $message) { 
+                foreach ($chat_message as $message_key => $message) {
                     if(strtolower($message['type']) == 'ask') {
                         $chat_message[$message_key]['owner_name'] = $this->_current_member['alias_name'];
                         $chat_message[$message_key]['owner_avatar'] = 'asset/image/icon-member.png';
@@ -310,7 +272,6 @@ class Home extends WebController {
                     }
 
                     $chat_message[$message_key]['content'] = nl2br($message['content']);
-                    $chat_message[$message_key]['chat_mode'] = isset($message['chat_mode']) ? $message['chat_mode'] : 'immigration';
                     $max_date_int = $message['target_date'];
 
                     $chat_message[$message_key]['created_time'] =
@@ -370,7 +331,7 @@ class Home extends WebController {
         return $result_answer;
     }
 
-    protected function callGeminiApi($question = '', $chat_mode = 'immigration', $has_subscription = false) {
+    protected function callGeminiApi($question = '', $has_subscription = false) {
         if (empty($question)) return '';
 
         // 1) Current User
@@ -383,19 +344,18 @@ class Home extends WebController {
         // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
         $history = DB::table('chat_log')
             ->where('member_id', $member['id'])
-            ->where('chat_mode', $chat_mode)
             ->orderBy('id', 'desc')
-            ->limit(20)                      
+            ->limit(20)
             ->get()
             ->reverse();
 
         $contents = [];
         foreach ($history as $msg) {
             $t    = strtolower($msg->type ?? '');
-            $role = ($t === 'ai') ? 'model' : 'user';   
+            $role = ($t === 'ai') ? 'model' : 'user';
             $text = (string)($msg->content ?? '');
             if ($text === '') continue;
-            if (mb_strlen($text) > 2000) {              
+            if (mb_strlen($text) > 2000) {
                 $text = mb_substr($text, 0, 2000) . '...';
             }
             $contents[] = ['role' => $role, 'parts' => [['text' => $text]]];
@@ -408,7 +368,7 @@ class Home extends WebController {
         $apiKey = env('GEMINI_API_KEY');
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$apiKey}";
 
-        $system = $this->buildModeSpecificPrompt($chat_mode, $has_subscription);
+        $system = $this->buildUnifiedPrompt($has_subscription);
 
         // Add subscription-based guidance
         if (!$has_subscription) {
@@ -516,10 +476,9 @@ class Home extends WebController {
         return $result_answer;
     }
 
-    protected function buildModeSpecificPrompt($mode, $has_subscription = false) {
-        if ($mode === 'immigration') {
-            return <<<PROMPT
-    You are AI-mmi, a friendly migration advisor having a natural conversation with someone about moving to Australia, UK, Canada, or USA.
+    protected function buildUnifiedPrompt($has_subscription = false) {
+        return <<<PROMPT
+    You are AI-mmi, a friendly migration and study abroad advisor having natural conversations about moving to or studying in Australia, UK, Canada, or USA.
 
     CONVERSATION STYLE (VERY IMPORTANT):
     - Talk like a real person, not a knowledge base
@@ -532,63 +491,29 @@ class Home extends WebController {
     1. Brief answer to their question (2-3 sentences)
     2. ONE clarifying question OR offer to explain more
 
-    Example:
-    User: "Can I migrate to Australia?"
-    Good: "Yes, there are several pathways to migrate to Australia! The best option depends on your situation. Are you currently a student, working professional, or looking at family sponsorship?"
-
-    Bad: "Australia offers multiple migration pathways including skilled independent (189), state nominated (190), employer sponsored (482/186), partner visas (820/801), and parent visas. The skilled independent visa requires 65 points based on age, English, work experience..."
+    TOPICS I CAN HELP WITH:
+    - Migration/Immigration: Visas, permanent residence, work permits, skilled migration, family sponsorship
+    - Study Abroad: Universities, courses, requirements, application process, scholarships
+    - Both: Student visas, post-study work visas, pathways from study to PR
 
     ASK QUESTIONS TO UNDERSTAND:
-    - If they ask about visa: Ask about their current status (student/worker/etc)
+    - If they ask about visas: Ask about their current status (student/worker/etc)
+    - If they ask about studying: Ask their field of interest and budget
     - If they ask about points: Ask their age, English level, work experience
-    - If they ask about timeline: Ask which visa type they're interested in
+    - If they ask about universities: Ask their academic background and goals
     - If unclear: Ask them to clarify before giving detailed answer
 
     WHEN TO GIVE MORE DETAILS:
     Only when user explicitly says "tell me more", "give me details", "explain fully", or similar
 
-    Reply in their language. Be warm, helpful, and conversational!
+    Examples:
+    User: "Can I migrate to Australia?"
+    Good: "Yes, there are several pathways to migrate to Australia! The best option depends on your situation. Are you currently a student, working professional, or looking at family sponsorship?"
 
-    PROMPT;
-        }
-
-        // study mode
-        return <<<PROMPT
-    You are AI-mmi, a friendly study abroad advisor having a natural conversation about studying in Australia, UK, Canada, or USA. Your website is ai-mmi.com if user asks about upgrade send to ai-mmi.com/upgrade for subscription.
-
-    CONVERSATION STYLE (VERY IMPORTANT):
-    - Chat naturally like a helpful friend, not an information bot
-    - Give SHORT answers (2-3 sentences max)
-    - Ask ONE question at a time to understand what they need
-    - Don't list everything - let them ask for specifics
-    - Use warm language: "That's exciting!", "Great choice!", "Let me help you figure this out"
-
-    RESPONSE FORMAT (CRITICAL):
-    1. Brief answer (2-3 sentences)
-    2. ONE follow-up question OR offer to explore more
-
-    Example:
     User: "Which country is best for studying?"
     Good: "That depends on what you're looking for! Are you more interested in lower costs, post-study work opportunities, or specific programs? What field do you want to study?"
 
-    Bad: "Australia has 8-month post-study work visa, lower tuition than UK. UK has 2-year post-study visa, prestigious universities like Oxford. Canada offers 3-year PGWP, affordable tuition. USA has Optional Practical Training..."
-
-    ASK QUESTIONS TO UNDERSTAND:
-    - If they ask about university: Ask their field of interest and budget
-    - If they ask about costs: Ask which country and level (undergrad/masters)
-    - If they ask about requirements: Ask their current education level
-    - If unclear: Ask them to clarify what aspect they're most interested in
-
-    TOPICS I CAN HELP WITH:
-    - Universities, courses, requirements
-    - Application process, documents, timelines
-    - Tuition, scholarships, living costs
-    - Comparing countries and programs
-
-    IF THEY ASK ABOUT VISAS/MIGRATION:
-    Say briefly: "For visa and immigration questions, I'd recommend switching to our Immigration chat mode - they're the experts on that! Would you like help with the study application side for now?"
-
-    Reply in their language. Be encouraging and conversational!
+    Reply in their language. Be warm, helpful, and conversational!
 
     PROMPT;
     }
