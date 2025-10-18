@@ -1,7 +1,6 @@
 @extends('web.common')
 @section('content')
 <div class="inner-panel">
-    <?php if(empty($_page_data['parameter'])) {?>
     <?php
     $_page_data['account'] = array_merge([
         'logo'              =>  '',
@@ -28,7 +27,6 @@
             <div>@csrf</div>
             <div><input type="hidden" id="method" name="method" value="1"></div>
             <div><input type="hidden" id="third_party_token" name="third_party_token" value=""></div>
-            <div><input type="hidden" id="trial" name="trial" value="<?php echo ((!empty($_page_get_data['trial']))?1:0) ;?>"></div>
             
             <div class="required"><span style="color:red;">*</span> <?php echo $_page_lang['required']; ?></div>
             <div class="clearboth"></div>
@@ -133,39 +131,10 @@
             
             <div class="action">
                 <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration' ;?>"><?php echo $_page_lang['btn.back']; ?></a>
-                <button type="submit" class="btn btn-next"><?php echo (!empty($_page_get_data['trial']))?$_page_lang['btn.submit']:$_page_lang['btn.continue']; ?></button>
+                <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.submit']; ?></button>
                 <div class="clearboth"></div>
             </div>
         </form>
     </div>
-    
-    <?php } else { ?>
-   
-    <h1 class="title"><?php echo $_page_lang['payment']; ?></h1>
-    <div class="top-brief iweb-editor">
-        <p><?php echo $_page_lang['choose_your_payment']; ?></p>
-    </div>
-    <div class="underline"></div>
-    <div class="clearboth"></div>
-
-    <div class="form">
-        <form id="account-service-provider-payment-form" method="post">
-            <div>@csrf</div>
-
-            <div class="method">
-                <input type="radio" id="payment_method_1" name="payment_method" value="1" checked="">
-                <label for="payment_method_1">
-                    <img src="asset/image/method-paypal.png" alt="method-paypal">
-                </label>
-            </div>
-            
-            <div class="action">
-                <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration/migration_service-provider' ;?>"><?php echo $_page_lang['btn.back']; ?></a>
-                <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.pay_now']; ?></button>
-                <div class="clearboth"></div>
-            </div>
-        </form>
-    </div>
-    <?php } ?>
 </div>
 @endsection
