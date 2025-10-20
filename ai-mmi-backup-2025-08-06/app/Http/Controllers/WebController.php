@@ -8,7 +8,7 @@ class WebController extends CoreController {
     protected $_setting_model = null;
     protected $_visa_countries = [];
 
-    public function __construct($data) {
+    public function __construct(array $data = []) {
         parent::__construct($data);
         $this->initialize();
       

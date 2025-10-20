@@ -8,6 +8,45 @@ $.ajaxSetup({
     },
 });
 
+var __ragBypassOnce = false;
+
+// —— RAG 命中阈值（可调）——
+const RAG_MIN_MATCH = 3;
+const RAG_MIN_SCORE = 0.62;
+
+// 调用 RAG 接口
+function callRAG(question, tag = "policy") {
+  return $.ajax({
+    url: "/api/rag/ask",
+    method: "POST",
+    contentType: "application/json; charset=utf-8",
+    dataType: "json",
+    headers: { Accept: "application/json" },
+    timeout: 20000, // 20s 防卡死
+    data: JSON.stringify({ q: question, tag })
+  });
+}
+
+function submitOnce() {
+  __ragBypassOnce = true;                 // 放行这一轮
+  $("#ask-form").trigger("submit");       // 触发表单提交
+  setTimeout(() => { __ragBypassOnce = false; }, 0); // 立刻复位，避免影响下一轮
+}
+
+function ensureHiddenFields() {
+  const $form = $("#ask-form");
+  if ($("#hidden_question").length === 0) {
+    $form.append('<input type="hidden" id="hidden_question" name="question">');
+  }
+  if ($("#use_rag").length === 0) {
+    $form.append('<input type="hidden" id="use_rag" name="use_rag" value="0">');
+  }
+  if ($("#override_reply").length === 0) {
+    $form.append('<input type="hidden" id="override_reply" name="override_reply" value="">');
+  }
+}
+
+
 function escapeHtml(s) {
     return String(s)
         .replace(/&/g, "&amp;")
@@ -159,6 +198,12 @@ function formatUtcIsoToLocalTime(isoString) {
 function scrollChatToBottom() {
     const el = $("main.page-body div.chat-area div.box > div.show-message")[0];
     if (el) el.scrollTop = el.scrollHeight;
+}
+
+function scrollSafely() {
+    try { scrollChatToBottom(); } catch(e){}
+    requestAnimationFrame(() => { try { scrollChatToBottom(); } catch(e){} });
+    setTimeout(() => { try { scrollChatToBottom(); } catch(e){} }, 50);
 }
 
 // Generate Timestamp HTML
@@ -611,164 +656,165 @@ function iweb_global_func() {
     iweb.form(
         "#ask-form",
         "json",
+        // ---------- beforeSubmit ----------
         function () {
+            ensureHiddenFields();
+            // —— ❶：这几行很关键：如果是“绕过一次”，直接放行给原流程（让 iweb.form 自己提交，带上原来的 CSRF 等）
+            if (__ragBypassOnce === true) {
+                __ragBypassOnce = false; // 用完立即复位
+                return true;             // 让 iweb.form 继续它的默认提交（不会 419）
+            }
+
             if (!_current_member) {
-                iweb.alert("Sign in to get full chat features.", function () {
+            iweb.alert("Sign in to get full chat features.", function () {
                     window.location.href = "/account_login";
                 });
                 return false;
             }
 
-            if (!iweb.isValue($("#ask_question").val())) {
-                console.log("No question entered");
+            const $ta = $("#ask_question");
+            const userQuestion = $ta.val().trim();
+            if (!iweb.isValue(userQuestion)) return false;
+
+            // ---- 统一：复制到隐藏域，并暂时移除 textarea 的 name（避免重名冲突）----
+            $("#hidden_question").val(userQuestion);
+            const oldName = $ta.attr("name");
+            if (oldName) $ta.attr("data-old-name", oldName).removeAttr("name");
+
+            // —— 显示用户气泡、thinking 动画（保持你原来的写法）——
+            window.__lastUserQuestion = userQuestion;
+            var userHtml = renderBubble({ /* 你的原参数：role/avatar/name/text/time */ 
+                role: "ask",
+                avatar: _current_member && _current_member.avatar
+                    ? (_current_member.type == 1 ? "upload/member_avatar/" : "upload/member_logo/") + _current_member.avatar
+                    : "asset/image/icon-member.png",
+                name: (_current_member && _current_member.name) ? _current_member.name : "You",
+                text: escapeHtml(userQuestion),
+                createdAtIso: new Date().toISOString(),
+            });
+            $("main.page-body div.chat-area div.box > div.show-message").append(userHtml);
+
+            var thinkingIndicator =
+                '<div class="dialog reply thinking-indicator">' +
+                '<div class="avatar"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>' +
+                '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
+                '</div><div class="clearboth"></div>';
+            $("main.page-body div.chat-area div.box > div.show-message").append(thinkingIndicator);
+            scrollChatToBottom();
+
+            // UI：清空输入框&占位
+            $ta.val("").attr("placeholder","Thinking...");
+
+            // —— ❷：只在“签证/移民类问题”时拦截，尝试 RAG；否则直接 return true 走原流程（含 CSRF）
+            const isVisa = isMigrationQuery(userQuestion); 
+            if (!isVisa) {
+                // const $form = $("#ask-form");
+
+                // // 让 question 进隐藏域
+                // if ($("#hidden_question").length === 0) {
+                //     $form.append('<input type="hidden" id="hidden_question" name="question">');
+                // }
+                // $("#hidden_question").val(userQuestion);
+
+                // ✅ 暂时移除 textarea 的 name，避免空值覆盖
+                // const $ta = $("#ask_question");
+                // const oldName = $ta.attr("name");
+                // $ta.attr("data-old-name", oldName).removeAttr("name");
+
+
+                // 清空并显示占位
+                // $("#ask_question").val("").attr("placeholder", "Thinking...");
+
+                // 走原生提交（带 CSRF）
+                // safeSubmitAskForm();
+
+                // // 提交触发后恢复 name
+                // setTimeout(() => {
+                //     const $ta2 = $("#ask_question");
+                //     const n = $ta2.attr("data-old-name");
+                //     if (n) $ta2.attr("name", n).removeAttr("data-old-name");
+                // }, 0);
+                $("#use_rag").val("0");
+                $("#override_reply").val("");
+                submitOnce();
                 return false;
             }
 
-            // Show user's question immediately before sending
-            var userQuestion = $("#ask_question").val();
+            // —— ❸：签证问题 → 先试 RAG；命中就自己渲染；不命中则“交还控制权”给原流程
+            callRAG(userQuestion, "policy")
+                .then(function (rag) {
+                    // 命中判定（与你之前一致）
+                    const matchCount = rag.match_count ?? ((rag.snippets && rag.snippets.length) || 0);
+                    const hasHighScore = (rag.snippets || []).some(function (s){ return (s.score || 0) >= 0.62; });
+                    const hasUsefulAnswer = (typeof rag.answer === "string") && rag.answer.trim() !== "" && !/i don't know|无法确定|不知道/i.test(rag.answer);
+                    const ragOk = hasUsefulAnswer && (matchCount >= 3 || hasHighScore);
 
-            // Record the current round's question (for topic identification in successful callback)
-            window.__lastUserQuestion = userQuestion;
+                    if (ragOk) {
+                        $("#use_rag").val("1");
+                        $("#override_reply").val((rag.answer||"").trim());
+                        } else {
+                        $("#use_rag").val("0");
+                        $("#override_reply").val("");
+                        }
+                        __ragBypassOnce = true;
+                        $("#ask-form").trigger("submit");   // 现在真正提交
+                    }).fail(function(){
+                        // RAG失败 → 普通AI
+                        $("#use_rag").val("0");
+                        $("#override_reply").val("");
+                        __ragBypassOnce = true;
+                        $("#ask-form").trigger("submit");
+                    });
 
-            var userAvatar =
-                _current_member && _current_member.avatar
-                    ? (_current_member.type == 1
-                          ? "upload/member_avatar/"
-                          : "upload/member_logo/") + _current_member.avatar
-                    : "asset/image/icon-member2.png";
-            var userName =
-                _current_member && _current_member.name
-                    ? _current_member.name
-                    : "You";
+                    return false; // 这里先不让 iweb.form 提交，等上面的 then/fail 里触发
+                    },
 
-            const nowIso = new Date().toISOString(); // First use the browser's local timestamp (ISO)
-            const userHtml = renderBubble({
-                role: "ask",
-                avatar:
-                    _current_member && _current_member.avatar
-                        ? (_current_member.type == 1
-                              ? "upload/member_avatar/"
-                              : "upload/member_logo/") + _current_member.avatar
-                        : "asset/image/icon-member.png",
-                name:
-                    _current_member && _current_member.name
-                        ? _current_member.name
-                        : "You",
-                text: escapeHtml(userQuestion),
-                createdAtIso: nowIso,
-            });
+            // —— ❹：successFn（第二个回调）保持你原来的实现不变 —— 
+            function (response_data) {
+                // 这部分用你原来的渲染逻辑：移除 thinking、显示回复、FA 引导、顶部按钮等
+                $(".thinking-indicator").remove();
 
-            $("main.page-body div.chat-area div.box > div.show-message").append(
-                userHtml
-            );
+                // 提交完成后，务必把 textarea 的 name 还原（为下一轮做准备）
+                const $ta = $("#ask_question");
+                const n = $ta.attr("data-old-name");
+                if (n) $ta.attr("name", n).removeAttr("data-old-name");
 
-            // Clear the textarea immediately
-            $("#ask_question").val("");
-
-            // Add thinking indicator with animated dots
-            var thinkingIndicator =
-                '<div class="dialog reply thinking-indicator">';
-            thinkingIndicator +=
-                '<div class="avatar"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>';
-            thinkingIndicator +=
-                '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
-            thinkingIndicator += '</div><div class="clearboth"></div>';
-            $("main.page-body div.chat-area div.box > div.show-message").append(
-                thinkingIndicator
-            );
-
-            // Scroll to bottom
-            var element = $(
-                "main.page-body div.chat-area div.box > div.show-message"
-            )[0];
-            if (element) {
-                element.scrollTop = element.scrollHeight;
-            }
-
-            return true;
-        },
-        function (response_data) {
-            console.log("Form response received:", response_data);
-
-            // Remove thinking indicator
-            $(".thinking-indicator").remove();
-
-            if (iweb.isMatch(response_data.status, 200)) {
-                // User question is already shown immediately, just show AI reply
-                if (iweb.isValue(response_data.reply)) {
-                    const replyHtml = renderBubble({
+                if (iweb.isMatch(response_data.status, 200)) {
+                    if (iweb.isValue(response_data.reply)) {
+                        const replyHtml = renderBubble({
                         role: "reply",
-                        avatar:
-                            response_data.ai_owner_avatar ||
-                            "asset/image/logo-mmi.png",
+                        avatar: response_data.ai_owner_avatar || "asset/image/logo-mmi.png",
                         name: response_data.ai_owner_name || "AI-mmi",
                         text: response_data.reply,
-                        createdAtIso:
-                            response_data.reply_created_at ||
-                            new Date().toISOString(),
-                    });
-                    $(
-                        "main.page-body div.chat-area div.box > div.show-message"
-                    ).append(replyHtml);
-
-                    const userQ = (window.__lastUserQuestion || "").trim();
-
-                    // Hit study abroad/immigration topic → Pull profile → Branch rendering
-                    if (isStudyQuery(userQ) || isMigrationQuery(userQ)) {
-                        const fetchFA = () =>
-                            fetch(`${_page_base_url}/home/fa_me`, {
-                                credentials: "include",
-                            })
-                                .then((r) => r.json())
-                                .catch(() => ({ has_profile: false }));
-                        (window.__fa_cache__
-                            ? Promise.resolve(window.__fa_cache__)
-                            : fetchFA().then((d) => (window.__fa_cache__ = d))
-                        ).then((fa) => {
-                            if (!fa || !fa.has_profile) {
-                                const cta = `
-                            <div class="dialog reply no-avatar">
-                            <div class="txt">
-                                <p>To provide you with more precise recommendations, we suggest completing a Free Assessment first.</p>
-                                <div class="ai-actions" style="margin-top: 15px;">
-                                <a class="ai-btn" href="${_page_base_url}/free_assessment" style="display: inline-block; background: #012069; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: background 0.3s ease; box-shadow: 0 2px 8px rgba(1, 32, 105, 0.3);">Fill out the free assessment here!</a>
-                                </div>
-                            </div>
-                            </div>
-                            <div class="clearboth"></div>`;
-                                $(
-                                    "main.page-body div.chat-area div.box > div.show-message"
-                                ).append(cta);
-                                scrollChatToBottom();
-                            }
-
-                            const hint = buildTopButtonsHintBubble();
-                            $(
-                                "main.page-body div.chat-area div.box > div.show-message"
-                            ).append(hint);
-                            scrollChatToBottom();
+                        createdAtIso: response_data.reply_created_at || new Date().toISOString(),
                         });
-                    }
+                        $("main.page-body div.chat-area div.box > div.show-message").append(replyHtml);
 
-                    console.log("AI reply added, scrolling...");
+                        const userQ = (window.__lastUserQuestion || "").trim();
+                        if (isStudyQuery(userQ) || isMigrationQuery(userQ)) {
+                            const hint = buildTopButtonsHintBubble();
+                            $("main.page-body div.chat-area div.box > div.show-message").append(hint);
+                        }
 
-                    var element = $(
-                        "main.page-body div.chat-area div.box > div.show-message"
-                    )[0];
-                    if (element) {
-                        element.scrollTop = element.scrollHeight;
+                        scrollChatToBottom();
                     }
-                }
-            } else {
-                iweb.alert(response_data.message, function () {
-                    if (iweb.isValue(response_data.url)) {
-                        window.location.href = response_data.url;
+                    // const $ta2 = $("#ask_question");
+                    // const n = $ta2.attr("data-old-name");
+                    // if (n) $ta2.attr("name", n).removeAttr("data-old-name");
+                    $("#ask_question").attr("placeholder", "Ask about immigrations, visas, or migration...");
+                    $("#hidden_question").val("");
+                    $("#use_rag").val("0");
+                    $("#override_reply").val("");
+                } else {
+                    iweb.alert(response_data.message, function () {
+                        if (iweb.isValue(response_data.url)) {
+                            window.location.href = response_data.url;
                     }
                 });
+                }
             }
-        }
-    );
-}
+        );
+    }
 
 function iweb_global_func_done() {
     // load full article content

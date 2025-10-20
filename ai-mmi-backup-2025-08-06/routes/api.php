@@ -2,6 +2,13 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\RagController;
+
+Route::middleware('api')->group(function () {
+    Route::post('/rag/ask',  [RagController::class, 'ask'])->name('rag.ask');
+});
+
+
 
 /*
 |--------------------------------------------------------------------------
