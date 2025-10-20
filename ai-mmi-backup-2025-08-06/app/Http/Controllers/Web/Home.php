@@ -8,7 +8,7 @@ use Google\Cloud\Dialogflow\V2\TextInput;
 use Google\Cloud\Dialogflow\V2\QueryInput;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use App\Services\ConversationFlowService; 
+use App\Services\ConversationFlowService;
 
 
 class Home extends WebController {
@@ -163,8 +163,9 @@ class Home extends WebController {
                         ]);
                         return;
                     }
-                    
+
                     try {
+                        // Insert user question
                         DB::table('chat_log')->insert([
                             'member_id'   => $this->_current_member['id'],
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
@@ -175,6 +176,7 @@ class Home extends WebController {
                             'updated_at'  => Carbon::now('UTC'),
                         ]);
 
+                        // Insert AI reply
                         DB::table('chat_log')->insert([
                             'member_id'   => $this->_current_member['id'],
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
@@ -184,8 +186,9 @@ class Home extends WebController {
                             'created_at'  => Carbon::now('UTC'),
                             'updated_at'  => Carbon::now('UTC'),
                         ]);
-                    } catch (\Throwable $e) {
 
+                    } catch (\Throwable $e) {
+                        \Log::error('Chat log insertion error: ' . $e->getMessage());
                     }
 
                     $nowUtcUser  = Carbon::now('UTC')->toIso8601String();
@@ -208,7 +211,7 @@ class Home extends WebController {
                     $this->pageResult([
                         'status'    => 200,
                         'content'   => nl2br($rawQuestion),
-                        'reply'     => nl2br($new_reply),
+                        'reply'     => nl2br($new_reply), // Send reply to frontend
 
                         'content_created_at' => $nowUtcUser,
                         'reply_created_at'   => $nowUtcReply,
@@ -352,7 +355,8 @@ class Home extends WebController {
         $contents = [];
         foreach ($history as $msg) {
             $t    = strtolower($msg->type ?? '');
-            $role = ($t === 'ai') ? 'model' : 'user';
+            // Fix: chat_log stores 'reply' for AI messages, not 'ai'
+            $role = ($t === 'reply') ? 'model' : 'user';
             $text = (string)($msg->content ?? '');
             if ($text === '') continue;
             if (mb_strlen($text) > 2000) {
@@ -366,6 +370,7 @@ class Home extends WebController {
 
         // 4)  Send Request
         $apiKey = env('GEMINI_API_KEY');
+        // Using gemini-2.0-flash-exp (with retry logic to handle overload)
         $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$apiKey}";
 
         $system = $this->buildUnifiedPrompt($has_subscription);
@@ -430,19 +435,46 @@ class Home extends WebController {
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
         curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
-        $resp = curl_exec($ch);
-        if (curl_errno($ch)) {
-            $err = curl_error($ch);
-            curl_close($ch);
-            \Log::error('Gemini CURL Error: ' . $err);
-            return '[Error] ' . $err;
+        // Add retry logic for overloaded API
+        $maxRetries = 3; // Increased from 2 to 3
+        $retryDelay = 3; // Increased from 2 to 3 seconds
+        $resp = null;
+        $data = null;
+
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            $resp = curl_exec($ch);
+
+            if (curl_errno($ch)) {
+                $err = curl_error($ch);
+                curl_close($ch);
+                \Log::error('Gemini CURL Error: ' . $err);
+                return '[Error] ' . $err;
+            }
+
+            $data = json_decode($resp, true);
+
+            // Check if API is overloaded (503 error)
+            if (isset($data['error']) && $data['error']['code'] === 503) {
+                \Log::warning("Gemini API overloaded (attempt {$attempt}/{$maxRetries}): " . json_encode($data['error']));
+
+                if ($attempt < $maxRetries) {
+                    sleep($retryDelay);
+                    continue; // Retry
+                } else {
+                    curl_close($ch);
+                    return 'The AI service is currently busy. Please try again in a few moments.';
+                }
+            }
+
+            // If no 503 error, break out of retry loop
+            break;
         }
+
         curl_close($ch);
 
         // Log raw response for debugging
         \Log::info('Gemini API Response: ' . substr($resp, 0, 500));
 
-        $data = json_decode($resp, true);
         if (isset($data['error'])) {
             \Log::error('Gemini API Error: ' . json_encode($data['error']));
             return '[Upstream Error] ' . ($data['error']['message'] ?? 'Unknown error');
@@ -658,5 +690,4 @@ class Home extends WebController {
 
         return trim($ctx);
     }
-
 }

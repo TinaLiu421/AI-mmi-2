@@ -189,6 +189,10 @@
                                 <a href="/upgrade" class="chat-action-btn" title="<?php echo $_page_lang['chat_robot.upgrade_plan']; ?>">
                                     <i class="fa fa-star"></i><span><?php echo $_page_lang['chat_robot.upgrade']; ?></span>
                                 </a>
+                                <!-- Profile Comparison Button -->
+                                <a href="/profile_comparison" id="profile-comparison-action-btn" class="chat-action-btn" title="<?php echo $_page_lang['chat_robot.my_eligibility_title']; ?>">
+                                    <i class="fa fa-percent"></i><span><?php echo $_page_lang['chat_robot.my_eligibility']; ?></span>
+                                </a>
                             </div>
 
                             <div class="show-message">

@@ -35,17 +35,6 @@ function renderBubble({ role, avatar, name, text, createdAtIso }) {
   `;
 }
 
-function buildTopButtonsHintBubble() {
-    return `
-    <div class="dialog reply">
-      <div class="txt">
-        <p>Please select the buttons at the top of the chat window to access the full range of AI-mmi services.</p>
-      </div>
-    </div>
-    <div class="clearboth"></div>
-  `;
-}
-
 function formatUtcIsoToLocalTime(isoString) {
     try {
         const d = new Date(isoString);
@@ -620,7 +609,6 @@ function iweb_global_func() {
                             "main.page-body div.chat-area div.box > div.show-message"
                         ).append(response_data.flow_prompt);
                     }
-
                     // Scroll chat to bottom after response
                     scrollChatToBottom();
                 }
@@ -932,15 +920,20 @@ function toggleMobileChat() {
 }
 
 // Initialize chat on page load
-$(document).ready(function() {
+$(document).ready(function () {
     // Only load chat history if welcome message is not showing
     // (welcome_message.js handles initialization if welcome is shown)
-    setTimeout(function() {
-        if (!$(".welcome-message").hasClass("show") && !$(".welcome-message").is(":visible")) {
+    setTimeout(function () {
+        if (
+            !$(".welcome-message").hasClass("show") &&
+            !$(".welcome-message").is(":visible")
+        ) {
             // Welcome message is hidden, so load chat history
             loadChatMessage(1);
             // Show chat action buttons
             $(".chat-action-buttons").show();
+            // Check if profile is ready
+            checkProfileReadyForComparison();
         }
     }, 500);
 });

@@ -30,6 +30,9 @@ class ConversationFlowService
      */
     public function analyzeAndTrigger($userQuestion, $aiResponse, $userProfile = [])
     {
+        // Increment session message count
+        $sessionMessageCount = $this->incrementSessionMessageCount();
+
         // Get current session state
         $sessionState = $this->getSessionState();
 
@@ -41,10 +44,22 @@ class ConversationFlowService
         // Get conversation statistics
         $stats = $this->getConversationStats();
 
+        // Check if user is dismissing a previous promo
+        // If they just said "no thanks" etc, acknowledge it and don't show another promo
+        $lastTrigger = $sessionState['last_trigger_type'] ?? null;
+        if ($lastTrigger && $this->isDismissingPromo($userQuestion)) {
+            // User dismissed the promo - acknowledge gracefully
+            // Return a friendly message prompting them to continue with their real question
+            return [
+                'type' => 'dismissal_acknowledgment',
+                'message' => 'No problem! Feel free to ask me anything about immigration or study abroad whenever you\'re ready.',
+                'actions' => []
+            ];
+        }
+
         // Check for positive responses to previous flow prompts
         // Now enabled for ALL tiers - if user explicitly shows upgrade interest, respond immediately
         // The improved isPositiveResponse() filters out false positives (generic "yes"/"okay")
-        $lastTrigger = $sessionState['last_trigger_type'] ?? null;
         if ($lastTrigger && $this->isPositiveResponse($userQuestion)) {
             // User showed EXPLICIT interest in the last prompt - show upgrade info immediately
             // This bypasses all limits since user explicitly expressed interest
@@ -135,7 +150,20 @@ class ConversationFlowService
         }
 
         // For FREE users: prompt every 5 messages
+        // BUT skip if it's just a simple greeting (hi, hello, etc.) - those are conversation starters
+        // ALSO require at least 3 messages in the current session to avoid showing promo immediately
         if ($subscriptionTier === 'free' && $stats['message_count'] % 5 === 0 && $stats['message_count'] >= 5) {
+            // Don't show promo on simple greetings
+            if ($this->isSimpleGreeting($userQuestion)) {
+                return null;
+            }
+
+            // Don't show promo in the first few messages of the session (feels pushy)
+            // Wait until after message 3 (so shows on message 4+)
+            if ($sessionMessageCount <= 3) {
+                return null;
+            }
+
             $lastAnyTrigger = !empty($sessionState['last_triggers']) ? max($sessionState['last_triggers']) : 0;
             if (($stats['message_count'] - $lastAnyTrigger) >= 3) {
                 return $this->createUpgradePrompt($subscriptionTier, $stats['message_count'], $userQuestion, true);
@@ -156,6 +184,53 @@ class ConversationFlowService
                 return true;
             }
         }
+        return false;
+    }
+
+    /**
+     * Check if message is just a simple greeting (not a real question)
+     * Don't show promos on greetings - they're conversation starters, not engagement points
+     */
+    protected function isSimpleGreeting($question)
+    {
+        $trimmed = trim(mb_strtolower($question));
+
+        // Remove punctuation for matching
+        $normalized = preg_replace('/[!?.,:;]/', '', $trimmed);
+
+        $greetings = [
+            'hi', 'hello', 'hey', 'hola', 'hii', 'heya', 'howdy',
+            'hi there', 'hello there', 'hey there',
+            'good morning', 'good afternoon', 'good evening',
+            'greetings', 'whats up', "what's up", 'sup',
+            'yo', 'hiya'
+        ];
+
+        return in_array($normalized, $greetings);
+    }
+
+    /**
+     * Check if user is dismissing a promo (saying no thanks, not interested, etc.)
+     * If true, we should acknowledge it gracefully and not confuse the chatbot
+     */
+    protected function isDismissingPromo($question)
+    {
+        $questionLower = mb_strtolower(trim($question));
+
+        $dismissalPhrases = [
+            'no', 'nope', 'not interested', 'no thanks', 'not now', 'maybe later',
+            'not right now', 'skip', 'ignore', 'later', 'pass', 'decline',
+            'no need', 'don\'t want', 'don\'t need', 'not for me',
+            'i\'m good', 'all set', 'no thank you', 'no thx'
+        ];
+
+        // Check if the entire message is just a dismissal (not part of a longer question)
+        foreach ($dismissalPhrases as $phrase) {
+            if ($questionLower === $phrase || $questionLower === $phrase . '!') {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -970,8 +1045,20 @@ class ConversationFlowService
     {
         return Session::get($this->sessionKey, [
             'prompt_count' => 0,
-            'last_triggers' => []
+            'last_triggers' => [],
+            'session_message_count' => 0  // Track messages in current session
         ]);
+    }
+
+    /**
+     * Increment session message count
+     */
+    protected function incrementSessionMessageCount()
+    {
+        $state = $this->getSessionState();
+        $state['session_message_count'] = ($state['session_message_count'] ?? 0) + 1;
+        $this->updateSessionState($state);
+        return $state['session_message_count'];
     }
 
     /**

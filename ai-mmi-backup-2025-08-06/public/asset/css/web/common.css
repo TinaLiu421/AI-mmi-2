@@ -595,7 +595,7 @@ main.page-body .chat-area.show-mobile .controls {
 main.page-body .chat-area .box > a.btn-close-mobile {
     position: absolute;
     top: 15px;
-    left: var(--space-4);
+    left: var(--space-2);
     display: none;
     z-index: 10;
 }
@@ -1418,6 +1418,28 @@ footer.page-footer a:hover {
     .welcome-message__footer {
         font-size: 0.9rem;
     }
+
+    .chat-action-buttons {
+        padding: 4px;
+        padding-left: 60px;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .chat-action-buttons .chat-action-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+        gap: 6px;
+        justify-content: center;
+    }
+
+    .chat-action-buttons .chat-action-btn i {
+        display: none !important;
+    }
+
+    .chat-action-buttons .chat-action-btn span {
+        display: inline;
+    }
 }
 
 @media (max-width: 480px) {
@@ -2194,7 +2216,7 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
+    padding: 8px 14px;
     border: 2px solid var(--primary-blue);
     border-radius: 8px;
     background: var(--white);
@@ -2216,24 +2238,4 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
 
 .chat-action-buttons .chat-action-btn i {
     font-size: 16px;
-}
-
-@media (max-width: 768px) {
-    .chat-action-buttons {
-        padding: 8px;
-        padding-left: 60px;
-    }
-
-    .chat-action-buttons .chat-action-btn {
-        padding: 8px 15px;
-        font-size: 13px;
-    }
-
-    .chat-action-buttons .chat-action-btn i {
-        font-size: 18px;
-    }
-
-    .chat-action-buttons .chat-action-btn span {
-        display: inline;
-    }
 }
