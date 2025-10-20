@@ -106,6 +106,7 @@ return
         'company_name_2'        =>  'Service provider name',
         'enter_company_name_2'  =>  'Enter your service provider name',
         'company_type'          =>  'Type of organization',
+        'country'               =>  'Country',
         'ac_type_1'             =>  'Individual',
         'ac_type_2'             =>  'Migration Agent',
         'ac_type_3'             =>  'Service Provider',

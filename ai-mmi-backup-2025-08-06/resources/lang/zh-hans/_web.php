@@ -106,6 +106,7 @@ return
         'company_name_2'        =>  '服务提供者名称',
         'enter_company_name_2'  =>  '输入您的服务提供者名称',
         'company_type'          =>  '组织类型',
+        'country'               =>  '国家',
         'ac_type_1'             =>  '个人',
         'ac_type_2'             =>  '移民代理',
         'ac_type_3'             =>  '服务提供',
