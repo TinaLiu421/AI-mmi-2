@@ -58,12 +58,12 @@
     <div class="card-section">
         <h3 class="card-title"><?php echo $_page_lang['service_provider_info.how_it_works_title']; ?></h3>
         <div class="iweb-editor">
-            <ol>
-                <li><strong><?php echo $_page_lang['service_provider_info.step_1']; ?></strong></li>
-                <li><strong><?php echo $_page_lang['service_provider_info.step_2']; ?></strong></li>
-                <li><strong><?php echo $_page_lang['service_provider_info.step_3']; ?></strong></li>
-                <li><strong><?php echo $_page_lang['service_provider_info.step_4']; ?></strong></li>
-            </ol>
+            <ul>
+                <li><?php echo $_page_lang['service_provider_info.step_1']; ?></li>
+                <li><?php echo $_page_lang['service_provider_info.step_2']; ?></li>
+                <li><?php echo $_page_lang['service_provider_info.step_3']; ?></li>
+                <li><?php echo $_page_lang['service_provider_info.step_4']; ?></li>
+            </ul>
         </div>
     </div>
 
