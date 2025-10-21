@@ -5,8 +5,6 @@ use App\Http\Controllers\RouteMapping;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
-Route::get('/home/fa_me', [Home::class, 'fa_me']);
-
 
 /*
 |--------------------------------------------------------------------------
@@ -20,6 +18,9 @@ Route::get('/home/fa_me', [Home::class, 'fa_me']);
 */
 
 Route::any('{segments?}', [App\Http\Controllers\RouteMapping::class, 'index'])->where('segments', '^(?!stripe)([0-9a-zA-Z_\-\/]+)?$');
+
+// Route::any('/chat/log', function(){ return 'chat-log-alive'; });
+
 
 
 

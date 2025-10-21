@@ -573,12 +573,11 @@ class Account_Registration extends WebController {
             if(!empty($account_plan)) {
                 if(empty($parameter)) {
                     // do checking
-                    $validator = Validator::make($this->_page_post_data, 
+                    $validator = Validator::make($this->_page_post_data,
                     [
                         'company_type'      =>  'required',
                         'company_name'      =>  'required',
-                        'company_website'   =>  'required',
-                        'company_address'   =>  'required',
+                        'country'           =>  'required',
                         'first_name'        =>  'required',
                         'last_name'         =>  'required',
                         'email'             =>  'required|email',
@@ -621,89 +620,78 @@ class Account_Registration extends WebController {
                                 $this->_page_post_data['logo'] = $this->getSession('temp_service_provider_account_logo');
                             }
 
-                            // if trial, create account directly
-                            $this->_page_post_data['expiration_date_account'] = '1970-01-01';
-                            if(!empty($this->_page_post_data['trial'])) {
-                                $this->_page_post_data['expiration_date_account'] = date('Y-m-d', strtotime('+'.max(0, (int)$account_plan['valid_days_trial']).' days', strtotime($this->_today_date)));
+                            // Create account directly without payment
+                            $this->_page_post_data['expiration_date_account'] = date('Y-m-d', strtotime('+'.max(0, (int)$account_plan['valid_days_trial']).' days', strtotime($this->_today_date)));
 
-                                $new_member = 
+                            $new_member =
+                            [
+                                'method'                =>  ((!empty($this->_page_post_data['method']))?max(1, $this->_page_post_data['method']):0),
+                                'type'                  =>  3,
+                                'avatar'                =>  $this->_page_post_data['logo'],
+                                'full_name'             =>  implode(' ', array_filter([$this->_page_post_data['first_name'], $this->_page_post_data['last_name']])),
+                                'first_name'            =>  $this->_page_post_data['first_name'],
+                                'last_name'             =>  $this->_page_post_data['last_name'],
+                                'email'                 =>  $this->_page_post_data['email'],
+                                'telephone_code'        =>  $this->_page_post_data['telephone_code'],
+                                'telephone_num'         =>  $this->_page_post_data['telephone_num'],
+                                'password'              =>  $this->_page_post_data['password'],
+                                'repeat_password'       =>  $this->_page_post_data['repeat_password'],
+                                'expiration_date_account'   =>  $this->_page_post_data['expiration_date_account'],
+                                'verified_token'        =>  md5($this->_page_post_data['email'].'@'.md5(uniqid(rand()))),
+                                'verified'              =>  0,
+                                'third_party_token'     =>  ((!empty($this->_page_post_data['third_party_token']))?$this->_page_post_data['third_party_token']:''),
+                                'details'               =>
                                 [
-                                    'method'                =>  ((!empty($this->_page_post_data['method']))?max(1, $this->_page_post_data['method']):0),
-                                    'type'                  =>  3,
-                                    'avatar'                =>  $this->_page_post_data['logo'],
-                                    'full_name'             =>  implode(' ', array_filter([$this->_page_post_data['first_name'], $this->_page_post_data['last_name']])),
-                                    'first_name'            =>  $this->_page_post_data['first_name'],
-                                    'last_name'             =>  $this->_page_post_data['last_name'],
-                                    'email'                 =>  $this->_page_post_data['email'],
-                                    'telephone_code'        =>  $this->_page_post_data['telephone_code'],
-                                    'telephone_num'         =>  $this->_page_post_data['telephone_num'],
-                                    'password'              =>  $this->_page_post_data['password'],
-                                    'repeat_password'       =>  $this->_page_post_data['repeat_password'],
-                                    'expiration_date_account'   =>  $this->_page_post_data['expiration_date_account'],
-                                    'verified_token'        =>  md5($this->_page_post_data['email'].'@'.md5(uniqid(rand()))),
-                                    'verified'              =>  0,
-                                    'third_party_token'     =>  ((!empty($this->_page_post_data['third_party_token']))?$this->_page_post_data['third_party_token']:''),
-                                    'details'               =>  
+                                    'logo'              =>  $this->_page_post_data['logo'],
+                                    'company_type'      =>  $this->_page_post_data['company_type'],
+                                    'company_name'      =>  $this->_page_post_data['company_name'],
+                                    'company_website'   =>  (!empty($this->_page_post_data['company_website']) ? $this->_page_post_data['company_website'] : ''),
+                                    'company_address'   =>  (!empty($this->_page_post_data['company_address']) ? $this->_page_post_data['company_address'] : ''),
+                                    'country'           =>  $this->_page_post_data['country']
+                                ]
+                            ];
+                            $new_member['alias_name'] = $this->_page_post_data['company_name'];
+                            if($new_member['method'] > 1) {
+                                $new_member['verified'] =  1;
+                            }
+
+                            // try to save into db
+                            if($new_member_id = $this->_member_model->doSave($new_member, 0, true)) {
+                                // reset
+                                $this->delSession('temp_service_provider_account');
+                                $this->delSession('temp_service_provider_account_logo');
+
+                                // email verification if need
+                                if((int)$new_member['method'] == 1) {
+                                    // send email
+                                    $link = $this->toURL('account_registration/verification').'?token='.$new_member['verified_token'];
+                                    $subject = 'Email Verification';
+                                    $body = '<p>Hello '.$new_member['full_name'].',</p>';
+                                    $body.= '<p>You registered an account on AI-mmi, before being able to use your account you need to verify that this is your email address by clicking below link:';
+                                    $body.= '<p><a href="'.$link.'" target="_blank">'.$link.'</a></p>';
+                                    $body.= '<p>Kind Regards';
+                                    $this->sendEmail($new_member['email'], $subject, $body);
+                                    $this->pageResult(
                                     [
-                                        'logo'              =>  $this->_page_post_data['logo'],
-                                        'company_type'      =>  $this->_page_post_data['company_type'],
-                                        'company_name'      =>  $this->_page_post_data['company_name'],
-                                        'company_website'   =>  $this->_page_post_data['company_website'],
-                                        'company_address'   =>  $this->_page_post_data['company_address']
-                                    ]
-                                ];
-                                $new_member['alias_name'] = $this->_page_post_data['company_name'];
-                                if($new_member['method'] > 1) {
-                                    $new_member['verified'] =  1;
-                                }
-
-                                // try to save into db
-                                if($new_member_id = $this->_member_model->doSave($new_member, 0, true)) {
-                                    // reset
-                                    $this->delSession('temp_service_provider_account');
-                                    $this->delSession('temp_service_provider_account_logo');
-
-                                    // email verification if need
-                                    if((int)$new_member['method'] == 1) {
-                                        // send email
-                                        $link = $this->toURL('account_registration/verification').'?token='.$new_member['verified_token'];
-                                        $subject = 'Email Verification';
-                                        $body = '<p>Hello '.$new_member['full_name'].',</p>';
-                                        $body.= '<p>You registered an account on AI-mmi, before being able to use your account you need to verify that this is your email address by clicking below link:';
-                                        $body.= '<p><a href="'.$link.'" target="_blank">'.$link.'</a></p>';
-                                        $body.= '<p>Kind Regards';
-                                        $this->sendEmail($new_member['email'], $subject, $body);
-                                        $this->pageResult(
-                                        [
-                                            'status'    =>  200,
-                                            'message'   =>  '<strong>'.$this->_page_lang['registration_success'].'</strong><br/>'.str_replace('{email}', $new_member['email'], $this->_page_lang['email_verification_link']),
-                                            'url'       =>  $this->toURL('account_login')
-                                        ]);
-                                    }
-                                    else {
-                                        $this->pageResult(
-                                        [
-                                            'status'    =>  200,
-                                            'message'   =>  $this->_page_lang['registration_success'],
-                                            'url'       =>  $this->toURL('account_login')
-                                        ]);
-                                    }
+                                        'status'    =>  200,
+                                        'message'   =>  '<strong>'.$this->_page_lang['registration_success'].'</strong><br/>'.str_replace('{email}', $new_member['email'], $this->_page_lang['email_verification_link']),
+                                        'url'       =>  $this->toURL('account_login')
+                                    ]);
                                 }
                                 else {
                                     $this->pageResult(
                                     [
-                                        'status'    =>  $this->_user_model->getResultCode(),
-                                        'message'   =>  $this->_user_model->getResultMessage()
+                                        'status'    =>  200,
+                                        'message'   =>  $this->_page_lang['registration_success'],
+                                        'url'       =>  $this->toURL('account_login')
                                     ]);
                                 }
                             }
                             else {
-                                $this->setSession(['temp_service_provider_account' => $this->_page_post_data]);
                                 $this->pageResult(
                                 [
-                                    'status'    =>  200,
-                                    'message'   =>  '',
-                                    'url'       =>  $this->toURL([$this->_mapping_data['class'], $this->_mapping_data['function'], 'payment'])
+                                    'status'    =>  $this->_user_model->getResultCode(),
+                                    'message'   =>  $this->_user_model->getResultMessage()
                                 ]);
                             }
                         }
@@ -723,120 +711,7 @@ class Account_Registration extends WebController {
                         ]);
                     }
                 }
-                else {
-                    $temp_service_provider_account = $this->getSession('temp_service_provider_account');     
-                    if(!empty($temp_service_provider_account)) {
-                        $temp_service_provider_account['expiration_date_account'] = date('Y-m-d', strtotime('+'.max(0, (int)$account_plan['valid_days_trial']).' days', strtotime($this->_today_date)));
-
-                        $new_member = 
-                        [
-                            'method'                =>  ((!empty($temp_service_provider_account['method']))?max(1, $temp_service_provider_account['method']):0),
-                            'type'                  =>  3,
-                            'avatar'                =>  $temp_service_provider_account['logo'],
-                            'full_name'             =>  implode(' ', array_filter([$temp_service_provider_account['first_name'], $temp_service_provider_account['last_name']])),
-                            'first_name'            =>  $temp_service_provider_account['first_name'],
-                            'last_name'             =>  $temp_service_provider_account['last_name'],
-                            'email'                 =>  $temp_service_provider_account['email'],
-                            'telephone_code'        =>  preg_replace('/^(\+)(.*)/i', '$2', $temp_service_provider_account['telephone_code']),
-                            'telephone_num'         =>  $temp_service_provider_account['telephone_num'],
-                            'password'              =>  $temp_service_provider_account['password'],
-                            'repeat_password'       =>  $temp_service_provider_account['repeat_password'],
-                            'expiration_date_account'   =>  $temp_service_provider_account['expiration_date_account'],
-                            'verified_token'        =>  md5($temp_service_provider_account['email'].'@'.md5(uniqid(rand()))),
-                            'verified'              =>  0,
-                            'third_party_token'     =>  ((!empty($temp_service_provider_account['third_party_token']))?$temp_service_provider_account['third_party_token']:''),
-                            'details'               =>  
-                            [
-                                'logo'              =>  $temp_service_provider_account['logo'],
-                                'company_type'      =>  $temp_service_provider_account['company_type'],
-                                'company_name'      =>  $temp_service_provider_account['company_name'],
-                                'company_website'   =>  $temp_service_provider_account['company_website'],
-                                'company_address'   =>  $temp_service_provider_account['company_address']
-                            ]
-                        ];
-                        $new_member['alias_name'] = $temp_service_provider_account['company_name'];
-                        if($new_member['method'] > 1) {
-                            $new_member['verified'] =  1;
-                        }
-
-                        // try to save into db
-                        if($new_member_id = $this->_member_model->doSave($new_member, 0, true)) {
-                            $item = 
-                            [
-                                [
-                                    'name'      =>  $account_plan['title'],
-                                    'price'     =>  $account_plan['price'],
-                                    'quantity'  =>  1
-                                ]
-                            ];
-
-                            $shipTo = 
-                            [
-                                'name'          =>  '',
-                                'email'         =>  $temp_service_provider_account['email'],
-                                'street'        =>  $temp_service_provider_account['company_address'],
-                                'city'          =>  'HK',
-                                'state'         =>  'HK',
-                                'country_code'  =>  'HK',
-                                'zip'           =>  '000000',
-                                'street2'       =>  '',
-                                'phone_num'     =>  '',
-                            ];
-
-                            // call paypal
-                            $paypal_api = new \App\Libraries\PaypalApi();
-                            $paypal_api->setCurrency('USD');
-                            $paypal_api->returnURL($this->toURL([$this->_mapping_data['class'],'paypal_feedback_account']));
-                            $paypal_api->cancelURL($this->toURL([$this->_mapping_data['class'],'migration_service_provider']));
-                            $paypal_url = $paypal_api->checkout($item, $shipTo);
-
-                            if($paypal_url) {
-                                if($this->_member_model->doSavePayment('account', [
-                                    'member_id'             =>  $new_member_id,
-                                    'payment_item_id'       =>  $account_plan['id'],
-                                    'payment_method'        =>  $this->_page_post_data['payment_method'],
-                                    'payment_valid_days'    =>  max(0, (int)$account_plan['valid_days']),
-                                    'payment_amt'           =>  $account_plan['price'],
-                                    'payment_token'         =>  $paypal_api->getToken()
-                                ])) {
-                                    $this->pageResult(
-                                    [
-                                        'status'    =>  200,
-                                        'url'   =>  $paypal_url
-                                    ]);
-                                }
-                                else {
-                                    $this->pageResult(
-                                    [
-                                        'status'    =>  200,
-                                        'url'   =>  $this->toURL([$this->_mapping_data['class'],'migration_service_provider'])
-                                    ]);
-                                }
-                            }
-                            else {
-                                $this->pageResult(
-                                [
-                                    'status'    =>  200,
-                                    'url'   =>  $this->toURL([$this->_mapping_data['class'],'migration_service_provider'])
-                                ]);
-                            }
-                        }
-                        else {
-                            $this->pageResult(
-                            [
-                                'status'    =>  $this->_user_model->getResultCode(),
-                                'message'   =>  $this->_user_model->getResultMessage()
-                            ]);
-                        }
-                    }
-                    else {
-                        $this->pageResult(
-                        [
-                            'status'    =>  400,
-                            'message'   =>  $this->_page_lang['bad_request']
-                        ]);
-                    }
-                }
+                // Payment parameter handling removed - service providers now sign up freely without payment
             }
             else {
                 $this->pageResult(
@@ -847,25 +722,81 @@ class Account_Registration extends WebController {
             }
         }, $parameter);
         
-        // next step
-        if(!empty($parameter)) {
-            if($parameter!='payment') {
-                $this->doRedirect($this->toURL([$this->_mapping_data['class']]));
-            }
-            else {
-                if(empty($this->getSession('temp_service_provider_account'))) {
-                    $this->doRedirect($this->toURL([$this->_mapping_data['class'], $this->_mapping_data['function']]));
-                }
-            }
-        }
-        
         // load view
         $list_organization_type = $this->loadModel('pages', ['table' => 'organization_type'])->getAll($this->_current_lang_index, null, false);
+
+        // Country list with phone codes (popular countries sorted alphabetically)
+        $countries = [
+            'AU' => ['name' => 'Australia', 'code' => '61'],
+            'AT' => ['name' => 'Austria', 'code' => '43'],
+            'BD' => ['name' => 'Bangladesh', 'code' => '880'],
+            'BE' => ['name' => 'Belgium', 'code' => '32'],
+            'BR' => ['name' => 'Brazil', 'code' => '55'],
+            'CA' => ['name' => 'Canada', 'code' => '1'],
+            'CN' => ['name' => 'China', 'code' => '86'],
+            'DK' => ['name' => 'Denmark', 'code' => '45'],
+            'EG' => ['name' => 'Egypt', 'code' => '20'],
+            'FI' => ['name' => 'Finland', 'code' => '358'],
+            'FR' => ['name' => 'France', 'code' => '33'],
+            'DE' => ['name' => 'Germany', 'code' => '49'],
+            'GR' => ['name' => 'Greece', 'code' => '30'],
+            'HK' => ['name' => 'Hong Kong', 'code' => '852'],
+            'IN' => ['name' => 'India', 'code' => '91'],
+            'ID' => ['name' => 'Indonesia', 'code' => '62'],
+            'IE' => ['name' => 'Ireland', 'code' => '353'],
+            'IL' => ['name' => 'Israel', 'code' => '972'],
+            'IT' => ['name' => 'Italy', 'code' => '39'],
+            'JP' => ['name' => 'Japan', 'code' => '81'],
+            'MY' => ['name' => 'Malaysia', 'code' => '60'],
+            'MX' => ['name' => 'Mexico', 'code' => '52'],
+            'MN' => ['name' => 'Mongolia', 'code' => '976'],
+            'NL' => ['name' => 'Netherlands', 'code' => '31'],
+            'NZ' => ['name' => 'New Zealand', 'code' => '64'],
+            'NO' => ['name' => 'Norway', 'code' => '47'],
+            'PK' => ['name' => 'Pakistan', 'code' => '92'],
+            'PH' => ['name' => 'Philippines', 'code' => '63'],
+            'PL' => ['name' => 'Poland', 'code' => '48'],
+            'PT' => ['name' => 'Portugal', 'code' => '351'],
+            'RU' => ['name' => 'Russia', 'code' => '7'],
+            'SA' => ['name' => 'Saudi Arabia', 'code' => '966'],
+            'SG' => ['name' => 'Singapore', 'code' => '65'],
+            'ZA' => ['name' => 'South Africa', 'code' => '27'],
+            'KR' => ['name' => 'South Korea', 'code' => '82'],
+            'ES' => ['name' => 'Spain', 'code' => '34'],
+            'LK' => ['name' => 'Sri Lanka', 'code' => '94'],
+            'SE' => ['name' => 'Sweden', 'code' => '46'],
+            'CH' => ['name' => 'Switzerland', 'code' => '41'],
+            'TW' => ['name' => 'Taiwan', 'code' => '886'],
+            'TH' => ['name' => 'Thailand', 'code' => '66'],
+            'TR' => ['name' => 'Turkey', 'code' => '90'],
+            'UA' => ['name' => 'Ukraine', 'code' => '380'],
+            'AE' => ['name' => 'United Arab Emirates', 'code' => '971'],
+            'GB' => ['name' => 'United Kingdom', 'code' => '44'],
+            'US' => ['name' => 'United States', 'code' => '1'],
+            'VN' => ['name' => 'Vietnam', 'code' => '84'],
+        ];
+
+        $country_options = [];
+        $phone_code_options = [];
+        $country_phone_map = []; // Map country code to phone code for auto-selection
+
+        foreach ($countries as $code => $country) {
+            $country_options[$code] = $country['name'];
+            $country_phone_map[$code] = $country['code'];
+            if (!isset($phone_code_options[$country['code']])) {
+                // Show country name with phone code for better UX
+                $phone_code_options[$country['code']] = $country['name'] . ' (+' . $country['code'] . ')';
+            }
+        }
+
         $this->pageOptions(
         [
-            'organization_type' => $this->optionsToArray($list_organization_type)
+            'organization_type' => $this->optionsToArray($list_organization_type),
+            'countries' => $country_options,
+            'phone_codes' => $phone_code_options,
+            'country_phone_map' => $country_phone_map
         ]);
-        
+
         return $this->pageData(
         [
             'parameter'     =>  $parameter,

@@ -14,11 +14,24 @@
     <?php if(!empty($_page_data['list_account_plans'])) { ?>
     <div class="list"><!--
         <?php foreach ($_page_data['list_account_plans'] as $key => $plan) { ?>
+        <?php if($plan['type'] == 'migration_agent') continue; // Hide migration agent for now ?>
         --><div class="block plan">
             <div class="txt-1"><?php echo $_page_lang['sign_up_as']; ?></div>
 
             <div class="txt-2"><?php echo $plan['title'];?></div>
 
+            <?php if($plan['type'] == 'service_provider') { ?>
+            <!-- Service Provider: Always Free -->
+            <div class="txt-3"><?php echo $_page_lang['free'];?></div>
+            <div class="txt-4">&nbsp;</div>
+            <div class="link-1">
+                <a href="<?php echo $_page_base_url.'/account_registration/'.$plan['type'] ;?>"><?php echo $_page_lang['sign_up_now']; ?></a>
+            </div>
+            <div class="link-2">
+                <a href="#">&nbsp;</a>
+            </div>
+            <?php } else { ?>
+            <!-- Other account types: Show trial/pricing -->
             <?php if((int)$plan['valid_days_trial'] > 0) { ?>
             <div class="txt-3"><?php echo $_page_lang['free_trial'];?><span> /<?php echo str_replace('{num}', $plan['valid_days_trial'], $_page_lang['num_days']);?></span></div>
             <?php } else { ?>
@@ -43,6 +56,7 @@
             <div class="link-2">
                 <a href="#">&nbsp;</a>
             </div>
+            <?php } ?>
             <?php } ?>
 
             <?php if(!empty($plan['content'])) { ?>

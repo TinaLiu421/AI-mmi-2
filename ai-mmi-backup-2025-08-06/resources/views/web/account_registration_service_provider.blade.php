@@ -1,12 +1,12 @@
 @extends('web.common')
 @section('content')
 <div class="inner-panel">
-    <?php if(empty($_page_data['parameter'])) {?>
     <?php
     $_page_data['account'] = array_merge([
         'logo'              =>  '',
         'company_type'      =>  0,
         'company_name'      =>  '',
+        'country'           =>  '',
         'company_website'   =>  '',
         'company_address'   =>  '',
         'first_name'        =>  '',
@@ -28,7 +28,6 @@
             <div>@csrf</div>
             <div><input type="hidden" id="method" name="method" value="1"></div>
             <div><input type="hidden" id="third_party_token" name="third_party_token" value=""></div>
-            <div><input type="hidden" id="trial" name="trial" value="<?php echo ((!empty($_page_get_data['trial']))?1:0) ;?>"></div>
             
             <div class="required"><span style="color:red;">*</span> <?php echo $_page_lang['required']; ?></div>
             <div class="clearboth"></div>
@@ -70,14 +69,25 @@
             <div class="clearboth"></div>
             
             <div class="row">
-                <label for="company_website"><?php echo $_page_lang['account.company_website']; ?> <span style="color:red;">*</span></label>
-                <input type="text" id="company_website" name="company_website" placeholder="<?php echo $_page_lang['account.enter_company_website']; ?>" value="<?php echo $_page_data['account']['company_website']; ?>" data-validation="required">
+                <label for="country"><?php echo $_page_lang['account.country']; ?> <span style="color:red;">*</span></label>
+                <select id="country" name="country" data-validation="required">
+                    <option value=""><?php echo $_page_lang['please_select']; ?></option>
+                    <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_code => $country_name) { ?>
+                    <option value="<?php echo $country_code; ?>"<?php echo (!empty($_page_data['account']['country']) && $_page_data['account']['country']==$country_code)?' selected':'';?>><?php echo $country_name; ?></option>
+                    <?php }} ?>
+                </select>
             </div>
             <div class="clearboth"></div>
-            
+
             <div class="row">
-                <label for="company_address"><?php echo $_page_lang['account.company_address']; ?> <span style="color:red;">*</span></label>
-                <textarea id="company_address" name="company_address" rows="3" placeholder="<?php echo $_page_lang['account.enter_company_address']; ?>" data-validation="required"><?php echo $_page_data['account']['company_address']; ?></textarea>
+                <label for="company_website"><?php echo $_page_lang['account.company_website']; ?></label>
+                <input type="text" id="company_website" name="company_website" placeholder="<?php echo $_page_lang['account.enter_company_website']; ?>" value="<?php echo $_page_data['account']['company_website']; ?>">
+            </div>
+            <div class="clearboth"></div>
+
+            <div class="row">
+                <label for="company_address"><?php echo $_page_lang['account.company_address']; ?></label>
+                <textarea id="company_address" name="company_address" rows="3" placeholder="<?php echo $_page_lang['account.enter_company_address']; ?>"><?php echo $_page_data['account']['company_address']; ?></textarea>
             </div>
             <div class="clearboth"></div>
             
@@ -105,7 +115,18 @@
                 <label for="telephone"><?php echo $_page_lang['account.telephone']; ?> <span style="color:red;">*</span></label>
                 <table class="telephone">
                     <tr>
-                        <td><input type="text" id="telephone" name="telephone_code" placeholder="+852" value="+<?php echo preg_replace('/^(\+)(.*)/i', '$2', $_page_data['account']['telephone_code']); ?>" data-validation="required"></td>
+                        <td>
+                            <select id="telephone_code" name="telephone_code" data-validation="required">
+                                <option value="">Code</option>
+                                <?php
+                                $current_code = preg_replace('/^(\+)(.*)/i', '$2', $_page_data['account']['telephone_code']);
+                                if(!empty($_page_options['phone_codes'])) {
+                                    foreach ($_page_options['phone_codes'] as $code => $label) {
+                                ?>
+                                <option value="<?php echo $code; ?>"<?php echo ($current_code==$code)?' selected':'';?>><?php echo $label; ?></option>
+                                <?php }} ?>
+                            </select>
+                        </td>
                         <td><input type="text" id="telephone" name="telephone_num" placeholder="<?php echo $_page_lang['account.enter_telephone']; ?>" value="<?php echo $_page_data['account']['telephone_num']; ?>" data-validation="required"></td>
                     </tr>
                 </table>
@@ -133,39 +154,31 @@
             
             <div class="action">
                 <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration' ;?>"><?php echo $_page_lang['btn.back']; ?></a>
-                <button type="submit" class="btn btn-next"><?php echo (!empty($_page_get_data['trial']))?$_page_lang['btn.submit']:$_page_lang['btn.continue']; ?></button>
+                <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.submit']; ?></button>
                 <div class="clearboth"></div>
             </div>
         </form>
     </div>
-    
-    <?php } else { ?>
-   
-    <h1 class="title"><?php echo $_page_lang['payment']; ?></h1>
-    <div class="top-brief iweb-editor">
-        <p><?php echo $_page_lang['choose_your_payment']; ?></p>
-    </div>
-    <div class="underline"></div>
-    <div class="clearboth"></div>
-
-    <div class="form">
-        <form id="account-service-provider-payment-form" method="post">
-            <div>@csrf</div>
-
-            <div class="method">
-                <input type="radio" id="payment_method_1" name="payment_method" value="1" checked="">
-                <label for="payment_method_1">
-                    <img src="asset/image/method-paypal.png" alt="method-paypal">
-                </label>
-            </div>
-            
-            <div class="action">
-                <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration/migration_service-provider' ;?>"><?php echo $_page_lang['btn.back']; ?></a>
-                <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.pay_now']; ?></button>
-                <div class="clearboth"></div>
-            </div>
-        </form>
-    </div>
-    <?php } ?>
 </div>
+
+<script>
+// Country to phone code mapping
+const countryPhoneMap = <?php echo json_encode($_page_options['country_phone_map'] ?? []); ?>;
+
+// Auto-select phone code when country is selected
+document.addEventListener('DOMContentLoaded', function() {
+    const countrySelect = document.getElementById('country');
+    const phoneCodeSelect = document.getElementById('telephone_code');
+
+    if (countrySelect && phoneCodeSelect) {
+        countrySelect.addEventListener('change', function() {
+            const selectedCountry = this.value;
+            if (selectedCountry && countryPhoneMap[selectedCountry]) {
+                const phoneCode = countryPhoneMap[selectedCountry];
+                phoneCodeSelect.value = phoneCode;
+            }
+        });
+    }
+});
+</script>
 @endsection

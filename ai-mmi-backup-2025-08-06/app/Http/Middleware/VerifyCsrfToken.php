@@ -14,5 +14,7 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         //
         'stripe/webhook',
+        'api/*',      // 如果带 /api 前缀也加上
+        '/chat/log'
     ];
 }

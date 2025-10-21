@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Services\ConversationFlowService;
 
-
-class Home extends WebController {
-    
+class Home extends WebController {  
     public function index() {
         $home_page_data = $this->loadModel('pages')->getByID(1, $this->_current_lang_index, 
         [
@@ -123,15 +121,43 @@ class Home extends WebController {
         exit();
     }
     
-    public function chat($init = 0) {
+    public function chat($init = 0)
+    {
         // post
-        $this->pageAction(function() {
+        $this->pageAction(function () {
+            // —— 读取参数（含多种兼容）——
             $question = $this->postParamValue('question');
+            if ($question === null || $question === '') {
+                $question = request()->input('question', request()->get('question', ''));
+                if ($question === '' || $question === null) {
+                    $question = request()->input('ask', request()->get('ask', ''));
+                }
+            }
 
-            if(!empty($question) && !empty($this->_current_member)) {
+            $chat_mode = $this->postParamValue('chat_mode', 'immigration');
+            if ($chat_mode === null || $chat_mode === '') {
+                $chat_mode = request()->input('chat_mode', request()->get('chat_mode', 'immigration'));
+            }
+
+            // RAG 相关
+            $useRag = (int)$this->postParamValue('use_rag', 0);
+            if (!$useRag) {
+                $useRag = (int)request()->input('use_rag', request()->get('use_rag', 0));
+            }
+            $override = $this->postParamValue('override_reply', '');
+            if ($override === '') {
+                $override = request()->input('override_reply', request()->get('override_reply', ''));
+                if ($override === '') {
+                    $override = request()->input('answer', request()->get('answer', ''));
+                }
+            }
+
+            // 记住当前模式
+            $this->setSession(['current_chat_mode' => $chat_mode]);
+
+            if (!empty($question) && !empty($this->_current_member)) {
+                // —— 权限/次数控制（与你现有逻辑一致）——
                 $can_do_reply = true;
-
-                // Check subscription-based access
                 $has_migration_sub = !empty($this->_current_member['has_migration_subscription']);
                 $has_education_sub = !empty($this->_current_member['has_education_subscription']);
                 $has_subscription = $has_migration_sub || $has_education_sub;
@@ -169,22 +195,86 @@ class Home extends WebController {
                         DB::table('chat_log')->insert([
                             'member_id'   => $this->_current_member['id'],
                             'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
+                if ($chat_mode === 'immigration' && $has_migration_sub) {
+                    $can_do_reply = true;
+                } elseif ($chat_mode === 'study' && $has_education_sub) {
+                    $can_do_reply = true;
+                } elseif ($chat_mode === 'study') {
+                    $can_do_reply = true;
+                } else {
+                    if (!empty($this->_current_member['expiration_ai_level'])) {
+                        if ($this->_current_member['expiration_ai_level'] == 1) {
+                            $can_do_reply = false;
+                        } elseif ($this->_current_member['total_ask_question'] >= 3) {
+                            $can_do_reply = false;
+                        }
+                    }
+                }
+
+                if ($can_do_reply) {
+                    $rawQuestion   = $question;
+                    $new_reply     = null;                 // 最终要返回/入库的文本
+                    $replySource   = 'model';             // rag-override | rag-api | model
+                    $aiOwnerName   = 'AI-mmi';
+                    $aiOwnerAvatar = 'asset/image/logo-mmi.png';
+
+                    // ✅ 1) 前端已命中 RAG：直接用（保留 Markdown）
+                    if ($useRag === 1 && is_string($override) && trim($override) !== '') {
+                        $new_reply   = trim($override);
+                        $replySource = 'rag-override';
+                        $aiOwnerName = 'AI-mmi (Policy)';
+                        \Log::info('CHAT FLOW', ['case' => 'RAG override used']);
+                    }
+
+                    // ✅ 2) 前端没带 override，但 use_rag=1：后端再试一次 RAG
+                    if (empty($new_reply) && $useRag) {
+                        $ragResponse = $this->callRagApi($rawQuestion);
+                        if (!empty($ragResponse)) {
+                            $new_reply   = $ragResponse;   // 仍然保留 Markdown
+                            $replySource = 'rag-api';
+                            $aiOwnerName = 'AI-mmi (Policy)';
+                            \Log::info('CHAT FLOW', ['case' => 'RAG API used']);
+                        }
+                    }
+
+                    // ✅ 3) 上两步都没得到内容 → 走 Gemini 普通回复（这里仍旧 strip 掉 markdown）
+                    if (empty($new_reply)) {
+                        $new_reply   = $this->callGeminiApi($rawQuestion, $chat_mode);
+                        $replySource = 'model';
+                        $aiOwnerName = 'AI-mmi';
+                        \Log::info('CHAT FLOW', ['case' => 'Model generated']);
+                    }
+
+                    // —— 入库：ask / reply 同 related_id —— 
+                    try {
+                        $nowUtc     = \Carbon\Carbon::now('UTC');
+                        $targetDate = (int)date('Ymd', strtotime($this->_today_date));
+
+                        \DB::beginTransaction();
+
+                        // ask
+                        $askId = \DB::table('chat_log')->insertGetId([
+                            'member_id'   => $this->_current_member['id'],
+                            'related_id'  => 0,
+                            'target_date' => $targetDate,
                             'type'        => 'ask',
                             'content'     => $rawQuestion,
                             'status'      => 1,
-                            'created_at'  => Carbon::now('UTC'),
-                            'updated_at'  => Carbon::now('UTC'),
+                            'created_at'  => $nowUtc,
+                            'updated_at'  => $nowUtc,
                         ]);
+                        \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
-                        // Insert AI reply
-                        DB::table('chat_log')->insert([
+                        // reply（保留 markdown 原文）
+                        $replyId = \DB::table('chat_log')->insertGetId([
                             'member_id'   => $this->_current_member['id'],
-                            'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
+                            'related_id'  => $askId,
+                            'target_date' => $targetDate,
                             'type'        => 'reply',
                             'content'     => $new_reply,
                             'status'      => 1,
-                            'created_at'  => Carbon::now('UTC'),
-                            'updated_at'  => Carbon::now('UTC'),
+                            'created_at'  => $nowUtc,
+                            'updated_at'  => $nowUtc,
                         ]);
 
                     } catch (\Throwable $e) {
@@ -212,6 +302,32 @@ class Home extends WebController {
                         'status'    => 200,
                         'content'   => nl2br($rawQuestion),
                         'reply'     => nl2br($new_reply), // Send reply to frontend
+                        \DB::commit();
+                    } catch (\Throwable $e) {
+                        \DB::rollBack();
+                        \Log::error('CHAT DB INSERT FAIL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                    }
+
+                    // —— 头像与名字（与你代码一致）——
+                    $member_owner_name   = $this->_current_member['alias_name'];
+                    $member_owner_avatar = 'asset/image/icon-member.png';
+                    if (!empty($this->_current_member['avatar'])) {
+                        if (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])) {
+                            $member_owner_avatar = 'upload/member_avatar/'.$this->_current_member['avatar'];
+                        } else {
+                            $member_owner_avatar = 'upload/member_logo/'.$this->_current_member['avatar'];
+                        }
+                    }
+
+                    // —— 返回给前端（reply 不做 nl2br，保留 markdown）——
+                    $nowUtcUser  = \Carbon\Carbon::now('UTC')->toIso8601String();
+                    $nowUtcReply = \Carbon\Carbon::now('UTC')->toIso8601String();
+
+                    $this->pageResult([
+                        'status'    => 200,
+                        'content'   => nl2br($rawQuestion),     // 用户问句可 nl2br
+                        'reply'     => $new_reply,             // ✅ 保留 markdown
+                        'chat_mode' => $chat_mode,
 
                         'content_created_at' => $nowUtcUser,
                         'reply_created_at'   => $nowUtcReply,
@@ -227,29 +343,29 @@ class Home extends WebController {
 
                         // Add flow response if triggered
                         'flow_prompt'         => $flowResponse ? $flowService->formatForFrontend($flowResponse) : null,
+                        'member_owner_name'   => $member_owner_name,
+                        'member_owner_avatar' => $member_owner_avatar,
+                        'ai_owner_name'       => $aiOwnerName,     // ✅ RAG 时显示 Policy
+                        'ai_owner_avatar'     => $aiOwnerAvatar,
+                    ]);
+                } else {
+                    $this->pageResult([
+                        'status'  => 403,
+                        'message' => $this->_page_lang['please_renew_ai'],
+                        'url'     => $this->toURL('upgrade')
                     ]);
                 }
-                else {
-                    $this->pageResult(
-                    [
-                        'status'    =>  403,
-                        'message'   =>  $this->_page_lang['please_renew_ai'],
-                        'url'       =>  $this->toURL('upgrade')
-                    ]);
-                }
-            }
-            else {
-                $this->pageResult(
-                [
-                    'status'    =>  403,
-                    'message'   =>  $this->_page_lang['please_login'],
-                    'url'       =>  $this->toURL('account_login')
+            } else {
+                $this->pageResult([
+                    'status'  => 403,
+                    'message' => $this->_page_lang['please_login'],
+                    'url'     => $this->toURL('account_login')
                 ]);
             }
         });
         
         $max_date_int = $this->getSession('max_chat_date_int');
-        if(!empty($init)) {
+        if (!empty($init)) {
             $max_date_int = '';
         }
 
@@ -262,8 +378,8 @@ class Home extends WebController {
                     if(strtolower($message['type']) == 'ask') {
                         $chat_message[$message_key]['owner_name'] = $this->_current_member['alias_name'];
                         $chat_message[$message_key]['owner_avatar'] = 'asset/image/icon-member.png';
-                        if(!empty($this->_current_member['avatar'])) {
-                            if(file_exists('upload/member_avatar/'.$this->_current_member['avatar'])) {
+                        if (!empty($this->_current_member['avatar'])) {
+                            if (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])) {
                                 $chat_message[$message_key]['owner_avatar'] = 'upload/member_avatar/'.$this->_current_member['avatar'];
                             } else {
                                 $chat_message[$message_key]['owner_avatar'] = 'upload/member_logo/'.$this->_current_member['avatar'];
@@ -274,6 +390,7 @@ class Home extends WebController {
                         $chat_message[$message_key]['owner_avatar'] = 'asset/image/logo-mmi.png';
                     }
 
+                    // 历史内容仍旧 nl2br（若你改了前端 markdown 渲染，可以把这行也改成原文）
                     $chat_message[$message_key]['content'] = nl2br($message['content']);
                     $max_date_int = $message['target_date'];
 
@@ -288,6 +405,7 @@ class Home extends WebController {
         }
         echo json_encode($chat_message);
     }
+
     
     protected function callDialogflowApi($query = '') {
         $result_answer = '';
@@ -341,9 +459,6 @@ class Home extends WebController {
         $member = $this->_current_member;
         if (empty($member)) return 'Please login first.';
 
-        //  Read Free Assessment Profile
-        $fa_ctx = $this->buildFAContext($member['id']);
-
         // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
         $history = DB::table('chat_log')
             ->where('member_id', $member['id'])
@@ -391,16 +506,6 @@ class Home extends WebController {
                     . "- Give step-by-step instructions\n"
                     . "- Offer case-specific strategies\n"
                     . "- Be as thorough and specific as needed\n";
-        }
-
-        if (!empty($fa_ctx)) {
-            $system .= "\n\n[User Profile from Free Assessment]\n{$fa_ctx}\n"
-                    . "Please incorporate the above information into your response. If any part conflicts with policy,
-                     the policy shall prevail, and you must indicate the key information that needs to be supplemented.";
-        } else {
-            // If no portrait is provided, prompt the model to give a "generic response + what additional information is needed."
-            $system .= "\n\n(No Free Assessment image. Please provide general recommendations
-            first and list the key information that needs to be supplemented.)";
         }
 
         $body = [
@@ -572,122 +677,92 @@ class Home extends WebController {
         return trim($text);
     }
 
-    public function fa_me() {
-        if (empty($this->_current_member)) {
-            return response()->json(['has_profile' => false]);
-        }
-        $mid = $this->_current_member['id'];
-        $fa = \DB::table('free_assessment')
-            ->where(function($q) use ($mid) {
-                $q->where('member_id', $mid);
-            })
-            ->whereNull('deleted_at')
-            ->orderByDesc('id')
-            ->first();
+    public function logRag(\Illuminate\Http\Request $request)
+    {
+        try {
+            $member = $this->_current_member; // 你项目基类里已有的当前用户
+            if (empty($member)) {
+                return response()->json(['status'=>403,'message'=>'please login'], 403);
+            }
 
-        if (!$fa) {
-            return response()->json(['has_profile' => false]);
+            // 兼容两套字段名：ask/reply 或 question/answer
+            $ask   = (string)($request->input('ask', $request->input('question', '')));
+            $reply = (string)($request->input('reply', $request->input('answer', '')));
+            $mode  = (string)$request->input('chat_mode', 'immigration');
+
+            if ($ask === '' || $reply === '') {
+                \Log::warning('chat.log missing ask/reply', ['payload' => $request->all()]);
+                return response()->json(['status'=>422,'message'=>'ask/reply required'], 422);
+            }
+
+            $nowUtc     = \Carbon\Carbon::now('UTC');
+            $targetDate = (int)date('Ymd', strtotime($this->_today_date));
+
+            \DB::beginTransaction();
+
+            // 先插 ask，related_id 先占位
+            $askId = \DB::table('chat_log')->insertGetId([
+                'member_id'   => $member['id'],
+                'related_id'  => 0,
+                'target_date' => $targetDate,
+                'type'        => 'ask',
+                'content'     => $ask,
+                'chat_mode'   => $mode,
+                'status'      => 1,
+                'created_at'  => $nowUtc,
+                'updated_at'  => $nowUtc,
+            ]);
+
+            // 把 ask 自己的 id 回写到 related_id
+            \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
+
+            // 再插 reply，共享同一个 related_id
+            $replyId = \DB::table('chat_log')->insertGetId([
+                'member_id'   => $member['id'],
+                'related_id'  => $askId,
+                'target_date' => $targetDate,
+                'type'        => 'reply',
+                'content'     => $reply,
+                'chat_mode'   => $mode,
+                'status'      => 1,
+                'created_at'  => $nowUtc,
+                'updated_at'  => $nowUtc,
+            ]);
+
+            \DB::commit();
+
+            \Log::info('chat.log ok', [
+                'member_id' => $member['id'],
+                'ask_id'    => $askId,
+                'reply_id'  => $replyId,
+                'mode'      => $mode,
+            ]);
+
+            return response()->json(['status'=>200], 200);
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            \Log::error('chat.log failed: '.$e->getMessage(), ['trace'=>$e->getTraceAsString()]);
+            return response()->json(['status'=>500,'message'=>'log failed'], 500);
         }
-        return response()->json([
-            'has_profile' => true,
-        ]);
     }
 
-    private function buildFAContext($memberId): string
+    protected function callRagApi($question)
     {
-        $row = DB::table('free_assessment')
-            ->select('questions','answers')
-            ->where(function($q) use ($memberId) {
-                $q->where('member_id', $memberId);
-            })
-            ->whereNull('deleted_at')
-            ->orderByDesc('id')
-            ->first();
+        $url = url('/api/rag/ask');
+        $payload = json_encode(['q' => $question, 'tag' => 'policy'], JSON_UNESCAPED_UNICODE);
 
-        if (!$row) return '';
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => $payload,
+        ]);
+        $resp = curl_exec($ch);
+        curl_close($ch);
 
-        // Parsing JSON
-        $questions = json_decode($row->questions ?? '[]', true) ?: [];
-        $answers   = json_decode($row->answers   ?? '[]', true) ?: [];
-
-        // Tool: Map “Question Number/Answer Number/Free Text” to a readable string
-        $pick = function(string $qNo) use ($questions, $answers) {
-            if (!array_key_exists($qNo, $answers)) return null;
-            $ansKey = (string)$answers[$qNo];
-
-            if (isset($questions[$qNo]['answers']) && is_array($questions[$qNo]['answers']) &&
-                array_key_exists($ansKey, $questions[$qNo]['answers'])) {
-                $text = (string)$questions[$qNo]['answers'][$ansKey];
-            } else {
-                // Free text (e.g., profession/occupation)
-                $text = (string)$answers[$qNo];
-            }
-            // Render &gt; as HTML entities
-            return html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        };
-
-        // Assign values based on question numbers (adjustable according to the actual question bank)
-        $agreeAssess   = $pick('1');  // Yes/No
-        $country       = $pick('2');  // Britain/United States/Canada/Australia
-        $visaType      = $pick('3');  // Skilled/Student/Family/Employer sponsorship...
-        $education     = $pick('4');  // Secondary/Diploma/Bachelor/Master/Doctoral
-        $age           = $pick('5');  // 18-25/25-33/...
-        $hasEnglish    = $pick('6');  // Yes/No
-        $ieltsResult   = $pick('7');  // IELTS 6/7/8/No result
-        $occupation    = $pick('8');  // Free text, such as “software engineer”
-        $workYears     = $pick('9');  // >1 / 1-3 / 3-5 / ...
-        $localYears    = $pick('10'); // Years of local work experience in the target country
-        $hasOffer      = $pick('11'); // Yes/No
-
-        // Assemble “portrait facts” that are useful for answering questions.
-        $parts = [];
-        if ($country)     $parts[] = "Target Country: {$country}";
-        if ($visaType)    $parts[] = "Intended Visa Type: {$visaType}";
-        if ($education)   $parts[] = "Highest level of education attained: {$education}";
-        if ($age)         $parts[] = "Age group: {$age}";
-        if ($hasEnglish)  $parts[] = "Has the English exam been completed: {$hasEnglish}";
-        if ($ieltsResult) $parts[] = "English Score/Level: {$ieltsResult}";
-        if ($occupation)  $parts[] = "Occupation (ANZSCO Direction): {$occupation}";
-        if ($workYears)   $parts[] = "Total years of full-time work experience: {$workYears}";
-        if ($localYears)  $parts[] = "Years of local work experience in the target country: {$localYears}";
-        if ($hasOffer)    $parts[] = "Have a job offer in the target country: {$hasOffer}";
-
-        // Optional: Provide judgment prompts for the model (does not replace policy decisions)
-        $hints = [];
-        if ($visaType && stripos($visaType, 'Student') !== false) {
-            $hints[] = 'Students tend to prioritize visa pathways; please consider your major, program duration, 
-            and post-graduation options (including work visas in various countries, H-1B, PSW, etc.).';
-        }
-        if ($visaType && stripos($visaType, 'Skilled') !== false) {
-            $hints[] = 'Users are interested in skilled migration; conduct an initial 
-            screening based on age, education level, English proficiency level, and years of work experience.';
-        }
-        if ($hasOffer === 'Yes') {
-            $hints[] = 'A job offer has been received; please prioritize evaluating the employer sponsorship/work visa pathway.';
-        }
-        if ($education && (stripos($education, 'Secondary') !== false || stripos($education, 'Diploma') !== false)) {
-            $hints[] = "Applicants with educational qualifications below a bachelor's degree 
-            may face restrictions for certain skilled migration pathways; please outline alternative routes or remedial measures.";
-        }
-        if ($hasEnglish === 'No') {
-            $hints[] = 'No English scores available; please indicate the minimum English requirement for the target pathway and the transition plan.';
-        }
-
-        // Optional: Gap prompts, enabling the model to indicate what additional information is needed in the answer.
-        $missing = [];
-        if (!$country)   $missing[] = 'Target Country';
-        if (!$visaType)  $missing[] = 'Intended Visa Type';
-        if (!$education) $missing[] = 'Highest level of education attained';
-        if (!$hasEnglish)$missing[] = 'Has the English exam been completed';
-        if (!$occupation)$missing[] = 'Occupation/Job Type';
-        if (!$workYears) $missing[] = 'Total years of service';
-
-        // Assembly output
-        $ctx = '';
-        if ($parts)  $ctx .= implode("\n", $parts);
-        if ($hints)  $ctx .= "\n【System Prompt】\n" . implode("\n", $hints);
-        if ($missing) $ctx .= "\n【Lack of critical information】" . implode('、', $missing) . "。";
-
-        return trim($ctx);
+        $data = json_decode($resp, true);
+        return $data['answer'] ?? '';
     }
 }
