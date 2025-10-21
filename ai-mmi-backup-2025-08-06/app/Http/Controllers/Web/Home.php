@@ -162,7 +162,7 @@ class Home extends WebController {
             $has_education_sub   = !empty($this->_current_member['has_education_subscription']);
             $has_subscription    = $has_migration_sub || $has_education_sub;
 
-            // —— 先 RAG，后回落 Gemini —— 
+            // —— 先 RAG，后回落 Gemini ——
             $new_reply   = '';
             $replySource = 'model';
             $aiOwnerName = 'AI-mmi';
@@ -374,11 +374,11 @@ class Home extends WebController {
         $member = $this->_current_member;
         if (empty($member)) return 'Please login first.';
 
-        // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
+        // 2) Retrieve the most recent 20 rounds (40 entries) of historical data, sorted in ascending order by time.
         $history = DB::table('chat_log')
             ->where('member_id', $member['id'])
             ->orderBy('id', 'desc')
-            ->limit(20)
+            ->limit(40)
             ->get()
             ->reverse();
 
