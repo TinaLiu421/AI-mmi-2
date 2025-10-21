@@ -22,15 +22,15 @@ function callRAG(question, tag = "policy") {
     contentType: "application/json; charset=utf-8",
     dataType: "json",
     headers: { Accept: "application/json" },
-    timeout: 20000, // 20s 防卡死
+    timeout: 20000, 
     data: JSON.stringify({ q: question, tag })
   });
 }
 
 function submitOnce() {
-  __ragBypassOnce = true;                 // 放行这一轮
-  $("#ask-form").trigger("submit");       // 触发表单提交
-  setTimeout(() => { __ragBypassOnce = false; }, 0); // 立刻复位，避免影响下一轮
+  __ragBypassOnce = true;                 
+  $("#ask-form").trigger("submit");       
+  setTimeout(() => { __ragBypassOnce = false; }, 0); 
 }
 
 function ensureHiddenFields() {
@@ -73,6 +73,26 @@ function renderBubble({ role, avatar, name, text, createdAtIso }) {
     <div class="clearboth"></div>
   `;
 }
+
+// --- 简易主题判定：移民/签证关键词 ---
+function isMigrationQuery(text) {
+  if (!text) return false;
+  const s = String(text).toLowerCase();
+  const kw = [
+    // EN
+    "visa","migration","immigration","pr","permanent residence","skilled",
+    "482","485","189","190","491","sponsor","sponsorship","work visa",
+    "h1b","eb","green card",
+    // ZH
+    "移民","签证","工签","学签","永居","绿卡","担保","打分","凑分",
+    "州担","雇主担保","技术移民",
+    // Countries
+    "australia","uk","united kingdom","canada","usa","united states",
+    "美国","英国","澳大利亚","加拿大"
+  ];
+  return kw.some(k => s.includes(k));
+}
+
 
 function formatUtcIsoToLocalTime(isoString) {
     try {
@@ -556,7 +576,7 @@ function iweb_global_func() {
             // —— ❶：这几行很关键：如果是“绕过一次”，直接放行给原流程（让 iweb.form 自己提交，带上原来的 CSRF 等）
             if (__ragBypassOnce === true) {
                 __ragBypassOnce = false; // 用完立即复位
-                return true;             // 让 iweb.form 继续它的默认提交（不会 419）
+                return true;             
             }
 
             if (!_current_member) {
@@ -602,32 +622,6 @@ function iweb_global_func() {
             // —— ❷：只在“签证/移民类问题”时拦截，尝试 RAG；否则直接 return true 走原流程（含 CSRF）
             const isVisa = isMigrationQuery(userQuestion); 
             if (!isVisa) {
-                // const $form = $("#ask-form");
-
-                // // 让 question 进隐藏域
-                // if ($("#hidden_question").length === 0) {
-                //     $form.append('<input type="hidden" id="hidden_question" name="question">');
-                // }
-                // $("#hidden_question").val(userQuestion);
-
-                // ✅ 暂时移除 textarea 的 name，避免空值覆盖
-                // const $ta = $("#ask_question");
-                // const oldName = $ta.attr("name");
-                // $ta.attr("data-old-name", oldName).removeAttr("name");
-
-
-                // 清空并显示占位
-                // $("#ask_question").val("").attr("placeholder", "Thinking...");
-
-                // 走原生提交（带 CSRF）
-                // safeSubmitAskForm();
-
-                // // 提交触发后恢复 name
-                // setTimeout(() => {
-                //     const $ta2 = $("#ask_question");
-                //     const n = $ta2.attr("data-old-name");
-                //     if (n) $ta2.attr("name", n).removeAttr("data-old-name");
-                // }, 0);
                 $("#use_rag").val("0");
                 $("#override_reply").val("");
                 submitOnce();
@@ -696,9 +690,6 @@ function iweb_global_func() {
                   
                         scrollChatToBottom();
                     }
-                  // const $ta2 = $("#ask_question");
-                    // const n = $ta2.attr("data-old-name");
-                    // if (n) $ta2.attr("name", n).removeAttr("data-old-name");
                     $("#ask_question").attr("placeholder", "Ask about immigrations, visas, or migration...");
                     $("#hidden_question").val("");
                     $("#use_rag").val("0");

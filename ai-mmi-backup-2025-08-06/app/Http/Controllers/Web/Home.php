@@ -123,9 +123,10 @@ class Home extends WebController {
     
     public function chat($init = 0)
     {
-        // post
+        // 1) 处理 POST：写入一轮对话并返回答案
         $this->pageAction(function () {
-            // —— 读取参数（含多种兼容）——
+
+            // —— 取参数（兼容多命名）——
             $question = $this->postParamValue('question');
             if ($question === null || $question === '') {
                 $question = request()->input('question', request()->get('question', ''));
@@ -133,280 +134,194 @@ class Home extends WebController {
                     $question = request()->input('ask', request()->get('ask', ''));
                 }
             }
+            $useRag   = (int)($this->postParamValue('use_rag', request()->input('use_rag', 0)));
+            $override = (string)$this->postParamValue('override_reply', request()->input('override_reply', ''));
 
-            $chat_mode = $this->postParamValue('chat_mode', 'immigration');
-            if ($chat_mode === null || $chat_mode === '') {
-                $chat_mode = request()->input('chat_mode', request()->get('chat_mode', 'immigration'));
-            }
-
-            // RAG 相关
-            $useRag = (int)$this->postParamValue('use_rag', 0);
-            if (!$useRag) {
-                $useRag = (int)request()->input('use_rag', request()->get('use_rag', 0));
-            }
-            $override = $this->postParamValue('override_reply', '');
-            if ($override === '') {
-                $override = request()->input('override_reply', request()->get('override_reply', ''));
-                if ($override === '') {
-                    $override = request()->input('answer', request()->get('answer', ''));
-                }
-            }
-
-            // 记住当前模式
-            $this->setSession(['current_chat_mode' => $chat_mode]);
-
-            if (!empty($question) && !empty($this->_current_member)) {
-                // —— 权限/次数控制（与你现有逻辑一致）——
-                $can_do_reply = true;
-                $has_migration_sub = !empty($this->_current_member['has_migration_subscription']);
-                $has_education_sub = !empty($this->_current_member['has_education_subscription']);
-                $has_subscription = $has_migration_sub || $has_education_sub;
-
-                // Chat is now unlimited for all users
-                // Conversation flow will promote subscription at strategic points
-                $can_do_reply = true;
-
-                if($can_do_reply) {
-                    $rawQuestion = $this->postParamValue('question', '');
-
-                    // Validate question is not empty
-                    if(empty($rawQuestion)) {
-                        $this->pageResult([
-                            'status'  => 400,
-                            'message' => 'Please enter a question.'
-                        ]);
-                        return;
-                    }
-
-                    // Call Gemini API with user question and subscription status
-                    $new_reply = $this->callGeminiApi($rawQuestion, $has_subscription);
-
-                    // Validate reply is not empty
-                    if(empty($new_reply)) {
-                        $this->pageResult([
-                            'status'  => 500,
-                            'message' => 'Sorry, the AI service is temporarily unavailable. Please try again.'
-                        ]);
-                        return;
-                    }
-
-                    try {
-                        // Insert user question
-                        DB::table('chat_log')->insert([
-                            'member_id'   => $this->_current_member['id'],
-                            'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
-                if ($chat_mode === 'immigration' && $has_migration_sub) {
-                    $can_do_reply = true;
-                } elseif ($chat_mode === 'study' && $has_education_sub) {
-                    $can_do_reply = true;
-                } elseif ($chat_mode === 'study') {
-                    $can_do_reply = true;
-                } else {
-                    if (!empty($this->_current_member['expiration_ai_level'])) {
-                        if ($this->_current_member['expiration_ai_level'] == 1) {
-                            $can_do_reply = false;
-                        } elseif ($this->_current_member['total_ask_question'] >= 3) {
-                            $can_do_reply = false;
-                        }
-                    }
-                }
-
-                if ($can_do_reply) {
-                    $rawQuestion   = $question;
-                    $new_reply     = null;                 // 最终要返回/入库的文本
-                    $replySource   = 'model';             // rag-override | rag-api | model
-                    $aiOwnerName   = 'AI-mmi';
-                    $aiOwnerAvatar = 'asset/image/logo-mmi.png';
-
-                    // ✅ 1) 前端已命中 RAG：直接用（保留 Markdown）
-                    if ($useRag === 1 && is_string($override) && trim($override) !== '') {
-                        $new_reply   = trim($override);
-                        $replySource = 'rag-override';
-                        $aiOwnerName = 'AI-mmi (Policy)';
-                        \Log::info('CHAT FLOW', ['case' => 'RAG override used']);
-                    }
-
-                    // ✅ 2) 前端没带 override，但 use_rag=1：后端再试一次 RAG
-                    if (empty($new_reply) && $useRag) {
-                        $ragResponse = $this->callRagApi($rawQuestion);
-                        if (!empty($ragResponse)) {
-                            $new_reply   = $ragResponse;   // 仍然保留 Markdown
-                            $replySource = 'rag-api';
-                            $aiOwnerName = 'AI-mmi (Policy)';
-                            \Log::info('CHAT FLOW', ['case' => 'RAG API used']);
-                        }
-                    }
-
-                    // ✅ 3) 上两步都没得到内容 → 走 Gemini 普通回复（这里仍旧 strip 掉 markdown）
-                    if (empty($new_reply)) {
-                        $new_reply   = $this->callGeminiApi($rawQuestion, $chat_mode);
-                        $replySource = 'model';
-                        $aiOwnerName = 'AI-mmi';
-                        \Log::info('CHAT FLOW', ['case' => 'Model generated']);
-                    }
-
-                    // —— 入库：ask / reply 同 related_id —— 
-                    try {
-                        $nowUtc     = \Carbon\Carbon::now('UTC');
-                        $targetDate = (int)date('Ymd', strtotime($this->_today_date));
-
-                        \DB::beginTransaction();
-
-                        // ask
-                        $askId = \DB::table('chat_log')->insertGetId([
-                            'member_id'   => $this->_current_member['id'],
-                            'related_id'  => 0,
-                            'target_date' => $targetDate,
-                            'type'        => 'ask',
-                            'content'     => $rawQuestion,
-                            'status'      => 1,
-                            'created_at'  => $nowUtc,
-                            'updated_at'  => $nowUtc,
-                        ]);
-                        \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
-
-                        // reply（保留 markdown 原文）
-                        $replyId = \DB::table('chat_log')->insertGetId([
-                            'member_id'   => $this->_current_member['id'],
-                            'related_id'  => $askId,
-                            'target_date' => $targetDate,
-                            'type'        => 'reply',
-                            'content'     => $new_reply,
-                            'status'      => 1,
-                            'created_at'  => $nowUtc,
-                            'updated_at'  => $nowUtc,
-                        ]);
-
-                    } catch (\Throwable $e) {
-                        \Log::error('Chat log insertion error: ' . $e->getMessage());
-                    }
-
-                    $nowUtcUser  = Carbon::now('UTC')->toIso8601String();
-                    $nowUtcReply = Carbon::now('UTC')->toIso8601String();
-
-                    // Check conversation flow for promotional/guidance prompts
-                    $flowService = new ConversationFlowService($this->_current_member['id']);
-                    $userProfile = [
-                        'has_subscription' => $has_subscription,
-                        'subscription_tier' => $this->_current_member['primary_plan_code'] ?? 'free'
-                    ];
-
-                    try {
-                        $flowResponse = $flowService->analyzeAndTrigger($rawQuestion, $new_reply, $userProfile);
-                    } catch (\Exception $e) {
-                        \Log::error('Flow service error: ' . $e->getMessage());
-                        $flowResponse = null;
-                    }
-
-                    $this->pageResult([
-                        'status'    => 200,
-                        'content'   => nl2br($rawQuestion),
-                        'reply'     => nl2br($new_reply), // Send reply to frontend
-                        \DB::commit();
-                    } catch (\Throwable $e) {
-                        \DB::rollBack();
-                        \Log::error('CHAT DB INSERT FAIL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-                    }
-
-                    // —— 头像与名字（与你代码一致）——
-                    $member_owner_name   = $this->_current_member['alias_name'];
-                    $member_owner_avatar = 'asset/image/icon-member.png';
-                    if (!empty($this->_current_member['avatar'])) {
-                        if (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])) {
-                            $member_owner_avatar = 'upload/member_avatar/'.$this->_current_member['avatar'];
-                        } else {
-                            $member_owner_avatar = 'upload/member_logo/'.$this->_current_member['avatar'];
-                        }
-                    }
-
-                    // —— 返回给前端（reply 不做 nl2br，保留 markdown）——
-                    $nowUtcUser  = \Carbon\Carbon::now('UTC')->toIso8601String();
-                    $nowUtcReply = \Carbon\Carbon::now('UTC')->toIso8601String();
-
-                    $this->pageResult([
-                        'status'    => 200,
-                        'content'   => nl2br($rawQuestion),     // 用户问句可 nl2br
-                        'reply'     => $new_reply,             // ✅ 保留 markdown
-                        'chat_mode' => $chat_mode,
-
-                        'content_created_at' => $nowUtcUser,
-                        'reply_created_at'   => $nowUtcReply,
-
-                        'member_owner_name'   => $this->_current_member['alias_name'],
-                        'member_owner_avatar' => !empty($this->_current_member['avatar'])
-                            ? (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
-                                ? 'upload/member_avatar/'.$this->_current_member['avatar']
-                                : 'upload/member_logo/'.$this->_current_member['avatar'])
-                            : 'asset/image/icon-member.png',
-                        'ai_owner_name'       => 'AI-mmi',
-                        'ai_owner_avatar'     => 'asset/image/logo-mmi.png',
-
-                        // Add flow response if triggered
-                        'flow_prompt'         => $flowResponse ? $flowService->formatForFrontend($flowResponse) : null,
-                        'member_owner_name'   => $member_owner_name,
-                        'member_owner_avatar' => $member_owner_avatar,
-                        'ai_owner_name'       => $aiOwnerName,     // ✅ RAG 时显示 Policy
-                        'ai_owner_avatar'     => $aiOwnerAvatar,
-                    ]);
-                } else {
-                    $this->pageResult([
-                        'status'  => 403,
-                        'message' => $this->_page_lang['please_renew_ai'],
-                        'url'     => $this->toURL('upgrade')
-                    ]);
-                }
-            } else {
+            // —— 登录校验 —— 
+            if (empty($this->_current_member)) {
                 $this->pageResult([
                     'status'  => 403,
                     'message' => $this->_page_lang['please_login'],
-                    'url'     => $this->toURL('account_login')
+                    'url'     => $this->toURL('account_login'),
                 ]);
+                return;
             }
+
+            // —— 基本校验 —— 
+            $rawQuestion = trim((string)$question);
+            if ($rawQuestion === '') {
+                $this->pageResult([
+                    'status'  => 400,
+                    'message' => 'Please enter a question.',
+                ]);
+                return;
+            }
+
+            // —— 订阅信息（现阶段聊天无限制，但留接口）——
+            $has_migration_sub   = !empty($this->_current_member['has_migration_subscription']);
+            $has_education_sub   = !empty($this->_current_member['has_education_subscription']);
+            $has_subscription    = $has_migration_sub || $has_education_sub;
+
+            // —— 先 RAG，后回落 Gemini —— 
+            $new_reply   = '';
+            $replySource = 'model';
+            $aiOwnerName = 'AI-mmi';
+            $aiOwnerAvatar = 'asset/image/logo-mmi.png';
+
+            // ❶ 前端已命中 RAG：直接用（保留 Markdown）
+            if ($useRag === 1 && trim($override) !== '') {
+                $new_reply    = trim($override);
+                $replySource  = 'rag-override';
+                $aiOwnerName  = 'AI-mmi (Policy)';
+                \Log::info('CHAT FLOW', ['case' => 'RAG override used']);
+            }
+
+            // ❷ use_rag=1 但没带文本 → 后端再请求一次 RAG
+            if ($new_reply === '' && $useRag === 1) {
+                $rag = $this->callRagApi($rawQuestion);
+                if (is_string($rag) && trim($rag) !== '') {
+                    $new_reply    = trim($rag);         // 仍保留 Markdown
+                    $replySource  = 'rag-api';
+                    $aiOwnerName  = 'AI-mmi (Policy)';
+                    \Log::info('CHAT FLOW', ['case' => 'RAG API used']);
+                }
+            }
+
+            // ❸ 上述都失败 → 回落 Gemini（去 Markdown，返回纯文本）
+            if ($new_reply === '') {
+                $new_reply    = $this->callGeminiApi($rawQuestion, $has_subscription);
+                $replySource  = 'model';
+                $aiOwnerName  = 'AI-mmi';
+                // 这里 callGeminiApi 内部已做 stripMarkdown
+                \Log::info('CHAT FLOW', ['case' => 'Model generated']);
+            }
+
+            // —— 入库：ask / reply（同 related_id）——
+            try {
+                $nowUtc     = \Carbon\Carbon::now('UTC');
+                $targetDate = (int)date('Ymd', strtotime($this->_today_date));
+
+                \DB::beginTransaction();
+
+                // ask
+                $askId = \DB::table('chat_log')->insertGetId([
+                    'member_id'   => $this->_current_member['id'],
+                    'related_id'  => 0,
+                    'target_date' => $targetDate,
+                    'type'        => 'ask',
+                    'content'     => $rawQuestion,      // 原文
+                    'status'      => 1,
+                    'created_at'  => $nowUtc,
+                    'updated_at'  => $nowUtc,
+                ]);
+                \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
+
+                // reply（RAG保留Markdown，Gemini已纯文本）
+                \DB::table('chat_log')->insertGetId([
+                    'member_id'   => $this->_current_member['id'],
+                    'related_id'  => $askId,
+                    'target_date' => $targetDate,
+                    'type'        => 'reply',
+                    'content'     => $new_reply,
+                    'status'      => 1,
+                    'created_at'  => $nowUtc,
+                    'updated_at'  => $nowUtc,
+                ]);
+
+                \DB::commit();
+            } catch (\Throwable $e) {
+                \DB::rollBack();
+                \Log::error('CHAT DB INSERT FAIL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            }
+
+            // —— 构造头像/昵称 —— 
+            $member_owner_name   = $this->_current_member['alias_name'];
+            $member_owner_avatar = 'asset/image/icon-member.png';
+            if (!empty($this->_current_member['avatar'])) {
+                $member_owner_avatar = file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
+                    ? 'upload/member_avatar/'.$this->_current_member['avatar']
+                    : 'upload/member_logo/'.$this->_current_member['avatar'];
+            }
+
+            // —— ConversationFlow 可选（保底不中断）
+            $flowPrompt = null;
+            try {
+                $flowService = new \App\Services\ConversationFlowService($this->_current_member['id']);
+                $userProfile = [
+                    'has_subscription'  => $has_subscription,
+                    'subscription_tier' => $this->_current_member['primary_plan_code'] ?? 'free',
+                ];
+                $flowResp   = $flowService->analyzeAndTrigger($rawQuestion, $new_reply, $userProfile);
+                $flowPrompt = $flowResp ? $flowService->formatForFrontend($flowResp) : null;
+            } catch (\Throwable $e) {
+                \Log::error('Flow service error: '.$e->getMessage());
+            }
+
+            // —— 只返回一次，结构与前端一致 —— 
+            $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
+            $this->pageResult([
+                'status'               => 200,
+                'content'              => nl2br($rawQuestion), // 仅用户文本 nl2br
+                'reply'                => $new_reply,          // RAG: markdown; Gemini: 纯文本
+                'content_created_at'   => $nowUtcIso,
+                'reply_created_at'     => $nowUtcIso,
+
+                'member_owner_name'    => $member_owner_name,
+                'member_owner_avatar'  => $member_owner_avatar,
+                'ai_owner_name'        => $aiOwnerName,
+                'ai_owner_avatar'      => $aiOwnerAvatar,
+
+                'reply_source'         => $replySource,
+                'flow_prompt'          => $flowPrompt,
+            ]);
+            return;
         });
-        
+
+        if (request()->isMethod('post')) {
+            return;
+        }
+
+        // 2) 处理 GET：拉取历史（按日期分组）
         $max_date_int = $this->getSession('max_chat_date_int');
         if (!empty($init)) {
             $max_date_int = '';
         }
 
         $chat_message = [];
-        if(!empty($this->_current_member)) {
+        if (!empty($this->_current_member)) {
             $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int);
-
-            if(!empty($chat_message)) {
-                foreach ($chat_message as $message_key => $message) {
-                    if(strtolower($message['type']) == 'ask') {
-                        $chat_message[$message_key]['owner_name'] = $this->_current_member['alias_name'];
-                        $chat_message[$message_key]['owner_avatar'] = 'asset/image/icon-member.png';
+            if (!empty($chat_message)) {
+                foreach ($chat_message as $k => $m) {
+                    // 归属信息
+                    if (strtolower($m['type']) === 'ask') {
+                        $chat_message[$k]['owner_name'] = $this->_current_member['alias_name'];
+                        $chat_message[$k]['owner_avatar'] = 'asset/image/icon-member.png';
                         if (!empty($this->_current_member['avatar'])) {
-                            if (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])) {
-                                $chat_message[$message_key]['owner_avatar'] = 'upload/member_avatar/'.$this->_current_member['avatar'];
-                            } else {
-                                $chat_message[$message_key]['owner_avatar'] = 'upload/member_logo/'.$this->_current_member['avatar'];
-                            }
+                            $chat_message[$k]['owner_avatar'] = file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
+                                ? 'upload/member_avatar/'.$this->_current_member['avatar']
+                                : 'upload/member_logo/'.$this->_current_member['avatar'];
                         }
                     } else {
-                        $chat_message[$message_key]['owner_name'] = 'AI-mmi';
-                        $chat_message[$message_key]['owner_avatar'] = 'asset/image/logo-mmi.png';
+                        $chat_message[$k]['owner_name']   = 'AI-mmi';
+                        $chat_message[$k]['owner_avatar'] = 'asset/image/logo-mmi.png';
                     }
 
-                    // 历史内容仍旧 nl2br（若你改了前端 markdown 渲染，可以把这行也改成原文）
-                    $chat_message[$message_key]['content'] = nl2br($message['content']);
-                    $max_date_int = $message['target_date'];
+                    // 历史内容仍旧 nl2br（保留与你前端一致的展示）
+                    $chat_message[$k]['content'] = nl2br($m['content']);
+                    $max_date_int = $m['target_date'];
 
-                    $chat_message[$message_key]['created_time'] =
-                        !empty($message['created_at'])
-                            ? \Carbon\Carbon::parse($message['created_at'], 'UTC')->toIso8601String()
+                    $chat_message[$k]['created_time'] =
+                        !empty($m['created_at'])
+                            ? \Carbon\Carbon::parse($m['created_at'], 'UTC')->toIso8601String()
                             : null;
                 }
-
                 $this->setSession(['max_chat_date_int' => $max_date_int]);
             }
         }
+
         echo json_encode($chat_message);
     }
 
-    
     protected function callDialogflowApi($query = '') {
         $result_answer = '';
         if(!empty($query)) {
