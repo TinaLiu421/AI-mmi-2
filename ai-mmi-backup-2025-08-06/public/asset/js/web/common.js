@@ -590,6 +590,11 @@ function iweb_global_func() {
             const userQuestion = $ta.val().trim();
             if (!iweb.isValue(userQuestion)) return false;
 
+            // Hide welcome message when user starts chatting
+            if (typeof removeWelcomeAndShowChat === 'function') {
+                removeWelcomeAndShowChat();
+            }
+
             // ---- 统一：复制到隐藏域，并暂时移除 textarea 的 name（避免重名冲突）----
             $("#hidden_question").val(userQuestion);
             const oldName = $ta.attr("name");
