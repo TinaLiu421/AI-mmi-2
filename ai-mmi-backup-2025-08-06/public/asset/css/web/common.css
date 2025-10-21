@@ -592,49 +592,10 @@ main.page-body .chat-area.show-mobile .controls {
     display: flex;
 }
 
-main.page-body .chat-area .box.mask::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(15, 23, 42, 0.8);
-    backdrop-filter: blur(4px);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-main.page-body .chat-area .box.mask::before {
-    content: "⚡";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 2rem;
-    color: var(--accent-cyan);
-    z-index: 11;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%,
-    100% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-    50% {
-        opacity: 0.5;
-        transform: translate(-50%, -50%) scale(1.2);
-    }
-}
-
 main.page-body .chat-area .box > a.btn-close-mobile {
     position: absolute;
     top: 15px;
-    left: var(--space-4);
+    left: var(--space-2);
     display: none;
     z-index: 10;
 }
@@ -696,22 +657,6 @@ main.page-body .chat-area .box > a.btn-minimize-full img {
     filter: brightness(0) invert(1);
 }
 */
-
-/* Limit Warning */
-main.page-body .chat-area .box .limit-warning {
-    position: absolute;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(243, 67, 67, 0.9);
-    color: var(--white);
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-full);
-    font-size: 0.875rem;
-    font-weight: 600;
-    z-index: 15;
-    animation: slideInDown 0.3s ease-out;
-}
 
 @keyframes slideInDown {
     from {
@@ -1418,7 +1363,7 @@ footer.page-footer a:hover {
 
     .mobile-chat-button:hover,
     .mobile-chat-button:active {
-        transform: translateX(-50%) translateY(-3px) scale(1.05);
+        transform: scale(1.05);
         box-shadow: 0 12px 32px rgba(0, 102, 255, 0.45),
             0 6px 16px rgba(0, 102, 255, 0.3);
         animation: none;
@@ -1472,6 +1417,28 @@ footer.page-footer a:hover {
 
     .welcome-message__footer {
         font-size: 0.9rem;
+    }
+
+    .chat-action-buttons {
+        padding: 4px;
+        padding-left: 60px;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .chat-action-buttons .chat-action-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+        gap: 6px;
+        justify-content: center;
+    }
+
+    .chat-action-buttons .chat-action-btn i {
+        display: none !important;
+    }
+
+    .chat-action-buttons .chat-action-btn span {
+        display: inline;
     }
 }
 
@@ -2234,11 +2201,10 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
     cursor: pointer;
 }
 
-/* Chat Mode Switcher */
-.chat-mode-switcher {
+.chat-action-buttons {
     display: flex;
     gap: 10px;
-    padding: 15px;
+    padding: 10px;
     background: transparent;
     border-bottom: 2px solid var(--neutral-200);
     justify-content: center;
@@ -2246,16 +2212,15 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
     position: relative;
 }
 
-/* Base style for all buttons */
-.chat-mode-switcher .chat-mode-btn {
+.chat-action-buttons .chat-action-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
-    border: 2px solid var(--neutral-400);
+    padding: 8px 14px;
+    border: 2px solid var(--primary-blue);
     border-radius: 8px;
     background: var(--white);
-    color: var(--neutral-700);
+    color: var(--primary-blue);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -2263,73 +2228,14 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
     white-space: nowrap;
 }
 
-/* Mode switcher buttons (Immigration/Study) - distinct style */
-.chat-mode-switcher .chat-mode-btn[data-mode] {
-    border: 2px solid var(--primary-blue);
-    background: var(--neutral-50);
-    color: var(--primary-blue);
-    box-shadow: var(--shadow-sm);
-}
-
-.chat-mode-switcher .chat-mode-btn[data-mode]:hover {
+.chat-action-buttons .chat-action-btn:hover {
     background: var(--primary-blue);
+    border: 2px solid var(--primary-blue);
     color: var(--white);
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
 
-.chat-mode-switcher .chat-mode-btn[data-mode].active {
-    background: var(--gradient-primary);
-    border-color: var(--primary-blue);
-    color: var(--white);
-    box-shadow: var(--shadow-glow);
-}
-
-/* Action buttons (Agent, Upgrade, Apply) - standard style */
-.chat-mode-switcher .chat-mode-btn[data-link] {
-    border: 2px solid var(--neutral-300);
-    background: var(--white);
-    color: var(--neutral-600);
-}
-
-.chat-mode-switcher .chat-mode-btn[data-link]:hover {
-    border-color: var(--neutral-500);
-    color: var(--neutral-800);
-    background: var(--neutral-100);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.chat-mode-switcher .chat-mode-btn i {
+.chat-action-buttons .chat-action-btn i {
     font-size: 16px;
-}
-
-@media (max-width: 768px) {
-    .chat-mode-switcher {
-        padding: 10px;
-        padding-left: 60px;
-    }
-
-    .chat-mode-switcher .chat-mode-btn {
-        padding: 8px 15px;
-        font-size: 13px;
-    }
-
-    /* Hide text for mode switcher buttons (Immigration/Study) - show only icons */
-    .chat-mode-switcher .chat-mode-btn[data-mode] span {
-        display: none;
-    }
-
-    .chat-mode-switcher .chat-mode-btn[data-mode] i {
-        font-size: 18px;
-    }
-
-    /* Show text for action buttons (Agent/Upgrade/Apply) - hide icons */
-    .chat-mode-switcher .chat-mode-btn[data-link] i {
-        display: none;
-    }
-
-    .chat-mode-switcher .chat-mode-btn[data-link] span {
-        display: inline;
-    }
 }

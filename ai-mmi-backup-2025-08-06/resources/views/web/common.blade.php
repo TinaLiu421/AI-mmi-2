@@ -41,7 +41,6 @@
         const _page_base_url = '<?php echo $_page_base_url; ?>';
         const _token = '<?php echo $_token; ?>';
         const _current_member = <?php echo (!empty($_current_member)) ? json_encode($_current_member) : 'null'; ?>;
-        const _current_chat_mode = '<?php echo session('current_chat_mode', ''); ?>';
         </script>
         <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) { ?>
         <script src="<?php echo $js_file; ?>?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
@@ -49,9 +48,8 @@
         <!-- Welcome message module (must load before common.js) -->
         <link href="asset/css/web/welcome_message.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
         <script src="asset/js/web/welcome_message.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
-        <!-- Chat modules -->
-        <script src="asset/js/web/immigration-chat.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
-        <script src="asset/js/web/study-chat.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
+        <!-- Conversation flow styles -->
+        <link href="asset/css/web/conversation_flow.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
         <script src="asset/js/web/common.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
 
         <!-- Google tag (gtag.js) -->
@@ -183,27 +181,18 @@
                                 <img src="asset/image/icon-close.png" alt="icon-close"/>
                             </a>
 
-                            <!-- Chat Mode Switcher -->
-                            <div class="chat-mode-switcher" style="display: none;">
-                                <!-- Immigration chat buttons -->
-                                <button class="chat-mode-btn" data-mode="immigration" data-group="study" title="<?php echo $_page_lang['chat_robot.switch_to_immigration']; ?>">
-                                    <i class="fa fa-plane"></i><span><?php echo $_page_lang['chat_robot.immigration']; ?></span>
-                                </button>
-                                <button class="chat-mode-btn" data-mode="study" data-group="immigration" title="<?php echo $_page_lang['chat_robot.switch_to_study']; ?>">
-                                    <i class="fa fa-graduation-cap"></i><span><?php echo $_page_lang['chat_robot.study']; ?></span>
-                                </button>
-                                <button class="chat-mode-btn" data-link="/agents" data-group="immigration" title="<?php echo $_page_lang['chat_robot.talk_to_agent']; ?>">
+                            <!-- Chat Action Buttons -->
+                            <div class="chat-action-buttons" style="display: none">
+                                <a href="/agents" class="chat-action-btn" title="<?php echo $_page_lang['chat_robot.talk_to_agent']; ?>">
                                     <i class="fa fa-user"></i><span><?php echo $_page_lang['chat_robot.talk_to_agent']; ?></span>
-                                </button>
-                                <button class="chat-mode-btn" data-link="/agents" data-group="study" title="<?php echo $_page_lang['chat_robot.talk_to_agent']; ?>">
-                                    <i class="fa fa-user"></i><span><?php echo $_page_lang['chat_robot.talk_to_agent']; ?></span>
-                                </button>
-                                <button class="chat-mode-btn" data-link="/upgrade" data-group="immigration" title="<?php echo $_page_lang['chat_robot.upgrade_plan']; ?>">
+                                </a>
+                                <a href="/upgrade" class="chat-action-btn" title="<?php echo $_page_lang['chat_robot.upgrade_plan']; ?>">
                                     <i class="fa fa-star"></i><span><?php echo $_page_lang['chat_robot.upgrade']; ?></span>
-                                </button>
-                                <button class="chat-mode-btn" data-link="/apply" data-group="study" title="<?php echo $_page_lang['chat_robot.apply_for_study']; ?>">
-                                    <i class="fa fa-paper-plane"></i><span><?php echo $_page_lang['chat_robot.apply']; ?></span>
-                                </button>
+                                </a>
+                                <!-- Profile Comparison Button -->
+                                <a href="/profile_comparison" id="profile-comparison-action-btn" class="chat-action-btn" title="<?php echo $_page_lang['chat_robot.my_eligibility_title']; ?>">
+                                    <i class="fa fa-percent"></i><span><?php echo $_page_lang['chat_robot.my_eligibility']; ?></span>
+                                </a>
                             </div>
 
                             <div class="show-message">
@@ -211,9 +200,8 @@
                                 @include('components.welcome-message')
                             </div>
 
-                            <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0" data-chat-mode="">
+                            <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0">
                                 <div>@csrf</div>
-                                <input type="hidden" id="chat_mode" name="chat_mode" value="">
                                 <input type="hidden" id="question_number" name="question_number" value="1">
                                 <div class="input-question show">
                                     <div class="robot-container">

@@ -74,112 +74,6 @@ function renderBubble({ role, avatar, name, text, createdAtIso }) {
   `;
 }
 
-function buildTopButtonsHintBubble() {
-    return `
-    <div class="dialog reply">
-      <div class="txt">
-        <p>Please select the buttons at the top of the chat window to access the full range of AI-mmi services.</p>
-      </div>
-    </div>
-    <div class="clearboth"></div>
-  `;
-}
-
-// --- Topic Determination (Multilingual Keywords, as Broadly as Possible) ---
-function isStudyQuery(text) {
-    if (!text) return false;
-    const s = text.toLowerCase();
-    const kw = [
-        // EN
-        "study",
-        "studies",
-        "student",
-        "school",
-        "college",
-        "university",
-        "course",
-        "degree",
-        "admission",
-        "application",
-        "scholarship",
-        "tuition",
-        "ucas",
-        "commonapp",
-        // ZH
-        "留学",
-        "学校",
-        "大学",
-        "学院",
-        "课程",
-        "专业",
-        "申请",
-        "录取",
-        "奖学金",
-        "学费",
-        "入学",
-        "文书",
-        "sop",
-        "推荐信",
-        // Others
-        "ielts",
-        "toefl",
-        "pte",
-        "gpa",
-        "ranking",
-    ];
-    return kw.some((k) => s.includes(k));
-}
-
-function isMigrationQuery(text) {
-    if (!text) return false;
-    const s = text.toLowerCase();
-    const kw = [
-        // EN
-        "visa",
-        "migration",
-        "immigration",
-        "pr",
-        "permanent residence",
-        "skilled",
-        "482",
-        "485",
-        "189",
-        "190",
-        "491",
-        "sponsor",
-        "sponsorship",
-        "work visa",
-        "h1b",
-        "eb",
-        "green card",
-        // ZH
-        "移民",
-        "签证",
-        "工签",
-        "学签",
-        "永居",
-        "绿卡",
-        "担保",
-        "打分",
-        "凑分",
-        "州担",
-        "雇主担保",
-        "技术移民",
-        // Countries
-        "australia",
-        "uk",
-        "united kingdom",
-        "canada",
-        "usa",
-        "united states",
-        "美国",
-        "英国",
-        "澳大利亚",
-        "加拿大",
-    ];
-    return kw.some((k) => s.includes(k));
-}
-
 function formatUtcIsoToLocalTime(isoString) {
     try {
         const d = new Date(isoString);
@@ -786,25 +680,30 @@ function iweb_global_func() {
                         avatar: response_data.ai_owner_avatar || "asset/image/logo-mmi.png",
                         name: response_data.ai_owner_name || "AI-mmi",
                         text: response_data.reply,
-                        createdAtIso: response_data.reply_created_at || new Date().toISOString(),
-                        });
-                        $("main.page-body div.chat-area div.box > div.show-message").append(replyHtml);
-
-                        const userQ = (window.__lastUserQuestion || "").trim();
-                        if (isStudyQuery(userQ) || isMigrationQuery(userQ)) {
-                            const hint = buildTopButtonsHintBubble();
-                            $("main.page-body div.chat-area div.box > div.show-message").append(hint);
-                        }
-
+                        createdAtIso:
+                            response_data.reply_created_at ||
+                            new Date().toISOString(),
+                    });
+                    $(
+                        "main.page-body div.chat-area div.box > div.show-message"
+                    ).append(replyHtml);
+                       // Show flow prompt if available
+                    if (response_data.flow_prompt) {
+                        $(
+                            "main.page-body div.chat-area div.box > div.show-message"
+                        ).append(response_data.flow_prompt);
+                    }
+                  
                         scrollChatToBottom();
                     }
-                    // const $ta2 = $("#ask_question");
+                  // const $ta2 = $("#ask_question");
                     // const n = $ta2.attr("data-old-name");
                     // if (n) $ta2.attr("name", n).removeAttr("data-old-name");
                     $("#ask_question").attr("placeholder", "Ask about immigrations, visas, or migration...");
                     $("#hidden_question").val("");
                     $("#use_rag").val("0");
                     $("#override_reply").val("");
+                    
                 } else {
                     iweb.alert(response_data.message, function () {
                         if (iweb.isValue(response_data.url)) {
@@ -871,10 +770,6 @@ function iweb_global_func_done() {
             }
         }
     );
-
-    // Chat history loading is now handled by immigration-chat.js
-    // Only loads when user selects a mode from welcome message
-    //$('main.page-body div.chat-area div.box > div.show-message').scrollTop($('main.page-body div.chat-area div.box > div.show-message')[0].scrollHeight);
 }
 
 function iweb_global_layout() {
@@ -993,19 +888,7 @@ function loadArticle() {
 function loadChatMessage(init) {
     var url = _page_base_url + "/home/chat" + (iweb.isValue(init) ? "/1" : "");
 
-    // Get current chat mode
-    var currentMode =
-        $("#chat_mode").val() || _current_chat_mode || "immigration";
-
-    // Send current chat mode to ensure we get the right history
-    var requestData = {};
-    if (currentMode) {
-        requestData.chat_mode = currentMode;
-    }
-
-    console.log("Loading chat for mode:", currentMode, "URL:", url);
-
-    $.getJSON(url, requestData, function (data) {
+    $.getJSON(url, function (data) {
         if (iweb.isValue(data)) {
             var dialog_group = "";
             var dialog_date_int = 0;
@@ -1127,3 +1010,20 @@ function toggleMobileChat() {
         $("#chat-robot-video").prop("muted", true);
     }
 }
+
+// Initialize chat on page load
+$(document).ready(function () {
+    // Only load chat history if welcome message is not showing
+    // (welcome_message.js handles initialization if welcome is shown)
+    setTimeout(function () {
+        if (
+            !$(".welcome-message").hasClass("show") &&
+            !$(".welcome-message").is(":visible")
+        ) {
+            // Welcome message is hidden, so load chat history
+            loadChatMessage(1);
+            // Show chat action buttons
+            $(".chat-action-buttons").show();
+        }
+    }, 500);
+});

@@ -7,7 +7,8 @@ use Google\Cloud\Dialogflow\V2\SessionsClient;
 use Google\Cloud\Dialogflow\V2\TextInput;
 use Google\Cloud\Dialogflow\V2\QueryInput;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon; 
+use Carbon\Carbon;
+use App\Services\ConversationFlowService;
 
 class Home extends WebController {  
     public function index() {
@@ -159,7 +160,41 @@ class Home extends WebController {
                 $can_do_reply = true;
                 $has_migration_sub = !empty($this->_current_member['has_migration_subscription']);
                 $has_education_sub = !empty($this->_current_member['has_education_subscription']);
+                $has_subscription = $has_migration_sub || $has_education_sub;
 
+                // Chat is now unlimited for all users
+                // Conversation flow will promote subscription at strategic points
+                $can_do_reply = true;
+
+                if($can_do_reply) {
+                    $rawQuestion = $this->postParamValue('question', '');
+
+                    // Validate question is not empty
+                    if(empty($rawQuestion)) {
+                        $this->pageResult([
+                            'status'  => 400,
+                            'message' => 'Please enter a question.'
+                        ]);
+                        return;
+                    }
+
+                    // Call Gemini API with user question and subscription status
+                    $new_reply = $this->callGeminiApi($rawQuestion, $has_subscription);
+
+                    // Validate reply is not empty
+                    if(empty($new_reply)) {
+                        $this->pageResult([
+                            'status'  => 500,
+                            'message' => 'Sorry, the AI service is temporarily unavailable. Please try again.'
+                        ]);
+                        return;
+                    }
+
+                    try {
+                        // Insert user question
+                        DB::table('chat_log')->insert([
+                            'member_id'   => $this->_current_member['id'],
+                            'target_date' => (int)date('Ymd', strtotime($this->_today_date)),
                 if ($chat_mode === 'immigration' && $has_migration_sub) {
                     $can_do_reply = true;
                 } elseif ($chat_mode === 'study' && $has_education_sub) {
@@ -224,7 +259,6 @@ class Home extends WebController {
                             'target_date' => $targetDate,
                             'type'        => 'ask',
                             'content'     => $rawQuestion,
-                            'chat_mode'   => $chat_mode,
                             'status'      => 1,
                             'created_at'  => $nowUtc,
                             'updated_at'  => $nowUtc,
@@ -238,12 +272,36 @@ class Home extends WebController {
                             'target_date' => $targetDate,
                             'type'        => 'reply',
                             'content'     => $new_reply,
-                            'chat_mode'   => $chat_mode,
                             'status'      => 1,
                             'created_at'  => $nowUtc,
                             'updated_at'  => $nowUtc,
                         ]);
 
+                    } catch (\Throwable $e) {
+                        \Log::error('Chat log insertion error: ' . $e->getMessage());
+                    }
+
+                    $nowUtcUser  = Carbon::now('UTC')->toIso8601String();
+                    $nowUtcReply = Carbon::now('UTC')->toIso8601String();
+
+                    // Check conversation flow for promotional/guidance prompts
+                    $flowService = new ConversationFlowService($this->_current_member['id']);
+                    $userProfile = [
+                        'has_subscription' => $has_subscription,
+                        'subscription_tier' => $this->_current_member['primary_plan_code'] ?? 'free'
+                    ];
+
+                    try {
+                        $flowResponse = $flowService->analyzeAndTrigger($rawQuestion, $new_reply, $userProfile);
+                    } catch (\Exception $e) {
+                        \Log::error('Flow service error: ' . $e->getMessage());
+                        $flowResponse = null;
+                    }
+
+                    $this->pageResult([
+                        'status'    => 200,
+                        'content'   => nl2br($rawQuestion),
+                        'reply'     => nl2br($new_reply), // Send reply to frontend
                         \DB::commit();
                     } catch (\Throwable $e) {
                         \DB::rollBack();
@@ -274,6 +332,17 @@ class Home extends WebController {
                         'content_created_at' => $nowUtcUser,
                         'reply_created_at'   => $nowUtcReply,
 
+                        'member_owner_name'   => $this->_current_member['alias_name'],
+                        'member_owner_avatar' => !empty($this->_current_member['avatar'])
+                            ? (file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
+                                ? 'upload/member_avatar/'.$this->_current_member['avatar']
+                                : 'upload/member_logo/'.$this->_current_member['avatar'])
+                            : 'asset/image/icon-member.png',
+                        'ai_owner_name'       => 'AI-mmi',
+                        'ai_owner_avatar'     => 'asset/image/logo-mmi.png',
+
+                        // Add flow response if triggered
+                        'flow_prompt'         => $flowResponse ? $flowService->formatForFrontend($flowResponse) : null,
                         'member_owner_name'   => $member_owner_name,
                         'member_owner_avatar' => $member_owner_avatar,
                         'ai_owner_name'       => $aiOwnerName,     // ✅ RAG 时显示 Policy
@@ -294,28 +363,19 @@ class Home extends WebController {
                 ]);
             }
         });
-
-        // —— 以下为原来的历史记录输出，保持不变 —— 
-        $current_chat_mode = $this->getParamValue('chat_mode');
-        if (empty($current_chat_mode)) {
-            $current_chat_mode = $this->getSession('current_chat_mode');
-        }
-        if (empty($current_chat_mode)) {
-            $current_chat_mode = 'immigration';
-        }
-
+        
         $max_date_int = $this->getSession('max_chat_date_int');
         if (!empty($init)) {
             $max_date_int = '';
         }
 
         $chat_message = [];
-        if (!empty($this->_current_member)) {
-            $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int, $current_chat_mode);
+        if(!empty($this->_current_member)) {
+            $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int);
 
-            if (!empty($chat_message)) {
+            if(!empty($chat_message)) {
                 foreach ($chat_message as $message_key => $message) {
-                    if (strtolower($message['type']) == 'ask') {
+                    if(strtolower($message['type']) == 'ask') {
                         $chat_message[$message_key]['owner_name'] = $this->_current_member['alias_name'];
                         $chat_message[$message_key]['owner_avatar'] = 'asset/image/icon-member.png';
                         if (!empty($this->_current_member['avatar'])) {
@@ -332,7 +392,6 @@ class Home extends WebController {
 
                     // 历史内容仍旧 nl2br（若你改了前端 markdown 渲染，可以把这行也改成原文）
                     $chat_message[$message_key]['content'] = nl2br($message['content']);
-                    $chat_message[$message_key]['chat_mode'] = isset($message['chat_mode']) ? $message['chat_mode'] : 'immigration';
                     $max_date_int = $message['target_date'];
 
                     $chat_message[$message_key]['created_time'] =
@@ -393,7 +452,7 @@ class Home extends WebController {
         return $result_answer;
     }
 
-    protected function callGeminiApi($question = '', $chat_mode = 'immigration') {
+    protected function callGeminiApi($question = '', $has_subscription = false) {
         if (empty($question)) return '';
 
         // 1) Current User
@@ -403,19 +462,19 @@ class Home extends WebController {
         // 2) Retrieve the most recent 10 rounds (20 entries) of historical data, sorted in ascending order by time.
         $history = DB::table('chat_log')
             ->where('member_id', $member['id'])
-            ->where('chat_mode', $chat_mode)
             ->orderBy('id', 'desc')
-            ->limit(20)                      
+            ->limit(20)
             ->get()
             ->reverse();
 
         $contents = [];
         foreach ($history as $msg) {
             $t    = strtolower($msg->type ?? '');
-            $role = ($t === 'ai') ? 'model' : 'user';   
+            // Fix: chat_log stores 'reply' for AI messages, not 'ai'
+            $role = ($t === 'reply') ? 'model' : 'user';
             $text = (string)($msg->content ?? '');
             if ($text === '') continue;
-            if (mb_strlen($text) > 2000) {              
+            if (mb_strlen($text) > 2000) {
                 $text = mb_substr($text, 0, 2000) . '...';
             }
             $contents[] = ['role' => $role, 'parts' => [['text' => $text]]];
@@ -426,9 +485,28 @@ class Home extends WebController {
 
         // 4)  Send Request
         $apiKey = env('GEMINI_API_KEY');
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+        // Using gemini-2.0-flash-exp (with retry logic to handle overload)
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$apiKey}";
 
-        $system = $this->buildModeSpecificPrompt($chat_mode);
+        $system = $this->buildUnifiedPrompt($has_subscription);
+
+        // Add subscription-based guidance
+        if (!$has_subscription) {
+            $system .= "\n\n**IMPORTANT - FREE TIER USER:**\n"
+                    . "This user is on the FREE tier. You must:\n"
+                    . "- Provide ONLY general guidance and overview information\n"
+                    . "- DO NOT give specific case advice or detailed step-by-step instructions\n"
+                    . "- Keep answers broad and educational\n"
+                    . "- For specific questions, acknowledge them but explain that detailed advice requires Premium subscription\n"
+                    . "- Example: 'For general guidance, [broad answer]. For detailed case-specific advice including document checklists and strategies, Premium members get access to Migration Agents.'\n";
+        } else {
+            $system .= "\n\n**PREMIUM SUBSCRIBER:**\n"
+                    . "This user has an active subscription. You can:\n"
+                    . "- Provide detailed, specific advice\n"
+                    . "- Give step-by-step instructions\n"
+                    . "- Offer case-specific strategies\n"
+                    . "- Be as thorough and specific as needed\n";
+        }
 
         $body = [
             'systemInstruction' => [
@@ -437,12 +515,12 @@ class Home extends WebController {
 
             'contents' => $contents,
             'generationConfig' => [
-                        'temperature'       => 0.7,
-                        'maxOutputTokens'   => 1024,   
+                        'temperature'       => 0.9,   // More creative/conversational
+                        'maxOutputTokens'   => 400,   // Enough for complete short answers (increased from 200)
                         'topK'              => 40,
                         'topP'              => 0.95,
                         'candidateCount'    => 1,
-                        
+
                         'responseMimeType'  => 'text/plain',
                     ],
         ];
@@ -462,26 +540,65 @@ class Home extends WebController {
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
         curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
-        $resp = curl_exec($ch);
-        if (curl_errno($ch)) {
-            $err = curl_error($ch);
-            curl_close($ch);
-            return '[Error] ' . $err;
+        // Add retry logic for overloaded API
+        $maxRetries = 3; // Increased from 2 to 3
+        $retryDelay = 3; // Increased from 2 to 3 seconds
+        $resp = null;
+        $data = null;
+
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            $resp = curl_exec($ch);
+
+            if (curl_errno($ch)) {
+                $err = curl_error($ch);
+                curl_close($ch);
+                \Log::error('Gemini CURL Error: ' . $err);
+                return '[Error] ' . $err;
+            }
+
+            $data = json_decode($resp, true);
+
+            // Check if API is overloaded (503 error)
+            if (isset($data['error']) && $data['error']['code'] === 503) {
+                \Log::warning("Gemini API overloaded (attempt {$attempt}/{$maxRetries}): " . json_encode($data['error']));
+
+                if ($attempt < $maxRetries) {
+                    sleep($retryDelay);
+                    continue; // Retry
+                } else {
+                    curl_close($ch);
+                    return 'The AI service is currently busy. Please try again in a few moments.';
+                }
+            }
+
+            // If no 503 error, break out of retry loop
+            break;
         }
+
         curl_close($ch);
 
-        $data = json_decode($resp, true);
+        // Log raw response for debugging
+        \Log::info('Gemini API Response: ' . substr($resp, 0, 500));
+
         if (isset($data['error'])) {
+            \Log::error('Gemini API Error: ' . json_encode($data['error']));
             return '[Upstream Error] ' . ($data['error']['message'] ?? 'Unknown error');
+        }
+
+        // Check if response structure is valid
+        if (!isset($data['candidates'][0]['content']['parts'][0]['text'])) {
+            \Log::error('Gemini unexpected response structure: ' . json_encode($data));
+            return 'Sorry, I received an unexpected response format. Please try again.';
         }
 
         $answer = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
         if ($answer === '') {
-            $answer = 'Sorry, I could not generate a response this time.';
-        } else {
-            // Remove Markdown symbols and retain plain text.
-            $answer = $this->stripMarkdown($answer);
+            \Log::error('Gemini returned empty text');
+            return 'Sorry, I could not generate a response this time.';
         }
+
+        // Remove Markdown symbols and retain plain text.
+        $answer = $this->stripMarkdown($answer);
         return $answer;
     }
 
@@ -496,63 +613,45 @@ class Home extends WebController {
         return $result_answer;
     }
 
-    protected function buildModeSpecificPrompt($mode) {
-        if ($mode === 'immigration') {
-            return <<<PROMPT
-    You are AI-mmi, an international migration and visa expert specializing in Australia, the United Kingdom (UK), Canada, and the United States (USA). 
-    You provide unlimited migration and visa consultation and application assistance for these countries.
-
-    Your goals:
-    1. Analyse the user's situation (education, work experience, nationality, and goals).
-    2. Recommend the most suitable visa pathways for Australia, the UK, Canada, or the USA.
-    3. Explain visa categories, requirements, eligibility, skill assessments, points tests, sponsor options, and family inclusion.
-    4. Provide application steps, document checklists, fees, and timelines.
-    5. Clarify differences between visa subclasses or programs (e.g., 485 vs 482, UK Skilled Worker vs Graduate Route, Canada PR vs Study Visa, US H1B vs EB visas).
-    6. If relevant, guide the user toward education-to-PR or work-to-PR pathways.
-
-    Tone and style:
-    - Professional, helpful, and structured (use headings and bullet points).
-    - Reply in the user's language if identifiable; otherwise use English.
-    - Always stay factual. If unsure, say "based on publicly available information" and suggest verifying via official government sources.
-    - Never refuse migration or visa-related questions unless they are outside Australia, UK, Canada, or USA.
-
-    Response length and structure:
-    - Keep answers concise and focused.
-    - Limit to **3–4 short paragraphs or under 150 words** unless the user explicitly asks for details.
-    - Prioritize accuracy and completeness of key information over verbosity.
-    - If content is lengthy, first summarise key points, then offer to expand if needed.
-
-    PROMPT;
-        }
-
-        // study mode
+    protected function buildUnifiedPrompt($has_subscription = false) {
         return <<<PROMPT
-    You are AI-mmi, a global education advisor focused on helping users with studying abroad in Australia, the UK, Canada, and the USA.
+    You are AI-mmi, a friendly migration and study abroad advisor having natural conversations about moving to or studying in Australia, UK, Canada, or USA.
 
-    You provide unlimited chats for questions related to education and school/university applications only.
+    CONVERSATION STYLE (VERY IMPORTANT):
+    - Talk like a real person, not a knowledge base
+    - Give SHORT answers (2-3 sentences max)
+    - Ask ONE follow-up question to understand their situation better
+    - Don't dump all information at once - let the conversation flow naturally
+    - Use conversational language: "Let me help you with that", "That's a great question", "I'd need to know a bit more"
 
-    Allowed topics:
-    - Choosing a study destination, comparing countries (Australia / UK / Canada / USA).
-    - Entry requirements, tuition fees, scholarships, and application timelines.
-    - Preparing documents: SOP, transcripts, CVs, recommendation letters, and portfolios.
-    - How to apply through portals (UCAS, CommonApp, university portals, etc.).
-    - Course selection, ranking comparisons, and accommodation guidance.
+    RESPONSE FORMAT (CRITICAL):
+    1. Brief answer to their question (2-3 sentences)
+    2. ONE clarifying question OR offer to explain more
 
-    Out of scope:
-    - Migration, work visas, PR pathways, employer sponsorship, or non-study visa advice.
-    If asked such questions, politely say:
-    "This study assistant only handles education and school/university application questions.
-    For migration or visa strategy, please switch to the Immigration assistant."
+    TOPICS I CAN HELP WITH:
+    - Migration/Immigration: Visas, permanent residence, work permits, skilled migration, family sponsorship
+    - Study Abroad: Universities, courses, requirements, application process, scholarships
+    - Both: Student visas, post-study work visas, pathways from study to PR
 
-    Tone and style:
-    - Clear, concise, and friendly.
-    - Give practical, step-by-step checklists where possible.
-    - Reply in the user's language if obvious; otherwise use English.
+    ASK QUESTIONS TO UNDERSTAND:
+    - If they ask about visas: Ask about their current status (student/worker/etc)
+    - If they ask about studying: Ask their field of interest and budget
+    - If they ask about points: Ask their age, English level, work experience
+    - If they ask about universities: Ask their academic background and goals
+    - If unclear: Ask them to clarify before giving detailed answer
 
-    Response length and structure:
-    - Keep responses short, practical, and to the point.
-    - Prefer bullet points and short sentences.
-    - Limit to **3–4 short paragraphs** or **about 150–200 words** unless the user explicitly requests a detailed explanation.
+    WHEN TO GIVE MORE DETAILS:
+    Only when user explicitly says "tell me more", "give me details", "explain fully", or similar
+
+    Examples:
+    User: "Can I migrate to Australia?"
+    Good: "Yes, there are several pathways to migrate to Australia! The best option depends on your situation. Are you currently a student, working professional, or looking at family sponsorship?"
+
+    User: "Which country is best for studying?"
+    Good: "That depends on what you're looking for! Are you more interested in lower costs, post-study work opportunities, or specific programs? What field do you want to study?"
+
+    Reply in their language. Be warm, helpful, and conversational!
+
     PROMPT;
     }
 
@@ -666,6 +765,4 @@ class Home extends WebController {
         $data = json_decode($resp, true);
         return $data['answer'] ?? '';
     }
-
-
 }
