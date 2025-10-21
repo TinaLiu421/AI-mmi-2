@@ -32,8 +32,8 @@ class Profile_Comparison extends WebController
             return;
         }
 
-        // Get recent chat history (last 20 messages for context)
-        $chatHistory = $this->getChatHistory($this->_current_member['id'], 20);
+        // Get recent chat history (last 40 messages for context)
+        $chatHistory = $this->getChatHistory($this->_current_member['id'], 40);
 
         if (empty($chatHistory)) {
             $this->pageResult([
@@ -150,24 +150,49 @@ You are a visa eligibility expert. Based on our previous conversation below, ana
 }
 ```
 
-**CRITICAL - Match Score Calculation:**
-1. **"missing" information = NOT MET** when calculating match_score
-2. Match score formula:
-   - Critical requirements weight: 70%
-   - Non-critical requirements weight: 30%
-   - Only "met" status counts as positive
-   - "missing" and "not_met" both count as 0
+**CRITICAL - Match Score Calculation (STRICTLY FOLLOW):**
 
-3. Example calculation:
-   - 4 critical requirements: 2 met, 1 not_met, 1 missing
-     → Critical score = (2/4) × 70 = 35%
-   - 3 non-critical: 2 met, 1 missing
-     → Non-critical score = (2/3) × 30 = 20%
-   - **Total match_score = 55%**
+**FORMULA (NO EXCEPTIONS):**
+```
+match_score = (critical_met / critical_total) × 70 + (non_critical_met / non_critical_total) × 30
+```
 
-4. In recommendation message, CLEARLY state:
-   - "⚠️ Score may be higher once you provide missing information"
-   - List what's missing and its impact
+**RULES:**
+1. **ONLY "met" status counts as positive** → Value = 1
+2. **"not_met" and "missing" both count as ZERO** → Value = 0
+3. **Round result to nearest integer**
+
+**EXAMPLES (Follow exactly):**
+
+Example 1:
+- 6 critical: 0 met, 4 not_met, 2 missing
+  → critical_met = 0, critical_total = 6
+- 2 non-critical: 0 met, 2 missing
+  → non_critical_met = 0, non_critical_total = 2
+- **match_score = (0/6) × 70 + (0/2) × 30 = 0**
+
+Example 2:
+- 4 critical: 2 met, 1 not_met, 1 missing
+  → critical_met = 2, critical_total = 4
+- 3 non-critical: 2 met, 1 missing
+  → non_critical_met = 2, non_critical_total = 3
+- **match_score = (2/4) × 70 + (2/3) × 30 = 35 + 20 = 55**
+
+Example 3:
+- 5 critical: 1 met, 4 not_met
+  → critical_met = 1, critical_total = 5
+- 0 non-critical
+  → non_critical_met = 0, non_critical_total = 0
+- **match_score = (1/5) × 70 + 0 = 14**
+
+**VALIDATION:**
+- If ALL requirements are "not_met" or "missing" → match_score MUST = 0
+- If ZERO critical requirements met → match_score CANNOT exceed 30
+- match_score range: 0-100
+
+**Recommendation message:**
+- If match_score < 30: "⚠️ Low eligibility. Consider other visa options or address critical gaps."
+- If many "missing": Add "⚠️ Score may improve once you provide: [list missing items]"
 
 **Important:**
 - Use your latest knowledge of REAL visa requirements from official government sources
@@ -238,6 +263,89 @@ PROMPT;
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \Exception('Invalid JSON from Gemini: ' . json_last_error_msg());
+        }
+
+        // Validate and recalculate match scores to ensure accuracy
+        $comparisonData = $this->validateAndRecalculateScores($comparisonData);
+
+        return $comparisonData;
+    }
+
+    /**
+     * Validate and recalculate match scores to ensure Gemini followed the formula correctly
+     */
+    protected function validateAndRecalculateScores($comparisonData)
+    {
+        if (!isset($comparisonData['visa_options']) || !is_array($comparisonData['visa_options'])) {
+            return $comparisonData;
+        }
+
+        foreach ($comparisonData['visa_options'] as &$visa) {
+            if (!isset($visa['requirements']) || !is_array($visa['requirements'])) {
+                continue;
+            }
+
+            $criticalMet = 0;
+            $criticalTotal = 0;
+            $nonCriticalMet = 0;
+            $nonCriticalTotal = 0;
+
+            // Count met requirements
+            foreach ($visa['requirements'] as $req) {
+                $isCritical = $req['is_critical'] ?? false;
+                $status = $req['status'] ?? 'missing';
+
+                if ($isCritical) {
+                    $criticalTotal++;
+                    if ($status === 'met') {
+                        $criticalMet++;
+                    }
+                } else {
+                    $nonCriticalTotal++;
+                    if ($status === 'met') {
+                        $nonCriticalMet++;
+                    }
+                }
+            }
+
+            // Calculate correct match score
+            $criticalScore = $criticalTotal > 0 ? ($criticalMet / $criticalTotal) * 70 : 0;
+            $nonCriticalScore = $nonCriticalTotal > 0 ? ($nonCriticalMet / $nonCriticalTotal) * 30 : 0;
+            $correctMatchScore = round($criticalScore + $nonCriticalScore);
+
+            // Log if Gemini's score was wrong
+            if (isset($visa['match_score']) && $visa['match_score'] != $correctMatchScore) {
+                \Log::warning('Match score corrected', [
+                    'visa' => $visa['visa_name'] ?? 'Unknown',
+                    'gemini_score' => $visa['match_score'],
+                    'correct_score' => $correctMatchScore,
+                    'critical_met' => $criticalMet,
+                    'critical_total' => $criticalTotal,
+                    'non_critical_met' => $nonCriticalMet,
+                    'non_critical_total' => $nonCriticalTotal
+                ]);
+            }
+
+            // Override with correct score
+            $visa['match_score'] = $correctMatchScore;
+            $visa['critical_met'] = $criticalMet;
+            $visa['critical_total'] = $criticalTotal;
+
+            // Update recommendation level based on corrected score
+            if ($correctMatchScore >= 70) {
+                $visa['recommendation']['level'] = 'success';
+            } elseif ($correctMatchScore >= 50) {
+                $visa['recommendation']['level'] = 'warning';
+            } else {
+                $visa['recommendation']['level'] = 'info';
+            }
+
+            // Add low eligibility warning if score is below 30
+            if ($correctMatchScore < 30 && isset($visa['recommendation']['message'])) {
+                if (strpos($visa['recommendation']['message'], 'Low eligibility') === false) {
+                    $visa['recommendation']['message'] = '⚠️ Low eligibility. ' . $visa['recommendation']['message'];
+                }
+            }
         }
 
         return $comparisonData;
