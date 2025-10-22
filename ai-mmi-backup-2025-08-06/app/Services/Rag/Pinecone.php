@@ -65,7 +65,7 @@ class Pinecone
         ]);
     }
 
-    public function query(array $vector, int $topK = 6, array $filter = null): array
+    public function query(array $vector, int $topK = 30, array $filter = null): array
     {
         $payload = [
             'namespace'       => $this->ns,
