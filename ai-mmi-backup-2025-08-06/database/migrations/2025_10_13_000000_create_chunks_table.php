@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
   public function up(): void {
-    Schema::create('app_chunks', function (Blueprint $table) {
+    Schema::create('chunks', function (Blueprint $table) {
       $table->bigIncrements('id');
       $table->string('source_type')->nullable();   // e.g. 'file','url','db'
       $table->string('source_id')->nullable();     // e.g. file path / doc id
@@ -18,6 +18,6 @@ return new class extends Migration {
     });
   }
   public function down(): void {
-    Schema::dropIfExists('app_chunks');
+    Schema::dropIfExists('chunks');
   }
 };
