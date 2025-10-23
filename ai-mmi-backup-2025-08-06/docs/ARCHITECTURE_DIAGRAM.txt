@@ -1,0 +1,337 @@
+================================================================================
+                    DOCUMENT UPLOAD ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USER INTERFACE                                │
+│                                                                              │
+│  Chat Page (resources/views/web/common.blade.php)                          │
+│  ┌────────────────────────────────────────────────────────────┐           │
+│  │ Chat Messages Area                                          │           │
+│  │ ┌──────────────────────────────────────────────────────┐  │           │
+│  │ │ User: "What about my visa?"                         │  │           │
+│  │ │ AI-mmi: "Here's what I found..."                    │  │           │
+│  │ │ AI-mmi: "Document Analysis: invoice.pdf..."         │  │           │
+│  │ └──────────────────────────────────────────────────────┘  │           │
+│  │                                                              │           │
+│  │ Input Area:                                                │           │
+│  │ ┌─────────────────┬──────┬──────┐                         │           │
+│  │ │ [Text Textarea] │ [📎] │ [➤] │                         │           │
+│  │ └─────────────────┴──────┴──────┘                         │           │
+│  │                  Upload File Input                         │           │
+│  └────────────────────────────────────────────────────────────┘           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ File selected
+                                    │ (Click 📎 button)
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        JAVASCRIPT HANDLER                                   │
+│                    (common.blade.php - Lines 273-372)                       │
+│                                                                              │
+│  • File validation (size, type)                                             │
+│  • FormData creation                                                        │
+│  • Upload button loading state (⏳)                                         │
+│  • API call to /api/documents/upload                                        │
+│  • Error handling                                                           │
+│  • Display results in chat                                                  │
+│  • Scroll to latest message                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ FormData with file
+                                    │ POST /api/documents/upload
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           API ENDPOINT                                      │
+│        POST /api/documents/upload (routes/api.php)                         │
+│                                                                              │
+│  → DocumentController::upload()                                             │
+│    (app/Http/Controllers/Api/DocumentController.php - Lines 23-102)        │
+│                                                                              │
+│    1. Validate file:                                                        │
+│       ✓ Size < 10MB                                                        │
+│       ✓ MIME type whitelist                                                │
+│       ✓ Extension whitelist                                                │
+│                                                                              │
+│    2. Store file:                                                           │
+│       ✓ Generate random filename (32 chars + extension)                    │
+│       ✓ Store in storage/app/private/documents/                            │
+│       ✓ Original filename saved to DB                                      │
+│                                                                              │
+│    3. Create DB record:                                                     │
+│       ✓ DocumentUpload::create()                                           │
+│       ✓ Status: processing                                                 │
+│       ✓ Set initial metadata                                               │
+│                                                                              │
+│    4. Extract text:                                                         │
+│       ✓ Call DocumentAnalysisService::extractText()                        │
+│       ✓ Handle extraction errors                                           │
+│       ✓ Update extracted_text column                                       │
+│                                                                              │
+│    5. Analyze with AI:                                                      │
+│       ✓ Call DocumentAnalysisService::analyzeText()                        │
+│       ✓ Handle API errors                                                  │
+│       ✓ Store analysis_result as JSON                                      │
+│                                                                              │
+│    6. Finalize:                                                             │
+│       ✓ Mark as completed                                                  │
+│       ✓ Return JSON response                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+              Validate          Extract          Analyze
+                    │               │               │
+                    ▼               ▼               ▼
+    ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐
+    │  FILE TYPE      │  │  TEXT EXTRACTION │  │  GEMINI API     │
+    │  VALIDATION     │  │                  │  │                 │
+    │                 │  │ PDF → pdftotext  │  │ gemini-2.5-flash│
+    │ • MIME check    │  │      or regex    │  │                 │
+    │ • Extension     │  │ DOCX → XML parse │  │ → Call API      │
+    │ • Size < 10MB   │  │ JPG/PNG → OCR    │  │ → Extract text  │
+    │                 │  │ TXT → direct     │  │ → Analyze       │
+    └─────────────────┘  └──────────────────┘  └─────────────────┘
+           │                      │                      │
+           └──────────┬───────────┴──────────┬──────────┘
+                      │                      │
+                      ▼                      ▼
+        ┌─────────────────────┐  ┌──────────────────────┐
+        │  DocumentAnalysis   │  │  DocumentAnalysis    │
+        │      Service        │  │      Service         │
+        │                     │  │                      │
+        │ extractText()       │  │ analyzeText()        │
+        │ • Detect file type  │  │ • Truncate text      │
+        │ • Call extractor    │  │ • Build prompt       │
+        │ • Return text       │  │ • Call Gemini        │
+        │                     │  │ • Return analysis    │
+        └─────────────────────┘  └──────────────────────┘
+                    │                      │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+        ┌─────────────────────────────────────────┐
+        │   DocumentUpload Model                  │
+        │   (app/Models/DocumentUpload.php)       │
+        │                                         │
+        │   $document->markCompleted(              │
+        │       $analysisResult                    │
+        │   )                                      │
+        │                                         │
+        │   Update columns:                       │
+        │   • extracted_text: "Lorem ipsum..."    │
+        │   • analysis_result: {...JSON...}       │
+        │   • status: "completed"                 │
+        │   • updated_at: NOW()                   │
+        └─────────────────────────────────────────┘
+                         │
+                         ▼
+        ┌─────────────────────────────────────────┐
+        │        DATABASE (MySQL)                 │
+        │     document_uploads table              │
+        │                                         │
+        │ ID | Member | Filename | Type | Status │
+        │────┼────────┼──────────┼──────┼────────│
+        │ 1  │ 123    │ invoice  │ pdf  │ done   │
+        │────┴────────┴──────────┴──────┴────────│
+        │                                         │
+        │ extracted_text: "Invoice #12345..."    │
+        │ analysis_result: {                      │
+        │   "type": "comprehensive",              │
+        │   "result": "SUMMARY: This is..."       │
+        │ }                                       │
+        └─────────────────────────────────────────┘
+                         │
+                         │ Query result
+                         ▼
+        ┌─────────────────────────────────────────┐
+        │    API JSON Response                    │
+        │                                         │
+        │ {                                       │
+        │   "success": true,                      │
+        │   "document": {                         │
+        │     "id": 1,                            │
+        │     "filename": "invoice.pdf",          │
+        │     "file_size": 102400,                │
+        │     "status": "completed"               │
+        │   },                                    │
+        │   "analysis": {                         │
+        │     "type": "comprehensive",            │
+        │     "result": "SUMMARY:..."             │
+        │   }                                     │
+        │ }                                       │
+        └─────────────────────────────────────────┘
+                         │
+                         │ JSON response
+                         ▼
+        ┌─────────────────────────────────────────┐
+        │    JAVASCRIPT PROCESSES RESPONSE        │
+        │                                         │
+        │ • Check success flag                    │
+        │ • Format analysis result                │
+        │ • Create chat bubble                    │
+        │ • Append to chat area                   │
+        │ • Scroll to bottom                      │
+        │ • Clear file input                      │
+        │ • Hide loading state                    │
+        └─────────────────────────────────────────┘
+                         │
+                         ▼
+        ┌─────────────────────────────────────────┐
+        │    DISPLAY IN CHAT                      │
+        │                                         │
+        │ [AI Avatar] AI-mmi                      │
+        │                                         │
+        │ Document Analyzed: invoice.pdf          │
+        │                                         │
+        │ SUMMARY: This is an invoice from...     │
+        │                                         │
+        │ DOCUMENT TYPE: Invoice                  │
+        │                                         │
+        │ KEY INFORMATION:                        │
+        │ - Date: 2025-10-22                      │
+        │ - Amount: $5,000                        │
+        │ - Vendor: ABC Company                   │
+        │                                         │
+        │ ACTION ITEMS:                           │
+        │ - Process payment by 2025-11-15         │
+        └─────────────────────────────────────────┘
+
+
+================================================================================
+                           DATA STORAGE FLOW
+================================================================================
+
+User's File
+    │
+    ├─→ Storage: storage/app/private/documents/{random32}.pdf
+    │   (Private, not publicly accessible)
+    │
+    └─→ Database: document_uploads table
+        │
+        ├─ original_filename: "invoice.pdf"
+        ├─ stored_filename: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6.pdf"
+        ├─ file_path: "documents/a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6.pdf"
+        ├─ file_type: "pdf"
+        ├─ file_size: 102400
+        │
+        ├─ extracted_text: "Invoice #12345\nDate: 2025-10-22..."
+        ├─ analysis_result: {JSON with analysis}
+        │
+        ├─ status: "completed"
+        ├─ error_message: null
+        │
+        ├─ member_id: 123
+        ├─ created_at: 2025-10-22 10:30:00
+        └─ updated_at: 2025-10-22 10:35:00
+
+
+================================================================================
+                         API ENDPOINT SUMMARY
+================================================================================
+
+POST /api/documents/upload
+├─ Input: FormData with file
+├─ Processing: Extract text → Analyze with Gemini
+└─ Output: { success, document, analysis }
+
+GET /api/documents/{id}
+├─ Input: Document ID
+├─ Processing: Retrieve from DB
+└─ Output: Document details + analysis
+
+GET /api/documents
+├─ Input: member_id, status, limit, offset
+├─ Processing: Query with filters and pagination
+└─ Output: Array of documents + pagination info
+
+DELETE /api/documents/{id}
+├─ Input: Document ID
+├─ Processing: Delete file + DB record
+└─ Output: { success, message }
+
+POST /api/documents/{id}/reanalyze
+├─ Input: Document ID + analysis_type
+├─ Processing: Re-analyze extracted text
+└─ Output: { success, analysis }
+
+
+================================================================================
+                           ERROR HANDLING FLOW
+================================================================================
+
+Invalid File
+    ├─ Size > 10MB → Return 422 "File too large"
+    ├─ Wrong MIME → Return 422 "Invalid file type"
+    └─ Bad extension → Return 422 "Invalid extension"
+
+Extraction Failed
+    ├─ Can't extract text → Mark status "failed"
+    ├─ Return error message → "Could not extract text"
+    └─ Store error_message in DB
+
+Analysis Failed
+    ├─ Gemini API error → Mark status "failed"
+    ├─ Store error message → "API timeout"
+    └─ Return error response
+
+Network Error
+    ├─ Connection fails → Alert user
+    ├─ Auto-clear file input
+    └─ Enable retry
+
+Database Error
+    ├─ Log to storage/logs/laravel.log
+    ├─ Return 500 error
+    └─ Alert user
+
+
+================================================================================
+                         SECURITY ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     REQUEST VALIDATION                          │
+│                                                                  │
+│ • CSRF Token Check (X-Requested-With header)                   │
+│ • File size validation (10MB max)                              │
+│ • MIME type whitelist check                                    │
+│ • Extension whitelist check                                    │
+│ • Member ID ownership verification                             │
+│ • Rate limiting (60 req/min)                                   │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   FILE STORAGE SECURITY                         │
+│                                                                  │
+│ • Files in private directory (storage/app/private/)             │
+│ • Not in public_html (no direct web access)                    │
+│ • Randomized filenames (32 random characters)                  │
+│ • Original filename stored separately in DB                    │
+│ • File permissions set for security                            │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    DATA PROCESSING SECURITY                     │
+│                                                                  │
+│ • UTF-8 encoding validation                                    │
+│ • HTML escaping before display                                 │
+│ • Text truncation (50K chars) for API safety                   │
+│ • Input sanitization                                           │
+│ • No sensitive data logged                                     │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   DATABASE SECURITY                             │
+│                                                                  │
+│ • Parameterized queries (Eloquent ORM)                         │
+│ • No SQL injection possible                                    │
+│ • Indexed for performance                                      │
+│ • Audit trail (created_at, updated_at)                         │
+│ • Soft delete support (via archiving)                          │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================================

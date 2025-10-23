@@ -50,6 +50,8 @@
         <script src="asset/js/web/welcome_message.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
         <!-- Conversation flow styles -->
         <link href="asset/css/web/conversation_flow.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
+        <!-- Document Upload styles -->
+        <link href="asset/css/web/document-upload.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
         <script src="asset/js/web/common.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
 
         <!-- Google tag (gtag.js) -->
@@ -215,10 +217,16 @@
                                         </div>
                                     </div>
                                     <div class="input-wrapper">
-                                        <textarea type="text" id="ask_question" name="question" placeholder="Ask me about migration and study..."></textarea>
-                                        <button type="submit">
-                                            <img src="asset/image/icon-send.png" alt="icon-send"/>
-                                        </button>
+                                        <input type="text" id="ask_question" name="question" placeholder="Ask me about migration and study..."/>
+                                        <div class="input-buttons-group">
+                                            <button type="button" id="doc-upload-btn" class="btn-document-upload" onclick="document.getElementById('doc-file-input').click();" title="Upload documents">
+                                                <img src="asset/image/upload.png" alt="upload">
+                                            </button>
+                                            <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" style="display: none;">
+                                            <button type="submit" title="Send">
+                                                <img src="asset/image/icon-send.png" alt="icon-send"/>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </form>
@@ -260,5 +268,8 @@
     }
     });
     </script>
+
+    <!-- Document Upload Handler -->
+    <script src="asset/js/web/document-upload.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
     </body>
 </html>
