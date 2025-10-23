@@ -52,6 +52,9 @@
         <link href="asset/css/web/conversation_flow.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
         <!-- Document Upload styles -->
         <link href="asset/css/web/document-upload.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
+
+        <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
         <script src="asset/js/web/common.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
 
         <!-- Google tag (gtag.js) -->

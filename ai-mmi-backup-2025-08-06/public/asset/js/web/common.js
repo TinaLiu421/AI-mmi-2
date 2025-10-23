@@ -8,6 +8,17 @@ $.ajaxSetup({
     },
 });
 
+function mdToSafeHtml(md) {
+  try {
+    marked.setOptions({ gfm: true, breaks: true });
+    const dirty = marked.parse(String(md || ""));
+    return DOMPurify.sanitize(dirty);
+  } catch (e) {
+    // 解析失败就退回纯文本（转义）
+    return escapeHtml(md || "");
+  }
+}
+
 var __ragBypassOnce = false;
 
 // —— RAG 命中阈值（可调）——
@@ -56,11 +67,15 @@ function escapeHtml(s) {
         .replace(/'/g, "&#039;");
 }
 
-function renderBubble({ role, avatar, name, text, createdAtIso }) {
-    const timeLocal = formatUtcIsoToLocalTime(
-        createdAtIso || new Date().toISOString()
-    );
-    return `
+function renderBubble({ role, avatar, name, text, createdAtIso, isHtml }) {
+  const timeLocal = formatUtcIsoToLocalTime(createdAtIso || new Date().toISOString());
+
+  // 纯文本模式（旧逻辑）
+  const txtBlock = isHtml
+    ? `<div class="txt chat-markdown">${text}</div>`  // 已是安全 HTML
+    : `<div class="txt">${escapeHtml(text || "")}</div>`;
+
+  return `
     <div class="dialog ${role}">
       <div class="avatar">
         <div style="background-image:url('${avatar || ""}')"></div>
@@ -68,11 +83,12 @@ function renderBubble({ role, avatar, name, text, createdAtIso }) {
       <div class="name">${escapeHtml(name || "")}</div>
       <div class="time">${timeLocal}</div>
       <div class="clearboth"></div>
-      <div class="txt">${text}</div>
+      ${txtBlock}
     </div>
     <div class="clearboth"></div>
   `;
 }
+
 
 // --- 简易主题判定：移民/签证关键词 ---
 function isMigrationQuery(text) {
@@ -673,24 +689,31 @@ function iweb_global_func() {
                 if (n) $ta.attr("name", n).removeAttr("data-old-name");
 
                 if (iweb.isMatch(response_data.status, 200)) {
-                    if (iweb.isValue(response_data.reply)) {
+                    if (iweb.isValue(response_data.reply) || iweb.isValue(response_data.answer_html) || iweb.isValue(response_data.answer_markdown)) {
+                        // 优先后端提供的 HTML；否则把 Markdown/纯文本转为安全 HTML
+                        const safeHtml = response_data.answer_html
+                        ? DOMPurify.sanitize(String(response_data.answer_html))
+                        : mdToSafeHtml(response_data.answer_markdown || response_data.reply || "");
+
                         const replyHtml = renderBubble({
                         role: "reply",
                         avatar: response_data.ai_owner_avatar || "asset/image/logo-mmi.png",
                         name: response_data.ai_owner_name || "AI-mmi",
-                        text: response_data.reply,
-                        createdAtIso:
-                            response_data.reply_created_at ||
-                            new Date().toISOString(),
+                        text: safeHtml,
+                        createdAtIso: response_data.reply_created_at || new Date().toISOString(),
+                        isHtml: true,
                     });
                     $(
                         "main.page-body div.chat-area div.box > div.show-message"
                     ).append(replyHtml);
+
                        // Show flow prompt if available
                     if (response_data.flow_prompt) {
-                        $(
-                            "main.page-body div.chat-area div.box > div.show-message"
-                        ).append(response_data.flow_prompt);
+                        $("main.page-body div.chat-area div.box > div.show-message").append(
+                            `<div class="dialog reply"><div class="txt chat-markdown">${
+                            mdToSafeHtml(response_data.flow_prompt)
+                            }</div></div><div class="clearboth"></div>`
+                        );
                     }
                   
                         scrollChatToBottom();
@@ -895,18 +918,19 @@ function loadChatMessage(init) {
                         ? "ask"
                         : "reply";
 
+                const isAi = (role === "reply");
+                // 历史数据也可能是 markdown/纯文本；AI 的消息转为安全 HTML，用户消息保留纯文本
+                const textForBubble = isAi
+                ? (value.content_html ? DOMPurify.sanitize(String(value.content_html)) : mdToSafeHtml(value.content || ""))
+                : (value.content || "");
+
                 const bubbleHtml = renderBubble({
-                    role,
-                    avatar:
-                        value.owner_avatar ||
-                        (role === "reply"
-                            ? "asset/image/logo-mmi.png"
-                            : "asset/image/icon-member.png"),
-                    name:
-                        value.owner_name ||
-                        (role === "reply" ? "AI-mmi" : "You"),
-                    text: value.content,
-                    createdAtIso: value.created_time,
+                role,
+                avatar: value.owner_avatar || (isAi ? "asset/image/logo-mmi.png" : "asset/image/icon-member.png"),
+                name: value.owner_name || (isAi ? "AI-mmi" : "You"),
+                text: textForBubble,
+                createdAtIso: value.created_time,
+                isHtml: isAi,                 // 只有 AI 的内容当 HTML 插入
                 });
 
                 dialog_group += bubbleHtml;

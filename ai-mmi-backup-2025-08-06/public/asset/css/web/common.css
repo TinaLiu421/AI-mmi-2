@@ -800,7 +800,7 @@ main.page-body .chat-area .box .show-message .dialog .name {
 }
 
 main.page-body .chat-area .box .show-message .dialog .txt {
-    max-width: 90%;
+    max-width: 100%;
     padding: var(--space-4) var(--space-5);
     border-radius: var(--radius-2xl);
     font-size: 1rem;
@@ -2321,3 +2321,48 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
 .chat-action-buttons .chat-action-btn i {
     font-size: 16px;
 }
+
+/* 让机器人 Markdown 更易读 */
+.dialog .txt.chat-markdown {
+  line-height: 1.7;
+  font-size: 15px;
+  color: #0f172a;
+  white-space: normal;        /* 重要：不要再 pre-wrap，按段落排版 */
+  word-break: break-word;
+}
+.dialog .txt.chat-markdown p { margin: .6em 0; }
+
+.dialog .txt.chat-markdown h2 { font-size: 1.1rem; margin: .8em 0 .4em; }
+.dialog .txt.chat-markdown h3 { font-size: 1.0rem; margin: .7em 0 .3em; }
+.dialog .txt.chat-markdown h4 { font-size: .95rem; margin: .6em 0 .3em; }
+
+.dialog .txt.chat-markdown ul { margin: .5em 0 .5em 1.2em; list-style: disc; }
+.dialog .txt.chat-markdown ol { margin: .5em 0 .5em 1.2em; list-style: decimal; }
+.dialog .txt.chat-markdown li { margin: .25em 0; }
+
+.dialog .txt.chat-markdown blockquote {
+  margin: .7em 0; padding: .6em .9em;
+  border-left: 3px solid #94a3b8; background: #f8fafc; color: #334155;
+}
+
+.dialog .txt.chat-markdown table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.dialog .txt.chat-markdown th, .dialog .txt.chat-markdown td {
+  border: 1px solid #e2e8f0; padding: 8px; vertical-align: top;
+}
+.dialog .txt.chat-markdown thead th { background: #f1f5f9; font-weight: 600; }
+.dialog .txt.chat-markdown tbody tr:nth-child(even) { background: #f9fafb; }
+
+.dialog .txt.chat-markdown code {
+  background: #f1f5f9; padding: .15em .35em; border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+}
+.dialog .txt.chat-markdown pre {
+  background: #0b1020; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow:auto;
+}
+.dialog .txt.chat-markdown pre code { background: transparent; padding: 0; }
+
+.dialog .txt.chat-markdown a { color: #2563eb; text-decoration: underline; }
+
+/* 去掉块首尾多余空白 */
+.dialog .txt.chat-markdown > :first-child { margin-top: 0; }
+.dialog .txt.chat-markdown > :last-child  { margin-bottom: 0; }

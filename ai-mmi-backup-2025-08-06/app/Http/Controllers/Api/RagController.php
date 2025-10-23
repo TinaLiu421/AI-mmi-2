@@ -98,7 +98,7 @@ class RagController extends Controller
         // 4) Pinecone 检索（去掉命名参数，按位置传参）
         try {
             // 假定签名为 query($vector, $topK = 30, $filter = null)
-            $topK   = 30;
+            $topK   = 20;
             $filter = $tag ? array('tag' => $tag) : null;
             $matches = $pc->query($qvec, $topK, $filter);
             $out['match_count'] = is_array($matches) ? count($matches) : 0;
