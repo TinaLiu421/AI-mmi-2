@@ -2,37 +2,32 @@
 
 @section('content')
 <div class="comparison-container">
-    <!-- Header -->
     <div class="page-header">
         <h1><i class="fa fa-passport"></i> <?php echo $_page_lang['profile_comparison.page_title']; ?></h1>
         <p><?php echo $_page_lang['profile_comparison.page_subtitle']; ?></p>
     </div>
 
-    <!-- AI Analysis Section -->
     <div class="analysis-section">
-        <button onclick="loadAIComparison()" id="ai-btn" class="ai-btn">
-            <i class="fa fa-magic"></i> <?php echo $_page_lang['profile_comparison.analyze_button']; ?>
-        </button>
         <button onclick="recalculateComparison()" id="recalculate-btn" class="recalculate-btn" style="display: none;">
             <i class="fa fa-magic" id="recalculate-icon"></i> Recalculate
         </button>
         <p class="hint"><?php echo $_page_lang['profile_comparison.analyze_hint']; ?></p>
 
-        <!-- Loading -->
-        <div id="loading" class="loading">
+        <div id="loading" class="loading" style="display: none;">
             <div class="spinner"></div>
             <p><?php echo $_page_lang['profile_comparison.analyzing_message']; ?></p>
         </div>
+
+        <div id="no-history-notification" class="toast-notification" style="display: none;">
+            <div class="toast-content">
+                <i class="fa fa-info-circle"></i>
+                <span>Please chat with AI first to share your information before generating comparison</span>
+                <button class="toast-close" onclick="document.getElementById('no-history-notification').style.display='none';">×</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Results -->
     <div id="results"></div>
-
-    <!-- Initial Message -->
-    <div id="initial-msg" class="initial-message">
-        <i class="fa fa-arrow-up"></i>
-        <h3><?php echo $_page_lang['profile_comparison.initial_message']; ?></h3>
-    </div>
 </div>
 
 <style>
@@ -64,24 +59,6 @@
     box-shadow: var(--shadow-md);
     margin-bottom: var(--space-8);
     text-align: center;
-}
-
-.ai-btn {
-    padding: var(--space-4) var(--space-12);
-    background: var(--gradient-primary);
-    color: var(--white);
-    border: none;
-    border-radius: var(--space-2);
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 1.125rem;
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s ease;
-}
-
-.ai-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
 }
 
 .recalculate-btn {
@@ -144,23 +121,56 @@
     font-weight: 600;
 }
 
-.initial-message {
-    background: var(--white);
-    padding: var(--space-12);
-    border-radius: var(--space-3);
-    box-shadow: var(--shadow-md);
-    text-align: center;
+.toast-notification {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: var(--space-2);
+    padding: var(--space-4);
+    margin: var(--space-4) 0;
+    animation: slideDown 0.3s ease;
 }
 
-.initial-message i {
-    font-size: 3rem;
-    color: var(--neutral-300);
-    margin-bottom: var(--space-5);
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: #856404;
 }
 
-.initial-message h3 {
-    color: var(--neutral-400);
-    margin: 0;
+.toast-content i {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.toast-content span {
+    flex: 1;
+    font-weight: 500;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: #856404;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: opacity 0.2s;
+}
+
+.toast-close:hover {
+    opacity: 0.7;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .visa-card {
@@ -366,10 +376,6 @@ tbody tr.missing {
     .recommendation { padding: var(--space-4); font-size: 0.875rem; }
     .recommendation h3 { font-size: 1rem; }
     .recommendation p, .recommendation ul { font-size: 0.813rem; }
-
-    .initial-message { padding: var(--space-10) var(--space-5); }
-    .initial-message i { font-size: 2.25rem; }
-    .initial-message h3 { font-size: 1rem; }
 }
 
 @media (max-width: 480px) {
@@ -383,9 +389,8 @@ tbody tr.missing {
 
 <script>
 function loadAIComparison() {
-    document.getElementById('ai-btn').style.display = 'none';
     document.getElementById('loading').style.display = 'block';
-    document.getElementById('initial-msg').style.display = 'none';
+    document.getElementById('no-history-notification').style.display = 'none';
 
     fetch(_page_base_url + '/profile_comparison/get_ai_comparison', {
         method: 'POST',
@@ -397,16 +402,16 @@ function loadAIComparison() {
         document.getElementById('loading').style.display = 'none';
         if (data.status === 200 && data.comparison) {
             displayResults(data.comparison);
+        } else if (data.status === 400 && data.message.includes('No chat history')) {
+            document.getElementById('no-history-notification').style.display = 'block';
         } else {
-            alert('Error: ' + (data.message || 'Failed to generate comparison'));
-            document.getElementById('ai-btn').style.display = 'block';
+            document.getElementById('no-history-notification').style.display = 'block';
         }
     })
     .catch(error => {
         console.error('Error:', error);
         document.getElementById('loading').style.display = 'none';
-        document.getElementById('ai-btn').style.display = 'block';
-        alert('Failed to load comparison. Please try again.');
+        document.getElementById('no-history-notification').style.display = 'block';
     });
 }
 
@@ -414,11 +419,9 @@ function recalculateComparison() {
     const btn = document.getElementById('recalculate-btn');
     const icon = document.getElementById('recalculate-icon');
 
-    // Disable button and start spinning
     btn.disabled = true;
     btn.classList.add('spinning');
 
-    // Show loading state
     document.getElementById('loading').style.display = 'block';
     document.getElementById('results').style.display = 'none';
 
@@ -450,12 +453,15 @@ function recalculateComparison() {
     });
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    loadAIComparison();
+});
+
 function displayResults(data) {
     const results = document.getElementById('results');
     results.style.display = 'block';
     results.innerHTML = '';
 
-    // Show recalculate button after displaying results
     document.getElementById('recalculate-btn').style.display = 'inline-block';
 
     const visas = data.visa_options || [];

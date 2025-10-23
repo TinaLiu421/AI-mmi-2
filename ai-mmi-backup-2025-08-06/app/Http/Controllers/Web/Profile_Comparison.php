@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\DB;
 
 class Profile_Comparison extends WebController
 {
-    /**
-     * Show profile comparison page (main index)
-     */
     public function index()
     {
         if (empty($this->_current_member)) {
@@ -16,15 +13,9 @@ class Profile_Comparison extends WebController
             exit;
         }
 
-        // Simple page view - AI comparison uses chat history directly
         return $this->pageView('profile_comparison');
     }
 
-
-    /**
-     * AI-Powered Comparison: Let Gemini analyze profile and generate comparison
-     * Uses DIRECT chat history instead of extracted data for 100% accuracy
-     */
     public function get_ai_comparison()
     {
         if (empty($this->_current_member)) {
@@ -32,7 +23,6 @@ class Profile_Comparison extends WebController
             return;
         }
 
-        // Get recent chat history (last 40 messages for context)
         $chatHistory = $this->getChatHistory($this->_current_member['id'], 40);
 
         if (empty($chatHistory)) {
@@ -43,10 +33,8 @@ class Profile_Comparison extends WebController
             return;
         }
 
-        // Build a prompt for Gemini using ACTUAL chat history
         $prompt = $this->buildGeminiComparisonPromptFromChat($chatHistory);
 
-        // Call Gemini API
         try {
             $geminiResponse = $this->callGeminiForComparison($prompt);
 
@@ -68,9 +56,6 @@ class Profile_Comparison extends WebController
         }
     }
 
-    /**
-     * Get chat history for context
-     */
     protected function getChatHistory($memberId, $limit = 20)
     {
         return \DB::table('chat_log')
@@ -82,9 +67,6 @@ class Profile_Comparison extends WebController
             ->toArray();
     }
 
-    /**
-     * Build prompt for Gemini using actual chat history (no extraction needed!)
-     */
     protected function buildGeminiComparisonPromptFromChat($chatHistory)
     {
         // Format chat history
@@ -209,10 +191,6 @@ Example 3:
 - Return ONLY valid JSON, no markdown formatting
 PROMPT;
     }
-
-    /**
-     * Call Gemini API to generate comparison
-     */
     protected function callGeminiForComparison($prompt)
     {
         $apiKey = env('GEMINI_API_KEY');
@@ -271,9 +249,6 @@ PROMPT;
         return $comparisonData;
     }
 
-    /**
-     * Validate and recalculate match scores to ensure Gemini followed the formula correctly
-     */
     protected function validateAndRecalculateScores($comparisonData)
     {
         if (!isset($comparisonData['visa_options']) || !is_array($comparisonData['visa_options'])) {
