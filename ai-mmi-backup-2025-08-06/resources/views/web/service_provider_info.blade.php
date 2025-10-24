@@ -65,6 +65,9 @@
                 <li><?php echo $_page_lang['service_provider_info.step_4']; ?></li>
             </ul>
         </div>
+        <div class="shorcut">
+            <a href="<?php echo $_page_base_url.'/account_registration/service_provider'; ?>"><?php echo $_page_lang['service_provider_info.join_button']; ?></a>
+        </div>
     </div>
 
     <div class="card-section">
