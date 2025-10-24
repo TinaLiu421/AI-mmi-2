@@ -344,3 +344,22 @@ div.page-content.account-registration div.tmsg > span {
         font-size: 22px;
     }
 }
+
+/* Business License - Red Remove Button */
+div.page-content.account-registration div.child-business-license div.block {
+    position: relative;
+}
+
+div.page-content.account-registration div.child-business-license div.block a.remove-license-block {
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: #bc002d;
+}
+
+/* Business License - Add More Button */
+div.page-content.account-registration div.child-business-license div.row a.add-license-block {
+    color: #0066cc;
+    display: block;
+    text-align: center;
+}

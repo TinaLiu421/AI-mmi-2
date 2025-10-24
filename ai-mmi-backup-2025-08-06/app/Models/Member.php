@@ -213,10 +213,19 @@ class Member extends BaseModel {
     public function getLawFirmByID($member_id = 0) {
         return ((!empty((int)$member_id))?$this->setWhere(
         [
-            'name'      =>  'member_id', 
-            'operate'   =>  '=', 
+            'name'      =>  'member_id',
+            'operate'   =>  '=',
             'value'     =>  (int)$member_id
         ])->queryListData($this->_member_table.'_lawfirm', false):false);
+    }
+
+    public function getBusinessLicenseByID($member_id = 0) {
+        return ((!empty((int)$member_id))?$this->setWhere(
+        [
+            'name'      =>  'member_id',
+            'operate'   =>  '=',
+            'value'     =>  (int)$member_id
+        ])->queryListData($this->_member_table.'_business_license', false):false);
     }
 
     public function getByEmail($member_email = '', $verified = 1) {
@@ -749,7 +758,39 @@ class Member extends BaseModel {
                                 }
                             }
                         }
- 
+
+                        // business licenses
+                        // delete all first
+                        $this->setWhere(
+                        [
+                            'name'      =>  'member_id',
+                            'operate'   =>  '=',
+                            'value'     =>  (int)$member_id
+                        ])->queryDeleteData($this->_member_table.'_business_license');
+
+                        // re-insert if need
+                        if(!empty($data['business_licenses'])) {
+                            foreach ($data['business_licenses'] as $license) {
+                                $license_id = (int)$license['id'];
+                                $license['member_id'] = (int)$member_id;
+                                $license['status'] = 1;
+                                unset($license['id']);
+                                $this->setWhere(
+                                [
+                                    [
+                                        'name'      =>  'member_id',
+                                        'operate'   =>  '=',
+                                        'value'     =>  (int)$member_id
+                                    ],
+                                    [
+                                        'name'      =>  'id',
+                                        'operate'   =>  '=',
+                                        'value'     =>  (int)$license_id
+                                    ]
+                                ])->queryInsertData($this->_member_table.'_business_license', $license, true);
+                            }
+                        }
+
                         return $result;
                         
                     }, $data, $member_id);

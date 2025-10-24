@@ -221,7 +221,37 @@ function iweb_self_func() {
             $(this).find('span').html(' - '+(key));
         });
     });
-    
+
+    // business license
+    $(document).on('click', 'a.add-license-block', function(e) {
+        e.preventDefault();
+        var container = $(this).closest('div.child-business-license');
+        var items = container.find('div.items');
+        var clone = items.find('div.block').first().clone();
+        clone.find('input[type="text"]').val('').prop('disabled', false);
+        clone.find('input[type="hidden"]').val('0').prop('disabled', false);
+        clone.find('select').val('').prop('disabled', false);
+        clone.removeClass('hidden').removeAttr('style');
+        if (!clone.find('a.remove-license-block').length) {
+            clone.prepend('<a class="remove-license-block"><i class="fa fa-times"></i></a>');
+        }
+        items.append(clone);
+        // Update numbering for visible blocks only (exclude .hidden)
+        items.find('div.block:not(.hidden)').each(function(key) {
+            $(this).find('div.num span').html(' - ' + (key + 1));
+        });
+    });
+
+    $(document).on('click', 'a.remove-license-block', function() {
+        var container = $(this).closest('div.child-business-license');
+        var items = container.find('div.items');
+        $(this).closest('div.block').remove();
+        // Update numbering for visible blocks only (exclude .hidden)
+        items.find('div.block:not(.hidden)').each(function(key) {
+            $(this).find('div.num span').html(' - ' + (key + 1));
+        });
+    });
+
     // publish post
     $(document).on('click', '#publish-photo, #publish-video', function() {
         $.get(_page_base_url+'/account/posts_publish', function(html) {

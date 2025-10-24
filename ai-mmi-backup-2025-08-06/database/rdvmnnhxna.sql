@@ -1007,6 +1007,9 @@ CREATE TABLE `app_member_details` (
   `company_address` text DEFAULT NULL,
   `services` text DEFAULT NULL,
   `services_country` text DEFAULT NULL,
+  `registered_business_country` int(11) DEFAULT 0,
+  `registered_business_name` text DEFAULT NULL,
+  `registered_business_number` varchar(255) DEFAULT NULL,
   `registered_agent` tinyint(4) DEFAULT 0,
   `registered_lawfirm` tinyint(4) DEFAULT 0,
   `status` tinyint(4) NOT NULL DEFAULT 1,
@@ -1023,6 +1026,25 @@ INSERT INTO `app_member_details` (`id`, `member_id`, `logo`, `company_type`, `co
 (1,	1,	'd6e668c0496cb7603178daf6b1ecdf7f.png',	NULL,	'Wealthskey Migration',	'https://wealthskey.com',	'Brisbane, Australia',	NULL,	NULL,	1,	0,	1,	0,	'2024-04-09 17:53:01',	1,	'2024-06-11 15:18:19',	0,	NULL),
 (2,	5,	'cd792bd15a2e2567ecd1a39cb3a33d01.jpg',	NULL,	'LearnStay.World',	'LearnStay.World',	'Australia',	NULL,	NULL,	0,	0,	1,	0,	'2024-04-16 15:40:16',	1,	'2025-04-24 14:56:20',	0,	NULL),
 (3,	31,	'',	14,	'MBI-AU',	'mbi-au.com',	'Brisbane, Australia',	NULL,	NULL,	0,	0,	1,	0,	'2025-10-10 11:58:12',	0,	'2025-10-10 11:58:12',	0,	NULL);
+
+DROP TABLE IF EXISTS `app_member_business_license`;
+CREATE TABLE `app_member_business_license` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `member_id` int(11) NOT NULL DEFAULT 0,
+  `license_country` int(11) NOT NULL DEFAULT 0,
+  `issuing_authority` varchar(255) DEFAULT NULL,
+  `type_of_registration` varchar(255) DEFAULT NULL,
+  `registration_number` varchar(255) DEFAULT NULL,
+  `status` tinyint(4) NOT NULL DEFAULT 1,
+  `created_by` int(11) NOT NULL DEFAULT 0,
+  `created_at` datetime DEFAULT NULL,
+  `updated_by` int(11) NOT NULL DEFAULT 0,
+  `updated_at` datetime DEFAULT NULL,
+  `deleted_by` int(11) NOT NULL DEFAULT 0,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `member_id` (`member_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 DROP TABLE IF EXISTS `app_member_lawfirm`;
 CREATE TABLE `app_member_lawfirm` (

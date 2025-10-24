@@ -4,6 +4,7 @@
 <?php $_show_current_member_details = (!empty($_page_data['current_member_details']))?$_page_data['current_member_details']:[]; ?>
 <?php $_show_current_member_agent = (!empty($_page_data['current_member_agent']))?$_page_data['current_member_agent']:[]; ?>
 <?php $_show_current_member_lawfirm = (!empty($_page_data['current_member_lawfirm']))?$_page_data['current_member_lawfirm']:[]; ?>
+<?php $_show_current_member_business_license = (!empty($_page_data['current_member_business_license']))?$_page_data['current_member_business_license']:[]; ?>
 <div class="inner-panel full">
     <?php if(!empty($_show_current_member['coverphoto']) && file_exists('upload/member_coverphoto/'.$_show_current_member['coverphoto'])) { ?>
     <div class="banner" style="background-image:url('<?php echo 'upload/member_coverphoto/'.$_show_current_member['coverphoto']; ?>')"></div>
@@ -383,15 +384,165 @@
                 <div class="clearboth"></div>
 
                 <div class="row">
-                    <label for="services_country"><?php echo $_page_lang['account.services_country']; ?></label>
-                    <select id="services_country" name="services_country">
+                    <label for="services_country"><?php echo $_page_lang['account.services_country']; ?> <span style="color:red;">*</span></label>
+                    <?php
+                    $selected_countries = [];
+                    if(!empty($_show_current_member_details['services_country'])) {
+                        $decoded = json_decode($_show_current_member_details['services_country'], true);
+                        $selected_countries = is_array($decoded) ? $decoded : [];
+                    }
+                    ?>
+                    <select id="services_country" name="services_country[]" multiple="multiple" data-validation="required">
                         <option value=""><?php echo $_page_lang['please_select']; ?></option>
                         <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_id => $country) { ?>
-                        <option value="<?php echo $country_id; ?>"<?php echo ($_show_current_member_details['services_country']==$country_id)?' selected':'';?>><?php echo $country; ?></option>
+                        <option value="<?php echo $country_id; ?>"<?php echo (in_array($country_id, $selected_countries))?' selected':'';?>><?php echo $country; ?></option>
                         <?php }} ?>
                     </select>
                 </div>
                 <div class="clearboth"></div>
+
+                <div>&nbsp;</div>
+
+                <div class="group-title"><u><?php echo $_page_lang['account.business_registration']; ?></u> <span style="font-size: 0.8em; font-weight: normal;">(<?php echo $_page_lang['if_applicable']; ?>)</span></div>
+
+                <div class="row">
+                    <label for="registered_business_country"><?php echo $_page_lang['account.business_registration_country']; ?></label>
+                    <select id="registered_business_country" name="registered_business_country">
+                        <option value=""><?php echo $_page_lang['please_select']; ?></option>
+                        <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_id => $country) { ?>
+                        <option value="<?php echo $country_id; ?>"<?php echo ($_show_current_member_details['registered_business_country']==$country_id)?' selected':'';?>><?php echo $country; ?></option>
+                        <?php }} ?>
+                    </select>
+                </div>
+                <div class="clearboth"></div>
+
+                <div class="row">
+                    <label for="registered_business_name"><?php echo $_page_lang['account.business_registration_name']; ?></label>
+                    <input type="text" id="registered_business_name" name="registered_business_name" placeholder="<?php echo $_page_lang['account.enter_business_registration_name']; ?>" value="<?php echo $_show_current_member_details['registered_business_name']; ?>">
+                </div>
+                <div class="clearboth"></div>
+
+                <div class="row">
+                    <label for="registered_business_number"><?php echo $_page_lang['account.business_registration_number']; ?></label>
+                    <input type="text" id="registered_business_number" name="registered_business_number" placeholder="<?php echo $_page_lang['account.enter_business_registration_number']; ?>" value="<?php echo $_show_current_member_details['registered_business_number']; ?>">
+                </div>
+                <div class="clearboth"></div>
+
+                <div>&nbsp;</div>
+
+                <div class="group-title"><u><?php echo $_page_lang['account.business_license']; ?></u> <span style="font-size: 0.8em; font-weight: normal;">(<?php echo $_page_lang['if_applicable']; ?>)</span></div>
+
+                <div class="child-business-license">
+                    <div class="items">
+                        <div class="block hidden" style="display:none;">
+                            <a class="remove-license-block"><i class="fa fa-times"></i></a>
+
+                            <input type="hidden" name="license_id[]" value="0" disabled>
+
+                            <div class="num"><?php echo $_page_lang['account.business_license']; ?><span> - 0</span></div>
+
+                            <div class="row left">
+                                <label for="license_country"><?php echo $_page_lang['account.business_license_country']; ?></label>
+                                <select name="license_country[]" disabled>
+                                    <option value=""><?php echo $_page_lang['please_select']; ?></option>
+                                    <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_id => $country) { ?>
+                                    <option value="<?php echo $country_id; ?>"><?php echo $country; ?></option>
+                                    <?php }} ?>
+                                </select>
+                            </div>
+                            <div class="row right">
+                                <label for="issuing_authority"><?php echo $_page_lang['account.issuing_authority']; ?></label>
+                                <input type="text" name="issuing_authority[]" placeholder="<?php echo $_page_lang['account.enter_issuing_authority']; ?>" disabled>
+                            </div>
+                            <div class="clearboth"></div>
+
+                            <div class="row left">
+                                <label for="type_of_registration"><?php echo $_page_lang['account.type_of_registration']; ?></label>
+                                <input type="text" name="type_of_registration[]" placeholder="<?php echo $_page_lang['account.enter_type_of_registration']; ?>" disabled>
+                            </div>
+                            <div class="row right">
+                                <label for="registration_number"><?php echo $_page_lang['account.business_license_number']; ?></label>
+                                <input type="text" name="registration_number[]" placeholder="<?php echo $_page_lang['account.enter_business_license_number']; ?>" disabled>
+                            </div>
+                            <div class="clearboth"></div>
+                        </div>
+
+                        <?php if(!empty($_show_current_member_business_license)) { foreach ($_show_current_member_business_license as $license_key => $license) { ?>
+                        <div class="block">
+                            <a class="remove-license-block"><i class="fa fa-times"></i></a>
+
+                            <input type="hidden" name="license_id[]" value="<?php echo (int)$license['id']; ?>">
+
+                            <div class="num"><?php echo $_page_lang['account.business_license']; ?><span> - <?php echo $license_key+1;?></span></div>
+
+                            <div class="row left">
+                                <label for="license_country"><?php echo $_page_lang['account.business_license_country']; ?></label>
+                                <select name="license_country[]">
+                                    <option value=""><?php echo $_page_lang['please_select']; ?></option>
+                                    <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_id => $country) { ?>
+                                    <option value="<?php echo $country_id; ?>"<?php echo ($license['license_country']==$country_id)?' selected':'';?>><?php echo $country; ?></option>
+                                    <?php }} ?>
+                                </select>
+                            </div>
+                            <div class="row right">
+                                <label for="issuing_authority"><?php echo $_page_lang['account.issuing_authority']; ?></label>
+                                <input type="text" name="issuing_authority[]" placeholder="<?php echo $_page_lang['account.enter_issuing_authority']; ?>" value="<?php echo $license['issuing_authority']; ?>">
+                            </div>
+                            <div class="clearboth"></div>
+
+                            <div class="row left">
+                                <label for="type_of_registration"><?php echo $_page_lang['account.type_of_registration']; ?></label>
+                                <input type="text" name="type_of_registration[]" placeholder="<?php echo $_page_lang['account.enter_type_of_registration']; ?>" value="<?php echo $license['type_of_registration']; ?>">
+                            </div>
+                            <div class="row right">
+                                <label for="registration_number"><?php echo $_page_lang['account.business_license_number']; ?></label>
+                                <input type="text" name="registration_number[]" placeholder="<?php echo $_page_lang['account.enter_business_license_number']; ?>" value="<?php echo $license['registration_number']; ?>">
+                            </div>
+                            <div class="clearboth"></div>
+                        </div>
+                        <?php } } else { ?>
+                        <div class="block">
+                            <a class="remove-license-block"><i class="fa fa-times"></i></a>
+
+                            <input type="hidden" name="license_id[]" value="0">
+
+                            <div class="num"><?php echo $_page_lang['account.business_license']; ?><span> - 1</span></div>
+
+                            <div class="row left">
+                                <label for="license_country"><?php echo $_page_lang['account.business_license_country']; ?></label>
+                                <select name="license_country[]">
+                                    <option value=""><?php echo $_page_lang['please_select']; ?></option>
+                                    <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_id => $country) { ?>
+                                    <option value="<?php echo $country_id; ?>"><?php echo $country; ?></option>
+                                    <?php }} ?>
+                                </select>
+                            </div>
+                            <div class="row right">
+                                <label for="issuing_authority"><?php echo $_page_lang['account.issuing_authority']; ?></label>
+                                <input type="text" name="issuing_authority[]" placeholder="<?php echo $_page_lang['account.enter_issuing_authority']; ?>">
+                            </div>
+                            <div class="clearboth"></div>
+
+                            <div class="row left">
+                                <label for="type_of_registration"><?php echo $_page_lang['account.type_of_registration']; ?></label>
+                                <input type="text" name="type_of_registration[]" placeholder="<?php echo $_page_lang['account.enter_type_of_registration']; ?>">
+                            </div>
+                            <div class="row right">
+                                <label for="registration_number"><?php echo $_page_lang['account.business_license_number']; ?></label>
+                                <input type="text" name="registration_number[]" placeholder="<?php echo $_page_lang['account.enter_business_license_number']; ?>">
+                            </div>
+                            <div class="clearboth"></div>
+                        </div>
+                        <?php } ?>
+                    </div>
+                    <div class="row">
+                        <a class="add-license-block" href="#">
+                            <span><?php echo $_page_lang['account.add_business_license']; ?></span>
+                            <i class="fa fa-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+
                 <?php } ?>
 
                 <div>&nbsp;</div>
@@ -658,6 +809,50 @@
                 </div>
             </div>
             <div class="clearboth"></div>
+
+            <div>&nbsp;</div>
+
+            <div class="group-title"><u><?php echo $_page_lang['account.business_registration']; ?></u></div>
+
+            <div class="row">
+                <label for="registered_business_country"><?php echo $_page_lang['account.business_registration_country']; ?></label>
+                <div class="input-value">
+                    <?php echo (!empty($_page_options['countries'][$_show_current_member_details['registered_business_country']]))?$_page_options['countries'][$_show_current_member_details['registered_business_country']]:''; ?>
+                </div>
+            </div>
+            <div class="clearboth"></div>
+
+            <div class="row">
+                <label for="registered_business_name"><?php echo $_page_lang['account.business_registration_name']; ?></label>
+                <div class="input-value"><?php echo $_show_current_member_details['registered_business_name']; ?></div>
+            </div>
+            <div class="clearboth"></div>
+
+            <div>&nbsp;</div>
+
+            <div class="group-title"><u><?php echo $_page_lang['account.business_license']; ?></u> <span style="font-size: 0.8em; font-weight: normal;">(<?php echo $_page_lang['if_applicable']; ?>)</span></div>
+
+            <div class="child-business-license">
+                <div class="items">
+                    <?php if(!empty($_show_current_member_business_license)) { foreach ($_show_current_member_business_license as $license_key => $license) { ?>
+                    <div class="block">
+                        <div class="num"><?php echo $_page_lang['account.business_license']; ?><span> - <?php echo $license_key+1;?></span></div>
+
+                        <div class="row left">
+                            <label for="license_country"><?php echo $_page_lang['account.business_license_country']; ?></label>
+                            <div class="input-value">
+                                <?php echo (!empty($_page_options['countries'][$license['license_country']]))?$_page_options['countries'][$license['license_country']]:''; ?>
+                            </div>
+                        </div>
+                        <div class="row right">
+                            <label for="issuing_authority"><?php echo $_page_lang['account.issuing_authority']; ?></label>
+                            <div class="input-value"><?php echo $license['issuing_authority']; ?></div>
+                        </div>
+                        <div class="clearboth"></div>
+                    </div>
+                    <?php }} ?>
+                </div>
+            </div>
             <?php } ?>
 
             <div>&nbsp;</div>
@@ -767,4 +962,23 @@
     </div>
 </div>
 <?php } ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-fill business registration country when country of operation changes
+    const countrySelect = document.getElementById('country');
+    const registeredBusinessCountrySelect = document.getElementById('registered_business_country');
+
+    if (countrySelect && registeredBusinessCountrySelect) {
+        countrySelect.addEventListener('change', function() {
+            const selectedCountry = this.value;
+            if (selectedCountry) {
+                registeredBusinessCountrySelect.value = selectedCountry;
+            }
+        });
+    }
+
+});
+</script>
+
 @endsection

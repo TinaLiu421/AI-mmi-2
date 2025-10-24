@@ -622,3 +622,22 @@ div.page-content.account div.article-list > div.post:nth-child(1) {
         font-size: 18px;
     }
 }
+
+/* Business License Block Styling */
+div.page-content.account div.child-business-license div.block {
+    position: relative;
+}
+
+div.page-content.account div.child-business-license div.block a.remove-license-block {
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: #bc002d;
+}
+
+/* Business License - Add More Button */
+div.page-content.account div.child-business-license div.row a.add-license-block {
+    color: #0066cc;
+    display: block;
+    text-align: center;
+}

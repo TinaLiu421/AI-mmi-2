@@ -3,6 +3,8 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use App\Helpers\CountriesPhoneCodes;
 
 class Account_Registration extends WebController {
     
@@ -621,7 +623,8 @@ class Account_Registration extends WebController {
                             }
 
                             // Create account directly without payment
-                            $this->_page_post_data['expiration_date_account'] = date('Y-m-d', strtotime('+'.max(0, (int)$account_plan['valid_days_trial']).' days', strtotime($this->_today_date)));
+                            // Service providers are free with 1 year expiry
+                            $this->_page_post_data['expiration_date_account'] = date('Y-m-d', strtotime('+1 year', strtotime($this->_today_date)));
 
                             $new_member =
                             [
@@ -647,12 +650,30 @@ class Account_Registration extends WebController {
                                     'company_name'      =>  $this->_page_post_data['company_name'],
                                     'company_website'   =>  (!empty($this->_page_post_data['company_website']) ? $this->_page_post_data['company_website'] : ''),
                                     'company_address'   =>  (!empty($this->_page_post_data['company_address']) ? $this->_page_post_data['company_address'] : ''),
-                                    'country'           =>  $this->_page_post_data['country']
-                                ]
+                                    'country'           =>  $this->_page_post_data['country'],
+                                    'services_country'  =>  (!empty($this->_page_post_data['services_country']) ? json_encode($this->_page_post_data['services_country']) : ''),
+                                    'registered_business_country' => (!empty($this->_page_post_data['registered_business_country']) ? $this->_page_post_data['registered_business_country'] : ''),
+                                    'registered_business_name' => (!empty($this->_page_post_data['registered_business_name']) ? $this->_page_post_data['registered_business_name'] : ''),
+                                    'registered_business_number' => (!empty($this->_page_post_data['registered_business_number']) ? $this->_page_post_data['registered_business_number'] : '')
+                                ],
+                                'business_licenses'     =>  []
                             ];
                             $new_member['alias_name'] = $this->_page_post_data['company_name'];
                             if($new_member['method'] > 1) {
                                 $new_member['verified'] =  1;
+                            }
+
+                            // Process business licenses if submitted
+                            if(!empty($this->_page_post_data['license_id'])) {
+                                foreach ($this->_page_post_data['license_id'] as $license_key => $license_id) {
+                                    $new_member['business_licenses'][] = [
+                                        'id'                    =>  (int)$license_id,
+                                        'license_country'       =>  $this->_page_post_data['license_country'][$license_key],
+                                        'issuing_authority'     =>  $this->_page_post_data['issuing_authority'][$license_key],
+                                        'type_of_registration'  =>  $this->_page_post_data['type_of_registration'][$license_key],
+                                        'registration_number'   =>  $this->_page_post_data['registration_number'][$license_key],
+                                    ];
+                                }
                             }
 
                             // try to save into db
@@ -660,6 +681,17 @@ class Account_Registration extends WebController {
                                 // reset
                                 $this->delSession('temp_service_provider_account');
                                 $this->delSession('temp_service_provider_account_logo');
+
+                                // Create free subscription for service provider (plan_id = 1 - Free Plan)
+                                DB::table('subscriptions')->insert([
+                                    'member_id' => $new_member_id,
+                                    'plan_id' => 1,
+                                    'status' => 'active',
+                                    'started_at' => now(),
+                                    'ends_at' => null,
+                                    'created_at' => now(),
+                                    'updated_at' => now()
+                                ]);
 
                                 // email verification if need
                                 if((int)$new_member['method'] == 1) {
@@ -725,76 +757,12 @@ class Account_Registration extends WebController {
         // load view
         $list_organization_type = $this->loadModel('pages', ['table' => 'organization_type'])->getAll($this->_current_lang_index, null, false);
 
-        // Country list with phone codes (popular countries sorted alphabetically)
-        $countries = [
-            'AU' => ['name' => 'Australia', 'code' => '61'],
-            'AT' => ['name' => 'Austria', 'code' => '43'],
-            'BD' => ['name' => 'Bangladesh', 'code' => '880'],
-            'BE' => ['name' => 'Belgium', 'code' => '32'],
-            'BR' => ['name' => 'Brazil', 'code' => '55'],
-            'CA' => ['name' => 'Canada', 'code' => '1'],
-            'CN' => ['name' => 'China', 'code' => '86'],
-            'DK' => ['name' => 'Denmark', 'code' => '45'],
-            'EG' => ['name' => 'Egypt', 'code' => '20'],
-            'FI' => ['name' => 'Finland', 'code' => '358'],
-            'FR' => ['name' => 'France', 'code' => '33'],
-            'DE' => ['name' => 'Germany', 'code' => '49'],
-            'GR' => ['name' => 'Greece', 'code' => '30'],
-            'HK' => ['name' => 'Hong Kong', 'code' => '852'],
-            'IN' => ['name' => 'India', 'code' => '91'],
-            'ID' => ['name' => 'Indonesia', 'code' => '62'],
-            'IE' => ['name' => 'Ireland', 'code' => '353'],
-            'IL' => ['name' => 'Israel', 'code' => '972'],
-            'IT' => ['name' => 'Italy', 'code' => '39'],
-            'JP' => ['name' => 'Japan', 'code' => '81'],
-            'MY' => ['name' => 'Malaysia', 'code' => '60'],
-            'MX' => ['name' => 'Mexico', 'code' => '52'],
-            'MN' => ['name' => 'Mongolia', 'code' => '976'],
-            'NL' => ['name' => 'Netherlands', 'code' => '31'],
-            'NZ' => ['name' => 'New Zealand', 'code' => '64'],
-            'NO' => ['name' => 'Norway', 'code' => '47'],
-            'PK' => ['name' => 'Pakistan', 'code' => '92'],
-            'PH' => ['name' => 'Philippines', 'code' => '63'],
-            'PL' => ['name' => 'Poland', 'code' => '48'],
-            'PT' => ['name' => 'Portugal', 'code' => '351'],
-            'RU' => ['name' => 'Russia', 'code' => '7'],
-            'SA' => ['name' => 'Saudi Arabia', 'code' => '966'],
-            'SG' => ['name' => 'Singapore', 'code' => '65'],
-            'ZA' => ['name' => 'South Africa', 'code' => '27'],
-            'KR' => ['name' => 'South Korea', 'code' => '82'],
-            'ES' => ['name' => 'Spain', 'code' => '34'],
-            'LK' => ['name' => 'Sri Lanka', 'code' => '94'],
-            'SE' => ['name' => 'Sweden', 'code' => '46'],
-            'CH' => ['name' => 'Switzerland', 'code' => '41'],
-            'TW' => ['name' => 'Taiwan', 'code' => '886'],
-            'TH' => ['name' => 'Thailand', 'code' => '66'],
-            'TR' => ['name' => 'Turkey', 'code' => '90'],
-            'UA' => ['name' => 'Ukraine', 'code' => '380'],
-            'AE' => ['name' => 'United Arab Emirates', 'code' => '971'],
-            'GB' => ['name' => 'United Kingdom', 'code' => '44'],
-            'US' => ['name' => 'United States', 'code' => '1'],
-            'VN' => ['name' => 'Vietnam', 'code' => '84'],
-        ];
-
-        $country_options = [];
-        $phone_code_options = [];
-        $country_phone_map = []; // Map country code to phone code for auto-selection
-
-        foreach ($countries as $code => $country) {
-            $country_options[$code] = $country['name'];
-            $country_phone_map[$code] = $country['code'];
-            if (!isset($phone_code_options[$country['code']])) {
-                // Show country name with phone code for better UX
-                $phone_code_options[$country['code']] = $country['name'] . ' (+' . $country['code'] . ')';
-            }
-        }
-
         $this->pageOptions(
         [
             'organization_type' => $this->optionsToArray($list_organization_type),
-            'countries' => $country_options,
-            'phone_codes' => $phone_code_options,
-            'country_phone_map' => $country_phone_map
+            'countries' => CountriesPhoneCodes::getCountries(),
+            'phone_codes' => CountriesPhoneCodes::getPhoneCodes(),
+            'country_phone_map' => CountriesPhoneCodes::getCountryPhoneMap()
         ]);
 
         return $this->pageData(

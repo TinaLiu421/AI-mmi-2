@@ -1966,12 +1966,31 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
     font-size: 14px;
 }
 
-/* Row layout */
 .form .row {
     display: flex;
     flex-direction: column;
     margin-bottom: 18px;
     width: 100%;
+}
+
+.form div.row.left {
+    float: left;
+    width: calc((100% - 20px) / 2);
+}
+
+.form div.row.right {
+    float: right;
+    width: calc((100% - 20px) / 2);
+}
+
+/* Stack form fields on small screens */
+@media (max-width: 768px) {
+    div.row.left,
+    div.row.right {
+        float: none !important;
+        width: 100% !important;
+        clear: both !important;
+    }
 }
 
 /* Labels */
@@ -2324,45 +2343,96 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
 
 /* 让机器人 Markdown 更易读 */
 .dialog .txt.chat-markdown {
-  line-height: 1.7;
-  font-size: 15px;
-  color: #0f172a;
-  white-space: normal;        /* 重要：不要再 pre-wrap，按段落排版 */
-  word-break: break-word;
+    line-height: 1.7;
+    font-size: 15px;
+    color: #0f172a;
+    white-space: normal; /* 重要：不要再 pre-wrap，按段落排版 */
+    word-break: break-word;
 }
-.dialog .txt.chat-markdown p { margin: .6em 0; }
+.dialog .txt.chat-markdown p {
+    margin: 0.6em 0;
+}
 
-.dialog .txt.chat-markdown h2 { font-size: 1.1rem; margin: .8em 0 .4em; }
-.dialog .txt.chat-markdown h3 { font-size: 1.0rem; margin: .7em 0 .3em; }
-.dialog .txt.chat-markdown h4 { font-size: .95rem; margin: .6em 0 .3em; }
+.dialog .txt.chat-markdown h2 {
+    font-size: 1.1rem;
+    margin: 0.8em 0 0.4em;
+}
+.dialog .txt.chat-markdown h3 {
+    font-size: 1rem;
+    margin: 0.7em 0 0.3em;
+}
+.dialog .txt.chat-markdown h4 {
+    font-size: 0.95rem;
+    margin: 0.6em 0 0.3em;
+}
 
-.dialog .txt.chat-markdown ul { margin: .5em 0 .5em 1.2em; list-style: disc; }
-.dialog .txt.chat-markdown ol { margin: .5em 0 .5em 1.2em; list-style: decimal; }
-.dialog .txt.chat-markdown li { margin: .25em 0; }
+.dialog .txt.chat-markdown ul {
+    margin: 0.5em 0 0.5em 1.2em;
+    list-style: disc;
+}
+.dialog .txt.chat-markdown ol {
+    margin: 0.5em 0 0.5em 1.2em;
+    list-style: decimal;
+}
+.dialog .txt.chat-markdown li {
+    margin: 0.25em 0;
+}
 
 .dialog .txt.chat-markdown blockquote {
-  margin: .7em 0; padding: .6em .9em;
-  border-left: 3px solid #94a3b8; background: #f8fafc; color: #334155;
+    margin: 0.7em 0;
+    padding: 0.6em 0.9em;
+    border-left: 3px solid #94a3b8;
+    background: #f8fafc;
+    color: #334155;
 }
 
-.dialog .txt.chat-markdown table { border-collapse: collapse; width: 100%; font-size: 14px; }
-.dialog .txt.chat-markdown th, .dialog .txt.chat-markdown td {
-  border: 1px solid #e2e8f0; padding: 8px; vertical-align: top;
+.dialog .txt.chat-markdown table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
 }
-.dialog .txt.chat-markdown thead th { background: #f1f5f9; font-weight: 600; }
-.dialog .txt.chat-markdown tbody tr:nth-child(even) { background: #f9fafb; }
+.dialog .txt.chat-markdown th,
+.dialog .txt.chat-markdown td {
+    border: 1px solid #e2e8f0;
+    padding: 8px;
+    vertical-align: top;
+}
+.dialog .txt.chat-markdown thead th {
+    background: #f1f5f9;
+    font-weight: 600;
+}
+.dialog .txt.chat-markdown tbody tr:nth-child(even) {
+    background: #f9fafb;
+}
 
 .dialog .txt.chat-markdown code {
-  background: #f1f5f9; padding: .15em .35em; border-radius: 4px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+    background: #f1f5f9;
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
 }
 .dialog .txt.chat-markdown pre {
-  background: #0b1020; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow:auto;
+    background: #0b1020;
+    color: #e2e8f0;
+    padding: 12px;
+    border-radius: 8px;
+    overflow: auto;
 }
-.dialog .txt.chat-markdown pre code { background: transparent; padding: 0; }
+.dialog .txt.chat-markdown pre code {
+    background: transparent;
+    padding: 0;
+}
 
-.dialog .txt.chat-markdown a { color: #2563eb; text-decoration: underline; }
+.dialog .txt.chat-markdown a {
+    color: #2563eb;
+    text-decoration: underline;
+}
 
 /* 去掉块首尾多余空白 */
-.dialog .txt.chat-markdown > :first-child { margin-top: 0; }
-.dialog .txt.chat-markdown > :last-child  { margin-bottom: 0; }
+.dialog .txt.chat-markdown > :first-child {
+    margin-top: 0;
+}
+.dialog .txt.chat-markdown > :last-child {
+    margin-bottom: 0;
+}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\CountriesPhoneCodes;
 
 class Account extends WebController {
     
@@ -225,7 +226,7 @@ class Account extends WebController {
                     }
                 }
 
-                $revise_member = 
+                $revise_member =
                 [
                     'full_name'             =>  implode(' ', array_filter([$this->_page_post_data['first_name'], $this->_page_post_data['last_name']])),
                     'first_name'            =>  $this->_page_post_data['first_name'],
@@ -235,7 +236,8 @@ class Account extends WebController {
                     'countries_serving'     =>  ((!empty($this->_page_post_data['countries_serving']))?$this->_page_post_data['countries_serving']:''),
                     'details'               =>  [],
                     'agents'                =>  [],
-                    'lawfirms'              =>  []
+                    'lawfirms'              =>  [],
+                    'business_licenses'     =>  []
                 ];
 
                 if(!empty($this->_page_post_data['interested_visa'])) {
@@ -282,7 +284,7 @@ class Account extends WebController {
                     }
                     
                     if(!empty($this->_page_post_data['services_country'])) {
-                        $revise_member['details']['services_country'] = $this->_page_post_data['services_country'];
+                        $revise_member['details']['services_country'] = json_encode($this->_page_post_data['services_country']);
                     }
                     
                     if(!empty($this->_page_post_data['registered_agent'])) {
@@ -320,6 +322,19 @@ class Account extends WebController {
                             $revise_member['details']['registered_lawfirm'] = 0;
                         }
                     }
+
+                    // business licenses
+                    if(!empty($this->_page_post_data['license_id'])) {
+                        foreach ($this->_page_post_data['license_id'] as $license_key => $license_id) {
+                            $revise_member['business_licenses'][] = [
+                                'id'                    =>  (int)$license_id,
+                                'license_country'       =>  $this->_page_post_data['license_country'][$license_key],
+                                'issuing_authority'     =>  $this->_page_post_data['issuing_authority'][$license_key],
+                                'type_of_registration'  =>  $this->_page_post_data['type_of_registration'][$license_key],
+                                'registration_number'   =>  $this->_page_post_data['registration_number'][$license_key],
+                            ];
+                        }
+                    }
                 }
 
                 if($this->_member_model->doSave($revise_member, $this->_current_member['id'])) {
@@ -347,13 +362,15 @@ class Account extends WebController {
         });
         
         // load view
-        $list_countries = $this->loadModel('pages', ['table' => 'country'])->getAll($this->_current_lang_index, null, false);
         $list_interest_visas = $this->loadModel('pages', ['table' => 'interest_visa'])->getAll($this->_current_lang_index, null, false);
         $list_interest_topics = $this->loadModel('pages', ['table' => 'interest_topic'])->getAll($this->_current_lang_index, null, false);
         $list_organization_type = $this->loadModel('pages', ['table' => 'organization_type'])->getAll($this->_current_lang_index, null, false);
+
         $this->pageOptions(
         [
-            'countries' => $this->optionsToArray($list_countries),
+            'countries' => CountriesPhoneCodes::getCountries(),
+            'phone_codes' => CountriesPhoneCodes::getPhoneCodes(),
+            'country_phone_map' => CountriesPhoneCodes::getCountryPhoneMap(),
             'interest_visas' => $this->optionsToArray($list_interest_visas),
             'interest_topics' => $this->optionsToArray($list_interest_topics),
             'organization_type' => $this->optionsToArray($list_organization_type)
@@ -380,7 +397,8 @@ class Account extends WebController {
             'show_current_member'       => $this->_show_current_member,
             'current_member_details'    => $this->_member_model->getDetailsByID($this->_show_current_member['id']),
             'current_member_agent'      => $this->_member_model->getAgentByID($this->_show_current_member['id']),
-            'current_member_lawfirm'    => $this->_member_model->getLawFirmByID($this->_show_current_member['id'])
+            'current_member_lawfirm'    => $this->_member_model->getLawFirmByID($this->_show_current_member['id']),
+            'current_member_business_license' => $this->_member_model->getBusinessLicenseByID($this->_show_current_member['id'])
         ])->pageView();
     }
     
