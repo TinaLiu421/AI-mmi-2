@@ -232,6 +232,31 @@ function uploadDocumentToChat(file) {
             $askForm.find("button").prop("disabled", false);
             removeUploadingMessage(uploadingMessageId);
 
+            // Build and display the file upload message in chat
+            const fileIcon = getFileIcon(file.name);
+            const fileSize = (file.size / 1024).toFixed(2);
+            const fileUploadHtml = `
+                <div class="dialog ask">
+                    <div class="avatar">
+                        <img src="asset/image/icon-member.png" alt="avatar">
+                    </div>
+                    <div class="name">You</div>
+                    <div class="time">${new Intl.DateTimeFormat(undefined, {
+                        timeStyle: "short",
+                    }).format(new Date())}</div>
+                    <div class="clearboth"></div>
+                    <div class="txt">
+                        ${fileIcon} <strong>${escapeHtml(file.name)}</strong><br>
+                        <small>${fileSize} KB</small>
+                    </div>
+                </div>
+                <div class="clearboth"></div>
+            `;
+
+            // Append the file bubble to chat
+            $showMessage.append(fileUploadHtml);
+            scrollToBottomWithRetry();
+
             if (data.success && data.analysis) {
                 const analysisText = extractAnalysisText(data.analysis);
 
