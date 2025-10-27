@@ -8,13 +8,16 @@
                 <div class="author">
                     <div class="avatar">
                         <a href="<?php echo $_page_base_url.'/account/posts?uid='.$posts['member_id']; ?>">
-                            <img src="asset/image/icon-member.png" alt="icon-member"/>
                             <?php if(!empty($posts['avatar'])){ ?>
                             <?php if(file_exists('upload/member_avatar/'.$posts['avatar'])) { ?>
                             <div style="background-image:url('<?php echo 'upload/member_avatar/'.$posts['avatar']; ?>')"></div>
-                            <?php } else { ?>
+                            <?php } else if(file_exists('upload/member_logo/'.$posts['avatar'])) { ?>
                             <div style="background-image:url('<?php echo 'upload/member_logo/'.$posts['avatar']; ?>')"></div>
+                            <?php } else { ?>
+                            <img src="asset/image/icon-member.png" alt="icon-member"/>
                             <?php } ?>
+                            <?php } else { ?>
+                            <img src="asset/image/icon-member.png" alt="icon-member"/>
                             <?php } ?>
                         </a>
                     </div>
