@@ -67,7 +67,16 @@
                 <?php if(!empty($_show_current_member['telephone_num'])) { ?>
                 <div class="row">
                     <label><i class="fa fa-phone"></i><?php echo $_page_lang['account.telephone']; ?></label>
-                    <span>(<?php echo preg_replace('/^(\+)(.*)/i', '$2', $_show_current_member['telephone_code']); ?>)<?php echo $_show_current_member['telephone_num']; ?></span>
+                    <span>
+                        (<?php echo preg_replace('/^(\+)(.*)/i', '$2', $_show_current_member['telephone_code']); ?>)<?php echo $_show_current_member['telephone_num']; ?>
+                        <?php
+                        $phone_code = preg_replace('/^(\+)(.*)/i', '$2', $_show_current_member['telephone_code']);
+                        $whatsapp_number = str_replace([' ', '-', '(', ')'], '', $phone_code . $_show_current_member['telephone_num']);
+                        ?>
+                        <a href="https://wa.me/<?php echo $whatsapp_number; ?>" target="_blank" title="Contact via WhatsApp" style="margin-left: 10px;">
+                            <i class="fa fa-whatsapp" style="color: #25D366; font-size: 24px;"></i>
+                        </a>
+                    </span>
                 </div>
                 <?php } ?>
                 

@@ -71,7 +71,16 @@
                                 <tr>
                                     <td><strong><?php echo $_page_lang['account.telephone']; ?>:</strong> </td>
                                     <td>&nbsp;&nbsp;</td>
-                                    <td><?php echo ($agent['telephone_code'].' '.$agent['telephone_num']); ?></td>
+                                    <td>
+                                        <?php echo ($agent['telephone_code'].' '.$agent['telephone_num']); ?>
+                                        <?php
+                                        $phone_code = preg_replace('/^(\+)(.*)/i', '$2', $agent['telephone_code']);
+                                        $whatsapp_number = str_replace([' ', '-', '(', ')'], '', $phone_code . $agent['telephone_num']);
+                                        ?>
+                                        <a href="https://wa.me/<?php echo $whatsapp_number; ?>" target="_blank" title="Contact via WhatsApp" style="margin-left: 10px;">
+                                            <i class="fa fa-whatsapp" style="color: #25D366; font-size: 24px;"></i>
+                                        </a>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td><strong><?php echo $_page_lang['account.email']; ?>:</strong> </td>
