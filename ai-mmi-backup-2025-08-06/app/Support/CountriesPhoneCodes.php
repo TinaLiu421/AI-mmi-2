@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Helpers;
+namespace App\Support;
 
 class CountriesPhoneCodes
 {
@@ -61,7 +61,7 @@ class CountriesPhoneCodes
         }
         return $phone_codes;
     }
-    
+
     public static function getCountryPhoneMap()
     {
         $country_phone_map = [];

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use App\Helpers\CountriesPhoneCodes;
+use App\Support\CountriesPhoneCodes;
 
 class Account extends WebController {
     
