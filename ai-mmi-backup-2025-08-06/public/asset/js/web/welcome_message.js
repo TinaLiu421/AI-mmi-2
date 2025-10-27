@@ -50,6 +50,8 @@ function initWelcomeMessage() {
 
             if (hasChatHistory) {
                 $(".welcome-message").removeClass("show").hide();
+                // Show upload button when there's chat history
+                $("#doc-upload-btn").show();
             } else {
                 displayWelcomeMessage();
             }
@@ -68,6 +70,9 @@ function removeWelcomeAndShowChat() {
 
     // Show chat action buttons
     $(".chat-action-buttons").show();
+
+    // Show upload button
+    $("#doc-upload-btn").show();
 
     // Stop the welcome video if it's playing
     const welcomeVideo = document.getElementById("welcome-robot-video");
@@ -110,6 +115,9 @@ function displayWelcomeMessage() {
 
     // Hide chat action buttons when welcome is showing
     $(".chat-action-buttons").hide();
+
+    // Hide upload button when welcome message is showing
+    $("#doc-upload-btn").hide();
 
     initializeWelcomeVideo();
     animateWelcomeTranscript();
