@@ -13,11 +13,12 @@
     <?php } ?>
     <div class="basic">
         <div class="photo">
-            <img src="asset/image/icon-member.png" alt="icon-member"/>
             <?php if(file_exists('upload/member_avatar/'.$_show_current_member['avatar'])) { ?>
             <div class="avatar" style="background-image:url('<?php echo 'upload/member_avatar/'.$_show_current_member['avatar']; ?>')"></div>
-            <?php } else { ?>
+            <?php } else if(file_exists('upload/member_logo/'.$_show_current_member['avatar'])) { ?>
             <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_show_current_member['avatar']; ?>')"></div>
+            <?php } else { ?>
+            <img src="asset/image/icon-member.png" alt="icon-member"/>
             <?php } ?>
             <?php if(empty($_page_data['is_readonly'])) { ?>
             <a id="myavatar" class="camera"><i class="fa fa-camera"></i></a>
