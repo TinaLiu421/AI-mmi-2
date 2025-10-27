@@ -389,8 +389,8 @@ class Account extends WebController {
             ->first(['p.name as plan_name','s.ends_at']);
 
         // write the finals into _show_current_member
-        $this->_show_current_member['subscription_name']   = $currentSub->plan_name ?? 'Free Plan';
-        $this->_show_current_member['subscription_expiry'] = $currentSub?->ends_at;
+        $this->_show_current_member['subscription_name']   = ($currentSub !== null) ? $currentSub->plan_name : 'Free Plan';
+        $this->_show_current_member['subscription_expiry'] = ($currentSub !== null) ? $currentSub->ends_at : null;
 
         return $this->pageData([
             'is_readonly'               => (md5(json_encode($this->_show_current_member))!=md5(json_encode($this->_current_member))),
