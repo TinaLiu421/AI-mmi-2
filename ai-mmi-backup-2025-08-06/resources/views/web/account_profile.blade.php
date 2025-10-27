@@ -806,7 +806,20 @@
             <div class="row">
                 <label for="services_country"><?php echo $_page_lang['account.services_country']; ?></label>
                 <div class="input-value">
-                    <?php echo (!empty($_page_options['countries'][$_show_current_member_details['services_country']]))?$_page_options['countries'][$_show_current_member_details['services_country']]:''; ?>
+                    <?php
+                    $services_countries = [];
+                    if(!empty($_show_current_member_details['services_country'])) {
+                        $decoded = json_decode($_show_current_member_details['services_country'], true);
+                        if(is_array($decoded)) {
+                            foreach($decoded as $country_code) {
+                                if(!empty($_page_options['countries'][$country_code])) {
+                                    $services_countries[] = $_page_options['countries'][$country_code];
+                                }
+                            }
+                        }
+                    }
+                    echo !empty($services_countries) ? implode(', ', $services_countries) : '';
+                    ?>
                 </div>
             </div>
             <div class="clearboth"></div>
