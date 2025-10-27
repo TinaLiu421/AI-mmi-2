@@ -60,10 +60,7 @@ class DocumentController extends Controller
                     $analysisResult = json_decode($analysisResult, true) ?? [];
                 }
 
-                return $this->documentResponse($existingDocument, $analysisResult, [
-                    'message' => 'This file was already uploaded previously. Showing previous analysis.',
-                    'duplicate' => true,
-                ]);
+                return $this->documentResponse($existingDocument, $analysisResult);
             }
 
             $storedFileName = Str::random(32) . '.' . strtolower($file->getClientOriginalExtension());
