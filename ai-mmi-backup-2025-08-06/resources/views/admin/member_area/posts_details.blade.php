@@ -42,7 +42,7 @@ $list_posts_comment = $_page_data['list_posts_comment'];
                 <div class="name">
                     <div><a href="<?php echo $_page_base_url.'/account/posts?uid='.$target_posts['member_id']; ?>"><?php echo $target_posts['alias_name']; ?></a></div>
                     <div class="hours">
-                        <?php echo time2Units(abs(strtotime($target_posts['created_at'])-strtotime(date('Y-m-d H:i:s'))), $_current_lang_index); ?> &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/>
+                        <?php echo date('d/m/Y', strtotime($target_posts['created_at'])); ?> &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/>
                     </div>
                 </div>
             </div>
@@ -94,7 +94,7 @@ $list_posts_comment = $_page_data['list_posts_comment'];
                 <div class="name">
                     <div><a href="<?php echo $_page_base_url.'/account/posts?uid='.$sub_data['member_id']; ?>"><?php echo $sub_data['alias_name']; ?></a></div>
                     <div class="hours">
-                        <?php echo time2Units(abs(strtotime($sub_data['created_at'])-strtotime(date('Y-m-d H:i:s'))), $_current_lang_index); ?> &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/>
+                        <?php echo date('d/m/Y', strtotime($sub_data['created_at'])); ?> &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/>
                     </div>
                 </div>
             </div>
