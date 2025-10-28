@@ -2,7 +2,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\WebController;
-use Illuminate\Support\Facades\DB;
+use App\Services\VisaRequirementService;
 
 class Profile_Comparison extends WebController
 {
@@ -16,6 +16,161 @@ class Profile_Comparison extends WebController
         return $this->pageView('profile_comparison');
     }
 
+    /**
+     * Extract user profile from chat logs
+     */
+    public function get_user_profile()
+    {
+        if (empty($this->_current_member)) {
+            $this->pageResult(['status' => 403, 'message' => 'Please login first']);
+            return;
+        }
+
+        try {
+            $memberId = $this->_current_member['id'];
+
+            // First try to get cached profile from database
+            $cachedProfile = $this->getCachedProfile($memberId);
+
+            // If cached profile exists and is recent (< 1 hour), use it
+            if (!empty($cachedProfile) && $this->isCacheValid($cachedProfile)) {
+                $this->pageResult([
+                    'status' => 200,
+                    'profile' => json_decode($cachedProfile->profile_data, true),
+                    'cached' => true
+                ]);
+                return;
+            }
+
+            // Extract fresh profile from chat history using Gemini AI
+            $chatHistory = $this->getChatHistory($memberId, 100);
+            $profile = $this->extractProfileWithGemini($chatHistory);
+
+            // Save profile to database
+            if (!empty($profile)) {
+                $this->saveProfile($memberId, $profile);
+            }
+
+            $this->pageResult([
+                'status' => 200,
+                'profile' => $profile,
+                'cached' => false
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning('Failed to extract user profile', [
+                'error' => $e->getMessage()
+            ]);
+
+            $this->pageResult([
+                'status' => 200,
+                'profile' => []
+            ]);
+        }
+    }
+
+    /**
+     * Get cached profile from database
+     */
+    protected function getCachedProfile($memberId)
+    {
+        try {
+            return \DB::table('member')
+                ->where('id', $memberId)
+                ->first();
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Check if cached profile is still valid (less than 5 minutes old)
+     * Reduced from 1 hour to ensure profile updates are reflected quickly
+     */
+    protected function isCacheValid($profile)
+    {
+        if (empty($profile->profile_updated_at)) {
+            return false;
+        }
+
+        $lastUpdate = strtotime($profile->profile_updated_at);
+        $fiveMinutesAgo = time() - 300; // 5 minutes instead of 1 hour (3600 seconds)
+
+        return $lastUpdate > $fiveMinutesAgo;
+    }
+
+    /**
+     * Save extracted profile to database
+     */
+    protected function saveProfile($memberId, $profile)
+    {
+        try {
+            \DB::table('member')->where('id', $memberId)->update([
+                'profile_data' => json_encode($profile),
+                'profile_updated_at' => now(),
+            ]);
+
+            \Log::info("Profile saved for member {$memberId}", ['profile' => $profile]);
+        } catch (\Exception $e) {
+            \Log::warning("Failed to save profile for member {$memberId}", [
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get visa selection options for dropdowns
+     */
+    public function get_visa_options()
+    {
+        try {
+            $this->pageResult([
+                'status' => 200,
+                'visa_options' => $this->getVisaSelectionOptions()
+            ]);
+        } catch (\Exception $e) {
+            $this->pageResult([
+                'status' => 500,
+                'message' => 'Failed to load visa options'
+            ]);
+        }
+    }
+
+    /**
+     * Debug endpoint - test RAG retrieval with Gemini cleaning
+     */
+    public function test_rag_retrieval()
+    {
+        try {
+            $country = request('country', 'Australia');
+            $visaType = request('visa_type', 'Temporary Graduate');
+
+            $visaRequirementService = app(VisaRequirementService::class);
+
+            // Test with 'policy' tag (same as chatbot)
+            $result = $visaRequirementService->getVisaRequirements("{$visaType} {$country}", 'policy');
+
+            $this->pageResult([
+                'status' => 200,
+                'country' => $country,
+                'visa_type' => $visaType,
+                'found' => $result['found'],
+                'criteria_count' => count($result['criteria'] ?? []),
+                'criteria' => $result['criteria'] ?? [],
+                'source_matches' => $result['source_matches'] ?? 0
+            ]);
+        } catch (\Exception $e) {
+            $this->pageResult([
+                'status' => 500,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Get visa requirements from RAG
+     * Main endpoint for fetching requirements for selected country and visa type
+     */
     public function get_ai_comparison()
     {
         if (empty($this->_current_member)) {
@@ -23,38 +178,98 @@ class Profile_Comparison extends WebController
             return;
         }
 
-        $chatHistory = $this->getChatHistory($this->_current_member['id'], 40);
-
-        if (empty($chatHistory)) {
-            $this->pageResult([
-                'status' => 400,
-                'message' => 'No chat history found. Please chat with AI first to share your information.'
-            ]);
-            return;
-        }
-
-        $prompt = $this->buildGeminiComparisonPromptFromChat($chatHistory);
-
         try {
-            $geminiResponse = $this->callGeminiForComparison($prompt);
+            $country = request('country');
+            $visaType = request('visa_type');
 
-            $this->pageResult([
-                'status' => 200,
-                'comparison' => $geminiResponse
-            ]);
+            // If no country/visa selected, return available options
+            if (empty($country) || empty($visaType)) {
+                $this->pageResult([
+                    'status' => 200,
+                    'visa_options' => $this->getVisaSelectionOptions(),
+                    'requires_selection' => true
+                ]);
+                return;
+            }
 
+            // Fetch requirements from RAG for selected visa
+            $visaRequirementService = app(VisaRequirementService::class);
+            // Try different query formats to find matching data
+            $queries = [
+                "{$visaType} {$country}",
+                "{$visaType}",
+                "requirements for {$visaType} visa",
+                "{$country} {$visaType} requirements",
+                "What are the requirements for {$visaType}"
+            ];
+
+            $ragRequirements = null;
+            try {
+                foreach ($queries as $query) {
+                    // Try with 'policy' tag first (same as chatbot uses)
+                    $ragRequirements = $visaRequirementService->getVisaRequirements($query, 'policy');
+                    if ($ragRequirements['found'] && !empty($ragRequirements['criteria'])) {
+                        \Log::info("Found requirements for {$visaType} {$country} using query: {$query}", [
+                            'criteria_count' => count($ragRequirements['criteria']),
+                            'source_matches' => $ragRequirements['source_matches'] ?? 0
+                        ]);
+                        break; // Found data, use this query
+                    }
+                }
+
+                if ($ragRequirements['found'] && !empty($ragRequirements['criteria'])) {
+                    $requirements = array_map(function($criterion) {
+                        return [
+                            'requirement' => $criterion['name'] ?? '',
+                            'description' => $criterion['description'] ?? ''
+                        ];
+                    }, $ragRequirements['criteria']);
+
+                    $this->pageResult([
+                        'status' => 200,
+                        'country' => $country,
+                        'visa_type' => $visaType,
+                        'requirements' => $requirements,
+                        'found' => true,
+                        'count' => count($requirements)
+                    ]);
+                } else {
+                    \Log::warning("No requirements found for {$visaType} {$country}");
+
+                    $this->pageResult([
+                        'status' => 404,
+                        'country' => $country,
+                        'visa_type' => $visaType,
+                        'requirements' => [],
+                        'found' => false,
+                        'message' => 'No requirements found for this visa type in RAG',
+                        'visa_options' => $this->getVisaSelectionOptions()
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::warning("Failed to fetch RAG criteria for {$visaType} {$country}", [
+                    'error' => $e->getMessage()
+                ]);
+
+                $this->pageResult([
+                    'status' => 500,
+                    'message' => 'Failed to fetch requirements from RAG',
+                    'visa_options' => $this->getVisaSelectionOptions()
+                ]);
+            }
         } catch (\Exception $e) {
-            \Log::error('Gemini comparison failed', [
+            \Log::error('Get AI comparison failed', [
                 'error' => $e->getMessage(),
                 'member_id' => $this->_current_member['id']
             ]);
 
             $this->pageResult([
                 'status' => 500,
-                'message' => 'Failed to generate comparison. Please try again.'
+                'message' => 'Failed to process request'
             ]);
         }
     }
+
 
     protected function getChatHistory($memberId, $limit = 20)
     {
@@ -67,263 +282,237 @@ class Profile_Comparison extends WebController
             ->toArray();
     }
 
-    protected function buildGeminiComparisonPromptFromChat($chatHistory)
+    /**
+     * Get visa selection options for dropdowns
+     * Returns available countries and visa types
+     */
+    protected function getVisaSelectionOptions()
     {
-        // Format chat history
-        $conversationText = "";
-        foreach ($chatHistory as $message) {
-            $role = $message->type === 'ask' ? 'User' : 'AI';
-            $conversationText .= "{$role}: {$message->content}\n\n";
-        }
-
-        return <<<PROMPT
-You are a visa eligibility expert. Based on our previous conversation below, analyze the user's eligibility for relevant visa options.
-
-**Previous Conversation:**
-{$conversationText}
-
-**Your Task:**
-1. Read the conversation and identify ALL relevant user information (age, occupation, education, English level, work experience, country preference, etc.)
-2. Use the MOST RECENT information if user corrected/updated anything during chat
-3. Identify the TOP 3 most relevant visa options for this profile (based on their target country or best matches)
-4. For EACH visa, provide a detailed comparison in this EXACT JSON format:
-
-```json
-{
-  "visa_options": [
-    {
-      "country": "Australia",
-      "visa_name": "Skilled Independent (189)",
-      "visa_code": "189",
-      "description": "Points-based permanent residence for skilled workers",
-      "match_score": 85,
-      "requirements": [
-        {
-          "requirement": "Age",
-          "visa_requirement": "Under 45",
-          "user_value": "28",
-          "status": "met",
-          "is_critical": true,
-          "details": "Meets requirement"
-        },
-        {
-          "requirement": "English Proficiency",
-          "visa_requirement": "IELTS 6.0+",
-          "user_value": "Not provided",
-          "status": "missing",
-          "is_critical": true,
-          "details": "English test needed"
-        }
-      ],
-      "critical_met": 3,
-      "critical_total": 4,
-      "recommendation": {
-        "level": "success",
-        "message": "Strong match! You meet most critical requirements.",
-        "icon": "thumbs-up",
-        "next_steps": [
-          "Take IELTS test (target 7.0+)",
-          "Get skills assessment for your occupation",
-          "Calculate your points score"
-        ]
-      }
-    }
-  ]
-}
-```
-
-**CRITICAL - Match Score Calculation (STRICTLY FOLLOW):**
-
-**FORMULA (NO EXCEPTIONS):**
-```
-match_score = (critical_met / critical_total) × 70 + (non_critical_met / non_critical_total) × 30
-```
-
-**RULES:**
-1. **ONLY "met" status counts as positive** → Value = 1
-2. **"not_met" and "missing" both count as ZERO** → Value = 0
-3. **Round result to nearest integer**
-
-**EXAMPLES (Follow exactly):**
-
-Example 1:
-- 6 critical: 0 met, 4 not_met, 2 missing
-  → critical_met = 0, critical_total = 6
-- 2 non-critical: 0 met, 2 missing
-  → non_critical_met = 0, non_critical_total = 2
-- **match_score = (0/6) × 70 + (0/2) × 30 = 0**
-
-Example 2:
-- 4 critical: 2 met, 1 not_met, 1 missing
-  → critical_met = 2, critical_total = 4
-- 3 non-critical: 2 met, 1 missing
-  → non_critical_met = 2, non_critical_total = 3
-- **match_score = (2/4) × 70 + (2/3) × 30 = 35 + 20 = 55**
-
-Example 3:
-- 5 critical: 1 met, 4 not_met
-  → critical_met = 1, critical_total = 5
-- 0 non-critical
-  → non_critical_met = 0, non_critical_total = 0
-- **match_score = (1/5) × 70 + 0 = 14**
-
-**VALIDATION:**
-- If ALL requirements are "not_met" or "missing" → match_score MUST = 0
-- If ZERO critical requirements met → match_score CANNOT exceed 30
-- match_score range: 0-100
-
-**Recommendation message:**
-- If match_score < 30: "⚠️ Low eligibility. Consider other visa options or address critical gaps."
-- If many "missing": Add "⚠️ Score may improve once you provide: [list missing items]"
-
-**Important:**
-- Use your latest knowledge of REAL visa requirements from official government sources
-- Status options:
-  * "met" = User clearly meets requirement
-  * "not_met" = User clearly does NOT meet requirement
-  * "missing" = Information not provided (treat as not met for scoring)
-- **Keep all text CONCISE and SHORT:**
-  * visa_requirement: Brief (e.g. "IELTS 6.0+" not "IELTS 6.0 or equivalent")
-  * user_value: Brief (e.g. "28" not "28 years old")
-  * details: One short sentence max (e.g. "Meets requirement" or "Test needed")
-  * recommendation message: 1-2 short sentences max
-  * next_steps: Short action items (e.g. "Take IELTS" not "You should consider taking...")
-- Return ONLY valid JSON, no markdown formatting
-PROMPT;
-    }
-    protected function callGeminiForComparison($prompt)
-    {
-        $apiKey = env('GEMINI_API_KEY');
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' . $apiKey;
-
-        $data = [
-            'contents' => [
-                [
-                    'parts' => [
-                        ['text' => $prompt]
-                    ]
-                ]
+        return [
+            'countries' => [
+                'Australia',
+                'Canada',
+                'United Kingdom',
+                'United States',
+                'New Zealand',
+                'Germany',
+                'Singapore'
             ],
-            'generationConfig' => [
-                'temperature' => 0.3, // Lower temperature for more consistent output
-                'topK' => 40,
-                'topP' => 0.95,
-                'maxOutputTokens' => 4096,
+            'visa_types_by_country' => [
+                'Australia' => [
+                    'Skilled Independent' => '189',
+                    'Skilled Nominated' => '190',
+                    'Temporary Graduate' => '485',
+                    'Skilled Independent (Regional)' => '191',
+                    'Employer Sponsored' => '482',
+                    'Skilled Migration' => '189/190/491'
+                ],
+                'Canada' => [
+                    'Express Entry' => 'EE',
+                    'Provincial Nominee Program' => 'PNP',
+                    'Canadian Experience Class' => 'CEC',
+                    'Federal Skilled Worker' => 'FSW'
+                ],
+                'United Kingdom' => [
+                    'Skilled Worker Visa' => 'SWV',
+                    'Intra-Company Transfer' => 'ICT',
+                    'Graduate Route' => 'GR',
+                    'Points-Based System' => 'PBS'
+                ],
+                'United States' => [
+                    'H-1B' => 'H1B',
+                    'EB-3 Skilled Worker' => 'EB3',
+                    'EB-2 Professional' => 'EB2',
+                    'O-1 Extraordinary Ability' => 'O1'
+                ],
+                'New Zealand' => [
+                    'Skilled Migrant' => 'SM',
+                    'Essential Skills' => 'ES',
+                    'Work to Residence' => 'WR',
+                    'Post-Study Work Visa' => 'PSWV'
+                ],
+                'Germany' => [
+                    'EU Blue Card' => 'EBC',
+                    'Skilled Worker Visa' => 'SWV',
+                    'Job Seeker Visa' => 'JSV',
+                    'Freelancer Visa' => 'FV'
+                ],
+                'Singapore' => [
+                    'Tech.Pass' => 'TP',
+                    'EntrePass' => 'EP',
+                    'Work Permit' => 'WP',
+                    'Employment Pass' => 'EP'
+                ]
             ]
         ];
-
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200) {
-            throw new \Exception('Gemini API returned error: ' . $response);
-        }
-
-        $result = json_decode($response, true);
-        $geminiText = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
-
-        // Extract JSON from Gemini response
-        $jsonMatch = [];
-        if (preg_match('/```json\s*(\{.*?\})\s*```/s', $geminiText, $jsonMatch)) {
-            $geminiText = $jsonMatch[1];
-        }
-
-        $comparisonData = json_decode($geminiText, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception('Invalid JSON from Gemini: ' . json_last_error_msg());
-        }
-
-        // Validate and recalculate match scores to ensure accuracy
-        $comparisonData = $this->validateAndRecalculateScores($comparisonData);
-
-        return $comparisonData;
     }
 
-    protected function validateAndRecalculateScores($comparisonData)
+    /**
+     * Extract user profile using Gemini AI for intelligent understanding
+     * More accurate than regex patterns for distinguishing real info from context
+     */
+    protected function extractProfileWithGemini($chatHistory): array
     {
-        if (!isset($comparisonData['visa_options']) || !is_array($comparisonData['visa_options'])) {
-            return $comparisonData;
-        }
-
-        foreach ($comparisonData['visa_options'] as &$visa) {
-            if (!isset($visa['requirements']) || !is_array($visa['requirements'])) {
-                continue;
-            }
-
-            $criticalMet = 0;
-            $criticalTotal = 0;
-            $nonCriticalMet = 0;
-            $nonCriticalTotal = 0;
-
-            // Count met requirements
-            foreach ($visa['requirements'] as $req) {
-                $isCritical = $req['is_critical'] ?? false;
-                $status = $req['status'] ?? 'missing';
-
-                if ($isCritical) {
-                    $criticalTotal++;
-                    if ($status === 'met') {
-                        $criticalMet++;
-                    }
-                } else {
-                    $nonCriticalTotal++;
-                    if ($status === 'met') {
-                        $nonCriticalMet++;
-                    }
+        try {
+            // Extract only user messages
+            $userMessages = [];
+            foreach ($chatHistory as $message) {
+                if ($message->type === 'ask') {
+                    $userMessages[] = $message->content;
                 }
             }
 
-            // Calculate correct match score
-            $criticalScore = $criticalTotal > 0 ? ($criticalMet / $criticalTotal) * 70 : 0;
-            $nonCriticalScore = $nonCriticalTotal > 0 ? ($nonCriticalMet / $nonCriticalTotal) * 30 : 0;
-            $correctMatchScore = round($criticalScore + $nonCriticalScore);
+            if (empty($userMessages)) {
+                return [];
+            }
 
-            // Log if Gemini's score was wrong
-            if (isset($visa['match_score']) && $visa['match_score'] != $correctMatchScore) {
-                \Log::warning('Match score corrected', [
-                    'visa' => $visa['visa_name'] ?? 'Unknown',
-                    'gemini_score' => $visa['match_score'],
-                    'correct_score' => $correctMatchScore,
-                    'critical_met' => $criticalMet,
-                    'critical_total' => $criticalTotal,
-                    'non_critical_met' => $nonCriticalMet,
-                    'non_critical_total' => $nonCriticalTotal
+            $chatText = implode("\n", $userMessages);
+
+            // Truncate to avoid token limits
+            $chatText = mb_strimwidth($chatText, 0, 4000, '...');
+
+            $prompt = <<<PROMPT
+You are a migration assistant helping understand user profiles. Extract user personal information from this chat conversation.
+
+CRITICAL INSTRUCTION: Only extract information that the USER explicitly stated about THEMSELVES.
+NEVER extract information about visa requirements, eligibility criteria, or system-generated recommendations.
+Example: If text contains "must be 45 years old" - this is a REQUIREMENT, not user profile data. Ignore it.
+
+CHAT HISTORY:
+$chatText
+
+TASK: Extract ONLY information directly stated by the user about themselves AND their migration interests.
+- Ignore all visa requirements, visa criteria, and eligibility information
+- Ignore all system messages or bot recommendations
+- Only extract personal facts the user disclosed about themselves
+- Extract the country and visa type they mentioned being interested in
+
+OUTPUT FORMAT - Return ONLY valid JSON:
+{
+  "age": "number (18-100) or null",
+  "education": "degree field or null (e.g., 'Computer Science', 'Bachelor of Commerce')",
+  "occupation": "job title or null (e.g., 'Software Engineer', 'Data Analyst')",
+  "experience": "years as number or null (e.g., 5, 10)",
+  "english_level": "fluency level or null (e.g., 'Advanced', 'Intermediate', 'Fluent')",
+  "ielts_score": "IELTS X.X format or null",
+  "toefl_score": "TOEFL XXX format or null",
+  "pte_score": "PTE XX format or null",
+  "nationality": "country name or null",
+  "interested_country": "country name or null (e.g., 'Australia', 'Canada')",
+  "interested_visa_type": "visa type name or null (e.g., 'Temporary Graduate', 'Skilled Nominated', 'Work Visa')"
+}
+
+Rules:
+- Age: Extract ONLY if user explicitly states their age (e.g., "I am 28", "I'm 32 years old"). NEVER extract age from requirement text like "between 18 to 45 years".
+- Education: Extract degree/field ONLY if explicitly mentioned (e.g., "Bachelor of Science")
+- Occupation: Extract job title ONLY (not location like "Gold Coast")
+- Experience: Extract years ONLY if explicitly mentioned by user (e.g., "I have 5 years experience")
+- English level: Extract ONLY if user states fluency level about themselves
+- Nationality: Extract ONLY if user explicitly states where they are from
+- Interested Country: Extract if user mentions wanting to migrate to a specific country (e.g., "I want to move to Australia", "migrate to Canada")
+- Interested Visa Type: Extract if user mentions a specific visa type (e.g., "485 visa" → "Temporary Graduate", "190 visa" → "Skilled Nominated", "skilled migration")
+- Return null for any field not explicitly stated by the user
+- NO markdown, NO explanations, ONLY valid JSON
+PROMPT;
+
+            $apiKey = env('GEMINI_API_KEY');
+            $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' . $apiKey;
+
+            $data = [
+                'contents' => [['parts' => [['text' => $prompt]]]],
+                'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 1024]
+            ];
+
+            $response = \Http::withHeaders(['Content-Type' => 'application/json'])
+                ->post($url, $data);
+
+            if (!$response->successful()) {
+                \Log::warning('Gemini profile extraction failed', [
+                    'status' => $response->status(),
+                    'error' => $response->body()
                 ]);
+                return [];
             }
 
-            // Override with correct score
-            $visa['match_score'] = $correctMatchScore;
-            $visa['critical_met'] = $criticalMet;
-            $visa['critical_total'] = $criticalTotal;
+            $result = $response->json();
 
-            // Update recommendation level based on corrected score
-            if ($correctMatchScore >= 70) {
-                $visa['recommendation']['level'] = 'success';
-            } elseif ($correctMatchScore >= 50) {
-                $visa['recommendation']['level'] = 'warning';
-            } else {
-                $visa['recommendation']['level'] = 'info';
-            }
+            // Extract text from Gemini response
+            if (isset($result['candidates'][0]['content']['parts'][0]['text'])) {
+                $text = $result['candidates'][0]['content']['parts'][0]['text'];
 
-            // Add low eligibility warning if score is below 30
-            if ($correctMatchScore < 30 && isset($visa['recommendation']['message'])) {
-                if (strpos($visa['recommendation']['message'], 'Low eligibility') === false) {
-                    $visa['recommendation']['message'] = '⚠️ Low eligibility. ' . $visa['recommendation']['message'];
+                // Handle markdown code fences (```json ... ```)
+                if (preg_match('/```(?:json)?\s*([\s\S]*?)```/', $text, $matches)) {
+                    $text = $matches[1];
+                }
+
+                // Parse JSON response
+                $profile = json_decode(trim($text), true);
+
+                if (is_array($profile)) {
+                    // Clean up the profile - remove null values and ensure correct types
+                    $cleaned = [];
+
+                    if (!empty($profile['age']) && is_numeric($profile['age'])) {
+                        $age = intval($profile['age']);
+                        if ($age >= 18 && $age <= 100) {
+                            $cleaned['age'] = $age;
+                        }
+                    }
+
+                    if (!empty($profile['education'])) {
+                        $cleaned['education'] = trim(strval($profile['education']));
+                    }
+
+                    if (!empty($profile['occupation'])) {
+                        $cleaned['occupation'] = trim(strval($profile['occupation']));
+                    }
+
+                    if (!empty($profile['experience']) && is_numeric($profile['experience'])) {
+                        $years = intval($profile['experience']);
+                        if ($years >= 0 && $years <= 60) {
+                            $cleaned['experience'] = $years . ' years';
+                        }
+                    }
+
+                    if (!empty($profile['english_level'])) {
+                        $cleaned['english_level'] = trim(strval($profile['english_level']));
+                    }
+
+                    if (!empty($profile['ielts_score'])) {
+                        $cleaned['ielts_score'] = trim(strval($profile['ielts_score']));
+                    }
+
+                    if (!empty($profile['toefl_score'])) {
+                        $cleaned['toefl_score'] = trim(strval($profile['toefl_score']));
+                    }
+
+                    if (!empty($profile['pte_score'])) {
+                        $cleaned['pte_score'] = trim(strval($profile['pte_score']));
+                    }
+
+                    if (!empty($profile['nationality'])) {
+                        $cleaned['nationality'] = trim(strval($profile['nationality']));
+                    }
+
+                    if (!empty($profile['interested_country'])) {
+                        $cleaned['interested_country'] = trim(strval($profile['interested_country']));
+                    }
+
+                    if (!empty($profile['interested_visa_type'])) {
+                        $cleaned['interested_visa_type'] = trim(strval($profile['interested_visa_type']));
+                    }
+
+                    return $cleaned;
                 }
             }
-        }
 
-        return $comparisonData;
+            return [];
+        } catch (\Exception $e) {
+            \Log::warning('Gemini profile extraction exception', [
+                'error' => $e->getMessage()
+            ]);
+            return [];
+        }
     }
 
 }
