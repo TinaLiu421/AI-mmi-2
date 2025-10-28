@@ -128,7 +128,7 @@ return
         'further_info_2'        =>  '請提供更多信息',
         'services'              =>  '為什麼選擇你作為服務提供者？',
         'enter_services'        =>  '輸入為什麼選擇你作為服務提供者',
-        'services_country'      =>  '支持的國家',
+        'services_country'      =>  '服務覆蓋國家',
         'add_cover_photo'       =>  '封面照片',
         'alias_name'            =>  '別名',
         'enter_alias_name'      =>  '輸入您的別名',
