@@ -651,7 +651,8 @@ class Account_Registration extends WebController {
                                     'company_website'   =>  (!empty($this->_page_post_data['company_website']) ? $this->_page_post_data['company_website'] : ''),
                                     'company_address'   =>  (!empty($this->_page_post_data['company_address']) ? $this->_page_post_data['company_address'] : ''),
                                     'country'           =>  $this->_page_post_data['country'],
-                                    'services_country'  =>  (!empty($this->_page_post_data['services_country']) ? json_encode($this->_page_post_data['services_country']) : ''),
+                                    'services_country'  =>  (!empty($this->_page_post_data['services_country']) ? json_encode(in_array('all', (array)$this->_page_post_data['services_country']) ? ['all'] : $this->_page_post_data['services_country']) : ''),
+                                    'services'          =>  (!empty($this->_page_post_data['services']) ? $this->_page_post_data['services'] : ''),
                                     'registered_business_country' => (!empty($this->_page_post_data['registered_business_country']) ? $this->_page_post_data['registered_business_country'] : ''),
                                     'registered_business_name' => (!empty($this->_page_post_data['registered_business_name']) ? $this->_page_post_data['registered_business_name'] : ''),
                                     'registered_business_number' => (!empty($this->_page_post_data['registered_business_number']) ? $this->_page_post_data['registered_business_number'] : '')
