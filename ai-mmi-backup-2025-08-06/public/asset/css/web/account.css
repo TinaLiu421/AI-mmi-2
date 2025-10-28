@@ -636,6 +636,12 @@ div.page-content.account div.article-list > div.post:nth-child(1) {
         margin: 0;
     }
 
+    div.page-content.account div.tab-details {
+        margin-top: 0;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
     div.page-content.account div.basic > div.photo {
         width: 100px;
         height: 100px;
