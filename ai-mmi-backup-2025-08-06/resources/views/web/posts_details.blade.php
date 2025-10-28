@@ -44,18 +44,15 @@
                 <div class="details">
                     <?php if(!empty($posts['title'])) { ?>
                     <h3><?php echo nl2br($posts['title']); ?></h3>
-                    <div>&nbsp;</div>
                     <?php } ?>
                     <div class="iweb-editor">
                         <p><?php echo nl2br($posts['content']); ?></p>
 
                         <?php if(!empty($posts['photo']) && file_exists('upload/member_posts/'.$posts['photo'])) { ?>
-                        <p>&nbsp;</p>
                         <p style="text-align:center;"><img src="<?php echo 'upload/member_posts/'.$posts['photo'];?>"></p>
                         <?php } ?>
 
                         <?php if(!empty($posts['youtube_url'])) { ?>
-                        <p>&nbsp;</p>
                         <div>
                             <div class="iweb-responsive" data-width="1268" data-height="713">
                                 <iframe class="youtube-video" src="<?php echo getYoutubeEmbedUrl($posts['youtube_url']); ?>" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>

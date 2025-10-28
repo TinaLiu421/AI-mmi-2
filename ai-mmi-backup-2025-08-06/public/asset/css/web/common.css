@@ -1676,7 +1676,7 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 .article-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-3);
 }
 
 .article-list .post {
@@ -1695,12 +1695,14 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 
 .article-list .post > div {
     padding: var(--space-4);
+    position: relative;
 }
 
 .article-list .post .author {
     display: flex;
     align-items: center;
-    margin-bottom: var(--space-3);
+    margin-bottom: 0;
+    padding-right: 50px;
 }
 
 .article-list .post .author .avatar {
@@ -1736,7 +1738,7 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 .article-list .post .author .name > div:first-child {
     font-weight: 600;
     color: var(--neutral-900);
-    margin-bottom: var(--space-1);
+    margin-bottom: 0;
 }
 
 .article-list .post .author .name > div:first-child a {
@@ -1753,7 +1755,9 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 }
 
 .article-list .post .follow {
-    margin-left: auto;
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
 }
 
 .article-list .post .follow a {
@@ -1779,7 +1783,7 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
     font-size: 1.125rem;
     font-weight: 600;
     color: var(--neutral-900);
-    margin-bottom: var(--space-2);
+    margin-bottom: 0;
 }
 
 .article-list .post .details .iweb-editor p {
@@ -1820,7 +1824,7 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 .article-list .post .summary {
     border-top: 1px solid var(--neutral-200);
     padding-top: var(--space-3);
-    margin-top: var(--space-3);
+    margin-top: 0;
 }
 
 .article-list .post .summary .total {
@@ -1868,17 +1872,25 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 .article-list .post .leavecomment {
     border-top: 1px solid var(--neutral-200);
     padding-top: var(--space-3);
-    margin-top: var(--space-3);
+    margin-top: 0;
 }
 
 .article-list .post .leavecomment > div {
     display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: var(--space-2);
     align-items: flex-end;
 }
 
+.article-list .post .leavecomment .reply {
+    flex-basis: 100%;
+    width: 100%;
+}
+
 .article-list .post .leavecomment textarea {
     flex: 1;
+    min-width: 200px;
     border: 1px solid var(--neutral-200);
     border-radius: var(--radius-md);
     padding: var(--space-2);
@@ -1904,10 +1916,88 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
     justify-content: center;
     cursor: pointer;
     transition: var(--transition-fast);
+    flex-shrink: 0;
 }
 
 .article-list .post .leavecomment button:hover {
     background: var(--neutral-300);
+}
+
+/* Comments in reply section */
+.article-list .post .leavecomment .reply {
+    width: 100%;
+    margin-bottom: var(--space-3);
+}
+
+.article-list .post .leavecomment .reply .replier {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    align-items: flex-start;
+}
+
+.article-list .post .leavecomment .reply .replier .avatar {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+}
+
+.article-list .post .leavecomment .reply .replier .avatar a {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+}
+
+.article-list .post .leavecomment .reply .replier .avatar img {
+    display: none;
+}
+
+.article-list .post .leavecomment .reply .replier .avatar div {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+}
+
+.article-list .post .leavecomment .reply .replier .name {
+    flex: 1;
+}
+
+.article-list .post .leavecomment .reply .replier .name > div:first-child {
+    display: inline;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 0;
+}
+
+.article-list .post .leavecomment .reply .replier .name > div:first-child a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.article-list .post .leavecomment .reply .replier .name .hours {
+    font-size: 0.7rem;
+    color: var(--neutral-500);
+    margin: 0;
+    margin-left: var(--space-2);
+    display: inline-block;
+    margin-top: -1.2em;
+    margin-bottom: 1.2em;
+}
+
+.article-list .post .leavecomment .reply .replier .name .hours img {
+    width: 12px;
+    height: 12px;
+    vertical-align: middle;
+}
+
+.article-list .post .leavecomment .reply .replier .name .message {
+    font-size: 0.875rem;
+    color: var(--neutral-700);
+    line-height: 1.5;
 }
 
 .article-list > .post .summary > .actions > .shareto {

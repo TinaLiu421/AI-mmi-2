@@ -7,13 +7,13 @@ div.page-content.account div.banner {
     width: 100%;
     height: 230px;
     margin-top: -25px;
-    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
 }
 
 div.page-content.account div.basic {
     position: relative;
     background: #fff;
-    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
     border-bottom-left-radius: 4px;
     border-bottom-right-radius: 4px;
     margin-top: -25px;
@@ -31,7 +31,7 @@ div.page-content.account div.basic > div.photo {
     margin-left: 35px;
     margin-right: 35px;
     vertical-align: bottom;
-    box-shadow: 0px 0px 5px rgba(0,0,0,0.1);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
 }
 
 div.page-content.account div.basic > div.photo > img {
@@ -139,7 +139,7 @@ div.page-content.account div.tab > a:hover:after,
 div.page-content.account div.tab > a.selected:after {
     position: absolute;
     background: #012169;
-    content: '';
+    content: "";
     bottom: -20px;
     left: 0px;
     right: 0px;
@@ -151,7 +151,7 @@ div.page-content.account div.tab-details {
     background: #fff;
     padding: 20px 35px;
     margin-top: 20px;
-    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
     border-radius: 4px;
 }
 
@@ -161,7 +161,13 @@ div.page-content.account div.tab-details.blank {
     box-shadow: none;
 }
 
-div.page-content.account div.tab-details div.form div.row div.iweb-input > div > input {
+div.page-content.account
+    div.tab-details
+    div.form
+    div.row
+    div.iweb-input
+    > div
+    > input {
     background: #fff;
 }
 
@@ -169,11 +175,22 @@ div.iweb-info-dialog div.form div.row div.iweb-input > div > input {
     background: #fff;
 }
 
-div.page-content.account div.tab-details div.form div.iweb-selector > div.real > select {
+div.page-content.account
+    div.tab-details
+    div.form
+    div.iweb-selector
+    > div.real
+    > select {
     background: #fff;
 }
 
-div.page-content.account div.tab-details div.form div.row div.iweb-input > div > textarea {
+div.page-content.account
+    div.tab-details
+    div.form
+    div.row
+    div.iweb-input
+    > div
+    > textarea {
     background: #fff;
 }
 
@@ -210,7 +227,10 @@ div.page-content.account div.tab-details div.subscription-info strong {
     color: #1e293b;
 }
 
-div.page-content.account div.tab-details div.subscription-info a.cancel-subscription-btn {
+div.page-content.account
+    div.tab-details
+    div.subscription-info
+    a.cancel-subscription-btn {
     background: #fee2e2;
     font-size: 14px;
     color: #dc2626;
@@ -222,12 +242,19 @@ div.page-content.account div.tab-details div.subscription-info a.cancel-subscrip
     transition: all 0.25s ease-in-out;
 }
 
-div.page-content.account div.tab-details div.subscription-info a.cancel-subscription-btn:hover {
+div.page-content.account
+    div.tab-details
+    div.subscription-info
+    a.cancel-subscription-btn:hover {
     background: #fecaca;
     color: #b91c1c;
 }
 
-div.page-content.account div.tab-details div.subscription-info a.cancel-subscription-btn i {
+div.page-content.account
+    div.tab-details
+    div.subscription-info
+    a.cancel-subscription-btn
+    i {
     margin-right: 5px;
 }
 
@@ -271,7 +298,7 @@ div.page-content.account div.child-agent div.list.disabled {
 
 div.page-content.account div.child-agent div.list.disabled:after {
     position: absolute;
-    content: '';
+    content: "";
     top: 0px;
     left: 0px;
     width: 100%;
@@ -285,7 +312,7 @@ div.page-content.account div.child-agent div.block {
 }
 
 div.page-content.account div.child-agent div.block.hidden {
-    display: none!important;
+    display: none !important;
 }
 
 div.page-content.account div.child-agent div.block a.remove-agent-block {
@@ -324,7 +351,7 @@ div.page-content.account div.child-lawfirm div.list.disabled {
 
 div.page-content.account div.child-lawfirm div.list.disabled:after {
     position: absolute;
-    content: '';
+    content: "";
     top: 0px;
     left: 0px;
     width: 100%;
@@ -338,7 +365,7 @@ div.page-content.account div.child-lawfirm div.block {
 }
 
 div.page-content.account div.child-lawfirm div.block.hidden {
-    display: none!important;
+    display: none !important;
 }
 
 div.page-content.account div.child-lawfirm div.block a.remove-lawfirm-block {
@@ -374,7 +401,7 @@ div.page-content.account div.tab-details div.intro {
     background: #fff;
     float: left;
     width: 32%;
-    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
     border-radius: 4px;
 }
 
@@ -403,23 +430,44 @@ div.page-content.account div.tab-details div.intro > div.info > div.row {
     margin-top: 20px;
 }
 
-div.page-content.account div.tab-details div.intro > div.info > div.row:nth-child(1) {
+div.page-content.account
+    div.tab-details
+    div.intro
+    > div.info
+    > div.row:nth-child(1) {
     margin-top: 0px;
 }
 
-div.page-content.account div.tab-details div.intro > div.info > div.row > label {
+div.page-content.account
+    div.tab-details
+    div.intro
+    > div.info
+    > div.row
+    > label {
     font-size: 20px;
     color: #aaa;
 }
 
-div.page-content.account div.tab-details div.intro > div.info > div.row > label > img {
+div.page-content.account
+    div.tab-details
+    div.intro
+    > div.info
+    > div.row
+    > label
+    > img {
     display: inline-block;
     width: 20px;
     margin-right: 10px;
-    vertical-align: middle
+    vertical-align: middle;
 }
 
-div.page-content.account div.tab-details div.intro > div.info > div.row > label > i {
+div.page-content.account
+    div.tab-details
+    div.intro
+    > div.info
+    > div.row
+    > label
+    > i {
     font-size: 22px;
     width: 22px;
     margin-right: 10px;
@@ -437,13 +485,12 @@ div.page-content.account div.tab-details div.mypost {
     padding-left: 20px;
 }
 
-
 div.page-content.account div.tab-details div.mypost div.publish {
     position: relative;
     background: #fff;
     margin-bottom: 20px;
     border-radius: 4px;
-    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
 }
 
 div.page-content.account div.tab-details div.mypost div.publish > div.title {
@@ -456,14 +503,24 @@ div.page-content.account div.tab-details div.mypost div.publish > div.title {
     border-bottom: 1px solid #aaa;
 }
 
-div.page-content.account div.tab-details div.mypost div.publish > div.title > i {
+div.page-content.account
+    div.tab-details
+    div.mypost
+    div.publish
+    > div.title
+    > i {
     display: inline-block;
     font-size: 20px;
     color: #5e5e5e;
     vertical-align: middle;
 }
 
-div.page-content.account div.tab-details div.mypost div.publish > div.title > span {
+div.page-content.account
+    div.tab-details
+    div.mypost
+    div.publish
+    > div.title
+    > span {
     display: inline-block;
     margin-left: 4px;
     line-height: 35px;
@@ -477,20 +534,37 @@ div.page-content.account div.tab-details div.mypost div.publish > div.media {
     text-align: right;
 }
 
-div.page-content.account div.tab-details div.mypost div.publish > div.media > a {
+div.page-content.account
+    div.tab-details
+    div.mypost
+    div.publish
+    > div.media
+    > a {
     display: inline-block;
     color: #5e5e5e;
     line-height: 35px;
     margin-left: 14px;
 }
 
-div.page-content.account div.tab-details div.mypost div.publish > div.media > a > i {
+div.page-content.account
+    div.tab-details
+    div.mypost
+    div.publish
+    > div.media
+    > a
+    > i {
     display: inline-block;
     color: #5e5e5e;
     vertical-align: middle;
 }
 
-div.page-content.account div.tab-details div.mypost div.publish > div.media > a > span {
+div.page-content.account
+    div.tab-details
+    div.mypost
+    div.publish
+    > div.media
+    > a
+    > span {
     display: inline-block;
     margin-left: 4px;
     vertical-align: middle;
@@ -501,11 +575,21 @@ div.page-content.account div.article-list > div.post:nth-child(1) {
 }
 
 @media only screen and (max-width: 1400px) {
-    div.page-content.account div.tab-details div.intro > div.info > div.row > label {
+    div.page-content.account
+        div.tab-details
+        div.intro
+        > div.info
+        > div.row
+        > label {
         font-size: 16px;
     }
-    
-    div.page-content.account div.tab-details div.intro > div.info > div.row > span {
+
+    div.page-content.account
+        div.tab-details
+        div.intro
+        > div.info
+        > div.row
+        > span {
         font-size: 16px;
     }
 }
@@ -515,7 +599,7 @@ div.page-content.account div.article-list > div.post:nth-child(1) {
         float: none;
         width: auto;
     }
-    
+
     div.page-content.account div.tab-details div.mypost {
         float: none;
         width: auto;
@@ -529,7 +613,7 @@ div.page-content.account div.article-list > div.post:nth-child(1) {
         margin-left: 20px;
         margin-right: 20px;
     }
-    
+
     div.page-content.account div.tab-details {
         margin-left: 20px;
         margin-right: 20px;
@@ -540,46 +624,55 @@ div.page-content.account div.article-list > div.post:nth-child(1) {
     div.page-content.account div.banner {
         height: 180px;
     }
-    
+
     div.page-content.account div.basic {
         text-align: center;
+        margin-left: 0;
+        margin-right: 0;
+        margin-bottom: 20px;
     }
-    
+
+    div.page-content.account div.tab-details.blank {
+        margin: 0;
+    }
+
     div.page-content.account div.basic > div.photo {
         width: 100px;
         height: 100px;
-        margin-top: -50px;
+        margin-top: -25px;
+        margin-left: 0;
+        margin-right: 0;
     }
-    
+
     div.page-content.account div.basic > div.name {
         display: block;
         font-size: 22px;
         text-align: center;
         margin-top: 10px;
     }
-    
+
     div.page-content.account div.basic > div.name > div.total-followers {
         font-size: 16px;
     }
-    
+
     div.page-content.account div.tab {
         margin-top: 20px;
         padding: 10px 20px;
     }
-    
+
     div.page-content.account div.tab > a {
         font-size: 18px;
     }
-    
-    div.page-content.account div.tab > a:hover:after, 
+
+    div.page-content.account div.tab > a:hover:after,
     div.page-content.account div.tab > a.selected:after {
         bottom: -10px;
     }
-    
+
     div.page-content.account div.tab-details {
         padding: 20px;
     }
-    
+
     div.page-content.account div.tab-details div.ac-type {
         float: none;
         text-align: center;
@@ -596,28 +689,32 @@ div.page-content.account div.article-list > div.post:nth-child(1) {
     div.page-content.account div.tab-details div.subscription-info > div {
         text-align: center;
     }
-    
+
     div.page-content.account div.tab-details div.further-tips {
         float: none;
         margin-top: 10px;
     }
-    
+
     div.page-content.account div.further-title > h1 {
         font-size: 28px;
     }
-    
+
     div.page-content.account div.child-lawfirm a.add-agent-block {
         font-size: 16px;
     }
-    
+
     div.page-content.account div.child-lawfirm a.add-lawfirm-block {
         font-size: 16px;
     }
-    
-    div.page-content.account div.tab-details div.mypost div.publish > div.title {
+
+    div.page-content.account
+        div.tab-details
+        div.mypost
+        div.publish
+        > div.title {
         font-size: 20px;
     }
-    
+
     div.page-content.account div.tab-details div.intro > div.title {
         font-size: 18px;
     }
@@ -628,7 +725,10 @@ div.page-content.account div.child-business-license div.block {
     position: relative;
 }
 
-div.page-content.account div.child-business-license div.block a.remove-license-block {
+div.page-content.account
+    div.child-business-license
+    div.block
+    a.remove-license-block {
     position: absolute;
     top: 0;
     right: 0;
@@ -636,7 +736,10 @@ div.page-content.account div.child-business-license div.block a.remove-license-b
 }
 
 /* Business License - Add More Button */
-div.page-content.account div.child-business-license div.row a.add-license-block {
+div.page-content.account
+    div.child-business-license
+    div.row
+    a.add-license-block {
     color: #0066cc;
     display: block;
     text-align: center;
