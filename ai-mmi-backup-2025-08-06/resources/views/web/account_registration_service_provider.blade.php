@@ -88,6 +88,7 @@
                 <label for="services_country"><?php echo $_page_lang['account.services_country']; ?> <span style="color:red;">*</span></label>
                 <select id="services_country" name="services_country[]" multiple="multiple" data-validation="required">
                     <option value=""><?php echo $_page_lang['please_select']; ?></option>
+                    <option value="all">All Countries</option>
                     <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_code => $country_name) { ?>
                     <option value="<?php echo $country_code; ?>"<?php echo (!empty($_page_data['account']['services_country']) && in_array($country_code, (array)$_page_data['account']['services_country']))?' selected':'';?>><?php echo $country_name; ?></option>
                     <?php }} ?>
@@ -345,6 +346,62 @@ document.addEventListener('DOMContentLoaded', function() {
             if (selectedCountry && registeredBusinessCountrySelect) {
                 registeredBusinessCountrySelect.value = selectedCountry;
             }
+        });
+    }
+
+    // Handle "All Countries" option using jQuery
+    if (jQuery && jQuery('#services_country').length) {
+        const $select = jQuery('#services_country');
+
+        $select.on('change', function() {
+            const $this = jQuery(this);
+            const allCountryValues = [];
+
+            // Get all country values (not empty, not "all")
+            $this.find('option').each(function() {
+                const val = jQuery(this).val();
+                if (val !== '' && val !== 'all') {
+                    allCountryValues.push(val);
+                }
+            });
+
+            // Get currently selected values
+            const selected = $this.val() || [];
+
+            // Check if "all" was clicked
+            const allIsSelected = selected.includes('all');
+
+            if (allIsSelected) {
+                // Check if all countries were already selected
+                const allCountriesWereSelected = allCountryValues.length > 0 && allCountryValues.every(val => selected.includes(val));
+
+                if (allCountriesWereSelected) {
+                    // If all were already selected, deselect all
+                    console.log('All clicked when all selected - deselecting all');
+                    $this.find('option').prop('selected', false);
+                } else {
+                    // Otherwise select all individual countries
+                    console.log('All clicked - selecting all countries');
+                    $this.find('option').prop('selected', function() {
+                        const val = jQuery(this).val();
+                        return val !== '' && val !== 'all';
+                    });
+                }
+            } else {
+                // Check if all countries are selected
+                const allCountriesSelected = allCountryValues.length > 0 && allCountryValues.every(val => selected.includes(val));
+
+                if (allCountriesSelected) {
+                    // Automatically check "all"
+                    console.log('All countries selected - checking all option');
+                    $this.find('option[value="all"]').prop('selected', true);
+                }
+            }
+        });
+
+        // Before form submission, remove "all" from the selected values
+        jQuery('#account-service-provider-form').on('submit', function() {
+            $select.find('option[value="all"]').prop('selected', false);
         });
     }
 
