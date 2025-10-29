@@ -21,17 +21,6 @@ Options are dynamically rendered from the welcome_message.js configuration.
         <div class="welcome-message__transcript-line"></div>
     </div>
 
-    <div class="welcome-message__buttons">
-        <button class="welcome-option-btn" data-mode="immigration">
-            <i class="fa fa-plane"></i>
-            <span><?php echo $_page_lang['chat_robot.migrate']; ?></span>
-        </button>
-        <button class="welcome-option-btn" data-mode="study">
-            <i class="fa fa-graduation-cap"></i>
-            <span><?php echo $_page_lang['chat_robot.study']; ?></span>
-        </button>
-    </div>
-
     <div class="welcome-message__footer">
         <?php echo $_page_lang['chat_robot.welcome_footer']; ?>
     </div>

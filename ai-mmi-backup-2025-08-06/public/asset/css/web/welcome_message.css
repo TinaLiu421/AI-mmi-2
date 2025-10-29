@@ -143,8 +143,8 @@
 
 /* Transcript (Typewriter style) */
 .welcome-message__transcript {
-    min-height: 100px;
-    max-height: 240px;
+    min-height: 200px;
+    max-height: 450px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -154,15 +154,15 @@
 }
 
 .welcome-message__transcript-line {
-    font-size: 1.4rem;
+    font-size: 1.7rem;
     color: var(--primary-blue-dark);
-    line-height: 1.6;
+    line-height: 1.8;
     font-weight: 500;
     min-height: 2em;
-    max-height: 6.4em; /* Allow up to 4 lines (1.6 line-height × 4) */
+    max-height: 9em; /* Allow up to 5 lines (1.8 line-height × 5) */
     position: relative;
     text-align: center;
-    max-width: 700px;
+    max-width: 850px;
     overflow-y: auto;
 }
 
@@ -192,45 +192,6 @@
     margin-bottom: 25px;
 }
 
-.welcome-message__buttons {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 25px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-}
-
-.welcome-option-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 16px 28px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    border: 2px solid var(--primary-blue);
-    background: white;
-    color: var(--primary-blue);
-    border-radius: 50px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 102, 255, 0.15);
-    min-width: 170px;
-}
-
-.welcome-option-btn:hover {
-    background: var(--primary-blue);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 102, 255, 0.3);
-}
-
-.welcome-option-btn i {
-    font-size: 1.3rem;
-}
-
 .welcome-message__footer {
     padding-top: 15px;
     text-align: center;
@@ -248,33 +209,29 @@
     }
 
     .welcome-message__video-wrapper {
-        width: 180px;
-        height: 180px;
+        width: 160px;
+        height: 160px;
     }
 
     .welcome-message__video-container {
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
 
     .welcome-message__transcript {
         margin-bottom: 25px;
+        min-height: 150px;
+        max-height: 350px;
     }
 
     .welcome-message__transcript-line {
-        font-size: 1.2rem;
-    }
-
-    .welcome-option-btn {
-        padding: 16px 28px;
-        font-size: 1.1rem;
-    }
-
-    .welcome-message__buttons {
-        margin-bottom: 20px;
+        font-size: 1.4rem;
+        line-height: 1.6;
+        max-height: 8em; /* Allow up to 5 lines (1.6 line-height × 5) */
+        max-width: 90%;
     }
 
     .welcome-message__footer {
-        font-size: 1rem;
+        font-size: 0.9rem;
         padding-top: 8px;
     }
 }
