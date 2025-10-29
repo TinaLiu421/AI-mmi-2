@@ -57,13 +57,11 @@
             <div class="clearboth"></div>
             
             
-            <div class="row">
+            <div class="row left">
                 <label for="company_name"><?php echo $_page_lang['account.company_name_2']; ?> <span style="color:red;">*</span> <small style="text-transform:none;color:#aaa;"><?php echo $_page_lang['max_company_name']; ?></small></label>
                 <input type="text" id="company_name" name="company_name" placeholder="<?php echo $_page_lang['account.enter_company_name']; ?>" value="<?php echo $_page_data['account']['company_name']; ?>" data-validation="required">
             </div>
-            <div class="clearboth"></div>
-            
-            <div class="row">
+            <div class="row right">
                 <label for="company_type"><?php echo $_page_lang['account.company_type']; ?> <span style="color:red;">*</span></label>
                 <select id="company_type" name="company_type" data-validation="required">
                     <option value=""><?php echo $_page_lang['please_select']; ?></option>
@@ -74,7 +72,7 @@
             </div>
             <div class="clearboth"></div>
             
-            <div class="row">
+            <div class="row left">
                 <label for="country"><?php echo $_page_lang['account.country']; ?> <span style="color:red;">*</span></label>
                 <select id="country" name="country" data-validation="required">
                     <option value=""><?php echo $_page_lang['please_select']; ?></option>
@@ -83,8 +81,7 @@
                     <?php }} ?>
                 </select>
             </div>
-
-            <div class="row">
+            <div class="row right">
                 <label for="services_country"><?php echo $_page_lang['account.services_country']; ?> <span style="color:red;">*</span></label>
                 <select id="services_country" name="services_country[]" multiple="multiple" data-validation="required">
                     <option value=""><?php echo $_page_lang['please_select']; ?></option>
@@ -96,13 +93,11 @@
             </div>
             <div class="clearboth"></div>
 
-            <div class="row">
+            <div class="row left">
                 <label for="company_website"><?php echo $_page_lang['account.company_website']; ?></label>
                 <input type="text" id="company_website" name="company_website" placeholder="<?php echo $_page_lang['account.enter_company_website']; ?>" value="<?php echo $_page_data['account']['company_website']; ?>">
             </div>
-            <div class="clearboth"></div>
-
-            <div class="row">
+            <div class="row right">
                 <label for="company_address"><?php echo $_page_lang['account.company_address']; ?></label>
                 <input type="text" id="company_address" name="company_address" rows="3" placeholder="<?php echo $_page_lang['account.enter_company_address']; ?>"><?php echo $_page_data['account']['company_address']; ?>
             </div>
@@ -118,7 +113,7 @@
 
             <div class="group-title"><u><?php echo $_page_lang['account.business_registration']; ?></u> <span style="font-size: 0.8em; font-weight: normal;">(<?php echo $_page_lang['if_applicable']; ?>)</span></div>
 
-            <div class="row">
+            <div class="row left">
                 <label for="registered_business_country"><?php echo $_page_lang['account.business_registration_country']; ?></label>
                 <select id="registered_business_country" name="registered_business_country">
                     <option value=""><?php echo $_page_lang['please_select']; ?></option>
@@ -127,9 +122,7 @@
                     <?php }} ?>
                 </select>
             </div>
-            <div class="clearboth"></div>
-
-            <div class="row">
+            <div class="row right">
                 <label for="registered_business_name"><?php echo $_page_lang['account.business_registration_name']; ?></label>
                 <input type="text" id="registered_business_name" name="registered_business_name" placeholder="<?php echo $_page_lang['account.enter_business_registration_name']; ?>" value="<?php echo $_page_data['account']['registered_business_name']; ?>">
             </div>
@@ -259,12 +252,12 @@
             <div>&nbsp;</div>
 
             <div class="group-title"><u><?php echo $_page_lang['account.contact_info']; ?></u></div>
-            
-            <div class="row">
+
+            <div class="row left">
                 <label for="first_name"><?php echo $_page_lang['account.name']; ?> <span style="color:red;">*</span></label>
                 <input type="text" id="first_name" name="first_name" placeholder="<?php echo $_page_lang['account.enter_first_name']; ?>" value="<?php echo $_page_data['account']['first_name']; ?>" data-validation="required">
             </div>
-            <div class="row">
+            <div class="row right">
                 <label for="last_name" class="none">&nbsp;</label>
                 <input type="text" id="last_name" name="last_name" placeholder="<?php echo $_page_lang['account.enter_last_name']; ?>" value="<?php echo $_page_data['account']['last_name']; ?>" data-validation="required">
             </div>
@@ -276,33 +269,30 @@
             </div>
             <div class="clearboth"></div>
             
-            <div class="row">
-                <label for="telephone"><?php echo $_page_lang['account.telephone']; ?> <span style="color:red;">*</span></label>
-                <table class="telephone">
-                    <tr>
-                        <td>
-                            <select id="telephone_code" name="telephone_code" data-validation="required">
-                                <option value="">Code</option>
-                                <?php
-                                $current_code = preg_replace('/^(\+)(.*)/i', '$2', $_page_data['account']['telephone_code']);
-                                if(!empty($_page_options['phone_codes'])) {
-                                    foreach ($_page_options['phone_codes'] as $code => $label) {
-                                ?>
-                                <option value="<?php echo $code; ?>"<?php echo ($current_code==$code)?' selected':'';?>><?php echo $label; ?></option>
-                                <?php }} ?>
-                            </select>
-                        </td>
-                        <td><input type="text" id="telephone" name="telephone_num" placeholder="<?php echo $_page_lang['account.enter_telephone']; ?>" value="<?php echo $_page_data['account']['telephone_num']; ?>" data-validation="required"></td>
-                    </tr>
-                </table>
+            <div class="row left">
+                <label for="telephone_code"><?php echo $_page_lang['account.telephone']; ?> <span style="color:red;">*</span></label>
+                <select id="telephone_code" name="telephone_code" data-validation="required">
+                    <option value="">Code</option>
+                    <?php
+                    $current_code = preg_replace('/^(\+)(.*)/i', '$2', $_page_data['account']['telephone_code']);
+                    if(!empty($_page_options['phone_codes'])) {
+                        foreach ($_page_options['phone_codes'] as $code => $label) {
+                    ?>
+                    <option value="<?php echo $code; ?>"<?php echo ($current_code==$code)?' selected':'';?>><?php echo $label; ?></option>
+                    <?php }} ?>
+                </select>
+            </div>
+            <div class="row right">
+                <label for="telephone" class="none">&nbsp;</label>
+                <input type="text" id="telephone" name="telephone_num" placeholder="<?php echo $_page_lang['account.enter_telephone']; ?>" value="<?php echo $_page_data['account']['telephone_num']; ?>" data-validation="required">
             </div>
             <div class="clearboth"></div>
             
-            <div class="row">
+            <div class="row left">
                 <label for="password"><?php echo $_page_lang['account.password']; ?> <span style="color:red;">*</span></label>
                 <input type="password" id="password" name="password" placeholder="<?php echo $_page_lang['account.enter_password']; ?>" value="<?php echo $_page_data['account']['password']; ?>" data-validation="required|password">
             </div>
-            <div class="row">
+            <div class="row right">
                 <label for="repeat_password"><?php echo $_page_lang['account.re_password']; ?> <span style="color:red;">*</span></label>
                 <input type="password" id="repeat_password" name="repeat_password" placeholder="<?php echo $_page_lang['account.enter_password']; ?>" value="<?php echo $_page_data['account']['repeat_password']; ?>" data-validation="required|password">
             </div>

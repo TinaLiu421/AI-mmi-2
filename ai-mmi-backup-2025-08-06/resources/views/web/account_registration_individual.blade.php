@@ -40,13 +40,11 @@
             </div>
             <div class="clearboth"></div>
             
-            <div class="row">
+            <div class="row left">
                 <label for="password"><?php echo $_page_lang['account.password']; ?> <span style="color:red;">*</span></label>
                 <input type="password" id="password" name="password" placeholder="<?php echo $_page_lang['account.enter_password']; ?>" value="<?php echo $_page_data['account']['password']; ?>" data-validation="required|password">
             </div>
-            <div class="clearboth"></div>
-            
-            <div class="row">
+            <div class="row right">
                 <label for="repeat_password"><?php echo $_page_lang['account.re_password']; ?> <span style="color:red;">*</span></label>
                 <input type="password" id="repeat_password" name="repeat_password" placeholder="<?php echo $_page_lang['account.enter_password']; ?>" value="<?php echo $_page_data['account']['repeat_password']; ?>" data-validation="required|password">
             </div>
