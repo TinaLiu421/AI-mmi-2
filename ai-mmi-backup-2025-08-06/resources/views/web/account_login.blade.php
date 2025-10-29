@@ -38,26 +38,22 @@
                 <div class="clearboth"></div>
             </div>
 
-            {{-- <div class="or">
-                <span><?php echo $_page_lang['account.or']; ?></span>
-            </div>
-
-            <div class="third-party">
-                <a href="#" class="google" data-method="2">
-                    <i class="fa fa-google"></i>
-                    <span><?php echo $_page_lang['account.with_google_in']; ?></span>
-                </a>
-                <a href="#" class="fb" data-method="3">
-                    <i class="fa fa-facebook-square"></i>
-                    <span><?php echo $_page_lang['account.with_fb_in']; ?></span>
-                </a>
-                <a href="#" class="apple" data-method="4">
-                    <i class="fa fa-apple"></i>
-                    <span><?php echo $_page_lang['account.with_apple_in']; ?></span>
-                </a>
-            </div> --}}
-
         </form>
+
+        <div class="or">
+            <span><?php echo $_page_lang['account.or']; ?></span>
+        </div>
+
+        <div class="third-party">
+            <a href="<?php echo $_page_base_url.'/account_login/google'; ?>" class="google">
+                <i class="fa fa-google"></i>
+                <span><?php echo $_page_lang['account.with_google_in']; ?></span>
+            </a>
+            <a href="javascript:void(0);" onclick="alert('Facebook login not yet implemented!');" class="fb">
+                <i class="fa fa-facebook-square"></i>
+                <span><?php echo $_page_lang['account.with_fb_in']; ?></span>
+            </a>
+        </div>
     </div>
 </div>
 @endsection

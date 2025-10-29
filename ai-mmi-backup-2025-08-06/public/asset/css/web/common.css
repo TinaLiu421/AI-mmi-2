@@ -2099,7 +2099,7 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 }
 
 .form .row > label.none {
-    display: none;
+    visibility: hidden;
 }
 
 /* Input values (static) */

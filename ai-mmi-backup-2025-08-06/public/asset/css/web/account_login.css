@@ -36,15 +36,15 @@ div.page-content.account-login div.form div.third-party {
 
 div.page-content.account-login div.form div.third-party > a {
     display: inline-block;
-    width: calc((96%) / 3);
-    height: 40px;
+    width: calc((98%) / 2);
+    height: 44px;
     font-size: 16px;
     margin-left: 10px;
     color: #fff;
-    line-height: 40px;
+    line-height: 44px;
     vertical-align: top;
     text-align: center;
-    border-radius: 4px;
+    border-radius: 6px;
 }
 
 div.page-content.account-login div.form div.third-party > a:nth-child(1) {
