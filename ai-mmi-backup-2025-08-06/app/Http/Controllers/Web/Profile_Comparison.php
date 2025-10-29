@@ -9,8 +9,8 @@ class Profile_Comparison extends WebController
     public function index()
     {
         if (empty($this->_current_member)) {
-            header('Location: /account/login');
-            exit;
+            $this->doRedirect($this->toURL('account_login'));
+            return;
         }
 
         return $this->pageView('profile_comparison');
