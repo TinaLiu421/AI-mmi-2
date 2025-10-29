@@ -1522,6 +1522,10 @@ footer.page-footer a:hover {
     .chat-action-buttons .chat-action-btn span {
         display: inline;
     }
+
+    .article-list .post .details {
+        margin: 0 !important;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1776,7 +1780,7 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 }
 
 .article-list .post .details {
-    margin: var(--space-3) 0;
+    margin: var(--space-2) 0;
 }
 
 .article-list .post .details h3 {
@@ -1822,8 +1826,6 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 }
 
 .article-list .post .summary {
-    border-top: 1px solid var(--neutral-200);
-    padding-top: var(--space-3);
     margin-top: 0;
 }
 
@@ -1831,9 +1833,9 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    margin-bottom: var(--space-3);
     font-size: 0.875rem;
     color: var(--neutral-600);
+    justify-content: space-between;
 }
 
 .article-list .post .summary .total .like,
@@ -1841,6 +1843,10 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
     display: flex;
     align-items: center;
     gap: var(--space-1);
+}
+
+.article-list .post .summary .total .comment {
+    margin-left: auto;
 }
 
 .article-list .post .summary .actions {
@@ -1870,6 +1876,7 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 }
 
 .article-list .post .leavecomment {
+    display: none;
     border-top: 1px solid var(--neutral-200);
     padding-top: var(--space-3);
     margin-top: 0;

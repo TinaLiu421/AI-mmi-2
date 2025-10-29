@@ -29,16 +29,13 @@ $list_posts_comment = $_page_data['list_posts_comment'];
             <div class="author">
                 <div class="avatar">
                     <a href="<?php echo $_page_base_url.'/account/posts?uid='.$target_posts['member_id']; ?>">
+                        <img src="asset/image/icon-member.png" alt="icon-member"/>
                         <?php if(!empty($target_posts['avatar'])){ ?>
                         <?php if(file_exists('upload/member_avatar/'.$target_posts['avatar'])) { ?>
                         <div style="background-image:url('<?php echo 'upload/member_avatar/'.$target_posts['avatar']; ?>')"></div>
-                        <?php } else if(file_exists('upload/member_logo/'.$target_posts['avatar'])) { ?>
+                        <?php } else { ?>
                         <div style="background-image:url('<?php echo 'upload/member_logo/'.$target_posts['avatar']; ?>')"></div>
-                        <?php } else { ?>
-                        <img src="asset/image/icon-member.png" alt="icon-member"/>
                         <?php } ?>
-                        <?php } else { ?>
-                        <img src="asset/image/icon-member.png" alt="icon-member"/>
                         <?php } ?>
                     </a>
                 </div>

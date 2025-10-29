@@ -5,16 +5,13 @@
         <div class="author">
             <div class="avatar">
                 <a href="<?php echo $_page_base_url.'/account/posts?uid='.$posts['member_id']; ?>">
+                    <img src="asset/image/icon-member.png" alt="icon-member"/>
                     <?php if(!empty($posts['avatar'])){ ?>
                     <?php if(file_exists('upload/member_avatar/'.$posts['avatar'])) { ?>
                     <div style="background-image:url('<?php echo 'upload/member_avatar/'.$posts['avatar']; ?>')"></div>
-                    <?php } else if(file_exists('upload/member_logo/'.$posts['avatar'])) { ?>
+                    <?php } else { ?>
                     <div style="background-image:url('<?php echo 'upload/member_logo/'.$posts['avatar']; ?>')"></div>
-                    <?php } else { ?>
-                    <img src="asset/image/icon-member.png" alt="icon-member"/>
                     <?php } ?>
-                    <?php } else { ?>
-                    <img src="asset/image/icon-member.png" alt="icon-member"/>
                     <?php } ?>
                 </a>
             </div>
@@ -82,7 +79,6 @@
                 <div class="comment">
                     <?php echo str_replace('{num}', '<span>'.number_format((int)$posts['total_comment']).'</span>', $_page_lang['total_comments']); ?>
                 </div>
-                <div class="clearboth"></div>
             </div>
             <div class="actions">
                 <a class="do-like" data-id="<?php echo $posts['id']; ?>">
