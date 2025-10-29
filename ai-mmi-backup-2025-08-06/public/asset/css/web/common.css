@@ -2439,97 +2439,109 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
 }
 
 /* 让机器人 Markdown 更易读 */
-.dialog .txt.chat-markdown {
-    line-height: 1.7;
-    font-size: 15px;
+/* === AIMMI REPLY ENHANCED CARD STYLE === */
+.dialog.reply .txt.chat-markdown {
+    background: #f8fafc; /* 柔和灰白背景 */
     color: #0f172a;
-    white-space: normal; /* 重要：不要再 pre-wrap，按段落排版 */
-    word-break: break-word;
-}
-.dialog .txt.chat-markdown p {
-    margin: 0.6em 0;
-}
-
-.dialog .txt.chat-markdown h2 {
-    font-size: 1.1rem;
-    margin: 0.8em 0 0.4em;
-}
-.dialog .txt.chat-markdown h3 {
-    font-size: 1rem;
-    margin: 0.7em 0 0.3em;
-}
-.dialog .txt.chat-markdown h4 {
-    font-size: 0.95rem;
-    margin: 0.6em 0 0.3em;
-}
-
-.dialog .txt.chat-markdown ul {
-    margin: 0.5em 0 0.5em 1.2em;
-    list-style: disc;
-}
-.dialog .txt.chat-markdown ol {
-    margin: 0.5em 0 0.5em 1.2em;
-    list-style: decimal;
-}
-.dialog .txt.chat-markdown li {
-    margin: 0.25em 0;
-}
-
-.dialog .txt.chat-markdown blockquote {
-    margin: 0.7em 0;
-    padding: 0.6em 0.9em;
-    border-left: 3px solid #94a3b8;
-    background: #f8fafc;
-    color: #334155;
-}
-
-.dialog .txt.chat-markdown table {
-    border-collapse: collapse;
-    width: 100%;
-    font-size: 14px;
-}
-.dialog .txt.chat-markdown th,
-.dialog .txt.chat-markdown td {
     border: 1px solid #e2e8f0;
-    padding: 8px;
-    vertical-align: top;
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+    padding: 16px 20px;
+    line-height: 1.75;
+    font-size: 15.5px;
+    max-width: 95%;
 }
-.dialog .txt.chat-markdown thead th {
+
+/* 标题层次 */
+.dialog.reply .txt.chat-markdown h1,
+.dialog.reply .txt.chat-markdown h2,
+.dialog.reply .txt.chat-markdown h3 {
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    line-height: 1.3;
+}
+.dialog.reply .txt.chat-markdown h1 {
+    font-size: 1.4rem;
+}
+.dialog.reply .txt.chat-markdown h2 {
+    font-size: 1.2rem;
+    border-left: 4px solid #0066ff;
+    padding-left: 8px;
+    background: #f0f7ff;
+    border-radius: 4px;
+}
+.dialog.reply .txt.chat-markdown h3 {
+    font-size: 1.1rem;
+    color: #1e293b;
+}
+
+/* 列表与间距 */
+.dialog.reply .txt.chat-markdown ul,
+.dialog.reply .txt.chat-markdown ol {
+    margin: 0.6em 0 0.8em 1.4em;
+}
+.dialog.reply .txt.chat-markdown li {
+    margin: 0.3em 0;
+}
+
+/* 表格优化 */
+.dialog.reply .txt.chat-markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 14.5px;
+}
+.dialog.reply .txt.chat-markdown th,
+.dialog.reply .txt.chat-markdown td {
+    border: 1px solid #e2e8f0;
+    padding: 8px 10px;
+}
+.dialog.reply .txt.chat-markdown th {
     background: #f1f5f9;
     font-weight: 600;
 }
-.dialog .txt.chat-markdown tbody tr:nth-child(even) {
+.dialog.reply .txt.chat-markdown tbody tr:nth-child(even) {
     background: #f9fafb;
 }
 
-.dialog .txt.chat-markdown code {
-    background: #f1f5f9;
-    padding: 0.15em 0.35em;
-    border-radius: 4px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-        "Liberation Mono", "Courier New", monospace;
+/* 引用块 */
+.dialog.reply .txt.chat-markdown blockquote {
+    border-left: 4px solid #06b6d4;
+    background: #e0f7ff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: #064e63;
+    margin: 0.8em 0;
 }
-.dialog .txt.chat-markdown pre {
+
+/* 代码与链接 */
+.dialog.reply .txt.chat-markdown code {
+    background: #f1f5f9;
+    color: #1e293b;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+.dialog.reply .txt.chat-markdown pre {
     background: #0b1020;
     color: #e2e8f0;
     padding: 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: auto;
 }
-.dialog .txt.chat-markdown pre code {
-    background: transparent;
-    padding: 0;
-}
-
-.dialog .txt.chat-markdown a {
-    color: #2563eb;
+.dialog.reply .txt.chat-markdown a {
+    color: #0066ff;
     text-decoration: underline;
 }
-
-/* 去掉块首尾多余空白 */
-.dialog .txt.chat-markdown > :first-child {
-    margin-top: 0;
+.dialog.reply .txt.chat-markdown a:hover {
+    text-decoration-thickness: 2px;
 }
-.dialog .txt.chat-markdown > :last-child {
-    margin-bottom: 0;
+
+/* 小屏适配 */
+@media (max-width: 768px) {
+    .dialog.reply .txt.chat-markdown {
+        padding: 12px 14px;
+        font-size: 15px;
+    }
 }

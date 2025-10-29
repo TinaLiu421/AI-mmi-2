@@ -16,20 +16,48 @@ class Generator
         // Gemini API
         $this->http   = new Client(['base_uri' => 'https://generativelanguage.googleapis.com']);
         $this->model  = env('GEMINI_CHAT_MODEL', 'gemini-2.5-flash');
-        // 可选：系统提示，没配就使用一个稳健的默认
-        $this->system = env('RAG_SYSTEM_PROMPT') ?: 'You are AI-mmi. Only answer using the provided CONTEXT. '
-            .'If the context is insufficient, say you don’t know.';
+
+        /**
+         * —— 统一系统提示（RAG 专用）——
+         * 目标：样式统一 + 有细节必写，无细节不填充。
+         */
+        $this->system = env('RAG_SYSTEM_PROMPT') ?: <<<SYS
+You are **AI-mmi**, a professional assistant for migration, education, relocation, and accommodation.
+You answer **only** from the given CONTEXT. Never invent or mix external knowledge.
+
+### Style (STRICT)
+- Output **pure Markdown** (no HTML). Use `###` headings + concise bullet/numbered lists.
+- Bold key terms (e.g., **English requirement**, **Processing time**, **AUD**).
+- Keep one short intro sentence (<= 20 words). Keep sentences short.
+
+### Sections (ONLY IF present in CONTEXT)
+Use any of these sections when relevant; **skip** a section if the CONTEXT has nothing for it:
+- `### Overview` (1–2 bullets max)
+- `### Eligibility`
+- `### English Requirement`
+- `### Health & Character`
+- `### Fees`
+- `### Processing Time`
+- `### Documents / Evidence`
+- `### Application Steps`
+- `### Conditions / Notes`
+
+### Details Rule (VERY IMPORTANT)
+- If CONTEXT contains **any** concrete detail (numbers, dates, durations, fees, form names like **Form 1000**, visa condition codes, streams), include **at least one** such detail under the relevant bullet.
+- If the CONTEXT **does not** include concrete details for an item, keep the line natural and concise (do **not** add placeholders or guesses).
+
+If the answer truly cannot be derived from CONTEXT, say: **I don’t know based on the provided context.**
+SYS;
     }
 
     /**
-     * 纯文本 Prompt 生成（你已有的 ask 控制器把 CONTEXT 拼到 prompt 里）
+     * 纯文本 Prompt 生成（控制器已把 CONTEXT 拼进 prompt）
      */
     public function answer(string $prompt): string
     {
         $prompt = Utf8::normalizeString($prompt);
 
         $payload = [
-            // 可选系统指令（Gemini 支持 systemInstruction）
             'systemInstruction' => [
                 'parts' => [
                     ['text' => Utf8::normalizeString($this->system ?? '')],
@@ -41,13 +69,14 @@ class Generator
                 ],
             ]],
             'generationConfig' => [
-                'temperature'     => 0.0,                  // RAG 更稳
-                'topK'            => 1,
-                'topP'            => 1.0,
-                'maxOutputTokens' => (int) env('GEN_MAX_TOKENS', 1024),
-                'thinkingConfig'  => ['thinkingBudget' => 0], // 关闭“thinking”
-            ],
-            // （如需调整安全等级，可在这里增加 safetySettings）
+            'temperature'        => 0.0,       // 保持事实性
+            'topK'               => 1,
+            'topP'               => 1.0,
+            // ✅ 提升上限：支持更完整的长文
+            'maxOutputTokens'    => (int) env('GEN_MAX_TOKENS', 4096),
+            'thinkingConfig'     => ['thinkingBudget' => 0],
+            'responseMimeType'   => 'text/plain',
+            ],                        
         ];
 
         $res = $this->http->post("/v1beta/models/{$this->model}:generateContent", [
@@ -63,20 +92,22 @@ class Generator
         ]);
 
         $data = json_decode((string) $res->getBody(), true) ?? [];
-        // 常见返回结构：candidates[0].content.parts[0].text
         return $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
     }
 
     /**
-     * （可选）更方便的 RAG 入口：把 question/context 分开给
+     * 问题与上下文分开传入（更常用的 RAG 入口）
      */
     public function answerWithContext(string $question, string $context): string
     {
         $q = Utf8::normalizeString($question);
         $c = Utf8::normalizeString($context);
 
+        // 这里不再重复风格规则，直接复用 system prompt；仅约束“只用上下文”与“Markdown”
         $prompt = <<<PROMPT
-Answer the QUESTION using only the CONTEXT. If the answer is not in the context, say you don't know.
+Answer the QUESTION using **only** the CONTEXT.
+Follow the system style strictly (Markdown headings + bullet/numbered lists, bold key terms).
+Apply the **Details Rule**: if any concrete details appear in CONTEXT, include at least one under the right section; if not, keep lines concise without placeholders.
 
 QUESTION:
 {$q}

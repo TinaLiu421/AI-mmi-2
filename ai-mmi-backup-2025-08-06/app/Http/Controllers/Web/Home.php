@@ -10,29 +10,29 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Services\ConversationFlowService;
 
-class Home extends WebController {  
+class Home extends WebController {
     public function index() {
-        $home_page_data = $this->loadModel('pages')->getByID(1, $this->_current_lang_index, 
+        $home_page_data = $this->loadModel('pages')->getByID(1, $this->_current_lang_index,
         [
-            'media_files' => 
+            'media_files' =>
             [
                 ['type' => 'page', 'category' => 'banner_'.$this->_current_lang_index],
                 ['type' => 'page', 'category' => 'mobile_banner_'.$this->_current_lang_index]
             ]
         ]);
-        if(!empty($home_page_data['media_files']['banner_'.$this->_current_lang_index])) { 
-            foreach ($home_page_data['media_files']['banner_'.$this->_current_lang_index] as $banner_key => $banner) { 
+        if(!empty($home_page_data['media_files']['banner_'.$this->_current_lang_index])) {
+            foreach ($home_page_data['media_files']['banner_'.$this->_current_lang_index] as $banner_key => $banner) {
                 $home_page_data['media_files']['banner_'.$this->_current_lang_index][$banner_key]['url'] = $this->generateImage($banner, 1300, 245);
             }
         }
-        if(!empty($home_page_data['media_files']['mobile_banner_'.$this->_current_lang_index])) { 
-            foreach ($home_page_data['media_files']['mobile_banner_'.$this->_current_lang_index] as $banner_key => $banner) { 
+        if(!empty($home_page_data['media_files']['mobile_banner_'.$this->_current_lang_index])) {
+            foreach ($home_page_data['media_files']['mobile_banner_'.$this->_current_lang_index] as $banner_key => $banner) {
                 $home_page_data['media_files']['mobile_banner_'.$this->_current_lang_index][$banner_key]['url'] = $this->generateImage($banner, 800, 800);
             }
         }
-        
+
         // news
-        $list_news = $this->loadModel('posts')->getAll( 
+        $list_news = $this->loadModel('posts')->getAll(
         [
             'show_type'         =>  1,
             'show_lang'         =>  $this->_current_lang_index,
@@ -50,7 +50,7 @@ class Home extends WebController {
                     }
                 }
                 $list_news[$news_key]['url'] = $this->toURL('posts/details/'.$news['id']);
-                if(!empty($news['photo'])) { 
+                if(!empty($news['photo'])) {
                     $list_news[$news_key]['thumbnail'] = $this->generateImage(
                     [
                         'absolute_path' =>  'upload/member_posts/'.$news['photo'],
@@ -68,7 +68,7 @@ class Home extends WebController {
         }
 
         // events
-        $list_events = $this->loadModel('posts')->getAll( 
+        $list_events = $this->loadModel('posts')->getAll(
         [
             'show_type'         =>  2,
             'show_lang'         =>  $this->_current_lang_index,
@@ -86,7 +86,7 @@ class Home extends WebController {
                     }
                 }
                 $list_events[$events_key]['url'] = $this->toURL('posts/details/'.$events['id']);
-                if(!empty($events['photo'])) { 
+                if(!empty($events['photo'])) {
                     $list_events[$events_key]['thumbnail'] = $this->generateImage(
                     [
                         'absolute_path' =>  'upload/member_posts/'.$events['photo'],
@@ -106,7 +106,7 @@ class Home extends WebController {
         // load view
         $this->pageCss('slick.min', 'asset/lib/slider', false);
         $this->pageScript('slick.min', 'asset/lib/slider', false);
-        
+
         return $this->pageData(
         [
             'details'       =>  $home_page_data,
@@ -114,13 +114,13 @@ class Home extends WebController {
             'list_events'   =>  $list_events
         ])->pageView();
     }
-    
+
     public function qrcode() {
         require_once app_path('Libraries/phpqrcode/qrlib.php');
         \QRcode::png(urldecode($this->getParamValue('url')), false, QR_ECLEVEL_L, 16, 2);
         exit();
     }
-    
+
     public function chat($init = 0)
     {
         // 1) 处理 POST：写入一轮对话并返回答案
@@ -137,7 +137,7 @@ class Home extends WebController {
             $useRag   = (int)($this->postParamValue('use_rag', request()->input('use_rag', 0)));
             $override = (string)$this->postParamValue('override_reply', request()->input('override_reply', ''));
 
-            // —— 登录校验 —— 
+            // —— 登录校验 ——
             if (empty($this->_current_member)) {
                 $this->pageResult([
                     'status'  => 403,
@@ -147,7 +147,7 @@ class Home extends WebController {
                 return;
             }
 
-            // —— 基本校验 —— 
+            // —— 基本校验 ——
             $rawQuestion = trim((string)$question);
             if ($rawQuestion === '') {
                 $this->pageResult([
@@ -156,6 +156,149 @@ class Home extends WebController {
                 ]);
                 return;
             }
+
+            /**
+             * === Aimmi 领域守门（最小改动版，不改路由/不加中间件） ===
+             * 命中 greeting：直接短回复
+             * 不在允许域：直接拒绝并引导改写
+             * 允许域：继续执行原有 RAG / Gemini 逻辑
+             */
+            $allowedDomains   = ['migration','education','relocation','accommodation','related_services'];
+            $allowedSmalltalk = ['greeting'];
+
+            $label = $this->aimmiQuickClassify($rawQuestion);
+
+            // greeting：直接返回，不走 RAG/Gemini
+            if (in_array($label, $allowedSmalltalk, true)) {
+                $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
+
+                // 入库 ask/reply（和你的原有结构保持一致）
+                try {
+                    $nowUtc     = \Carbon\Carbon::now('UTC');
+                    $targetDate = (int)date('Ymd', strtotime($this->_today_date));
+
+                    \DB::beginTransaction();
+                    $askId = \DB::table('chat_log')->insertGetId([
+                        'member_id'   => $this->_current_member['id'],
+                        'related_id'  => 0,
+                        'target_date' => $targetDate,
+                        'type'        => 'ask',
+                        'content'     => $rawQuestion,
+                        'status'      => 1,
+                        'created_at'  => $nowUtc,
+                        'updated_at'  => $nowUtc,
+                    ]);
+                    \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
+
+                    $greetReply = '嗨～我是 Aimmi，我专注移民、留学、迁居、租房相关问题。你可以直接把情况告诉我，我会给你清单式建议 😊';
+
+                    \DB::table('chat_log')->insertGetId([
+                        'member_id'   => $this->_current_member['id'],
+                        'related_id'  => $askId,
+                        'target_date' => $targetDate,
+                        'type'        => 'reply',
+                        'content'     => $greetReply,
+                        'status'      => 1,
+                        'created_at'  => $nowUtc,
+                        'updated_at'  => $nowUtc,
+                    ]);
+                    \DB::commit();
+                } catch (\Throwable $e) {
+                    \DB::rollBack();
+                    \Log::error('CHAT DB INSERT FAIL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                }
+
+                $member_owner_name   = $this->_current_member['alias_name'];
+                $member_owner_avatar = 'asset/image/icon-member.png';
+                if (!empty($this->_current_member['avatar'])) {
+                    $member_owner_avatar = file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
+                        ? 'upload/member_avatar/'.$this->_current_member['avatar']
+                        : 'upload/member_logo/'.$this->_current_member['avatar'];
+                }
+
+                $this->pageResult([
+                    'status'               => 200,
+                    'content'              => nl2br($rawQuestion),
+                    'reply'                => $greetReply,
+                    'answer_markdown'      => $greetReply,
+                    'content_created_at'   => $nowUtcIso,
+                    'reply_created_at'     => $nowUtcIso,
+                    'member_owner_name'    => $member_owner_name,
+                    'member_owner_avatar'  => $member_owner_avatar,
+                    'ai_owner_name'        => 'AI-mmi',
+                    'ai_owner_avatar'      => 'asset/image/logo-mmi.png',
+                    'reply_source'         => 'greeting',
+                    'flow_prompt'          => null,
+                ]);
+                return;
+            }
+
+            // 非允许域：直接拒绝并引导改写
+            if (!in_array($label, $allowedDomains, true)) {
+                $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
+                $refusal = $this->aimmiRefusal();
+
+                // 入库 ask/reply
+                try {
+                    $nowUtc     = \Carbon\Carbon::now('UTC');
+                    $targetDate = (int)date('Ymd', strtotime($this->_today_date));
+
+                    \DB::beginTransaction();
+                    $askId = \DB::table('chat_log')->insertGetId([
+                        'member_id'   => $this->_current_member['id'],
+                        'related_id'  => 0,
+                        'target_date' => $targetDate,
+                        'type'        => 'ask',
+                        'content'     => $rawQuestion,
+                        'status'      => 1,
+                        'created_at'  => $nowUtc,
+                        'updated_at'  => $nowUtc,
+                    ]);
+                    \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
+
+                    \DB::table('chat_log')->insertGetId([
+                        'member_id'   => $this->_current_member['id'],
+                        'related_id'  => $askId,
+                        'target_date' => $targetDate,
+                        'type'        => 'reply',
+                        'content'     => $refusal,
+                        'status'      => 1,
+                        'created_at'  => $nowUtc,
+                        'updated_at'  => $nowUtc,
+                    ]);
+                    \DB::commit();
+                } catch (\Throwable $e) {
+                    \DB::rollBack();
+                    \Log::error('CHAT DB INSERT FAIL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                }
+
+                $member_owner_name   = $this->_current_member['alias_name'];
+                $member_owner_avatar = 'asset/image/icon-member.png';
+                if (!empty($this->_current_member['avatar'])) {
+                    $member_owner_avatar = file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
+                        ? 'upload/member_avatar/'.$this->_current_member['avatar']
+                        : 'upload/member_logo/'.$this->_current_member['avatar'];
+                }
+
+                $this->pageResult([
+                    'status'               => 200,
+                    'content'              => nl2br($rawQuestion),
+                    'reply'                => $refusal,
+                    'answer_markdown'      => $refusal,
+                    'content_created_at'   => $nowUtcIso,
+                    'reply_created_at'     => $nowUtcIso,
+                    'member_owner_name'    => $member_owner_name,
+                    'member_owner_avatar'  => $member_owner_avatar,
+                    'ai_owner_name'        => 'AI-mmi',
+                    'ai_owner_avatar'      => 'asset/image/logo-mmi.png',
+                    'reply_source'         => 'refused',
+                    'flow_prompt'          => null,
+                ]);
+                return;
+            }
+
+            // 命中允许域：可把域标签用于 RAG 过滤（可选但推荐）
+            $__aimmi_label = $label;
 
             // —— 订阅信息（现阶段聊天无限制，但留接口）——
             $has_migration_sub   = !empty($this->_current_member['has_migration_subscription']);
@@ -176,14 +319,14 @@ class Home extends WebController {
                 \Log::info('CHAT FLOW', ['case' => 'RAG override used']);
             }
 
-            // ❷ use_rag=1 但没带文本 → 后端再请求一次 RAG
+            // ❷ use_rag=1 但没带文本 → 后端再请求一次 RAG（把域标签当 tag 传过去）
             if ($new_reply === '' && $useRag === 1) {
-                $rag = $this->callRagApi($rawQuestion);
+                $rag = $this->callRagApi($rawQuestion, $__aimmi_label); // <— 改动点：多传一个 tag
                 if (is_string($rag) && trim($rag) !== '') {
                     $new_reply    = trim($rag);         // 仍保留 Markdown
                     $replySource  = 'rag-api';
                     $aiOwnerName  = 'AI-mmi (Policy)';
-                    \Log::info('CHAT FLOW', ['case' => 'RAG API used']);
+                    \Log::info('CHAT FLOW', ['case' => 'RAG API used', 'tag' => $__aimmi_label]);
                 }
             }
 
@@ -192,7 +335,6 @@ class Home extends WebController {
                 $new_reply    = $this->callGeminiApi($rawQuestion, $has_subscription);
                 $replySource  = 'model';
                 $aiOwnerName  = 'AI-mmi';
-                // 这里 callGeminiApi 内部已做 stripMarkdown
                 \Log::info('CHAT FLOW', ['case' => 'Model generated']);
             }
 
@@ -234,7 +376,7 @@ class Home extends WebController {
                 \Log::error('CHAT DB INSERT FAIL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
             }
 
-            // —— 构造头像/昵称 —— 
+            // —— 构造头像/昵称 ——
             $member_owner_name   = $this->_current_member['alias_name'];
             $member_owner_avatar = 'asset/image/icon-member.png';
             if (!empty($this->_current_member['avatar'])) {
@@ -257,11 +399,11 @@ class Home extends WebController {
                 \Log::error('Flow service error: '.$e->getMessage());
             }
 
-            // —— 只返回一次，结构与前端一致 —— 
+            // —— 只返回一次，结构与前端一致 ——
             $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
             $this->pageResult([
                 'status'               => 200,
-                'content'              => nl2br($rawQuestion), 
+                'content'              => nl2br($rawQuestion),
                 'reply'                => $new_reply,          // RAG: markdown; Gemini: 纯文本
                 'answer_markdown'      => $new_reply,
                 'content_created_at'   => $nowUtcIso,
@@ -332,7 +474,7 @@ class Home extends WebController {
     protected function callDialogflowApi($query = '') {
         $result_answer = '';
         if(!empty($query)) {
-        
+
             // Authentication credentials path
             $credentialsPath = storage_path('google-credentials.json');
 
@@ -370,7 +512,7 @@ class Home extends WebController {
             // Close the SessionsClient instance
             $sessionsClient->close();
         }
-        
+
         return $result_answer;
     }
 
@@ -437,10 +579,10 @@ class Home extends WebController {
 
             'contents' => $contents,
             'generationConfig' => [
-                        'temperature'       => 0.9,   // More creative/conversational
-                        'maxOutputTokens'   => 400,   // Enough for complete short answers (increased from 200)
+                        'temperature'       => 0.3,   // More creative/conversational
+                        'maxOutputTokens'   => 900,   // Enough for complete short answers
                         'topK'              => 40,
-                        'topP'              => 0.95,
+                        'topP'              => 0.9,
                         'candidateCount'    => 1,
 
                         'responseMimeType'  => 'text/plain',
@@ -521,7 +663,6 @@ class Home extends WebController {
         return $answer;
     }
 
-    
     protected function callChatgptApi($query = '') {
         $result_answer = '';
         if(!empty($query)) {
@@ -533,68 +674,62 @@ class Home extends WebController {
     }
 
     protected function buildUnifiedPrompt($has_subscription = false) {
-        return <<<PROMPT
-    You are AI-mmi, a friendly migration and study abroad advisor having natural conversations about moving to or studying in Australia, UK, Canada, or USA.
+    return <<<PROMPT
+    You are **Aimmi**, a specialist agent for: Migration, Education, Relocation, Accommodation & related services.
+    Your answers must be **actionable, tidy, and written in Markdown** with clear sections.
+    Respond in the user's language (Chinese first if user writes Chinese). Keep tone warm and professional.
 
-    CONVERSATION STYLE (VERY IMPORTANT):
-    - Talk like a real person, not a knowledge base
-    - Give SHORT answers (2-3 sentences max)
-    - Ask ONE follow-up question to understand their situation better
-    - Don't dump all information at once - let the conversation flow naturally
-    - Use conversational language: "Let me help you with that", "That's a great question", "I'd need to know a bit more"
+    # Output Style (MANDATORY)
+    - Use **Markdown headings** (#, ##, ###).
+    - Prefer **bullet points and numbered steps** over long paragraphs.
+    - Use simple **icons** for readability: 🟩 section markers, ✅ checklist ticks, ⚠️ cautions, ℹ️ notes.
+    - When comparing options, provide a **compact table**.
+    - Include **dates/versions** if policy is referenced.
+    - End with **Next questions I need from you**（接下来需要的信息） to keep the conversation moving.
 
-    RESPONSE FORMAT (CRITICAL):
-    1. Brief answer to their question (2-3 sentences)
-    2. ONE clarifying question OR offer to explain more
+    # Aimmi Response Template
+    ### 🟩 1. Quick Summary
+    - 1–3 bullet points that answer the user's core question directly.
 
-    TOPICS I CAN HELP WITH:
-    - Migration/Immigration: Visas, permanent residence, work permits, skilled migration, family sponsorship
-    - Study Abroad: Universities, courses, requirements, application process, scholarships
-    - Both: Student visas, post-study work visas, pathways from study to PR
+    ### 🟩 2. Your Options (if applicable)
+    | Option | Who it suits | Key requirements | Pros | Cons |
+    |---|---|---|---|---|
 
-    ASK QUESTIONS TO UNDERSTAND:
-    - If they ask about visas: Ask about their current status (student/worker/etc)
-    - If they ask about studying: Ask their field of interest and budget
-    - If they ask about points: Ask their age, English level, work experience
-    - If they ask about universities: Ask their academic background and goals
-    - If unclear: Ask them to clarify before giving detailed answer
+    ### 🟩 3. Step-by-Step Plan
+    1. Step one …
+    2. Step two …
+    3. Step three …
+    *(Keep steps short, imperative verbs. Max 6 steps.)*
 
-    WHEN TO GIVE MORE DETAILS:
-    Only when user explicitly says "tell me more", "give me details", "explain fully", or similar
+    ### 🟩 4. Documents / Evidence Checklist
+    ✅ Item 1  
+    ✅ Item 2  
+    ✅ Item 3
 
-    Examples:
-    User: "Can I migrate to Australia?"
-    Good: "Yes, there are several pathways to migrate to Australia! The best option depends on your situation. Are you currently a student, working professional, or looking at family sponsorship?"
+    ### 🟩 5. Timeline & Fees (if relevant)
+    - Typical processing time: X–Y months
+    - Key dates / validity: …
+    - Government fees / third-party costs: …
 
-    User: "Which country is best for studying?"
-    Good: "That depends on what you're looking for! Are you more interested in lower costs, post-study work opportunities, or specific programs? What field do you want to study?"
+    ### 🟩 6. Risks / Notes
+    - ⚠️ Risk or trap 1
+    - ℹ️ Important note 1
 
-    Reply in their language. Be warm, helpful, and conversational!
+    ### 🟩 7. Next questions I need from you
+    - 简短列出你需要补充的 3–5 个关键信息（如签证到期日/州/分数/英语/职业评估等）
+
+    # Style Examples
+    - If user asks “485 还有 4 个月到期，如何规划 190/491？”
+    - Provide a **quick summary**, then **steps**: Skills assessment → Points → State nomination → EOI → Lodge → Bridging visa。
+    - If user asks “858 GTI 流程？”
+    - Use **Application Process Summary** + **Benefits** + **Typical Evidence**（同截图风格）.
+
+    # Length
+    - Default: concise but complete (200–500 tokens).
+    - If user says "详细" / "展开" / "more details", you may extend.
 
     PROMPT;
     }
-
-    // protected function stripMarkdown($text) {
-    //     if ($text === '' || $text === null) return '';
-
-    //     $text = preg_replace('/!\[([^\]]*)\]\([^)]+\)/', '$1', $text);   // ![alt](url) -> alt
-    //     $text = preg_replace('/\[(.*?)\]\((.*?)\)/', '$1', $text);       // [label](url) -> label
-
-    //     $text = preg_replace('/\*\*(.*?)\*\*/s', '$1', $text);           // **bold** -> bold
-    //     $text = preg_replace('/\*(.*?)\*/s', '$1', $text);               // *italic* -> italic
-    //     $text = preg_replace('/__(.*?)__/s', '$1', $text);               // __bold__ -> bold
-    //     $text = preg_replace('/_(.*?)_/s', '$1', $text);                 // _italic_ -> italic
-    //     $text = preg_replace('/`{1,3}(.*?)`{1,3}/s', '$1', $text);       // `code` OR ```code``` -> code
-
-    //     $text = preg_replace('/^#{1,6}\s*/m', '', $text);                // # H -> H
-    //     $text = preg_replace('/^\s*>\s?/m', '', $text);                   // > quote -> quote
-    //     $text = preg_replace('/^\s*(-{3,}|\*{3,}|_{3,})\s*$/m', '', $text); // ---/***/___ 
-
-
-    //     $text = preg_replace("/\r\n|\r/", "\n", $text);                 
-    //     $text = preg_replace("/\n{3,}/", "\n\n", $text);              
-    //     return trim($text);
-    // }
 
     public function logRag(\Illuminate\Http\Request $request)
     {
@@ -665,10 +800,10 @@ class Home extends WebController {
         }
     }
 
-    protected function callRagApi($question)
+    protected function callRagApi($question, $tag = 'policy')
     {
         $url = url('/api/rag/ask');
-        $payload = json_encode(['q' => $question, 'tag' => 'policy'], JSON_UNESCAPED_UNICODE);
+        $payload = json_encode(['q' => $question, 'tag' => $tag], JSON_UNESCAPED_UNICODE);
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -683,5 +818,138 @@ class Home extends WebController {
 
         $data = json_decode($resp, true);
         return $data['answer'] ?? '';
+    }
+
+    /**
+     * 轻量关键词分类：返回 migration / education / relocation / accommodation / related_services / greeting / reject
+     */
+    private function aimmiQuickClassify(string $query): string
+    {
+        $raw = trim($query);
+        if ($raw === '') return 'reject';
+
+        $q = $this->aimmiNorm($raw); // 统一小写、去空白、半全角、符号
+
+        // --- 1) 规则：签证子类号/核心缩写的正则直判（命中直接判 migration） ---
+        $visaCode = '/\b(189|190|191|188|187|186|491|494|482|485|476|400|407|408|500|590|600|651|870|887|888|820|801|309|100|300|Bridging\s?A|Bridging\s?B|BVA|BVB|BVC)\b/i';
+        if (preg_match($visaCode, $raw)) return 'migration';
+
+        // 常见移民缩写/词干（英语/中文混搭）
+        $hardMigration = [
+            'eoi','ea','acs','vetassess','imt','imt','casa','pmsol','independent visa','skilled visa','tss','ens','rsms',
+            'expression of interest','points test','skill assessment','skills assessment','skills-select','skillselect',
+            'doha','dha','homeaffairs','immiaccount','vevo','genuine temporary entrant','gte','s56','hap id','coe (visa)','case officer',
+            'parent visa','partner visa','bridging visa','condition 8105','condition8105','s48','section48','tourist visa','work visa','pr','permanent residence','permanent resident',
+            '州担保','职业评估','邀约','获邀','加分','打分','eoi','打分表','职业清单','中长期清单','短期清单','提名','州担','境内外','过桥签','过桥a','过桥b','过桥c','补料','移民局','递交','下签'
+        ];
+        if ($this->aimmiTokenHit($q, $hardMigration)) return 'migration';
+
+        // --- 2) 关键词表（更全） ---
+        $rules = [
+            'migration' => [
+                // 中文
+                '签证','移民','pr','永居','州担保','独立技术','雇主担保','临签','学签','工签','访客签','打分','职业清单','技术评估','雅思','pte','托福',
+                '过桥','补料','获邀','邀约','体检','无犯罪','递交','下签','移民局','home affairs','immi','vevo','eoi','skill assessment','points','nomination',
+                // 英文常见
+                'visa','pr','immigration','migration','points test','occupation list','state nomination','invitation','genuine temporary entrant','case officer'
+            ],
+            'education' => [
+                // 中文
+                '留学','学校','大学','研究生','本科','学院','课程','专业','录取','offer','拒信','奖学金','wAm','gpa','均分','转学','免课','coE','cricos','aqf','esos',
+                '语言班','直入','预科','diploma','学分减免','成绩单','推荐信','个人陈述','ps','sop','cv','portfolio',
+                // 英文/缩写
+                'admission','university','college','scholarship','conditional offer','unconditional offer','intake','ranking','uac','unsw','uq','qtac','vtac','atar','ielts','pte','toefl','duolingo','orientation'
+            ],
+            'relocation' => [
+                // 中文
+                '搬家','落地','入境','清关','海关申报','行李','行前清单','银行开户','电话卡','医保','税号','tfn','abn','mygov','super','养老金',
+                '驾照','换证','州交通卡','交通卡','公交卡','医保卡','中心链接','福利','租车','买车过户',
+                // 英文
+                'relocation','settlement','customs','quarantine','declare','medicare','mygov','tfn','abn','super','centrelink','driver license','licence','go card','opal card','myki'
+            ],
+            'accommodation' => [
+                // 中文
+                '租房','看房','公寓','宿舍','合租','整租','房东','物业','中介费','租约','解约','转租','退租','退押金','押金','bond','inspection','break lease','租期','水电网','mould','发霉','虫害',
+                '租客','租赁仲裁','仲裁','reIQ','rta','ncat','vcat',
+                // 英文
+                'tenancy','lease','tenant','landlord','property manager','inspection','bond','condition report','break lease','keys','realestate.com.au','domain.com.au'
+            ],
+            'related_services' => [
+                // 中文
+                '中介','代理','移民代理','顾问','体检','指定医院','保险','oshc','ovhc','公证','海牙','apostille','认证','翻译','naati','接机','落地服务','行前','打印','复印','快递',
+                // 英文
+                'agent','migration agent','provider','oshc','ovhc','apostille','notary','naati','translation','pickup','pre-departure'
+            ],
+            'greeting' => [
+                'hello','hi','hey','thanks','thank you','good morning','good evening','good night',
+                '你好','您好','嗨','在吗','谢谢','多谢','辛苦了','早上好','晚上好','晚安'
+            ],
+        ];
+
+        // --- 3) 命中任一规则即归类（优先级：migration > education > relocation > accommodation > related_services > greeting）---
+        $priority = ['migration','education','relocation','accommodation','related_services','greeting'];
+        foreach ($priority as $label) {
+            if ($this->aimmiTokenHit($q, $rules[$label])) return $label;
+        }
+
+        // --- 4) 兜底：混合启发（同时出现“租/lease/tenant”等）---
+        if (preg_match('/(租|lease|tenant|landlord|inspection|bond)/u', $raw)) return 'accommodation';
+        if (preg_match('/(tfn|abn|medicare|mygov|super|tax)/i', $raw)) return 'relocation';
+
+        return 'reject';
+    }
+
+    /**
+     * 归一化：小写、去空白、统一全/半角，去掉常见标点
+     */
+    private function aimmiNorm(string $s): string
+    {
+        $s = mb_strtolower($s, 'UTF-8');
+        // 全角转半角
+        $map = ['　' => ' ', '（' => '(', '）' => ')', '，' => ',', '。' => '.', '：' => ':', '；' => ';', '！' => '!', '？' => '?', '－' => '-', '—' => '-', '／' => '/', '、' => ',', '“' => '"', '”' => '"', '‘' => "'", '’' => "'"];
+        $s = strtr($s, $map);
+        // 去多空白
+        $s = preg_replace('/\s+/u', ' ', $s);
+        // 去控制符
+        $s = preg_replace('/[^\P{C}]+/u', '', $s);
+        return trim($s);
+    }
+
+    /**
+     * 轻量“分词命中” + 模糊：把文本按非字母数字分成 token，
+     * 1) 直接 contains
+     * 2) 或 levenshtein 距离 ≤ 1（容忍小拼写错误）
+     */
+    private function aimmiTokenHit(string $normalizedText, array $candidates): bool
+    {
+        if ($normalizedText === '') return false;
+        // 切 token（保留中英文与数字）
+        $tokens = preg_split('/[^a-z0-9\x{4e00}-\x{9fa5}]+/ui', $normalizedText, -1, PREG_SPLIT_NO_EMPTY);
+        if (!$tokens) $tokens = [$normalizedText];
+
+        foreach ($candidates as $kw) {
+            $kw = $this->aimmiNorm($kw);
+            if ($kw === '') continue;
+
+            // 直接子串命中
+            if (mb_strpos($normalizedText, $kw) !== false) return true;
+
+            // token 级模糊（错 1 个字符以内）
+            foreach ($tokens as $t) {
+                if ($t === '' || abs(mb_strlen($t) - mb_strlen($kw)) > 1) continue;
+                if (levenshtein($t, $kw) <= 1) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 统一拒绝文案（Markdown）
+     */
+    private function aimmiRefusal(): string
+    {
+        return "Sorry, I'm **Aimmi**.\n"
+            ."I’m here to help with topics like migration, education, relocation, accommodation, and related services. 
+                Please ask something in those areas so I can assist you better.\n";
     }
 }
