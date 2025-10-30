@@ -600,64 +600,6 @@ main.page-body .chat-area .box > a.btn-close-mobile {
     z-index: 10;
 }
 
-/* Expand/Minimize Buttons - currently not used
-main.page-body .chat-area .box > a.btn-expand-full,
-main.page-body .chat-area .box > a.btn-expand-full-mobile,
-main.page-body .chat-area .box > a.btn-minimize-full {
-    position: absolute;
-    top: var(--space-4);
-    width: 32px;
-    height: 32px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--white);
-    text-decoration: none;
-    transition: var(--transition-normal);
-    backdrop-filter: blur(10px);
-    z-index: 5;
-}
-
-main.page-body .chat-area .box > a.btn-expand-full,
-main.page-body .chat-area .box > a.btn-expand-full-mobile {
-    right: var(--space-4);
-}
-
-main.page-body .chat-area .box > a.btn-minimize-full {
-    right: var(--space-4);
-    display: none;
-}
-
-/* Show minimize button when chat is expanded
-main.page-body .chat-area.show .box > a.btn-minimize-full {
-    display: flex;
-}
-
-/* Hide expand button when chat is expanded 
-main.page-body .chat-area.show .box > a.btn-expand-full {
-    display: none;
-}
-
-
-main.page-body .chat-area .box > a.btn-expand-full:hover,
-main.page-body .chat-area .box > a.btn-expand-full-mobile:hover,
-main.page-body .chat-area .box > a.btn-minimize-full:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: var(--accent-cyan);
-    box-shadow: var(--shadow-glow-cyan);
-    transform: scale(1.05);
-}
-
-main.page-body .chat-area .box > a.btn-minimize-full img {
-    width: 24px;
-    height: 24px;
-    filter: brightness(0) invert(1);
-}
-*/
-
 @keyframes slideInDown {
     from {
         opacity: 0;
@@ -1300,7 +1242,7 @@ footer.page-footer a:hover {
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 700px) {
     header.page-header > div {
         padding: 0 var(--space-4);
     }
@@ -2081,7 +2023,7 @@ div.iweb-selector-multiple > div.virtual > div.result > a:hover {
 }
 
 /* Stack form fields on small screens */
-@media (max-width: 768px) {
+@media (max-width: 700px) {
     div.row.left,
     div.row.right {
         float: none !important;
@@ -2539,7 +2481,7 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
 }
 
 /* 小屏适配 */
-@media (max-width: 768px) {
+@media (max-width: 700px) {
     .dialog.reply .txt.chat-markdown {
         padding: 12px 14px;
         font-size: 15px;

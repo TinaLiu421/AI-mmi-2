@@ -58,7 +58,7 @@
     box-shadow: var(--shadow-lg);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 700px) {
     .payment-success-card {
         padding: var(--space-6);
     }

@@ -300,7 +300,7 @@ tbody tr.missing {
     padding-left: var(--space-5);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 700px) {
     .comparison-container {
         padding: var(--space-2);
         margin: var(--space-4) auto;
