@@ -40,6 +40,7 @@
 
         </form>
 
+        {{-- Temporarily disabled social login until production issues are resolved
         <div class="or">
             <span><?php echo $_page_lang['account.or']; ?></span>
         </div>
@@ -54,6 +55,7 @@
                 <span><?php echo $_page_lang['account.with_fb_in']; ?></span>
             </a>
         </div>
+        --}}
     </div>
 </div>
 @endsection
