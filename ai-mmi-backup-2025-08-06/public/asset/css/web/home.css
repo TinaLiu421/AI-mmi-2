@@ -113,7 +113,7 @@ div.page-content.home div.news-event div.hslider .slick-next > i {
 
 @media only screen and (max-width: 700px) {
     div.page-content.home div.news-event {
-        margin-bottom: 10px;
+        margin-bottom: 5px !important;
     }
 
     div.page-content.home div.banner > div.desktop {
