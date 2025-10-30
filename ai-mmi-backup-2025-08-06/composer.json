@@ -16,8 +16,7 @@
         "laravel/tinker": "^2.5",
         "smalot/pdfparser": "^0.19.0",
         "stripe/stripe-php": "^17.6",
-        "symfony/css-selector": "^6.4",
-        "symfony/dom-crawler": "^7.3"
+        "symfony/css-selector": "^5.4"
     },
     "require-dev": {
         "facade/ignition": "^2.5",
@@ -63,7 +62,10 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
-        "cache-dir": "/home/atonlin2/public_html/at-creative-official-website.atonline-appmaker.com/laravel8/cache"
+        "cache-dir": "/home/atonlin2/public_html/at-creative-official-website.atonline-appmaker.com/laravel8/cache",
+        "platform": {
+            "php": "7.4"
+        }
     },
     "minimum-stability": "dev",
     "prefer-stable": true
