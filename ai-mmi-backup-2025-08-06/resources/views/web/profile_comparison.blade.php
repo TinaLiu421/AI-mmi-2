@@ -30,6 +30,7 @@
     <div id="results"></div>
 </div>
 
+
 <style>
 .comparison-container {
     max-width: 1400px;
@@ -385,6 +386,70 @@ tbody tr.missing {
     td { font-size: 0.813rem; }
     .recommendation { padding: var(--space-3); }
 }
+
+/* Inline edit styling */
+.editable-cell {
+    cursor: pointer;
+    position: relative;
+    padding: var(--space-2) !important;
+}
+
+.editable-cell:hover {
+    background: #fff9e6 !important;
+    border-radius: var(--space-1);
+}
+
+.editable-cell.editing {
+    padding: 2px !important;
+}
+
+.inline-input {
+    width: 100%;
+    padding: var(--space-2);
+    border: 2px solid var(--primary-blue-dark);
+    border-radius: var(--space-1);
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
+.inline-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1);
+}
+
+.edit-actions {
+    margin-top: var(--space-2);
+    display: flex;
+    gap: var(--space-2);
+}
+
+.edit-btn {
+    padding: 4px 12px;
+    border: none;
+    border-radius: var(--space-1);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.edit-btn-save {
+    background: var(--accent-green);
+    color: var(--white);
+}
+
+.edit-btn-save:hover {
+    background: #27ae60;
+}
+
+.edit-btn-cancel {
+    background: var(--neutral-300);
+    color: var(--neutral-700);
+}
+
+.edit-btn-cancel:hover {
+    background: var(--neutral-400);
+}
 </style>
 
 <script>
@@ -529,6 +594,223 @@ function displayResults(data) {
             </div>`;
 
         results.innerHTML += html;
+
+        console.log('Attaching click listeners...');
+
+        // Use event delegation - add one listener to results container
+        results.addEventListener('click', function(e) {
+            console.log('Any click detected on results');
+            console.log('Clicked element:', e.target.tagName, e.target.className);
+
+            // Check all td elements clicked
+            const td = e.target.closest('td');
+            if (!td) {
+                console.log('Not a td element');
+                return;
+            }
+
+            // Get column index
+            const row = td.closest('tr');
+            const tds = row ? Array.from(row.querySelectorAll('td')) : [];
+            const columnIndex = tds.indexOf(td);
+            console.log('Clicked column:', columnIndex);
+
+            // Column 3 is index 2 (0-based)
+            if (columnIndex !== 2) {
+                console.log('Not column 3 (Your Profile)');
+                return;
+            }
+
+            console.log('Clicked on Your Profile column');
+
+            const statusCell = row.querySelector('td:nth-child(4)');
+            const requirementCell = row.querySelector('td:nth-child(1)');
+
+            if (!statusCell || !requirementCell) {
+                console.warn('Could not find status or requirement cell');
+                return;
+            }
+
+            const status = statusCell.textContent.trim();
+            console.log('Status:', status);
+
+            // Only edit if NOT met
+            if (status.includes('✅')) {
+                console.log('Requirement already met, not editable');
+                return;
+            }
+
+            // Extract requirement from <strong> tag
+            const strongTag = requirementCell.querySelector('strong');
+            const requirement = strongTag ? strongTag.textContent.trim() : '';
+
+            if (!requirement) {
+                console.error('Could not extract requirement');
+                return;
+            }
+
+            // Get only the direct text content, not nested elements (buttons, etc)
+            let currentValue = '';
+            for (let node of td.childNodes) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    currentValue += node.textContent;
+                } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName !== 'BUTTON' && node.tagName !== 'DIV') {
+                    // Include content from child elements but not from buttons/divs
+                    currentValue += node.textContent;
+                }
+            }
+
+            currentValue = currentValue.trim()
+                .replace('❓ Not provided', '')
+                .replace('⚠️ Treated as not met in score calculation', '');
+
+            console.log('Opening edit for:', requirement, '=', currentValue);
+            startInlineEdit(td, requirement, currentValue.trim());
+        });
+
+        // Add visual feedback for editable cells
+        results.querySelectorAll('tbody tr').forEach(row => {
+            const statusCell = row.querySelector('td:nth-child(4)');
+            const userValueCell = row.querySelector('td:nth-child(3)');
+
+            if (statusCell && userValueCell && !statusCell.textContent.includes('✅')) {
+                userValueCell.classList.add('editable-cell');
+                userValueCell.style.cursor = 'pointer';
+            }
+        });
+
+        console.log('Click listeners attached');
+    });
+}
+
+function startInlineEdit(cell, requirement, currentValue) {
+    console.log('Starting inline edit for:', requirement);
+
+    // Store original content in case user cancels
+    const originalContent = cell.innerHTML;
+
+    // Create container for edit form
+    const editContainer = document.createElement('div');
+    editContainer.style.display = 'flex';
+    editContainer.style.flexDirection = 'column';
+    editContainer.style.gap = '8px';
+
+    // Create input field
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inline-input';
+    input.value = currentValue;
+    input.placeholder = 'Enter your information...';
+    input.style.margin = '0';
+
+    // Create action buttons
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'edit-actions';
+    actionsDiv.style.margin = '0';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'edit-btn edit-btn-save';
+    saveBtn.textContent = '✓ Save';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'edit-btn edit-btn-cancel';
+    cancelBtn.textContent = '✕ Cancel';
+
+    // Add event listeners
+    saveBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const newValue = input.value.trim();
+        if (!newValue) {
+            alert('Please enter your information');
+            input.focus();
+            return;
+        }
+        saveInlineEdit(cell, requirement, newValue, originalContent);
+    });
+
+    cancelBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        cell.innerHTML = originalContent;
+        cell.classList.remove('editing');
+    });
+
+    actionsDiv.appendChild(saveBtn);
+    actionsDiv.appendChild(cancelBtn);
+
+    // Build the edit form
+    editContainer.appendChild(input);
+    editContainer.appendChild(actionsDiv);
+
+    // Replace cell content with edit form
+    cell.classList.add('editing');
+    cell.innerHTML = '';
+    cell.appendChild(editContainer);
+    input.focus();
+    input.select();
+
+    // Allow Enter/Escape keys
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveBtn.click();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelBtn.click();
+        }
+    });
+}
+
+function saveInlineEdit(cell, requirement, newValue, originalContent) {
+    console.log('Saving inline edit:', requirement, '=', newValue);
+
+    const saveBtn = cell.querySelector('.edit-btn-save');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+    }
+
+    const payload = {
+        _token: _token,
+        requirement: requirement,
+        user_value: newValue
+    };
+
+    console.log('Sending payload:', JSON.stringify(payload));
+
+    fetch(_page_base_url + '/profile_comparison/update_profile_edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(res => {
+        console.log('Response status:', res.status);
+        return res.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+
+        if (data && data.status === 200) {
+            console.log('Save successful! Edits saved:', data.edits);
+            console.log('Recalculating comparison...');
+            // Recalculate with new data
+            recalculateComparison();
+        } else {
+            console.error('Save failed. Response:', data);
+            const errorMsg = data?.message || 'Failed to save profile edit';
+            alert('Error: ' + errorMsg);
+            cell.innerHTML = originalContent;
+            cell.classList.remove('editing');
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        alert('Failed to save profile edit: ' + error.message);
+        cell.innerHTML = originalContent;
+        cell.classList.remove('editing');
     });
 }
 </script>
