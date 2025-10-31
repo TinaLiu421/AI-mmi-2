@@ -273,8 +273,8 @@ function uploadDocumentToChat(file) {
                 showAIResponse($showMessage, analysisText, true);
             } else {
                 const errorMessage =
-                    data.message || "Failed to analyze document";
-                showAIResponse($showMessage, "Error: " + errorMessage, true);
+                    data.message || "Unable to process this file. Please try uploading a PDF document.";
+                showAIResponse($showMessage, errorMessage, true);
                 console.error("Document upload failed", data);
             }
         },

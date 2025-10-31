@@ -421,7 +421,7 @@ class DocumentAnalysisService
 
         } catch (Exception $e) {
             Log::error('Text analysis failed', ['error' => $e->getMessage()]);
-            throw new Exception('Failed to analyze text: ' . $e->getMessage());
+            throw new Exception('Unable to analyze this document. Please try again or upload a different file.');
         }
     }
 
