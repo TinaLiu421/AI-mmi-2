@@ -190,7 +190,7 @@ class Home extends WebController {
                     ]);
                     \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
-                    $greetReply = '嗨～我是 Aimmi，我专注移民、留学、迁居、租房相关问题。你可以直接把情况告诉我，我会给你清单式建议 😊';
+                    $greetReply = "Hi, I'm Aimmi. I specialize in immigration, study abroad, relocation, and rental housing matters. Just tell me your situation, and I'll provide you with a checklist of recommendations. 😊";
 
                     \DB::table('chat_log')->insertGetId([
                         'member_id'   => $this->_current_member['id'],

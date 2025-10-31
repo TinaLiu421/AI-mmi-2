@@ -19,6 +19,37 @@ function mdToSafeHtml(md) {
   }
 }
 
+function decorateMarkdownWithEmojis(md) {
+  const map = {
+    'overview': '🧭',
+    'eligibility': '✅',
+    'english requirement': '🗣️',
+    'health & character': '🩺',
+    'fees': '💳',
+    'processing time': '⏱️',
+    'documents': '📄',
+    'documents / evidence': '📄',
+    'application steps': '🛠️',
+    'conditions / notes': '📌',
+    'conditions': '📌',
+    'notes': '📝',
+  };
+  md = md.replace(/^###\s+([^\n#]+)$/gmi, (full, title) => {
+    const key = title.trim().toLowerCase();
+    let ico = map[key];
+    if (!ico) {
+      for (const k in map) { if (key.includes(k)) { ico = map[k]; break; } }
+    }
+    if (ico && !title.startsWith(ico)) return `### ${ico} ${title}`;
+    return full;
+  });
+
+  md = md.replace(/^\s*(Note|Tip|Important)[:：]\s+/gmi, '💡 $1: ');
+  md = md.replace(/\b(e\.g\.|for example)\b/gi, '🔎 $1');
+  return md;
+}
+
+
 var __ragBypassOnce = false;
 
 // —— RAG 命中阈值（可调）——
@@ -691,9 +722,11 @@ function iweb_global_func() {
                 if (iweb.isMatch(response_data.status, 200)) {
                     if (iweb.isValue(response_data.reply) || iweb.isValue(response_data.answer_html) || iweb.isValue(response_data.answer_markdown)) {
                         // 优先后端提供的 HTML；否则把 Markdown/纯文本转为安全 HTML
+                        const md = response_data.answer_markdown || response_data.reply || "";
+                        const mdDecorated = decorateMarkdownWithEmojis(md);
                         const safeHtml = response_data.answer_html
                         ? DOMPurify.sanitize(String(response_data.answer_html))
-                        : mdToSafeHtml(response_data.answer_markdown || response_data.reply || "");
+                        : mdToSafeHtml(mdDecorated);
 
                         const replyHtml = renderBubble({
                         role: "reply",
@@ -920,9 +953,18 @@ function loadChatMessage(init) {
 
                 const isAi = (role === "reply");
                 // 历史数据也可能是 markdown/纯文本；AI 的消息转为安全 HTML，用户消息保留纯文本
-                const textForBubble = isAi
-                ? (value.content_html ? DOMPurify.sanitize(String(value.content_html)) : mdToSafeHtml(value.content || ""))
-                : (value.content || "");
+                let textForBubble;
+                if (isAi) {
+                if (value.content_html) {
+                    textForBubble = DOMPurify.sanitize(String(value.content_html));
+                } else {
+                    const md = value.content || "";
+                    const mdDecorated = decorateMarkdownWithEmojis(md);
+                    textForBubble = mdToSafeHtml(mdDecorated);
+                }
+                } else {
+                textForBubble = value.content || "";
+                }
 
                 const bubbleHtml = renderBubble({
                 role,

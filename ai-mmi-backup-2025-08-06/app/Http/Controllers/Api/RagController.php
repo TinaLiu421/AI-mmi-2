@@ -124,6 +124,64 @@ class RagController extends Controller
         $context  = implode("\n---\n", $contexts);
         $out['context_preview'] = mb_strimwidth($context, 0, 300, '…');
 
+        // =======================================================
+        // ✨ 英语细节提取（regex） + 上下文增强
+        // =======================================================
+        $ctxText = $context;
+
+        function extractEnglishDetails(string $t): array {
+            $found = [];
+
+            // IELTS overall & band
+            if (preg_match('/IELTS[^0-9]*?([0-9](?:\.[0-9])?)\s*(?:overall|score)?[^0-9\n]*?(?:no\s*(?:band|component)\s*(?:below|less\s*than)\s*)?([0-9](?:\.[0-9])?)?/i', $t, $m)) {
+                $found['IELTS'] = [
+                    'overall' => $m[1] ?? null,
+                    'band'    => $m[2] ?? null,
+                ];
+            }
+
+            // PTE Academic
+            if (preg_match('/PTE[^0-9]*?([0-9]{2,3})(?:[^0-9\n]+?(?:no\s*(?:skill|band)\s*(?:below|less\s*than)\s*)?([0-9]{2,3}))?/i', $t, $m)) {
+                $found['PTE'] = [
+                    'overall' => $m[1] ?? null,
+                    'band'    => $m[2] ?? null,
+                ];
+            }
+
+            // TOEFL iBT
+            if (preg_match('/TOEFL[^0-9]*?([0-9]{2,3})/i', $t, $m)) {
+                $found['TOEFL'] = ['total' => $m[1] ?? null];
+            }
+
+            // OET
+            if (preg_match('/OET[^A-Za-z0-9]*?(?:grade\s*)?([ABC][+]?)/i', $t, $m)) {
+                $found['OET'] = ['grade' => strtoupper($m[1] ?? '')];
+            }
+
+            // Cambridge C1/C2
+            if (preg_match('/Cambridge[^.\n]*?(C1|C2|CAE|CPE)/i', $t, $m)) {
+                $found['Cambridge'] = ['level' => $m[1] ?? null];
+            }
+
+            // 有效期（within 3 years / valid for 2 years）
+            if (preg_match('/(within|valid\s*for)\s*(\d)\s*year/i', $t, $m)) {
+                $found['valid_years'] = (int)($m[2] ?? 0);
+            }
+
+            // 免测国家
+            if (preg_match('/(UK|United\s*Kingdom|USA|United\s*States|Canada|New\s*Zealand|Republic\s*of\s*Ireland)[^.\n]*(exempt|do\s*not\s*need|no\s*test)/i', $t)) {
+                $found['exempt_countries'] = true;
+            }
+
+            return $found;
+        }
+
+        $englishFacts = extractEnglishDetails($ctxText);
+
+        if (!empty($englishFacts)) {
+            $context .= "\n\n---\nSTRUCTURED_FACTS:\n" . json_encode(['english' => $englishFacts], JSON_UNESCAPED_UNICODE);
+        }
+
         // 6) 生成答案
         try {
             $answer = $gen->answerWithContext($q, $context);
@@ -131,6 +189,19 @@ class RagController extends Controller
             Log::error('RAG generate failed', array('err' => $e->getMessage(), 'trace' => $e->getTraceAsString()));
             return response()->json(array('error' => 'generate_failed', 'detail' => $e->getMessage()), 500);
         }
+
+        // ✅ 随机友好结尾语句
+        $followups = [
+            "Would you like me to provide more help or detailed guidance related to this topic?",
+            "Is there anything else you’d like to know about this visa or process?",
+            "Would you like me to explain the next steps or related options in more detail?",
+            "Would you like a quick summary of related requirements or how to apply?",
+            "Is there anything else I can help you clarify before you move forward?",
+            "Would you like me to expand on this with more practical examples or advice?",
+        ];
+
+        $randomFollowup = $followups[array_rand($followups)];
+        $answer = trim($answer) . "\n\n---\n" . $randomFollowup;
 
         $out['answer'] = $answer;
 
@@ -164,20 +235,8 @@ class RagController extends Controller
         return is_numeric($x) ? (int)$x : $default;
     }
 
-    /**
-     * 基于首批 matches 做“同源邻接扩展”：对每个源的若干个种子块，额外检索 source_id 相同且
-     * chunk_index 在 [idx-K, idx+K] 的块，并合并去重。
-     *
-     * @param array   $matches   第一跳向量检索的结果
-     * @param array   $qvec      查询向量（传你已有的 $qvec）
-     * @param Pinecone $pc       你的 Pinecone 服务
-     * @param string|null $tag   现有的 tag 过滤（如 'policy'）
-     * @param int     $windowK   邻接窗口大小（默认 ±2）
-     * @param int     $seedsPerSource 每个 source 选多少个“种子块”（默认 2）
-     * @param int     $maxNeighborsPerSource 邻接检索最多取多少条（默认 12）
-     */
     private function expandNeighbors(array $matches, array $qvec, Pinecone $pc, ?string $tag,
-                                    int $windowK = 2, int $seedsPerSource = 2, int $maxNeighborsPerSource = 12): array
+                                    int $windowK = 2, int $seedsPerSource = 2, int $maxNeighborsPerSource = 15): array
     {
         // ① 先按 source_id 分组，挑选每个源的若干“种子块”（靠前的命中）
         $bySource = array();
@@ -240,6 +299,5 @@ class RagController extends Controller
         // ④ 输出数组化的合并结果
         return array_values($merged);
     }
-
 
 }
