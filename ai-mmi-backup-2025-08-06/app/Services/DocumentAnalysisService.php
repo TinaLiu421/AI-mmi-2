@@ -87,7 +87,7 @@ class DocumentAnalysisService
 
         } catch (Exception $e) {
             Log::error('PDF extraction failed', ['file' => $filePath, 'error' => $e->getMessage()]);
-            throw new Exception('Failed to extract text from PDF: ' . $e->getMessage());
+            throw new Exception($this->getUserFriendlyError($e->getMessage(), 'PDF'));
         }
     }
 
@@ -324,7 +324,7 @@ class DocumentAnalysisService
 
         } catch (Exception $e) {
             Log::error('Word document extraction failed', ['file' => $filePath, 'error' => $e->getMessage()]);
-            throw new Exception('Failed to extract text from Word document: ' . $e->getMessage());
+            throw new Exception($this->getUserFriendlyError($e->getMessage(), 'Word'));
         }
     }
 
@@ -361,7 +361,7 @@ class DocumentAnalysisService
 
         } catch (Exception $e) {
             Log::error('Image OCR extraction failed', ['file' => $filePath, 'error' => $e->getMessage()]);
-            throw new Exception('Failed to extract text from image: ' . $e->getMessage());
+            throw new Exception($this->getUserFriendlyError($e->getMessage(), 'image'));
         }
     }
 
@@ -389,7 +389,7 @@ class DocumentAnalysisService
 
         } catch (Exception $e) {
             Log::error('Text file extraction failed', ['file' => $filePath, 'error' => $e->getMessage()]);
-            throw new Exception('Failed to extract text from file: ' . $e->getMessage());
+            throw new Exception($this->getUserFriendlyError($e->getMessage(), 'text'));
         }
     }
 
@@ -598,5 +598,38 @@ class DocumentAnalysisService
             Log::error('Gemini API call failed', ['error' => $e->getMessage()]);
             throw new Exception('Gemini API error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Convert technical error messages to user-friendly messages
+     *
+     * @param string $errorMessage
+     * @param string $fileType
+     * @return string
+     */
+    private function getUserFriendlyError(string $errorMessage, string $fileType = 'document'): string
+    {
+        // Check for shell_exec disabled error
+        if (stripos($errorMessage, 'shell_exec') !== false && stripos($errorMessage, 'disabled') !== false) {
+            return 'This format is not supported yet. Please upload the original PDF file.';
+        }
+
+        // Check for image/OCR related errors
+        if (stripos($errorMessage, 'tesseract') !== false || stripos($errorMessage, 'image') !== false) {
+            return 'This image format is not supported yet. Please upload a PDF or Word document instead.';
+        }
+
+        // Check for unsupported file type
+        if (stripos($errorMessage, 'unsupported') !== false || stripos($errorMessage, 'not supported') !== false) {
+            return 'This file format is not supported. Please upload a PDF, Word document, or text file.';
+        }
+
+        // Check for extraction failures
+        if (stripos($errorMessage, 'failed to extract') !== false || stripos($errorMessage, 'extraction') !== false) {
+            return 'Unable to read this file. Please make sure it is a valid ' . strtoupper($fileType) . ' file and try again.';
+        }
+
+        // Generic fallback
+        return 'Unable to process this file. Please try uploading a different file format (PDF recommended).';
     }
 }

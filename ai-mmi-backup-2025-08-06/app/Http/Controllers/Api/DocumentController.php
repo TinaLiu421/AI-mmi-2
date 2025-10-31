@@ -91,7 +91,8 @@ class DocumentController extends Controller
             } catch (\Exception $e) {
                 $document->markFailed('Extraction error: ' . $e->getMessage());
                 Log::error('Document extraction error', ['file' => $filePath, 'error' => $e->getMessage()]);
-                return $this->errorResponse('extraction_error', 'Failed to extract text from document: ' . $e->getMessage(), 422);
+                // The error message is already user-friendly from DocumentAnalysisService
+                return $this->errorResponse('extraction_error', $e->getMessage(), 422);
             }
 
             if (empty(trim($extractedText))) {
