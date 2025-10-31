@@ -49,7 +49,7 @@
                 <i class="fa fa-google"></i>
                 <span><?php echo $_page_lang['account.with_google_in']; ?></span>
             </a>
-            <a href="javascript:void(0);" onclick="alert('Facebook login not yet implemented!');" class="fb">
+            <a href="<?php echo $_page_base_url.'/account_login/facebook'; ?>" class="fb">
                 <i class="fa fa-facebook-square"></i>
                 <span><?php echo $_page_lang['account.with_fb_in']; ?></span>
             </a>

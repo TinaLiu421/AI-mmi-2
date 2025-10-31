@@ -246,6 +246,10 @@
                 <a href="<?php echo $_page_base_url.'/privacy_statement'; ?>">
                     <?php echo $_page_lang['privacy_statement'];?>
                 </a>
+                 |
+                <a href="<?php echo $_page_base_url.'/data_deletion'; ?>">
+                    <?php echo $_page_lang['data_deletion'];?>
+                </a>
             </div>
             <div>Copyright @ <?php echo date('Y');?>. AI-mmi. All Rights Reserved</div>
         </footer>

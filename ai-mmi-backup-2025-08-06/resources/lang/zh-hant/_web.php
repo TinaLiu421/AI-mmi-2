@@ -250,6 +250,7 @@ return
 
     'our_terms'                 =>  '使用條款、私隱政策及Cookie政策',
     'privacy_statement'         =>  '使用條款、私隱政策及Cookie政策',
+    'data_deletion'             =>  '刪除數據',
     'agree_to'                  =>  '我已閱讀並同意"<a href="{link_1}" target="_blank"><u>使用條款、私隱政策及Cookie政策</u></a>"。',
 
     'service_provider_info'     =>

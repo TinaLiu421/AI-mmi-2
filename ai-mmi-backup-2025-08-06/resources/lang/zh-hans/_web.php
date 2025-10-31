@@ -249,6 +249,7 @@ return
 
     'our_terms'                 =>  '使用条款、隐私政策及Cookie政策',
     'privacy_statement'         =>  '使用条款、隐私政策及Cookie政策',
+    'data_deletion'             =>  '删除数据',
     'agree_to'                  =>  '我已阅读并同意"<a href="{link_1}" target="_blank"><u>使用条款、隐私政策及Cookie政策</u></a>"。',
 
     'service_provider_info'     =>

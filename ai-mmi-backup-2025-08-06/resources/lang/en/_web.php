@@ -249,6 +249,7 @@ return
 
     'our_terms'                 =>  'Terms of Use, Privacy & Cookie Policy',
     'privacy_statement'         =>  'Terms of Use, Privacy & Cookie Policy',
+    'data_deletion'             =>  'Data Deletion',
     'agree_to'                  =>  'I have read and agree to the "<a href="{link_1}" target="_blank"><u>Terms of Use, Privacy & Cookie Policy</u></a>".',
 
     'service_provider_info'     =>
