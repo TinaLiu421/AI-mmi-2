@@ -561,7 +561,6 @@ main.page-body .chat-area .box {
     flex-direction: column;
     position: relative;
     margin-top: 0;
-    border: 1px solid var(--neutral-200);
     backdrop-filter: blur(20px);
     overflow: hidden;
 }
@@ -618,6 +617,7 @@ main.page-body .chat-area .box .show-message {
     overflow-x: hidden;
     padding: var(--space-4);
     background-color: #fff;
+    border: 1px solid var(--neutral-200);
     position: relative;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
@@ -696,16 +696,6 @@ main.page-body .chat-area .box .show-message .dialog.reply {
     flex-direction: column;
     align-items: flex-start;
 }
-
-/* Expanded chat - wider dialog containers 
-main.page-body .chat-area.show .box .show-message .dialog.ask {
-    align-items: right;
-}
-
-main.page-body .chat-area.show .box .show-message .dialog.reply {
-    align-items: left;
-}
-*/
 
 /* Message Avatar */
 main.page-body .chat-area .box .show-message .dialog .avatar {

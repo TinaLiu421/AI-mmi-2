@@ -203,7 +203,7 @@
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 700px) {
     .welcome-message {
         padding: 15px var(--space-2);
     }
