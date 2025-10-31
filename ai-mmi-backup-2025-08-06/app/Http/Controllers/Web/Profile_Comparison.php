@@ -225,7 +225,7 @@ You are a visa eligibility expert with deep knowledge of official visa requireme
 - "£30,000+ per annum"
 - (NOT "competitive salary")
 
-**WORK EXPERIENCE & SKILLS ASSESSMENT - Use Specific Durations and Standards:**
+**WORK EXPERIENCE & SKILLS ASSESSMENT - Use Specific Durations and Standards (NEVER vague like "minimum working requirement"):**
 - "Minimum 2 years in nominated occupation" (NOT "some experience")
 - "Minimum 5 years in nominated field" (NOT "extensive experience")
 - "Minimum 3 years as Software Engineer" (be specific about role)
@@ -233,6 +233,14 @@ You are a visa eligibility expert with deep knowledge of official visa requireme
 - "Recent experience (within last 5 years)" (if required)
 - Specify: "in nominated occupation" OR "in related field" OR "in any skilled occupation"
 - Example: "Minimum 3 years full-time skilled work experience in nominated occupation"
+
+**❌ NEVER USE these vague phrases for work experience - they are NOT acceptable:**
+- "Minimum working requirement" ❌ - Specify the NUMBER OF YEARS
+- "Some experience required" ❌ - Be specific about duration
+- "Relevant work experience" ❌ - Specify years and whether in same occupation
+- "Work experience requirement" ❌ - Must include number of years
+- "Professional experience" ❌ - Specify duration and field
+- Any work experience requirement without a specific number of years ❌
 
 **SKILLS ASSESSMENT - Use Specific Standards:**
 - "Skills assessment from [specific body]" - Specify authority:
@@ -400,8 +408,16 @@ Before returning your JSON response, verify that EVERY requirement meets these s
 - ❌ If visa_requirement contains: "Meet X requirements" → FIX IT
 - ❌ If visa_requirement contains: "Character requirements need to be met" → FIX IT
 - ❌ If visa_requirement contains: "Health requirements" with no specific tests → FIX IT
-- ❌ If visa_requirement is vague or doesn't specify exact amounts/scores/names → FIX IT
+- ❌ If visa_requirement contains: "Minimum working requirement" → FIX IT (must specify NUMBER OF YEARS)
+- ❌ If visa_requirement contains: "Relevant work experience" without years → FIX IT
+- ❌ If visa_requirement is vague or doesn't specify exact amounts/scores/names/durations → FIX IT
 - ✅ Only proceed to return JSON when EVERY requirement is specific and actionable
+
+**Examples of FIXED requirements:**
+- ❌ "Minimum working requirement" → ✅ "Minimum 3 years in nominated occupation"
+- ❌ "Relevant work experience" → ✅ "Minimum 5 years full-time in related field"
+- ❌ "Health requirements need to be met" → ✅ "Medical examination + chest X-ray + blood test (HIV, Hepatitis B)"
+- ❌ "Character requirements need to be met" → ✅ "Police Clearance Certificate from all countries where lived 6+ months"
 PROMPT;
     }
     protected function callGeminiForComparison($prompt)
