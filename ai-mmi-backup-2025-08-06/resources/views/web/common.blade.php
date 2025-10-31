@@ -225,7 +225,7 @@
                                             <button type="button" id="doc-upload-btn" class="btn-document-upload" onclick="document.getElementById('doc-file-input').click();" title="Upload documents">
                                                 <img src="asset/image/upload.png" alt="upload">
                                             </button>
-                                            <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" style="display: none;">
+                                            <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx,.txt" style="display: none;">
                                             <button type="submit" title="Send">
                                                 <img src="asset/image/icon-send.png" alt="icon-send"/>
                                             </button>

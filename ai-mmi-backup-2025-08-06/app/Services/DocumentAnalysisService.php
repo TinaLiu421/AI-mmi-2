@@ -26,14 +26,10 @@ class DocumentAnalysisService
             case 'docx':
             case 'doc':
                 return $this->extractFromWord($filePath);
-            case 'jpg':
-            case 'jpeg':
-            case 'png':
-                return $this->extractFromImage($filePath);
             case 'txt':
                 return $this->extractFromText($filePath);
             default:
-                throw new Exception("Unsupported file type: {$fileType}");
+                throw new Exception("Only PDF, Word, and text files are supported. Please upload a PDF document for best results.");
         }
     }
 

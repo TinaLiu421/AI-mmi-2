@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 class DocumentController extends Controller
 {
     private DocumentAnalysisService $analysisService;
-    private array $allowedExtensions = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'txt'];
+    private array $allowedExtensions = ['pdf', 'doc', 'docx', 'txt'];
 
     public function __construct(DocumentAnalysisService $analysisService)
     {
@@ -157,18 +157,16 @@ class DocumentController extends Controller
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'image/jpeg',
-            'image/png',
             'text/plain',
         ];
 
         if (!in_array($file->getMimeType(), $allowedMimes)) {
-            throw new \Exception('File type not supported');
+            throw new \Exception('Only PDF, Word, and text files are supported. Please upload a PDF document for best results.');
         }
 
         $ext = strtolower($file->getClientOriginalExtension());
         if (!in_array($ext, $this->allowedExtensions)) {
-            throw new \Exception('File extension not supported');
+            throw new \Exception('Only PDF, Word (.doc, .docx), and text (.txt) files are accepted.');
         }
     }
 
