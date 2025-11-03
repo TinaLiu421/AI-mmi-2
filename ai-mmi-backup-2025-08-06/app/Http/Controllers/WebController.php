@@ -111,6 +111,20 @@ class WebController extends CoreController {
             }
         }
         $this->pageData(['visa_countries' => $this->_visa_countries]);
+
+        // —— 访客ID（持久）——
+        if (empty($this->getMyCookie('guest_id'))) {
+            $gid = (string) \Str::uuid();
+            $this->setMyCookie('guest_id', $gid);
+        } else {
+            $gid = $this->getMyCookie('guest_id');
+        }
+
+        // —— 访客聊天计数（会话级）——
+        if (empty($this->getSession('guest_chat_count'))) {
+            $this->setSession(['guest_chat_count' => 0]);
+        }
+
     }
     
     function getYoutubeEmbedUrl($url) {

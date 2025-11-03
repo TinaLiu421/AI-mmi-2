@@ -626,12 +626,12 @@ function iweb_global_func() {
                 return true;             
             }
 
-            if (!_current_member) {
-            iweb.alert("Sign in to get full chat features.", function () {
-                    window.location.href = "/account_login";
-                });
-                return false;
-            }
+            // if (!_current_member) {
+            // iweb.alert("Sign in to get full chat features.", function () {
+            //         window.location.href = "/account_login";
+            //     });
+            //     return false;
+            // }
 
             const $ta = $("#ask_question");
             const userQuestion = $ta.val().trim();
@@ -683,11 +683,32 @@ function iweb_global_func() {
             // —— ❸：签证问题 → 先试 RAG；命中就自己渲染；不命中则“交还控制权”给原流程
             callRAG(userQuestion, "policy")
                 .then(function (rag) {
+
+                    function isNonAnswer(s = "") {
+                        const t = String(s).trim();
+                        if (t.length < 50) return true; // 太短，多半没料
+                        // 常见否定/缺料短语（含直引号/弯引号）
+                        const deny = [
+                            /i do(?:n['’]t)\s+know/i,
+                            /not (?:found|available) in (?:the )?context/i,
+                            /no (?:specific|sufficient)?\s*details? (?:provided|found)/i,
+                            /insufficient (?:context|information)/i,
+                            /i (?:can['’]?t|cannot) answer/i,
+                            /context (?:missing|lacks)/i,
+                            /无(?:法|足够) (?:确定|回答|提供)/,
+                            /不知道|不确定/
+                        ];
+                        return deny.some(rx => rx.test(t));
+                    }
+
                     // 命中判定（与你之前一致）
                     const matchCount = rag.match_count ?? ((rag.snippets && rag.snippets.length) || 0);
-                    const hasHighScore = (rag.snippets || []).some(function (s){ return (s.score || 0) >= 0.62; });
-                    const hasUsefulAnswer = (typeof rag.answer === "string") && rag.answer.trim() !== "" && !/i don't know|无法确定|不知道/i.test(rag.answer);
-                    const ragOk = hasUsefulAnswer && (matchCount >= 3 || hasHighScore);
+                    const hasHighScore = (rag.snippets || []).some(s => (s.score || 0) >= 0.62);
+
+                    // 有“像样的正文”才算有效：长度、不是否定句、且匹配数/分数满足至少一个门槛
+                    const ans = (rag.answer || "").trim();
+                    const looksSubstantive = ans.length >= 120 && !isNonAnswer(ans);
+                    const ragOk = looksSubstantive && (matchCount >= 3 || hasHighScore || hasConcrete);
 
                     if (ragOk) {
                         $("#use_rag").val("1");

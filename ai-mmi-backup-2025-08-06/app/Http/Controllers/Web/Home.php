@@ -138,14 +138,14 @@ class Home extends WebController {
             $override = (string)$this->postParamValue('override_reply', request()->input('override_reply', ''));
 
             // —— 登录校验 ——
-            if (empty($this->_current_member)) {
-                $this->pageResult([
-                    'status'  => 403,
-                    'message' => $this->_page_lang['please_login'],
-                    'url'     => $this->toURL('account_login'),
-                ]);
-                return;
-            }
+            // if (empty($this->_current_member)) {
+            //     $this->pageResult([
+            //         'status'  => 403,
+            //         'message' => $this->_page_lang['please_login'],
+            //         'url'     => $this->toURL('account_login'),
+            //     ]);
+            //     return;
+            // }
 
             // —— 基本校验 ——
             $rawQuestion = trim((string)$question);
@@ -155,6 +155,36 @@ class Home extends WebController {
                     'message' => 'Please enter a question.',
                 ]);
                 return;
+            }
+
+            // —— 新增：访客上下文 + 引导语 + 超限拦截 —— //
+            $member     = $this->_current_member ?: null;
+            $memberId   = $member['id'] ?? null;
+            $guestId    = $this->getMyCookie('guest_id');     // WebController 里已有 getMyCookie
+            $sessionId  = session()->getId();
+            $signinHint = 'To keep our chat going and explore your visa or study options through an instant eligibility check, please sign in first, it only takes a minute.';
+
+            if (!$member) {
+                $guestCount = (int) $this->getSession('guest_chat_count');
+                if ($guestCount >= 3) {
+                    // 第 4 次及以后：只返回引导语（不走 RAG/Model、不入库）
+                    $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
+                    $this->pageResult([
+                        'status'               => 200,
+                        'content'              => nl2br($rawQuestion),
+                        'reply'                => $signinHint,
+                        'answer_markdown'      => $signinHint,
+                        'content_created_at'   => $nowUtcIso,
+                        'reply_created_at'     => $nowUtcIso,
+                        'member_owner_name'    => 'Guest',
+                        'member_owner_avatar'  => 'asset/image/icon-member.png',
+                        'ai_owner_name'        => 'AI-mmi',
+                        'ai_owner_avatar'      => 'asset/image/logo-mmi.png',
+                        'reply_source'         => 'guest-limit',
+                        'flow_prompt'          => null,
+                    ]);
+                    return;
+                }
             }
 
             /**
@@ -178,8 +208,10 @@ class Home extends WebController {
                     $targetDate = (int)date('Ymd', strtotime($this->_today_date));
 
                     \DB::beginTransaction();
-                    $askId = \DB::table('chat_log')->insertGetId([
-                        'member_id'   => $this->_current_member['id'],
+                    $askId = \DB::table('chat_log')->insertGetId(array_filter([
+                        'member_id'   => $memberId,        // 允许为 null
+                        'guest_id'    => $guestId ?? null, // 表里没有该字段也无妨
+                        'session_id'  => $sessionId ?? null,
                         'related_id'  => 0,
                         'target_date' => $targetDate,
                         'type'        => 'ask',
@@ -187,13 +219,22 @@ class Home extends WebController {
                         'status'      => 1,
                         'created_at'  => $nowUtc,
                         'updated_at'  => $nowUtc,
-                    ]);
+                    ]));
                     \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
                     $greetReply = "Hi, I'm Aimmi. I specialize in immigration, study abroad, relocation, and rental housing matters. Just tell me your situation, and I'll provide you with a checklist of recommendations. 😊";
 
-                    \DB::table('chat_log')->insertGetId([
-                        'member_id'   => $this->_current_member['id'],
+                    // —— 未登录：第 1～3 次在尾部追加引导语，并自增计数 —— //
+                    if (!$member) {
+                        $guestCount = ((int)$this->getSession('guest_chat_count')) + 1;
+                        $this->setSession(['guest_chat_count' => $guestCount]);
+                        $greetReply = rtrim($greetReply) . "\n\n" . $signinHint;
+                    }
+
+                    \DB::table('chat_log')->insertGetId(array_filter([
+                        'member_id'   => $memberId,
+                        'guest_id'    => $guestId ?? null,
+                        'session_id'  => $sessionId ?? null,
                         'related_id'  => $askId,
                         'target_date' => $targetDate,
                         'type'        => 'reply',
@@ -201,19 +242,24 @@ class Home extends WebController {
                         'status'      => 1,
                         'created_at'  => $nowUtc,
                         'updated_at'  => $nowUtc,
-                    ]);
+                    ]));
                     \DB::commit();
                 } catch (\Throwable $e) {
                     \DB::rollBack();
                     \Log::error('CHAT DB INSERT FAIL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
                 }
 
-                $member_owner_name   = $this->_current_member['alias_name'];
-                $member_owner_avatar = 'asset/image/icon-member.png';
-                if (!empty($this->_current_member['avatar'])) {
-                    $member_owner_avatar = file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
-                        ? 'upload/member_avatar/'.$this->_current_member['avatar']
-                        : 'upload/member_logo/'.$this->_current_member['avatar'];
+                if ($member) {
+                    $member_owner_name   = $member['alias_name'];
+                    $member_owner_avatar = 'asset/image/icon-member.png';
+                    if (!empty($member['avatar'])) {
+                        $member_owner_avatar = file_exists('upload/member_avatar/'.$member['avatar'])
+                            ? 'upload/member_avatar/'.$member['avatar']
+                            : 'upload/member_logo/'.$member['avatar'];
+                    }
+                } else {
+                    $member_owner_name   = 'Guest';
+                    $member_owner_avatar = 'asset/image/icon-member.png';
                 }
 
                 $this->pageResult([
@@ -238,14 +284,22 @@ class Home extends WebController {
                 $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
                 $refusal = $this->aimmiRefusal();
 
+                if (!$member) {
+                    $guestCount = ((int)$this->getSession('guest_chat_count')) + 1;
+                    $this->setSession(['guest_chat_count' => $guestCount]);
+                    $refusal = rtrim($refusal) . "\n\n" . $signinHint;
+                }
+
                 // 入库 ask/reply
                 try {
                     $nowUtc     = \Carbon\Carbon::now('UTC');
                     $targetDate = (int)date('Ymd', strtotime($this->_today_date));
 
                     \DB::beginTransaction();
-                    $askId = \DB::table('chat_log')->insertGetId([
-                        'member_id'   => $this->_current_member['id'],
+                    $askId = \DB::table('chat_log')->insertGetId(array_filter([
+                        'member_id'   => $memberId,        // 允许为 null
+                        'guest_id'    => $guestId ?? null, // 表里没有该字段也无妨
+                        'session_id'  => $sessionId ?? null,
                         'related_id'  => 0,
                         'target_date' => $targetDate,
                         'type'        => 'ask',
@@ -253,31 +307,38 @@ class Home extends WebController {
                         'status'      => 1,
                         'created_at'  => $nowUtc,
                         'updated_at'  => $nowUtc,
-                    ]);
+                    ]));
                     \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
-                    \DB::table('chat_log')->insertGetId([
-                        'member_id'   => $this->_current_member['id'],
+                    \DB::table('chat_log')->insertGetId(array_filter([
+                        'member_id'   => $memberId,
+                        'guest_id'    => $guestId ?? null,
+                        'session_id'  => $sessionId ?? null,
                         'related_id'  => $askId,
                         'target_date' => $targetDate,
                         'type'        => 'reply',
-                        'content'     => $refusal,
+                        'content'     => $greetReply,
                         'status'      => 1,
                         'created_at'  => $nowUtc,
                         'updated_at'  => $nowUtc,
-                    ]);
+                    ]));
                     \DB::commit();
                 } catch (\Throwable $e) {
                     \DB::rollBack();
                     \Log::error('CHAT DB INSERT FAIL: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
                 }
 
-                $member_owner_name   = $this->_current_member['alias_name'];
-                $member_owner_avatar = 'asset/image/icon-member.png';
-                if (!empty($this->_current_member['avatar'])) {
-                    $member_owner_avatar = file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
-                        ? 'upload/member_avatar/'.$this->_current_member['avatar']
-                        : 'upload/member_logo/'.$this->_current_member['avatar'];
+                if ($member) {
+                    $member_owner_name   = $member['alias_name'];
+                    $member_owner_avatar = 'asset/image/icon-member.png';
+                    if (!empty($member['avatar'])) {
+                        $member_owner_avatar = file_exists('upload/member_avatar/'.$member['avatar'])
+                            ? 'upload/member_avatar/'.$member['avatar']
+                            : 'upload/member_logo/'.$member['avatar'];
+                    }
+                } else {
+                    $member_owner_name   = 'Guest';
+                    $member_owner_avatar = 'asset/image/icon-member.png';
                 }
 
                 $this->pageResult([
@@ -346,21 +407,31 @@ class Home extends WebController {
                 \DB::beginTransaction();
 
                 // ask
-                $askId = \DB::table('chat_log')->insertGetId([
-                    'member_id'   => $this->_current_member['id'],
+                $askId = \DB::table('chat_log')->insertGetId(array_filter([
+                    'member_id'   => $memberId,
+                    'guest_id'    => $guestId ?? null,
+                    'session_id'  => $sessionId ?? null,
                     'related_id'  => 0,
                     'target_date' => $targetDate,
                     'type'        => 'ask',
-                    'content'     => $rawQuestion,      // 原文
+                    'content'     => $rawQuestion,
                     'status'      => 1,
                     'created_at'  => $nowUtc,
                     'updated_at'  => $nowUtc,
-                ]);
+                ]));
                 \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
+                if (!$member) {
+                    $guestCount = ((int)$this->getSession('guest_chat_count')) + 1;
+                    $this->setSession(['guest_chat_count' => $guestCount]);
+                    $new_reply = rtrim((string)$new_reply) . "\n\n" . $signinHint;
+                }
+
                 // reply（RAG保留Markdown，Gemini已纯文本）
-                \DB::table('chat_log')->insertGetId([
-                    'member_id'   => $this->_current_member['id'],
+                \DB::table('chat_log')->insertGetId(array_filter([
+                    'member_id'   => $memberId,
+                    'guest_id'    => $guestId ?? null,
+                    'session_id'  => $sessionId ?? null,
                     'related_id'  => $askId,
                     'target_date' => $targetDate,
                     'type'        => 'reply',
@@ -368,7 +439,7 @@ class Home extends WebController {
                     'status'      => 1,
                     'created_at'  => $nowUtc,
                     'updated_at'  => $nowUtc,
-                ]);
+                ]));
 
                 \DB::commit();
             } catch (\Throwable $e) {
@@ -377,12 +448,17 @@ class Home extends WebController {
             }
 
             // —— 构造头像/昵称 ——
-            $member_owner_name   = $this->_current_member['alias_name'];
-            $member_owner_avatar = 'asset/image/icon-member.png';
-            if (!empty($this->_current_member['avatar'])) {
-                $member_owner_avatar = file_exists('upload/member_avatar/'.$this->_current_member['avatar'])
-                    ? 'upload/member_avatar/'.$this->_current_member['avatar']
-                    : 'upload/member_logo/'.$this->_current_member['avatar'];
+            if ($member) {
+                $member_owner_name   = $member['alias_name'];
+                $member_owner_avatar = 'asset/image/icon-member.png';
+                if (!empty($member['avatar'])) {
+                    $member_owner_avatar = file_exists('upload/member_avatar/'.$member['avatar'])
+                        ? 'upload/member_avatar/'.$member['avatar']
+                        : 'upload/member_logo/'.$member['avatar'];
+                }
+            } else {
+                $member_owner_name   = 'Guest';
+                $member_owner_avatar = 'asset/image/icon-member.png';
             }
 
             // —— ConversationFlow 可选（保底不中断）
@@ -519,17 +595,19 @@ class Home extends WebController {
     protected function callGeminiApi($question = '', $has_subscription = false) {
         if (empty($question)) return '';
 
-        // 1) Current User
-        $member = $this->_current_member;
-        if (empty($member)) return 'Please login first.';
+        // 1) Current User（允许匿名）
+        $member = $this->_current_member ?: null;
 
         // 2) Retrieve the most recent 20 rounds (40 entries) of historical data, sorted in ascending order by time.
-        $history = DB::table('chat_log')
-            ->where('member_id', $member['id'])
-            ->orderBy('id', 'desc')
-            ->limit(40)
-            ->get()
-            ->reverse();
+        $history = collect();
+        if (!empty($member)) {
+            $history = DB::table('chat_log')
+                ->where('member_id', $member['id'])
+                ->orderBy('id', 'desc')
+                ->limit(40)
+                ->get()
+                ->reverse();
+        }
 
         $contents = [];
         foreach ($history as $msg) {
@@ -549,8 +627,7 @@ class Home extends WebController {
 
         // 4)  Send Request
         $apiKey = env('GEMINI_API_KEY');
-        // Using gemini-2.0-flash-exp (with retry logic to handle overload)
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={$apiKey}";
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
 
         $system = $this->buildUnifiedPrompt($has_subscription);
 
@@ -584,6 +661,10 @@ class Home extends WebController {
                         'topK'              => 40,
                         'topP'              => 0.9,
                         'candidateCount'    => 1,
+                        'thinkingConfig'    => [
+                            'includeThoughts' => false,
+                            'thinkingBudget'  => 1024
+                        ],
 
                         'responseMimeType'  => 'text/plain',
                     ],
