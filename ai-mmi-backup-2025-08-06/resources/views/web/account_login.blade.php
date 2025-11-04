@@ -45,10 +45,19 @@
         </div>
 
         <div class="third-party">
-            <a href="<?php echo $_page_base_url.'/account_login/google'; ?>" class="google">
+            {{-- Google - Individual --}}
+            <a href="<?php echo $_page_base_url.'/account_login/google?role=individual'; ?>" class="google">
                 <i class="fa fa-google"></i>
-                <span><?php echo $_page_lang['account.with_google_in']; ?></span>
+                <span><?php echo $_page_lang['account.with_google_in']; ?> (Individual)</span>
             </a>
+
+            {{-- Google - Service Provider --}}
+            <a href="<?php echo $_page_base_url.'/account_login/google?role=provider'; ?>" class="google">
+                <i class="fa fa-google"></i>
+                <span><?php echo $_page_lang['account.with_google_in']; ?> (Service Provider)</span>
+            </a>
+
+            {{-- Facebook --}}
             <a href="<?php echo $_page_base_url.'/account_login/facebook'; ?>" class="fb">
                 <i class="fa fa-facebook-square"></i>
                 <span><?php echo $_page_lang['account.with_fb_in']; ?></span>

@@ -35,9 +35,12 @@ class Account extends WebController {
         [
             'countries' => $this->optionsToArray($list_countries)
         ]);
+
+        $isSelf = isset($this->_current_member['id']) 
+                && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];
         
         return $this->pageData([
-            'is_readonly'               =>  (md5(json_encode($this->_show_current_member))!=md5(json_encode($this->_current_member))),
+            'is_readonly' => !$isSelf,
             'show_current_member'       =>  $this->_show_current_member,
             'current_member_details'    =>  $this->_member_model->getDetailsByID($this->_show_current_member['id']),
             'current_member_agent'      =>  $this->_member_model->getAgentByID($this->_show_current_member['id']),
@@ -392,8 +395,11 @@ class Account extends WebController {
         $this->_show_current_member['subscription_name']   = ($currentSub !== null) ? $currentSub->plan_name : 'Free Plan';
         $this->_show_current_member['subscription_expiry'] = ($currentSub !== null) ? $currentSub->ends_at : null;
 
+        $isSelf = isset($this->_current_member['id']) 
+            && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];
+
         return $this->pageData([
-            'is_readonly'               => (md5(json_encode($this->_show_current_member))!=md5(json_encode($this->_current_member))),
+            'is_readonly' => !$isSelf,
             'show_current_member'       => $this->_show_current_member,
             'current_member_details'    => $this->_member_model->getDetailsByID($this->_show_current_member['id']),
             'current_member_agent'      => $this->_member_model->getAgentByID($this->_show_current_member['id']),

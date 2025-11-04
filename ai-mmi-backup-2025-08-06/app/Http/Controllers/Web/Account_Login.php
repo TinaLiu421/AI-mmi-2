@@ -9,50 +9,70 @@ class Account_Login extends WebController {
     public function __construct($data) {
         parent::__construct($data);
 
-        if(!empty($this->_current_member)) {
+        if (!empty($this->_current_member)) {
             $this->doRedirect($this->toURL('home'));
         }
     }
 
     public function index() {
-        // post
         $this->pageAction(function() {
-            if($token = $this->_member_model->doLogin($this->postParamValue('email'), $this->postParamValue('password'))) {
+            if ($token = $this->_member_model->doLogin($this->postParamValue('email'), $this->postParamValue('password'))) {
                 $this->setSession(['member_access_token' => $token]);
                 $this->setMyCookie('member_access_token', $token);
                 $this->pageResult([
-                    'status'    =>  $this->_member_model->getResultCode(),
-                    'url'       =>  $this->toURL('home')
+                    'status' => $this->_member_model->getResultCode(),
+                    'url'    => $this->toURL('home')
                 ]);
-            }
-            else {
+            } else {
                 $this->pageResult([
-                    'status'    =>  $this->_member_model->getResultCode(),
-                    'message'   =>  $this->_member_model->getResultMessage()
+                    'status'  => $this->_member_model->getResultCode(),
+                    'message' => $this->_member_model->getResultMessage()
                 ]);
             }
         });
 
-
         return $this->pageView();
     }
 
-    // Google OAuth
+    /* =======================
+     * Google OAuth（单入口 + 查询参数分流）
+     * ======================= */
+
+    // 入口：/account_login/google?role=individual|provider
     public function google() {
-        return Socialite::driver('google')->redirect();
+        // role -> intendedType（与你member表保持一致：1=Individual, 3=Service Provider）
+        $role = request()->query('role', 'individual');
+        $type = ($role === 'provider') ? 3 : 1;
+
+        // 写入 Session，回调时读取
+        session(['oauth_type' => $type]);
+
+        // 避免自动选择旧账号
+        return Socialite::driver('google')
+            ->with(['prompt' => 'select_account'])
+            ->redirect();
     }
 
     public function google_callback() {
         try {
-            $googleUser = Socialite::driver('google')->user();
-            $this->handleSocialLogin($googleUser, 'google');
+            // 生产常见反代环境下更稳
+            $googleUser = Socialite::driver('google')->stateless()->user();
+
+            $intendedType = (int) session('oauth_type', 1);  // 1 or 3
+            $this->clearOauthSession();
+
+            $this->handleSocialLogin($googleUser, 'google', $intendedType);
         } catch (\Exception $e) {
             \Log::error('Google OAuth failed: ' . $e->getMessage());
+            $this->clearOauthSession();
             $this->doRedirect($this->toURL('account_login'));
         }
     }
 
-    // Facebook OAuth
+    /* =======================
+     * Facebook OAuth（原逻辑保留）
+     * ======================= */
+
     public function facebook() {
         return Socialite::driver('facebook')->redirect();
     }
@@ -60,57 +80,60 @@ class Account_Login extends WebController {
     public function facebook_callback() {
         try {
             $facebookUser = Socialite::driver('facebook')->user();
-            $this->handleSocialLogin($facebookUser, 'facebook');
+            // Facebook 这里默认按 Individual 处理；需要分流可同法加 ?role=
+            $this->handleSocialLogin($facebookUser, 'facebook', 1);
         } catch (\Exception $e) {
             \Log::error('Facebook login error: ' . $e->getMessage());
             $this->doRedirect($this->toURL('account_login'));
         }
     }
 
-    // Handle social login
-    private function handleSocialLogin($socialUser, $provider) {
-        // Download avatar if available
+    /* =======================
+     * 核心：第三方登录落库
+     * ======================= */
+    private function handleSocialLogin($socialUser, $provider, int $intendedType = 1) {
+        // 头像
         $avatarFilename = null;
         if ($socialUser->getAvatar()) {
             $avatarFilename = $this->downloadAvatar($socialUser->getAvatar(), $provider);
         }
 
-        // Find existing member by email
-        $member = \DB::table('member')
-            ->where('email', $socialUser->getEmail())
-            ->first();
+        // 查找用户
+        $member = \DB::table('member')->where('email', $socialUser->getEmail())->first();
 
         if (!$member) {
-            // Create new member as individual (type 1)
-            // They can upgrade to service provider later if needed
+            // 新建用户：type 用入口传入（1=Individual, 3=Service Provider）
             $memberId = \DB::table('member')->insertGetId([
-                'email' => $socialUser->getEmail(),
-                'alias_name' => $socialUser->getName(),
-                'full_name' => $socialUser->getName(),
-                'password' => bcrypt(uniqid()),
-                'type' => 1,
-                'status' => 1,
-                'verified' => 1,
-                'avatar' => $avatarFilename,
+                'email'           => $socialUser->getEmail(),
+                'alias_name'      => $socialUser->getName(),
+                'full_name'       => $socialUser->getName(),
+                'password'        => bcrypt(uniqid()),
+                'method'          => 2, // google
+                'type'            => in_array($intendedType, [1,3]) ? $intendedType : 1,
+                'status'          => 1,
+                'verified'        => 1,
+                'avatar'          => $avatarFilename,
                 'social_provider' => $provider,
-                'social_id' => $socialUser->getId(),
-                'created_at' => date('Y-m-d H:i:s'),
+                'social_id'       => $socialUser->getId(),
+                'created_at'      => date('Y-m-d H:i:s'),
             ]);
         } else {
-            // Existing member - log them in
+            // 老用户：不强制改 type，避免权限错配
             $memberId = $member->id;
 
-            // Update social info and avatar if not set
             $updateData = [];
 
             if (empty($member->social_provider)) {
                 $updateData['social_provider'] = $provider;
-                $updateData['social_id'] = $socialUser->getId();
+                $updateData['social_id']       = $socialUser->getId();
             }
 
-            // Update avatar if they don't have one and we downloaded one
             if (empty($member->avatar) && $avatarFilename) {
                 $updateData['avatar'] = $avatarFilename;
+            }
+
+            if (empty($member->method) || (int)$member->method === 1) {
+                $updateData['method'] = 2; // google
             }
 
             if (!empty($updateData)) {
@@ -118,36 +141,36 @@ class Account_Login extends WebController {
             }
         }
 
-        // Create login token
+        $effectiveType = (int) \DB::table('member')->where('id', $memberId)->value('type');
+        $this->fillDefaultProfileIfEmpty($memberId, $effectiveType);
+
+        // 登录 token
         $token = md5(uniqid(rand()));
         \DB::table('member_token')->insert([
-            'type' => 1,
-            'member_id' => $memberId,
-            'value' => $token,
+            'type'       => 1,
+            'member_id'  => $memberId,
+            'value'      => $token,
             'created_by' => $memberId
         ]);
 
-        // Set session and redirect
         $this->setSession(['member_access_token' => $token]);
         $this->setMyCookie('member_access_token', $token);
+
         $this->doRedirect($this->toURL('home'));
     }
 
-    // Download and save avatar from social provider
+    private function clearOauthSession(): void {
+        try { session()->forget('oauth_type'); } catch (\Throwable $e) {}
+    }
+
     private function downloadAvatar($avatarUrl, $provider) {
         try {
             $uploadPath = public_path('upload/member_avatar');
-
-            // Create directory if it doesn't exist
             if (!file_exists($uploadPath)) {
                 mkdir($uploadPath, 0755, true);
             }
-
-            // Generate unique filename
             $filename = md5($provider . '_' . time() . '_' . uniqid()) . '.jpg';
             $filePath = $uploadPath . '/' . $filename;
-
-            // Download and save the image
             $imageContent = file_get_contents($avatarUrl);
             if ($imageContent !== false) {
                 file_put_contents($filePath, $imageContent);
@@ -156,7 +179,78 @@ class Account_Login extends WebController {
         } catch (\Exception $e) {
             \Log::error('Avatar download failed: ' . $e->getMessage());
         }
-
         return null;
+    }
+
+    private function fillDefaultProfileIfEmpty(int $memberId, int $type): void
+    {
+        // —— 统一给 member 表做「缺省值补齐」（两类用户都需要，避免 About 报错）——
+        $memberDefaults = [
+            'alias_name'            => 'N/A',
+            'full_name'             => 'N/A',
+            'first_name'            => 'N/A',
+            'last_name'             => 'N/A',
+            'email'                 => 'N/A',
+            'telephone_code'        => 'N/A',
+            'telephone_num'         => 'N/A',
+            'migration_destination' => 0,
+            'interested_visa'       => 0,
+            // 你的系统里 interested_topic 有时是数组，有时是字符串；
+            // 这里用 json 空数组，前端读取时注意兼容。
+            'interested_topic'      => json_encode([]),
+            'remark'                => 'N/A',
+            'verified'              => 0,
+            'status'                => 1,
+        ];
+
+        $member = \DB::table('member')->where('id', $memberId)->first();
+        if ($member) {
+            $update = [];
+            foreach ($memberDefaults as $key => $value) {
+                if (!property_exists($member, $key) || $member->$key === null || $member->$key === '') {
+                    $update[$key] = $value;
+                }
+            }
+            if (!empty($update)) {
+                \DB::table('member')->where('id', $memberId)->update($update);
+            }
+        }
+
+        // —— 只有 Service Provider(type=3) 才需要 member_details —— 
+        if ((int)$type !== 3) {
+            // 如果你希望“清理误写”的 details，可以在这里做可选清理（默认不动）：
+            // \DB::table('member_details')->where('member_id', $memberId)->delete();
+            return;
+        }
+
+        // SP 详情的缺省值
+        $detailsDefaults = [
+            'company_type'       => 0,
+            'company_name'       => 'N/A',
+            'company_website'    => 'N/A',
+            'company_address'    => 'N/A',
+            'services'           => 'N/A',
+            'services_country'   => json_encode([]),
+            'registered_agent'   => 0,
+            'registered_lawfirm' => 0,
+            // 视图里有 logo 字段时，避免 undefined index
+            'logo'               => '',
+        ];
+
+        $details = \DB::table('member_details')->where('member_id', $memberId)->first();
+        if ($details) {
+            $update = [];
+            foreach ($detailsDefaults as $key => $value) {
+                if (!property_exists($details, $key) || $details->$key === null || $details->$key === '') {
+                    $update[$key] = $value;
+                }
+            }
+            if (!empty($update)) {
+                \DB::table('member_details')->where('member_id', $memberId)->update($update);
+            }
+        } else {
+            $detailsDefaults['member_id'] = $memberId;
+            \DB::table('member_details')->insert($detailsDefaults);
+        }
     }
 }
