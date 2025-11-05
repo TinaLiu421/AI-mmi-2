@@ -71,10 +71,15 @@
             
             <div class="row">
                 <label for="countries_serving"><?php echo $_page_lang['account.countries_serving']; ?></label>
+                <?php
+                $destinationsServingList = !empty($_page_options['destinations_serving']) ? $_page_options['destinations_serving'] : [];
+                ?>
                 <select id="countries_serving" name="countries_serving[]" multiple>
-                    <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_id => $country) { ?>
-                    <option value="<?php echo $country_id; ?>"><?php echo $country; ?></option>
-                    <?php }} ?>
+                    <?php foreach ($destinationsServingList as $destId => $destLabel) {
+                        $optionValue = (string)$destId;
+                    ?>
+                    <option value="<?php echo htmlspecialchars($optionValue, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($destLabel, ENT_QUOTES, 'UTF-8'); ?></option>
+                    <?php } ?>
                 </select>
             </div>
             <div class="clearboth"></div>

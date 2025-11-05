@@ -3,6 +3,7 @@ namespace App\Models;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Support\DestinationsServing;
 
 class Member extends BaseModel {
     
@@ -171,7 +172,43 @@ class Member extends BaseModel {
         if(!is_array($country_id)) {
             $country_id = [$country_id];
         }
-        
+
+        $legacyCountryIds = array_values(array_filter(array_map('intval', $country_id)));
+        $destinations = DestinationsServing::all();
+        $legacyToDestination = [];
+        foreach ($destinations as $destination) {
+            if (!empty($destination['visa_country_id'])) {
+                $legacyToDestination[(int) $destination['visa_country_id']] = (int) $destination['id'];
+            }
+            if (!empty($destination['legacy_ids'])) {
+                foreach ($destination['legacy_ids'] as $legacy) {
+                    $legacyToDestination[(int) $legacy] = (int) $destination['id'];
+                }
+            }
+        }
+
+        $destinationIds = [];
+        foreach ($legacyCountryIds as $legacy) {
+            if (isset($legacyToDestination[$legacy])) {
+                $destinationIds[] = (int) $legacyToDestination[$legacy];
+            }
+        }
+        $destinationIds = array_values(array_unique($destinationIds));
+
+        $searchTokens = [];
+        $allDestinationIds = [];
+        foreach ($destinations as $destination) {
+            $allDestinationIds[] = (int) $destination['id'];
+        }
+
+        foreach (array_merge($destinationIds, $allDestinationIds) as $destId) {
+            $searchTokens[] = '"'.(string) $destId.'"';
+        }
+        foreach ($legacyCountryIds as $legacy) {
+            $searchTokens[] = '"'.(string) $legacy.'"';
+        }
+        $searchTokens = array_values(array_unique($searchTokens));
+
         $query = DB::table($this->_member_table)
             ->leftJoin($this->_member_table.'_details', function($join) {
                 $join->on($this->_member_table.'.id', '=', $this->_member_table.'_details.member_id');
@@ -189,13 +226,17 @@ class Member extends BaseModel {
             )
             ->where($this->_member_table.'.type', 2)
             ->where($this->_member_table.'.status', '>', 0)
-            ->where(function($query) use ($country_id) {
-                $query->where(function($query) use ($country_id) {
-                    foreach($country_id as $country_key => $country) {
-                        $query->orWhere($this->_member_table.'.countries_serving', 'LIKE', '%'.$country.'%');
-                    }
-                });
-                $query->orWhereIn($this->_member_table.'_agent.registration_country', $country_id);
+            ->where(function($query) use ($searchTokens, $legacyCountryIds) {
+                if(!empty($searchTokens)) {
+                    $query->where(function($query) use ($searchTokens) {
+                        foreach($searchTokens as $token) {
+                            $query->orWhere($this->_member_table.'.countries_serving', 'LIKE', '%'.$token.'%');
+                        }
+                    });
+                }
+                if(!empty($legacyCountryIds)) {
+                    $query->orWhereIn($this->_member_table.'_agent.registration_country', $legacyCountryIds);
+                }
             })
             ->orderBy($this->_member_table.'.alias_name', 'asc')
             ->orderBy($this->_member_table.'_agent.full_name', 'asc');

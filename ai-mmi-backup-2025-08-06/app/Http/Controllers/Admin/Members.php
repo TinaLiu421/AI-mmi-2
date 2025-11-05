@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminController;
+use App\Support\DestinationsServing;
 
 class Members extends AdminController {
     
@@ -42,9 +43,7 @@ class Members extends AdminController {
                         'expiration_date_visa_submission_human'   => $this->postParamValue('expiration_date_visa_submission_human', '1970-01-01'),
                     ];
                     
-                    if(!empty($this->_page_post_data['countries_serving'])) {
-                        $revise_member['countries_serving']  = $this->_page_post_data['countries_serving'];
-                    }
+                    $revise_member['countries_serving']  = DestinationsServing::toStorage($this->postParamValue('countries_serving', []));
                     
                     if(!empty($this->_page_post_data['interested_visa'])) {
                         $revise_member['interested_visa']  = $this->_page_post_data['interested_visa'];
@@ -158,6 +157,10 @@ class Members extends AdminController {
                     $this->doRedirect($this->toURL('members'));
                 }
 
+                if(!empty($target_member) && array_key_exists('countries_serving', $target_member)) {
+                    $target_member['countries_serving'] = DestinationsServing::fromStorage($target_member['countries_serving']);
+                }
+
                 // set nav
                 $this->pageNavigator($this->_page_lang['member_area']);
                 $this->pageNavigator($this->_page_lang['member'], $this->toURL('members'));
@@ -177,7 +180,8 @@ class Members extends AdminController {
                     'countries' => $this->optionsToArray($list_countries),
                     'interest_visas' => $this->optionsToArray($list_interest_visas),
                     'interest_topics' => $this->optionsToArray($list_interest_topics),
-                    'organization_type' => $this->optionsToArray($list_organization_type)
+                    'organization_type' => $this->optionsToArray($list_organization_type),
+                    'destinations_serving' => DestinationsServing::options()
                 ])->pageData(
                 [
                     'target_member'             =>  $target_member,

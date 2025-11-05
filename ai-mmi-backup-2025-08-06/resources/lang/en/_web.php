@@ -148,7 +148,7 @@ return
         'permission_denied'     =>  'Permission Denied',
         'enter_comment'         =>  'Enter your comment here',
         'agent_name'            =>  'Migration Agent\'s Name',
-        'countries_serving'     =>  'Countries Serving',
+        'countries_serving'     =>  'Destinations Serving',
         'business_registration' =>  'Business registration',
         'business_registration_country' => 'Country of business registration',
         'business_registration_name' => 'Registered business name',

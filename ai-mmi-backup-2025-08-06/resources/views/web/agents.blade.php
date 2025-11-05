@@ -5,33 +5,22 @@
     <div class="underline"></div>
     <div class="clearboth"></div>
 
-    <?php if(!empty($_page_data['visa_countries'])) { ?>
+    <?php if(!empty($_page_data['destinations'])) { ?>
     <div class="list">
-        <?php foreach($_page_data['visa_countries'] as $vc) {
-            $total = 0;
-            if(!empty($_page_data['list'])) {  foreach ($_page_data['list'] as $agent) { 
-                if((int)$agent['agent_registration_country'] == $vc['id'] || (!empty($agent['countries_serving']) && in_array($vc['id'], $agent['countries_serving']))) {
-                    $total++;
-                }
-            }}
-            if($total == 0) {
-                continue;
-            }
-            ?>
+        <?php foreach($_page_data['destinations'] as $destination) {
+            if(empty($destination['agents'])) { continue; }
+            $hasLink = !empty($destination['url']);
+            $flag = !empty($destination['photo_flag']) ? $destination['photo_flag'] : '';
+        ?>
         <div class="country">
             <div class="name">
-                <a href="<?php echo $vc['url']; ?>">
-                    <img src="<?php echo $vc['photo_flag']; ?>">
-                    <span><?php echo $vc['title']; ?></span>
-                </a>
+                <?php if($hasLink) { ?><a href="<?php echo $destination['url']; ?>"><?php } ?>
+                    <?php if($flag !== '') { ?><img src="<?php echo $flag; ?>"><?php } ?>
+                    <span><?php echo $destination['label']; ?></span>
+                <?php if($hasLink) { ?></a><?php } ?>
             </div>
-            <?php if(!empty($_page_data['list'])) { ?>
             <div class="agents">
-                <?php foreach ($_page_data['list'] as $agent) { 
-                    if(!((int)$agent['agent_registration_country'] == $vc['id'] || (!empty($agent['countries_serving']) && in_array($vc['id'], $agent['countries_serving'])))) {
-                        continue;
-                    }
-                    ?>
+                <?php foreach ($destination['agents'] as $agent) { ?>
                     <div class="related">
                         <div class="author">
                             <div class="avatar">
@@ -51,23 +40,6 @@
                                     <td>&nbsp;&nbsp;</td>
                                     <td><?php echo $agent['alias_name']; ?></td>
                                 </tr>
-                                
-                                <?php if((int)$agent['agent_registration_country'] == $vc['id']) { ?>
-                                <?php if(!empty($agent['agent_full_name'])) { ?>
-                                <tr>
-                                    <td><strong><?php echo $_page_lang['account.agent_name']; ?>:</strong> </td>
-                                    <td>&nbsp;&nbsp;</td>
-                                    <td><?php echo $agent['agent_full_name']; ?></td>
-                                </tr>
-                                <?php } ?>
-                                <?php if(!empty($agent['agent_registration_num'])) { ?>
-                                <tr>
-                                    <td><strong><?php echo $_page_lang['account.registration_num']; ?>:</strong> </td>
-                                    <td>&nbsp;&nbsp;</td>
-                                    <td><?php echo $agent['agent_registration_num']; ?></td>
-                                </tr>
-                                <?php } ?>
-                                <?php } ?>
                                 <tr>
                                     <td><strong><?php echo $_page_lang['account.telephone']; ?>:</strong> </td>
                                     <td>&nbsp;&nbsp;</td>
@@ -100,7 +72,6 @@
                     </div>
                 <?php } ?>
             </div>
-            <?php } ?>
         </div>
         <?php } ?>
     </div>

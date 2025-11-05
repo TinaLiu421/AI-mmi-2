@@ -206,7 +206,7 @@ return
         'expiration_date'       =>  'Expiration Date',
         'choose_your_preference'=>  'Choose your preference',
         'remark'                =>  'Remark',
-        'countries_serving'     =>  'Countries Serving'
+        'countries_serving'     =>  'Destinations Serving'
     ],
     
     'posts_form'                =>  

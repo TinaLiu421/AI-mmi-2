@@ -5,6 +5,7 @@ use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use App\Support\CountriesPhoneCodes;
+use App\Support\DestinationsServing;
 
 class Account_Registration extends WebController {
     
@@ -313,6 +314,8 @@ class Account_Registration extends WebController {
                                 $this->_page_post_data['logo'] = $this->getSession('temp_agent_account_logo');
                             }
 
+                            $this->_page_post_data['countries_serving'] = DestinationsServing::toStorage($this->postParamValue('countries_serving', []));
+
                             // if trial, create account directly
                             $this->_page_post_data['expiration_date_account'] = '1970-01-01';
                             if(!empty($this->_page_post_data['trial'])) {
@@ -342,7 +345,7 @@ class Account_Registration extends WebController {
                                         'company_website'   =>  $this->_page_post_data['company_website'],
                                         'company_address'   =>  $this->_page_post_data['company_address']
                                     ],
-                                    'countries_serving'     =>  ((!empty($this->_page_post_data['countries_serving']))?$this->_page_post_data['countries_serving']:''),
+                                    'countries_serving'     =>  $this->_page_post_data['countries_serving'],
                                 ];
                                 $new_member['alias_name'] = $this->_page_post_data['company_name'];
                                 if($new_member['method'] > 1) {
@@ -418,6 +421,9 @@ class Account_Registration extends WebController {
                 else {
                     $temp_agent_account = $this->getSession('temp_agent_account');     
                     if(!empty($temp_agent_account)) {
+                        $temp_agent_account['countries_serving'] = DestinationsServing::fromStorage($temp_agent_account['countries_serving'] ?? []);
+                    }
+                    if(!empty($temp_agent_account)) {
                         $temp_agent_account['expiration_date_account'] = date('Y-m-d', strtotime('+'.max(0, (int)$account_plan['valid_days_trial']).' days', strtotime($this->_today_date)));
 
                         $new_member = 
@@ -444,7 +450,7 @@ class Account_Registration extends WebController {
                                 'company_website'   =>  $temp_agent_account['company_website'],
                                 'company_address'   =>  $temp_agent_account['company_address']
                             ],
-                            'countries_serving'     =>  ((!empty($temp_agent_account['countries_serving']))?$temp_agent_account['countries_serving']:''),
+                            'countries_serving'     =>  DestinationsServing::toStorage($temp_agent_account['countries_serving'] ?? []),
                         ];
                         $new_member['alias_name'] = $temp_agent_account['company_name'];
                         if($new_member['method'] > 1) {
@@ -554,13 +560,19 @@ class Account_Registration extends WebController {
         $list_countries = $this->loadModel('pages', ['table' => 'country'])->getAll($this->_current_lang_index, null, false);
         $this->pageOptions(
         [
-            'countries' => $this->optionsToArray($list_countries)
+            'countries' => $this->optionsToArray($list_countries),
+            'destinations_serving' => DestinationsServing::options()
         ]);
+        $accountSession = $this->getSession('temp_agent_account');
+        if(!empty($accountSession)) {
+            $accountSession['countries_serving'] = DestinationsServing::fromStorage($accountSession['countries_serving'] ?? []);
+        }
+
         // load view
         return $this->pageData(
         [
             'parameter'     =>  $parameter,
-            'account'       =>  $this->getSession('temp_agent_account'),
+            'account'       =>  $accountSession,
             'plan'          =>  $this->loadModel('pages', ['table' => 'plan_account'])->getByID(2, $this->_current_lang_index)
         ])->pageView();
     }
@@ -763,13 +775,19 @@ class Account_Registration extends WebController {
             'organization_type' => $this->optionsToArray($list_organization_type),
             'countries' => CountriesPhoneCodes::getCountries(),
             'phone_codes' => CountriesPhoneCodes::getPhoneCodes(),
-            'country_phone_map' => CountriesPhoneCodes::getCountryPhoneMap()
+            'country_phone_map' => CountriesPhoneCodes::getCountryPhoneMap(),
+            'destinations_serving' => DestinationsServing::options()
         ]);
+
+        $serviceProviderAccount = $this->getSession('temp_service_provider_account');
+        if(!empty($serviceProviderAccount)) {
+            $serviceProviderAccount['countries_serving'] = DestinationsServing::fromStorage($serviceProviderAccount['countries_serving'] ?? []);
+        }
 
         return $this->pageData(
         [
             'parameter'     =>  $parameter,
-            'account'       =>  $this->getSession('temp_service_provider_account'),
+            'account'       =>  $serviceProviderAccount,
             'plan'          =>  $this->loadModel('pages', ['table' => 'plan_account'])->getByID(3, $this->_current_lang_index)
         ])->pageView();
     }

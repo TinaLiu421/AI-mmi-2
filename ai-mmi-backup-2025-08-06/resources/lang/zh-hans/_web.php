@@ -148,7 +148,7 @@ return
         'permission_denied'     =>  '没有权限',
         'enter_comment'         =>  '输入您的评论',
         'agent_name'            =>  '移民代理名称',
-        'countries_serving'     =>  '服务国家',
+        'countries_serving'     =>  '服务目的地',
         'business_registration' =>  '营业执照注册',
         'business_registration_country' => '营业执照注册国家',
         'business_registration_name' => '注册企业名称',

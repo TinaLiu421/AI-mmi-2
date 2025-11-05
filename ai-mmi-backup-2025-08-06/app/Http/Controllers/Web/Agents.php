@@ -57,18 +57,33 @@ class Agents extends WebController {
             }
         }
 
+        $allowedDestinationIds = [1, 2, 13, 14]; // Australia, Canada, UK, US
         $destinationsById = [];
         foreach (DestinationsServing::all() as $destination) {
-            $photoFlag = $this->generateImage(null, 300, 150, true);
+            if (!in_array((int) $destination['id'], $allowedDestinationIds, true)) {
+                continue;
+            }
+
+            $photoFlag = '';
+            if (!empty($destination['flag_asset']) && file_exists(public_path($destination['flag_asset']))) {
+                $photoFlag = $this->generateImage(['file_path' => $destination['flag_asset']], 300, 150, true);
+            }
             $destinationUrl = '';
 
             $matchedVisaCountry = null;
             if (!empty($destination['visa_country_id']) && isset($visaCountriesMap[$destination['visa_country_id']])) {
                 $matchedVisaCountry = $visaCountriesMap[$destination['visa_country_id']];
             } else {
+                $aliasKeys = [];
+                if (!empty($destination['aliases'])) {
+                    foreach ((array)$destination['aliases'] as $alias) {
+                        $aliasKeys = array_merge($aliasKeys, $generateKeys($alias));
+                    }
+                }
                 $candidateKeys = array_merge(
                     $generateKeys($destination['visa_country_label'] ?? ''),
-                    $generateKeys($destination['label'])
+                    $generateKeys($destination['label']),
+                    $aliasKeys
                 );
                 foreach ($candidateKeys as $candidateKey) {
                     if (isset($visaCountriesTitleMap[$candidateKey])) {
@@ -79,9 +94,14 @@ class Agents extends WebController {
             }
 
             if ($matchedVisaCountry) {
-                $photoFlag = $matchedVisaCountry['photo_flag'] ?? $photoFlag;
+                if (empty($photoFlag)) {
+                    $photoFlag = $matchedVisaCountry['photo_flag'] ?? '';
+                }
                 $destinationUrl = $matchedVisaCountry['url'] ?? '';
                 $destination['visa_country_id'] = $matchedVisaCountry['id'] ?? $destination['visa_country_id'];
+            }
+            if (empty($photoFlag)) {
+                $photoFlag = $this->generateImage(null, 300, 150, true);
             }
 
             $destination['photo_flag'] = $photoFlag;
@@ -105,9 +125,7 @@ class Agents extends WebController {
                     }
                 }
 
-                if (!$assigned && isset($destinationsById[15])) {
-                    $destinationsById[15]['agents'][] = $agent;
-                }
+                // Agents serving destinations outside allowed list are intentionally hidden for now
             }
             unset($agent);
         }

@@ -5,6 +5,7 @@ use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use App\Support\CountriesPhoneCodes;
+use App\Support\DestinationsServing;
 
 class Account extends WebController {
     
@@ -12,6 +13,10 @@ class Account extends WebController {
 
     public function __construct($data) {
         parent::__construct($data);
+        if (isset($this->_current_member['countries_serving'])) {
+            $this->_current_member['countries_serving'] = DestinationsServing::fromStorage($this->_current_member['countries_serving']);
+        }
+
         $show_member_id = $this->getParamValue('uid', 0);
         if(!empty($show_member_id)) {
             $this->_show_current_member = $this->_member_model->getByID($show_member_id);
@@ -21,6 +26,10 @@ class Account extends WebController {
         }
         if(empty($this->_show_current_member)) {
             $this->doRedirect($this->toURL('home'));
+        }
+
+        if (isset($this->_show_current_member['countries_serving'])) {
+            $this->_show_current_member['countries_serving'] = DestinationsServing::fromStorage($this->_show_current_member['countries_serving']);
         }
     }
     
@@ -229,6 +238,8 @@ class Account extends WebController {
                     }
                 }
 
+                $destinationsServing = DestinationsServing::toStorage($this->postParamValue('countries_serving', []));
+
                 $revise_member =
                 [
                     'full_name'             =>  implode(' ', array_filter([$this->_page_post_data['first_name'], $this->_page_post_data['last_name']])),
@@ -236,7 +247,7 @@ class Account extends WebController {
                     'last_name'             =>  $this->_page_post_data['last_name'],
                     'email'                 =>  $this->_page_post_data['email'],
                     'remark'                =>  $this->_page_post_data['remark'],
-                    'countries_serving'     =>  ((!empty($this->_page_post_data['countries_serving']))?$this->_page_post_data['countries_serving']:''),
+                    'countries_serving'     =>  $destinationsServing,
                     'details'               =>  [],
                     'agents'                =>  [],
                     'lawfirms'              =>  [],
@@ -376,7 +387,8 @@ class Account extends WebController {
             'country_phone_map' => CountriesPhoneCodes::getCountryPhoneMap(),
             'interest_visas' => $this->optionsToArray($list_interest_visas),
             'interest_topics' => $this->optionsToArray($list_interest_topics),
-            'organization_type' => $this->optionsToArray($list_organization_type)
+            'organization_type' => $this->optionsToArray($list_organization_type),
+            'destinations_serving' => DestinationsServing::options()
         ]);
         
     // ✅ search subscriptions table

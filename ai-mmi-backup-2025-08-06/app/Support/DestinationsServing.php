@@ -116,6 +116,7 @@ class DestinationsServing
             'aliases'         => ['uk', 'united kingdom', 'great britain', 'britain', 'gb'],
             'visa_country_id' => 186,
             'visa_country_label' => 'United Kingdom',
+            'flag_asset'      => 'asset/image/flags/destinations/uk.png',
         ],
         [
             'id'              => 14,
