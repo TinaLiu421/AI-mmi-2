@@ -63,7 +63,7 @@ div.page-content.account-login div.form div.third-party > a.google {
 /* Facebook 在第二行、和左侧 Google 同宽并左对齐 */
 div.page-content.account-login div.form div.third-party > a.fb {
   background: #1877F2; /* Facebook brand */
-  grid-column: 1 / span 1;
+  /* grid-column: 1 / span 1; */
   /* 如需让 Facebook 居中且与单列同宽，可改为：
      grid-column: 1 / -1; justify-self: center; width: 100%; max-width: 520px;
   */
@@ -79,6 +79,9 @@ div.page-content.account-login div.form div.third-party > a > i {
   margin-right: 6px;
   line-height: 1;
 }
+
+a.google:hover{ filter: brightness(0.95); }
+a.fb:hover{ filter: brightness(0.96); }
 
 /* 响应式：≤700px 竖排全宽 */
 @media (max-width: 700px) {

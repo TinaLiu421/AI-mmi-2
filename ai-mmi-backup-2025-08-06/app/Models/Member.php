@@ -224,7 +224,7 @@ class Member extends BaseModel {
                 $this->_member_table.'_agent.full_name as agent_full_name',
                 $this->_member_table.'_agent.registration_num as agent_registration_num'
             )
-            ->where($this->_member_table.'.type', 2)
+            ->where($this->_member_table.'.type', [2, 3])
             ->where($this->_member_table.'.status', '>', 0)
             ->where(function($query) use ($searchTokens, $legacyCountryIds) {
                 if(!empty($searchTokens)) {

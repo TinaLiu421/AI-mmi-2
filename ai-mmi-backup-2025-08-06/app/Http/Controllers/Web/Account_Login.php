@@ -74,16 +74,24 @@ class Account_Login extends WebController {
      * ======================= */
 
     public function facebook() {
-        return Socialite::driver('facebook')->redirect();
+        // individual | provider
+        $role = request()->query('role', 'individual');
+        $type = ($role === 'provider') ? 3 : 1;   // 1=Individual, 3=Service Provider
+        session(['oauth_type' => $type]);
+
+        return \Laravel\Socialite\Facades\Socialite::driver('facebook')->redirect();
     }
 
     public function facebook_callback() {
         try {
-            $facebookUser = Socialite::driver('facebook')->user();
-            // Facebook 这里默认按 Individual 处理；需要分流可同法加 ?role=
-            $this->handleSocialLogin($facebookUser, 'facebook', 1);
+            $facebookUser = \Laravel\Socialite\Facades\Socialite::driver('facebook')->stateless()->user();
+            $intendedType = (int) session('oauth_type', 1);
+            $this->clearOauthSession();
+
+            $this->handleSocialLogin($facebookUser, 'facebook', $intendedType);
         } catch (\Exception $e) {
             \Log::error('Facebook login error: ' . $e->getMessage());
+            $this->clearOauthSession();
             $this->doRedirect($this->toURL('account_login'));
         }
     }
@@ -91,49 +99,59 @@ class Account_Login extends WebController {
     /* =======================
      * 核心：第三方登录落库
      * ======================= */
-    private function handleSocialLogin($socialUser, $provider, int $intendedType = 1) {
-        // 头像
+    private function handleSocialLogin($socialUser, $provider, int $intendedType = 1)
+    {
+        // 头像下载逻辑不变
         $avatarFilename = null;
         if ($socialUser->getAvatar()) {
             $avatarFilename = $this->downloadAvatar($socialUser->getAvatar(), $provider);
         }
 
-        // 查找用户
-        $member = \DB::table('member')->where('email', $socialUser->getEmail())->first();
+        // 【核心修复】
+        // 优先用 social_id + provider 找
+        $member = \DB::table('member')
+            ->where('social_provider', $provider)
+            ->where('social_id', $socialUser->getId())
+            ->first();
 
+        // 如果找不到，再尝试用 email 匹配（兼容老账号）
+        if (!$member && $socialUser->getEmail()) {
+            $member = \DB::table('member')
+                ->where('email', $socialUser->getEmail())
+                ->first();
+        }
+
+        // 若依然没有，则创建新用户
         if (!$member) {
-            // 新建用户：type 用入口传入（1=Individual, 3=Service Provider）
             $memberId = \DB::table('member')->insertGetId([
-                'email'           => $socialUser->getEmail(),
-                'alias_name'      => $socialUser->getName(),
-                'full_name'       => $socialUser->getName(),
+                'email'           => $socialUser->getEmail() ?? 'N/A',
+                'alias_name'      => $socialUser->getName() ?? 'N/A',
+                'full_name'       => $socialUser->getName() ?? 'N/A',
                 'password'        => bcrypt(uniqid()),
-                'method'          => 2, // google
-                'type'            => in_array($intendedType, [1,3]) ? $intendedType : 1,
+                'method'          => 2, // social
+                'type'            => in_array($intendedType, [1, 3]) ? $intendedType : 1,
                 'status'          => 1,
                 'verified'        => 1,
                 'avatar'          => $avatarFilename,
                 'social_provider' => $provider,
                 'social_id'       => $socialUser->getId(),
-                'created_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => now(),
             ]);
         } else {
-            // 老用户：不强制改 type，避免权限错配
+            // 老用户更新
             $memberId = $member->id;
-
             $updateData = [];
 
+            // 如果首次没有存 provider/social_id，现在补上
             if (empty($member->social_provider)) {
                 $updateData['social_provider'] = $provider;
-                $updateData['social_id']       = $socialUser->getId();
+            }
+            if (empty($member->social_id)) {
+                $updateData['social_id'] = $socialUser->getId();
             }
 
             if (empty($member->avatar) && $avatarFilename) {
                 $updateData['avatar'] = $avatarFilename;
-            }
-
-            if (empty($member->method) || (int)$member->method === 1) {
-                $updateData['method'] = 2; // google
             }
 
             if (!empty($updateData)) {
@@ -141,23 +159,24 @@ class Account_Login extends WebController {
             }
         }
 
-        $effectiveType = (int) \DB::table('member')->where('id', $memberId)->value('type');
-        $this->fillDefaultProfileIfEmpty($memberId, $effectiveType);
+        // 填默认字段（你已有）
+        $this->fillDefaultProfileIfEmpty($memberId, $intendedType ?? 1);
 
-        // 登录 token
+        // 登录 token 不变
         $token = md5(uniqid(rand()));
         \DB::table('member_token')->insert([
             'type'       => 1,
             'member_id'  => $memberId,
             'value'      => $token,
-            'created_by' => $memberId
+            'created_by' => $memberId,
         ]);
 
         $this->setSession(['member_access_token' => $token]);
         $this->setMyCookie('member_access_token', $token);
 
-        $this->doRedirect($this->toURL('home'));
+        $this->doRedirect($this->toURL('account/profile'));
     }
+
 
     private function clearOauthSession(): void {
         try { session()->forget('oauth_type'); } catch (\Throwable $e) {}

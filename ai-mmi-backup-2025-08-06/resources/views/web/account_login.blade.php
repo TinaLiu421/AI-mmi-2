@@ -58,9 +58,13 @@
             </a>
 
             {{-- Facebook --}}
-            <a href="<?php echo $_page_base_url.'/account_login/facebook'; ?>" class="fb">
-                <i class="fa fa-facebook-square"></i>
-                <span><?php echo $_page_lang['account.with_fb_in']; ?></span>
+            <a class="btn-oauth fb"
+                href="<?php echo $_page_base_url; ?>/account_login/facebook?role=individual">
+                <i class="fa fa-facebook"></i><span>Sign in with Facebook (Individual)</span>
+            </a>
+            <a class="btn-oauth fb"
+                href="<?php echo $_page_base_url; ?>/account_login/facebook?role=provider">
+                <i class="fa fa-facebook"></i><span>Sign in with Facebook (Service Provider)</span>
             </a>
         </div>
     </div>
