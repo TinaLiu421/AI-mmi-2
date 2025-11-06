@@ -184,6 +184,7 @@ class RagController extends Controller
 
         // 6) 生成答案
         try {
+            $lang   = (string) $req->input('lang', 'en');
             $answer = $gen->answerWithContext($q, $context);
         } catch (\Throwable $e) {
             Log::error('RAG generate failed', array('err' => $e->getMessage(), 'trace' => $e->getTraceAsString()));

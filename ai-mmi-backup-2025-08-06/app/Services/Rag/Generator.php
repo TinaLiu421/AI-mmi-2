@@ -13,14 +13,9 @@ class Generator
 
     public function __construct()
     {
-        // Gemini API
-        $this->http   = new Client(['base_uri' => 'https://generativelanguage.googleapis.com']);
-        $this->model  = env('GEMINI_CHAT_MODEL', 'gemini-2.5-flash');
+        $this->http  = new Client(['base_uri' => 'https://generativelanguage.googleapis.com']);
+        $this->model = env('GEMINI_CHAT_MODEL', 'gemini-2.5-flash');
 
-        /**
-         * —— 统一系统提示（RAG 专用）——
-         * 目标：样式统一 + 有细节必写，无细节不填充。
-         */
         $this->system = env('RAG_SYSTEM_PROMPT') ?: <<<SYS
 You are **AI-mmi**, a professional assistant for migration, education, relocation, and accommodation.
 You answer **only** from the given CONTEXT. Never invent or mix external knowledge.
@@ -33,7 +28,6 @@ You answer **only** from the given CONTEXT. Never invent or mix external knowled
 - When multiple criteria exist, expand each into its own bullet instead of grouping them together.
 
 ### Sections (ONLY IF present in CONTEXT)
-Use any of these sections when relevant; **skip** a section if the CONTEXT has nothing for it:
 - `### Overview` (1–2 bullets max)
 - `### Eligibility`
 - `### English Requirement`
@@ -45,77 +39,93 @@ Use any of these sections when relevant; **skip** a section if the CONTEXT has n
 - `### Conditions / Notes`
 
 ### Structured Facts (if provided)
-- You may receive a section named `STRUCTURED_FACTS` in CONTEXT.
-- If it contains English test data (IELTS/PTE/TOEFL/OET/Cambridge), include a short parenthetical after the relevant bullet, e.g.:
-  - **English requirement:** Provide valid test results *(e.g., IELTS overall 6.5, no band < 5.5; or PTE overall 58, no skill < 50)*.
+- If CONTEXT includes test scores (IELTS/PTE/TOEFL/OET/Cambridge), add a short parenthetical after the relevant bullet.
 - Only use existing data; never invent.
 
-### Details Rule (VERY IMPORTANT)
-- If CONTEXT contains **any** concrete detail (numbers, dates, durations, fees, form names like **Form 1000**, visa condition codes, streams), include **at least one** such detail under the relevant bullet.
-- If the CONTEXT **does not** include concrete details for an item, keep the line natural and concise (do **not** add placeholders or guesses).
+### Details Rule
+- If CONTEXT contains concrete details (numbers/dates/durations/fees/forms/condition codes), include at least one under the right bullet.
+- If no detail is in CONTEXT, keep the line concise without placeholders.
 
-If the answer truly cannot be derived from CONTEXT, say: **I don’t know based on the provided context.**
+If not answerable from CONTEXT: **I don’t know based on the provided context.**
 SYS;
     }
 
-    /**
-     * 纯文本 Prompt 生成（控制器已把 CONTEXT 拼进 prompt）
-     */
+    private function detectLang(string $text): string
+    {
+        $t = trim((string)$text);
+
+        // ✅ 强制指令优先
+        if (preg_match('/(用中文(回答|回复)|in\s+Chinese|answer\s+in\s+Chinese)/i', $t)) return 'zh-CN';
+        if (preg_match('/(用英文(回答|回复)|in\s+English|answer\s+in\s+English)/i', $t)) return 'en';
+        if (preg_match('/(用繁体|繁體|traditional\s+Chinese)/i', $t)) return 'zh-TW';
+
+        // 语言探测
+        if (preg_match('/\p{Han}/u', $t)) {
+            // 简/繁粗判：常见繁体字
+            if (preg_match('/[為麼嗎體臺國裏]/u', $t)) return 'zh-TW';
+            return 'zh-CN';
+        }
+        return 'en';
+    }
+
+    private function langInstruction(string $lang): string
+    {
+        if ($lang === 'zh-CN') {
+            return '请用简体中文回复。';
+        } elseif ($lang === 'zh-TW') {
+            return '請使用繁體中文回答。';
+        }
+        return 'Please answer in English.';
+    }
+
     public function answer(string $prompt): string
     {
         $prompt = Utf8::normalizeString($prompt);
 
         $payload = [
-            'systemInstruction' => [
-                'parts' => [
-                    ['text' => Utf8::normalizeString($this->system ?? '')],
-                ],
+            'systemInstruction' => ['parts' => [[ 'text' => Utf8::normalizeString($this->system ?? '') ]]],
+            'contents'          => [[ 'parts' => [[ 'text' => $prompt ]]]],
+            'generationConfig'  => [
+                'temperature'      => 0.0,
+                'topK'             => 1,
+                'topP'             => 1.0,
+                'maxOutputTokens'  => (int) env('GEN_MAX_TOKENS', 4096),
+                // 建议：若曾遇到 thinking 不支持报错，可直接移除下一行
+                'thinkingConfig'   => ['thinkingBudget' => 0],
+                'responseMimeType' => 'text/plain',
             ],
-            'contents' => [[
-                'parts' => [
-                    ['text' => $prompt],
-                ],
-            ]],
-            'generationConfig' => [
-            'temperature'        => 0.0,       // 保持事实性
-            'topK'               => 1,
-            'topP'               => 1.0,
-            // ✅ 提升上限：支持更完整的长文
-            'maxOutputTokens'    => (int) env('GEN_MAX_TOKENS', 4096),
-            'thinkingConfig'     => ['thinkingBudget' => 0],
-            'responseMimeType'   => 'text/plain',
-            ],                        
         ];
 
-        $res = $this->http->post("/v1beta/models/{$this->model}:generateContent", [
+        $res  = $this->http->post("/v1beta/models/{$this->model}:generateContent", [
             'headers' => [
                 'x-goog-api-key' => env('GEMINI_API_KEY'),
                 'Content-Type'   => 'application/json',
             ],
-            'body'    => json_encode(
-                $payload,
-                JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PRESERVE_ZERO_FRACTION
-            ),
+            'body'    => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PRESERVE_ZERO_FRACTION),
             'timeout' => 60,
         ]);
-
         $data = json_decode((string) $res->getBody(), true) ?? [];
         return $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
     }
 
     /**
-     * 问题与上下文分开传入（更常用的 RAG 入口）
+     * 更常用的 RAG 入口
+     * @param string|null $preferredLang 传 'en' / 'zh-CN' / 'zh-TW'，不传则自动判定
      */
-    public function answerWithContext(string $question, string $context): string
+    public function answerWithContext(string $question, string $context, ?string $preferredLang = null): string
     {
         $q = Utf8::normalizeString($question);
         $c = Utf8::normalizeString($context);
 
-        // 这里不再重复风格规则，直接复用 system prompt；仅约束“只用上下文”与“Markdown”
+        $lang = $preferredLang ?: $this->detectLang($question);
+        $langInstruction = $this->langInstruction($lang);
+
         $prompt = <<<PROMPT
+{$langInstruction}
+
 Answer the QUESTION using **only** the CONTEXT.
 Follow the system style strictly (Markdown headings + bullet/numbered lists, bold key terms).
-Apply the **Details Rule**: if any concrete details appear in CONTEXT, include at least one under the right section; if not, keep lines concise without placeholders.
+Apply the **Details Rule**.
 
 QUESTION:
 {$q}
