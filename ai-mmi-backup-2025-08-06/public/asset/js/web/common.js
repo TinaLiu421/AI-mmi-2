@@ -57,15 +57,15 @@ const RAG_MIN_MATCH = 3;
 const RAG_MIN_SCORE = 0.62;
 
 // 调用 RAG 接口
-function callRAG(question, tag = "policy") {
+function callRAG(question, tag = "policy", lang = "en") {
   return $.ajax({
     url: "/api/rag/ask",
     method: "POST",
     contentType: "application/json; charset=utf-8",
     dataType: "json",
     headers: { Accept: "application/json" },
-    timeout: 20000, 
-    data: JSON.stringify({ q: question, tag })
+    timeout: 20000,
+    data: JSON.stringify({ q: question, tag, lang }) 
   });
 }
 
@@ -120,6 +120,20 @@ function renderBubble({ role, avatar, name, text, createdAtIso, isHtml }) {
   `;
 }
 
+// —— 简易语言检测：返回 'zh-TW' | 'zh-CN' | 'en'
+function detectLangClient(text) {
+  const t = String(text || "");
+  if (/[\u4e00-\u9fff]/.test(t)) {
+    // 粗略用繁体常见字判断
+    if (/[體臺國灣為裏據證處辦學錄/獲僑價規劃辦辦辦辦]/.test(t)) return "zh-TW";
+    return "zh-CN";
+  }
+  return "en";
+}
+// —— 是否包含繁体汉字
+function isTraditionalChinese(text) {
+  return /[體臺國灣為裏據錄簽證簽證簽證獲邀辦理]/.test(String(text||""));
+}
 
 // --- 简易主题判定：移民/签证关键词 ---
 function isMigrationQuery(text) {
@@ -128,18 +142,15 @@ function isMigrationQuery(text) {
   const kw = [
     // EN
     "visa","migration","immigration","pr","permanent residence","skilled",
-    "482","485","189","190","491","sponsor","sponsorship","work visa",
-    "h1b","eb","green card",
-    // ZH
-    "移民","签证","工签","学签","永居","绿卡","担保","打分","凑分",
-    "州担","雇主担保","技术移民",
-    // Countries
-    "australia","uk","united kingdom","canada","usa","united states",
-    "美国","英国","澳大利亚","加拿大"
+    "482","485","189","190","491","191","tss","ens","rsms",
+    "sponsor","sponsorship","work visa","points","eoi","skill assessment","NIV",
+    // ZH（简体）
+    "移民","签证","工签","学签","永居","担保","打分","凑分","州担","雇主担保","技术移民","获邀","过桥","过桥a","过桥b","邀请函",
+    // ZH（繁体）
+    "移民","簽證","工簽","學簽","永居","擔保","打分","湊分","州擔","雇主擔保","技術移民","獲邀","過橋","過橋a","過橋b","邀請函"
   ];
   return kw.some(k => s.includes(k));
 }
-
 
 function formatUtcIsoToLocalTime(isoString) {
     try {
@@ -672,62 +683,61 @@ function iweb_global_func() {
             $ta.val("").attr("placeholder","Thinking...");
 
             // —— ❷：只在“签证/移民类问题”时拦截，尝试 RAG；否则直接 return true 走原流程（含 CSRF）
-            const isVisa = isMigrationQuery(userQuestion); 
-            if (!isVisa) {
-                $("#use_rag").val("0");
-                $("#override_reply").val("");
-                submitOnce();
-                return false;
+            // —— ❷：签证/移民类 or 使用繁体 → 先尝试 RAG；否则走原流程
+            const langCode = detectLangClient(userQuestion);
+            const needTryRag = isMigrationQuery(userQuestion) || langCode === "zh-TW";
+
+            if (!needTryRag) {
+            $("#use_rag").val("0");
+            $("#override_reply").val("");
+            submitOnce();
+            return false;
             }
 
             // —— ❸：签证问题 → 先试 RAG；命中就自己渲染；不命中则“交还控制权”给原流程
-            callRAG(userQuestion, "policy")
+            callRAG(userQuestion, "policy", langCode)
                 .then(function (rag) {
-
                     function isNonAnswer(s = "") {
-                        const t = String(s).trim();
-                        if (t.length < 50) return true; // 太短，多半没料
-                        // 常见否定/缺料短语（含直引号/弯引号）
-                        const deny = [
-                            /i do(?:n['’]t)\s+know/i,
-                            /not (?:found|available) in (?:the )?context/i,
-                            /no (?:specific|sufficient)?\s*details? (?:provided|found)/i,
-                            /insufficient (?:context|information)/i,
-                            /i (?:can['’]?t|cannot) answer/i,
-                            /context (?:missing|lacks)/i,
-                            /无(?:法|足够) (?:确定|回答|提供)/,
-                            /不知道|不确定/
-                        ];
-                        return deny.some(rx => rx.test(t));
+                    const t = String(s).trim();
+                    if (t.length < 50) return true;
+                    const deny = [
+                        /i do(?:n['’]t)\s+know/i,
+                        /not (?:found|available) in (?:the )?context/i,
+                        /no (?:specific|sufficient)?\s*details? (?:provided|found)/i,
+                        /insufficient (?:context|information)/i,
+                        /i (?:can['’]?t|cannot) answer/i,
+                        /context (?:missing|lacks)/i,
+                        /不知道|不確定|不确定|無法回答|無足夠|无法/
+                    ];
+                    return deny.some(rx => rx.test(t));
                     }
 
-                    // 命中判定（与你之前一致）
-                    const matchCount = rag.match_count ?? ((rag.snippets && rag.snippets.length) || 0);
-                    const hasHighScore = (rag.snippets || []).some(s => (s.score || 0) >= 0.62);
-
-                    // 有“像样的正文”才算有效：长度、不是否定句、且匹配数/分数满足至少一个门槛
-                    const ans = (rag.answer || "").trim();
+                    const matchCount   = rag.match_count ?? ((rag.snippets && rag.snippets.length) || 0);
+                    const hasHighScore = (rag.snippets || []).some(s => (s.score || 0) >= RAG_MIN_SCORE);
+                    const ans          = (rag.answer || "").trim();
                     const looksSubstantive = ans.length >= 120 && !isNonAnswer(ans);
-                    const ragOk = looksSubstantive && (matchCount >= 3 || hasHighScore || hasConcrete);
+
+                    // —— 关键修正：移除未定义变量 hasConcrete
+                    const ragOk = looksSubstantive && (matchCount >= RAG_MIN_MATCH || hasHighScore);
 
                     if (ragOk) {
-                        $("#use_rag").val("1");
-                        $("#override_reply").val((rag.answer||"").trim());
-                        } else {
-                        $("#use_rag").val("0");
-                        $("#override_reply").val("");
-                        }
-                        __ragBypassOnce = true;
-                        $("#ask-form").trigger("submit");   // 现在真正提交
-                    }).fail(function(){
-                        // RAG失败 → 普通AI
-                        $("#use_rag").val("0");
-                        $("#override_reply").val("");
-                        __ragBypassOnce = true;
-                        $("#ask-form").trigger("submit");
-                    });
+                    $("#use_rag").val("1");
+                    $("#override_reply").val(ans); // 保持 markdown
+                    } else {
+                    $("#use_rag").val("0");
+                    $("#override_reply").val("");
+                    }
+                    __ragBypassOnce = true;
+                    $("#ask-form").trigger("submit");
+                })
+                .fail(function () {
+                    $("#use_rag").val("0");
+                    $("#override_reply").val("");
+                    __ragBypassOnce = true;
+                    $("#ask-form").trigger("submit");
+                });
 
-                    return false; // 这里先不让 iweb.form 提交，等上面的 then/fail 里触发
+                return false;
                     },
 
             // —— ❹：successFn（第二个回调）保持你原来的实现不变 —— 

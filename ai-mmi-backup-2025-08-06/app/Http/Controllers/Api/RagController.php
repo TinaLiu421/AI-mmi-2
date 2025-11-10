@@ -182,27 +182,67 @@ class RagController extends Controller
             $context .= "\n\n---\nSTRUCTURED_FACTS:\n" . json_encode(['english' => $englishFacts], JSON_UNESCAPED_UNICODE);
         }
 
-        // 6) 生成答案
+        // 6) 生成答案（加語言控制）
         try {
-            $lang   = (string) $req->input('lang', 'en');
-            $answer = $gen->answerWithContext($q, $context);
+            $lang = (string) $req->input('lang', 'en');
+
+            // === 語言前綴 ===
+            $prefix = '';
+            if ($lang === 'zh-TW') {
+                $prefix = "請用繁體中文回答下列問題，避免使用簡體字或英文，並維持正式、自然的語氣。\n\n";
+            } elseif ($lang === 'zh-CN') {
+                $prefix = "请用简体中文回答下列问题，除非涉及专有名词，否则不要混用英文。\n\n";
+            } elseif ($lang === 'en') {
+                $prefix = "Please answer in English.\n\n";
+            }
+
+            // === 將前綴插入問題中 ===
+            $qWithLang = $prefix . $q;
+
+            // === 生成回答 ===
+            $answer = $gen->answerWithContext($qWithLang, $context);
+
+            // === 若為繁體中文，可附加安全字形修正 ===
+            if ($lang === 'zh-TW') {
+                $replaceMap = [
+                    '签' => '簽', '证' => '證', '国' => '國', '为' => '為',
+                    '里' => '裏', '见' => '見', '后' => '後', '发' => '發',
+                    '间' => '間', '应' => '應', '业' => '業', '历' => '歷',
+                ];
+                $answer = strtr($answer, $replaceMap);
+            }
+
         } catch (\Throwable $e) {
-            Log::error('RAG generate failed', array('err' => $e->getMessage(), 'trace' => $e->getTraceAsString()));
-            return response()->json(array('error' => 'generate_failed', 'detail' => $e->getMessage()), 500);
+            Log::error('RAG generate failed', [
+                'err'   => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['error' => 'generate_failed', 'detail' => $e->getMessage()], 500);
         }
 
-        // ✅ 随机友好结尾语句
-        $followups = [
-            "Would you like me to provide more help or detailed guidance related to this topic?",
-            "Is there anything else you’d like to know about this visa or process?",
-            "Would you like me to explain the next steps or related options in more detail?",
-            "Would you like a quick summary of related requirements or how to apply?",
-            "Is there anything else I can help you clarify before you move forward?",
-            "Would you like me to expand on this with more practical examples or advice?",
-        ];
+        $lang = (string) $req->input('lang', 'en');
 
-        $randomFollowup = $followups[array_rand($followups)];
-        $answer = trim($answer) . "\n\n---\n" . $randomFollowup;
+        // —— 统一结尾提示（多语言） —— //
+        $footer = '';
+        switch ($lang) {
+            case 'zh-TW':
+                $footer = "\n\n🟦 **AI-mmi也可能會犯錯。請核查重要資訊。**";
+                break;
+            case 'en':
+                $footer = "\n\n🟦 **AI-mmi may make mistakes. Please verify important information.**";
+                break;
+            default: // zh-CN 或其它
+                $footer = "\n\n🟦 **AI-mmi也可能会犯错。请核查重要信息。**";
+                break;
+        }
+
+        $answer = rtrim((string)$answer);
+        if (mb_strpos($answer, 'AI-mmi') === false || 
+            (!str_contains($answer, '核查重要信息') && 
+            !str_contains($answer, '核查重要資訊') && 
+            !str_contains($answer, 'verify important information'))) {
+            $answer .= $footer;
+        }
 
         $out['answer'] = $answer;
 
