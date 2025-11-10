@@ -9,6 +9,7 @@ use Google\Cloud\Dialogflow\V2\QueryInput;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Services\ConversationFlowService;
+use Illuminate\Support\Facades\Schema;
 
 class Home extends WebController {
     public function index() {
@@ -211,11 +212,14 @@ class Home extends WebController {
                 $label = $lastLabel ?: 'migration';   // 没有就给默认
             }
 
-            $lastAi = \DB::table('chat_log')
-                ->where('member_id', $this->_current_member['id'])
-                ->where('type', 'reply')
-                ->orderBy('id', 'desc')
-                ->first();
+            $lastAi = null;
+            if ($memberId) {
+                $lastAi = \DB::table('chat_log')
+                    ->where('member_id', $memberId)
+                    ->where('type', 'reply')
+                    ->orderBy('id', 'desc')
+                    ->first();
+            }
 
             $aiIsAsking = $lastAi && (
                 mb_stripos($lastAi->content, 'Next questions I need from you') !== false ||
@@ -351,7 +355,7 @@ class Home extends WebController {
                             'related_id'  => $askId,
                             'target_date' => $targetDate,
                             'type'        => 'reply',
-                            'content'     => $$refusal,
+                            'content'     => $refusal,
                             'status'      => 1,
                             'created_at'  => $nowUtc,
                             'updated_at'  => $nowUtc,
@@ -402,6 +406,47 @@ class Home extends WebController {
             $has_education_sub   = !empty($this->_current_member['has_education_subscription']);
             $has_subscription    = $has_migration_sub || $has_education_sub;
 
+            // === 承接「短確認」：承接上一輪主題 + 強制 RAG（若為移民） ===
+            $isAck = (bool)preg_match('/^(yes|yeah|yep|sure|ok|okay|y|好的|好|行|可以|是的|對|對的|嗯|要|要的)$/iu', trim($rawQuestion));
+
+            if ($isAck) {
+                // 1) 承接主題（以 session/歷史中的上一輪為準）
+                $label = $lastLabel ?: 'migration';
+                $__aimmi_label = $label; // 覆蓋本輪 topic
+                $this->setSession(['aimmi_last_domain' => $label]);
+
+                // 2) 把「yes」改寫成可執行追問（避免 RAG 因問題太短無法生成）
+                $followupMap = [
+                    'zh-TW' => "請沿用上一輪主題「{$label}」，用繁體中文繼續回答：請給我**下一步的操作建議與清單**（步驟、文件、時間線），不要切換到其他主題。",
+                    'zh-CN' => "请沿用上一轮主题「{$label}」，用简体中文继续回答：请给我**下一步的操作建议与清单**（步骤、材料、时间线），不要切换到其他主题。",
+                    'en'    => "Continue on the previous topic '{$label}' in English: give me the **next steps checklist** (steps, docs, timeline) without changing topics.",
+                ];
+                $rawQuestion = $followupMap[$langCode] ?? $followupMap['en'];
+
+                // 3) 若為移民主題 → 這一輪一律走 RAG
+                if (in_array($label, ['migration'], true)) {
+                    $useRag = 1;          // 覆蓋前端傳來的 use_rag
+                    $override = '';       // 確保不誤用前端 override
+                    \Log::info('FORCE_RAG on short-ack', ['label' => $label, 'lang' => $langCode]);
+                }
+            }
+
+            // —— 先用 Gemini 做“国家/签证主题”分类 —— //
+            $class = $this->classifyJurisdictionWithGemini($rawQuestion, $langCode);
+            $countryCode = strtoupper((string)($class['country'] ?? 'UNKNOWN'));           // e.g., AU/CA/PT/US/UK/...
+            $visaTokens  = array_values(array_unique((array)($class['visa_tokens'] ?? [])));
+            $conf        = (float)($class['confidence'] ?? 0.0);
+
+            // 把识别结果存到 session，便于后续 yes/ok 继承
+            $this->setSession([
+                'aimmi_last_topic'   => $__aimmi_label,
+                'aimmi_last_country' => $countryCode !== 'UNKNOWN' ? $countryCode : $this->getSession('aimmi_last_country'),
+                'aimmi_last_tokens'  => $visaTokens,
+            ]);
+
+            // —— 路由策略：只有 AU 才尝试 RAG（你目前的索引库仅覆盖澳洲）；其他国家直接 Gemini —— //
+            $ragEligible = ($countryCode === 'AU');
+
             // —— 先 RAG，后回落 Gemini ——
             $new_reply   = '';
             $replySource = 'model';
@@ -417,20 +462,39 @@ class Home extends WebController {
             }
 
             // ❷ use_rag=1 但没带文本 → 后端再请求一次 RAG（把域标签当 tag 传过去）
-            if ($new_reply === '' && $useRag === 1) {
-                $rag = $this->callRagApi($rawQuestion, $__aimmi_label, $langCode); // <— 改动点：多传一个 tag
-                if (is_string($rag) && trim($rag) !== '') {
-                    $new_reply    = trim($rag);         // 仍保留 Markdown
-                    $replySource  = 'rag-api';
-                    $aiOwnerName  = 'AI-mmi (Policy)';
-                    \Log::info('CHAT FLOW', ['case' => 'RAG API used', 'tag' => $__aimmi_label]);
+            if ($new_reply === '' && $useRag === 1 && $ragEligible) {
+                // 如果你用直調：
+                $rag = $this->callRagDirect($rawQuestion, $__aimmi_label, $langCode, $countryCode);
+
+                $rag = is_string($rag) ? trim($rag) : '';
+
+                // —— 判斷 RAG 是否“像樣”，否則回落模型 —— //
+                $looksSubstantive = (mb_strlen($rag) >= 120);  // 長度閾值
+                $denyRx = '/\b(i\s+don[’\']?t\s+know|not\s+found|insufficient\s+(?:context|information)|'
+                        . 'no\s+(?:details|specific)|cannot\s+answer|context\s+(?:missing|lacks))\b/i';
+
+                if ($looksSubstantive && !preg_match($denyRx, $rag)) {
+                    // ✅ RAG 可用
+                    $new_reply   = $rag;
+                    $replySource = 'rag-direct'; // 或 'rag-api'
+                    $aiOwnerName = 'AI-mmi (Policy)';
+                    \Log::info('CHAT FLOW', ['case' => 'RAG accepted', 'tag' => $__aimmi_label, 'lang' => $langCode]);
+                } else {
+                    // ❌ RAG 不夠用 → 回落到 Gemini（保持語言與主題）
+                    \Log::warning('RAG weak/denied, fallback to model', [
+                        'len' => mb_strlen($rag), 'rag_head' => mb_substr($rag,0,80), 'lang' => $langCode, 'tag' => $__aimmi_label
+                    ]);
+
+                    $new_reply   = $this->callGeminiApi($rawQuestion, $has_subscription, $langCode);
+                    $replySource = 'rag-fallback-model';
+                    $aiOwnerName = 'AI-mmi';
                 }
             }
 
             // ❸ 上述都失败 → 回落 Gemini（去 Markdown，返回纯文本）
             if ($new_reply === '') {
-                $new_reply    = $this->callGeminiApi($rawQuestion, $has_subscription, $langCode);
-                $replySource  = 'model';
+                $new_reply = $this->callGeminiApi($rawQuestion, $has_subscription, $langCode, $visaTokens, $countryCode, $conf);
+                $replySource  = $ragEligible ? 'rag-fallback-model' : 'model';
                 $aiOwnerName  = 'AI-mmi';
                 \Log::info('CHAT FLOW', ['case' => 'Model generated']);
             }
@@ -443,19 +507,26 @@ class Home extends WebController {
                 \DB::beginTransaction();
 
                 // ask
-                $askId = \DB::table('chat_log')->insertGetId(array_filter([
-                    'member_id'   => $memberId,
-                    'guest_id'    => $guestId ?? null,
-                    'session_id'  => $sessionId ?? null,
-                    'related_id'  => 0,
-                    'target_date' => $targetDate,
-                    'type'        => 'ask',
-                    'content'     => $rawQuestion,
-                    'chat_mode' => $__aimmi_label,
-                    'status'      => 1,
-                    'created_at'  => $nowUtc,
-                    'updated_at'  => $nowUtc,
-                ]));
+                $baseAsk = [
+                'member_id'   => $memberId,
+                'guest_id'    => $guestId ?? null,
+                'session_id'  => $sessionId ?? null,
+                'related_id'  => 0,
+                'target_date' => $targetDate,
+                'type'        => 'ask',
+                'content'     => $rawQuestion,
+                'status'      => 1,
+                'created_at'  => $nowUtc,
+                'updated_at'  => $nowUtc,
+                ];
+
+                $extraAsk = [];
+                if (Schema::hasColumn('chat_log','chat_mode'))          $extraAsk['chat_mode']          = $__aimmi_label;
+                if (Schema::hasColumn('chat_log','chat_mode_topic'))    $extraAsk['chat_mode_topic']    = $__aimmi_label;
+                if (Schema::hasColumn('chat_log','chat_mode_country'))  $extraAsk['chat_mode_country']  = $countryCode;
+                if (Schema::hasColumn('chat_log','chat_mode_tokens'))   $extraAsk['chat_mode_tokens']   = json_encode($visaTokens, JSON_UNESCAPED_UNICODE);
+
+                $askId = \DB::table('chat_log')->insertGetId(array_filter($baseAsk + $extraAsk));
                 \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
                 if (!$member) {
@@ -465,19 +536,26 @@ class Home extends WebController {
                 }
 
                 // reply（RAG保留Markdown，Gemini已纯文本）
-                \DB::table('chat_log')->insertGetId(array_filter([
-                    'member_id'   => $memberId,
-                    'guest_id'    => $guestId ?? null,
-                    'session_id'  => $sessionId ?? null,
-                    'related_id'  => $askId,
-                    'target_date' => $targetDate,
-                    'type'        => 'reply',
-                    'content'     => $new_reply,
-                    'chat_mode' => $__aimmi_label,
-                    'status'      => 1,
-                    'created_at'  => $nowUtc,
-                    'updated_at'  => $nowUtc,
-                ]));
+                $baseReply = [
+                'member_id'   => $memberId,
+                'guest_id'    => $guestId ?? null,
+                'session_id'  => $sessionId ?? null,
+                'related_id'  => $askId,
+                'target_date' => $targetDate,
+                'type'        => 'reply',
+                'content'     => $new_reply,
+                'status'      => 1,
+                'created_at'  => $nowUtc,
+                'updated_at'  => $nowUtc,
+                ];
+
+                $extraReply = [];
+                if (Schema::hasColumn('chat_log','chat_mode'))          $extraReply['chat_mode']          = $__aimmi_label;
+                if (Schema::hasColumn('chat_log','chat_mode_topic'))    $extraReply['chat_mode_topic']    = $__aimmi_label;
+                if (Schema::hasColumn('chat_log','chat_mode_country'))  $extraReply['chat_mode_country']  = $countryCode;
+                if (Schema::hasColumn('chat_log','chat_mode_tokens'))   $extraReply['chat_mode_tokens']   = json_encode($visaTokens, JSON_UNESCAPED_UNICODE);
+
+                \DB::table('chat_log')->insertGetId(array_filter($baseReply + $extraReply));
 
                 \DB::commit();
             } catch (\Throwable $e) {
@@ -502,7 +580,7 @@ class Home extends WebController {
             // —— ConversationFlow 可选（保底不中断）
             $flowPrompt = null;
             try {
-                $flowService = new \App\Services\ConversationFlowService($this->_current_member['id']);
+                $flowService = new \App\Services\ConversationFlowService($memberId ?: 0);
                 $userProfile = [
                     'has_subscription'  => $has_subscription,
                     'subscription_tier' => $this->_current_member['primary_plan_code'] ?? 'free',
@@ -630,57 +708,63 @@ class Home extends WebController {
         return $result_answer;
     }
 
-    protected function callGeminiApi($question = '', $has_subscription = false, $lang = 'en') {
+    protected function callGeminiApi($question='', $has_subscription=false, $lang='en', $tokens=[], $jurisdiction='UNKNOWN', $conf=0.0){
         if (empty($question)) return '';
 
         // ① 语言指令（只用传进来的 $lang，不再自动重判）
         if ($lang === 'zh-CN') {
-            $langInstruction = "STRICT LANGUAGE: Answer ONLY in Simplified Chinese. Do not reply in English except for names or codes.";
+            $langInstruction = "STRICT LANGUAGE: 回答时必须使用简体中文，除非涉及专有名词，不得混用英文。";
         } elseif ($lang === 'zh-TW') {
-            $langInstruction = "STRICT LANGUAGE: Answer ONLY in Traditional Chinese. Do not reply in English except for names or codes.";
+            $langInstruction = "STRICT LANGUAGE: 回答時必須使用繁體中文（Traditional Chinese），避免使用簡體字或英文，維持正式、禮貌、自然的書面語。";
         } else {
             $langInstruction = "STRICT LANGUAGE: Answer ONLY in English. Do not use Chinese characters.";
         }
 
         $system = $this->buildUnifiedPrompt($has_subscription)
-                . "\n\n" . $langInstruction
-                . "\n\nNOTE: Ignore conversation history language. Always follow STRICT LANGUAGE above.";
+            . "\n\nSTRICT LANGUAGE: "
+            . ($lang==='zh-TW' ? "Answer ONLY in Traditional Chinese."
+               : ($lang==='zh-CN' ? "Answer ONLY in Simplified Chinese." : "Answer ONLY in English."))
+            . "\n\nJURISDICTION:\n"
+            . "Primary country/region: {$jurisdiction}.\n"
+            . "You must scope legal/policy statements to this jurisdiction. "
+            . "If the question does not match this jurisdiction, briefly say so and ask the user to confirm the intended country.\n";
+
+        $system .= "\n\n### CONVERSATION CONTEXT RULE ###\n"
+        . "If the user gives a short or single-word reply (e.g., 'yes', 'no', 'Master', 'Australia'), "
+        . "interpret it as an answer to the last question(s) you asked in the previous message. "
+        . "Then continue the conversation accordingly, filling in that missing detail before proceeding. "
+        . "Do not start a new unrelated topic unless the user clearly changes subject.\n";
 
         // ② 当前用户（允许匿名）
         $member = $this->_current_member ?: null;
 
-        // ③ 取历史并【按语言过滤 + 限制条数】避免语言漂移
-        $history = collect();
-        if (!empty($member)) {
-            $history = DB::table('chat_log')
-                ->where('member_id', $member['id'])
-                ->orderBy('id', 'desc')
-                ->limit(40)
-                ->get()
-                ->reverse();
+        // ③ 新：按“主题/国家/tokens/语言”构建短历史，避免串题
+        $topic   = (string)($this->getSession('aimmi_last_topic') ?? 'other');        // 例如 immigration / exam
+        $country = (string)($this->getSession('aimmi_last_country') ?? 'UNKNOWN');    // 例如 AU / US / GLOBAL
+        $ctxTokens = (array)($this->getSession('aimmi_last_tokens') ?? []);
+        $guardTokens = !empty($tokens) ? $tokens : $ctxTokens;
+
+        // —— 主题护栏（签证 tokens）—— //
+        if (!empty($guardTokens)) {
+            $only = implode(', ', array_slice(array_map('strval', $guardTokens), 0, 6));
+            $system .= "\nTOPIC GUARD:\nFocus ONLY on these current visa/program topics: {$only}. "
+                    .  "Do NOT bring up previous or unrelated visas unless the user explicitly asks to compare.\n";
         }
 
-        // —— 语言过滤器：英文时尽量剔除含中文的历史；中文时保留含中文的历史 —— //
-        $filtered = [];
-        foreach ($history as $msg) {
-            $t    = strtolower($msg->type ?? '');
-            $role = ($t === 'reply') ? 'model' : 'user';
-            $text = (string)($msg->content ?? '');
-            if ($text === '') continue;
-
-            // 截断过长
-            if (mb_strlen($text) > 2000) $text = mb_substr($text, 0, 2000) . '...';
-
-            $hasHan = (bool)preg_match('/\p{Han}/u', $text);
-            if ($lang === 'en' && $hasHan) continue;           // 英文目标 → 去除中文历史
-            if (($lang === 'zh-CN' || $lang === 'zh-TW') && !$hasHan) continue; // 中文目标 → 去除纯英文历史
-
-            $filtered[] = ['role' => $role, 'parts' => [['text' => $text]]];
-            if (count($filtered) >= 8) break; // 最多保留 8 条，避免上下文干扰
+        $historyParts = [];
+        if (!empty($member)) {
+            $historyParts = $this->buildContextMessages(
+                (int)$member['id'],
+                $lang,
+                $topic,
+                $country,
+                $guardTokens,   // ✅
+                6
+            );
         }
 
         // ④ 组装 contents（过滤后的历史 + 当前问句）
-        $contents = $filtered;
+        $contents = $historyParts;
         $contents[] = ['role' => 'user', 'parts' => [['text' => $question]]];
 
         //  Send Request
@@ -713,7 +797,7 @@ class Home extends WebController {
             'contents' => $contents,
             'generationConfig' => [
                         'temperature'       => 0.25,   // More creative/conversational
-                        'maxOutputTokens'   => 2048,   // Enough for complete short answers
+                        'maxOutputTokens'   => 4096,   // Enough for complete short answers
                         'topK'              => 40,
                         'topP'              => 0.9,
                         'candidateCount'    => 1,
@@ -800,6 +884,73 @@ class Home extends WebController {
         return $answer;
     }
 
+    protected function classifyJurisdictionWithGemini(string $question, string $lang='en'): array
+    {
+        $apiKey = env('GEMINI_API_KEY');
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+
+        // 让模型只输出 JSON，避免胡写
+        $system = <<<SYS
+    You are a strict classifier. Output ONLY valid minified JSON on one line, no backticks, no commentary.
+    Schema:
+    {
+    "country": "<ISO2 like AU/US/UK/CA/NZ/PT/SG/EU or UNKNOWN>",
+    "country_name": "<plain english name or UNKNOWN>",
+    "visa_tokens": ["<short tokens like 189","d7","suv","h1b", ...],
+    "confidence": <0.0-1.0 float>
+    }
+    Rules:
+    - Infer the most likely COUNTRY of immigration/visa question from the user text.
+    - If unclear, pick "UNKNOWN" and keep confidence low (<=0.5).
+    - Extract short tokens for visa/program names (e.g., "d7","suv","h1b","pgwp","189","partner").
+    - DO NOT invent facts; this is classification only.
+    - Return JSON only.
+    SYS;
+
+        // 语言提示可选（用不到也无妨）
+        $contents = [
+            ['role'=>'user','parts'=>[['text'=>$question]]]
+        ];
+
+        $body = [
+            'systemInstruction'=>['parts'=>[['text'=>$system]]],
+            'contents'=>$contents,
+            'generationConfig'=>[
+                'temperature'=>0.0,
+                'maxOutputTokens'=>256,
+                'responseMimeType'=>'application/json',
+            ],
+        ];
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL=>$url,
+            CURLOPT_POST=>1,
+            CURLOPT_RETURNTRANSFER=>true,
+            CURLOPT_HTTPHEADER=>['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS=>json_encode($body, JSON_UNESCAPED_UNICODE),
+            CURLOPT_TIMEOUT=>30,
+        ]);
+        $resp = curl_exec($ch);
+        if (curl_errno($ch)) {
+            \Log::error('Gemini classify CURL Error: '.curl_error($ch));
+            curl_close($ch);
+            return ['country'=>'UNKNOWN','country_name'=>'UNKNOWN','visa_tokens'=>[],'confidence'=>0.0];
+        }
+        curl_close($ch);
+
+        $data = json_decode($resp, true);
+        $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
+        $json = json_decode($text, true);
+        if (!is_array($json)) {
+            \Log::warning('Classifier JSON parse failed', ['raw'=>$text]);
+            return ['country'=>'UNKNOWN','country_name'=>'UNKNOWN','visa_tokens'=>[],'confidence'=>0.0];
+        }
+        // 兜底字段
+        $json += ['country'=>'UNKNOWN','country_name'=>'UNKNOWN','visa_tokens'=>[],'confidence'=>0.0];
+        return $json;
+    }
+
     protected function callChatgptApi($query = '') {
         $result_answer = '';
         if(!empty($query)) {
@@ -852,8 +1003,10 @@ class Home extends WebController {
     - ⚠️ Risk or trap 1
     - ℹ️ Important note 1
 
-    ### 🟩 7. Next questions I need from you
-    - 简短列出你需要补充的 3–5 个关键信息（如签证到期日/州/分数/英语/职业评估等）
+    ### 🟩 7. Next question I need from you  （只問 1 個 / ONLY ONE）
+    - **Ask exactly ONE** concise, highest-priority question that unblocks the next step.
+    - If multiple details are missing, **choose only the most critical one** and ask that single question.
+    - Keep it short (≤ 20 words). Do not add extra questions or alternatives.
 
     # Style Examples
     - If user asks “485 还有 4 个月到期，如何规划 190/491？”
@@ -942,10 +1095,12 @@ class Home extends WebController {
         }
     }
 
-    protected function callRagApi($question, $tag = 'policy', $lang = 'en')
+    protected function callRagApi($question, $tag = 'policy', $lang = 'en', $country=null)
     {
         $url = url('/api/rag/ask');
-        $payload = json_encode(['q' => $question, 'tag' => $tag, 'lang' => $lang], JSON_UNESCAPED_UNICODE);
+        $payload = ['q'=>$question, 'tag'=>$tag, 'lang'=>$lang];
+        if (!empty($country)) $payload['country'] = $country;
+        $payload = json_encode($payload, JSON_UNESCAPED_UNICODE);
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -973,7 +1128,7 @@ class Home extends WebController {
         $q = $this->aimmiNorm($raw); // 统一小写、去空白、半全角、符号
 
         // ★ 新增：短确认/继续
-        if (preg_match('/^(yes|yeah|yep|sure|okay|ok|y|no|nope|nah|continue|go on|next|fine|great|thanks|thank you|好的|好|行|可以|是的|对|嗯|继续|可以的|沒問題|沒问题|好啊)$/iu', $raw)) {
+        if (preg_match('/^(yes|yeah|yep|sure|okay|ok|y|no|nope|nah|continue|go on|next|fine|great|thanks|thank you|好的|好|行|可以|是的|对|嗯|继续|可以的|沒問題|沒问题|好啊|要|需要)$/iu', $raw)) {
             return 'inherit';
         }
 
@@ -1148,30 +1303,142 @@ class Home extends WebController {
     {
         $t = trim($text);
 
+        // —— 强制指令优先 —— 
+        if (preg_match('/(用繁體|繁體|繁体|traditional\s*chinese)/iu', $t)) return 'zh-TW';
+        if (preg_match('/(用中文|中文)/iu', $t)) return 'zh-CN';
+        if (preg_match('/(用英文|english)/iu', $t)) return 'en';
+
+        // —— 含汉字：再分繁/简 —— 
         if (preg_match('/\p{Han}/u', $t)) {
-            return preg_match('/[嗎麼為裏體臺國]/u', $t) ? 'zh-TW' : 'zh-CN';
+            // 1) 常见繁体专属字 + 粤语常用字
+            $twOnly = '體臺檯兩裏裡叢幹麵徵績穫蹤齡齒顏額項號錢鎖鐘鑰鑽鬧鬱與學術應於將為點檔簽證訊聯絡帳號登入下載課程專案條列辦理應該週顧歡樂麥麗';
+            $yue    = '係喺咩嘅啱唔冇嗰嚟邊喺乜咗喎噉嘢囉啩噶嗰啲啲啲啲'; // 常见粤语口语字符
+            if (preg_match('/['.$twOnly.$yue.']/u', $t)) return 'zh-TW';
+
+            // 2) 常见繁体词
+            if (preg_match('/(簽證|檔案|訊息|聯絡|帳?號|學位|學程|專業|應用|將會|於是|裏面|臺灣|台灣|週)/u', $t)) return 'zh-TW';
+
+            // 默认：简体
+            return 'zh-CN';
         }
 
+        // —— 纯英文 —— 
         if (preg_match('/[a-zA-Z]/', $t)) {
-            if (mb_strlen($t) <= 5 && preg_match('/^(yes|ok|sure|yeah|y|pls|please)$/i', $t)) {
+            // 超短确认 → 继承上一轮语言
+            if (mb_strlen($t) <= 5 && preg_match('/^(yes|ok|okay|sure|y)$/i', $t)) {
                 $last = $this->getSession('aimmi_last_lang');
                 if ($last) return $last;
 
                 if ($memberId) {
                     $lastAsk = \DB::table('chat_log')
-                        ->where('member_id', $memberId)->where('type', 'ask')
-                        ->orderBy('id', 'desc')->first();
-                    if ($lastAsk && preg_match('/\p{Han}/u', $lastAsk->content ?? '')) return 'zh-CN';
+                        ->where('member_id', $memberId)->where('type','ask')
+                        ->orderBy('id','desc')->first();
+                    if ($lastAsk && preg_match('/\p{Han}/u', (string)$lastAsk->content)) {
+                        // 简单根据是否出现繁体专属字决定承接 zh-TW 还是 zh-CN
+                        return preg_match('/['.$twOnly.']/u', (string)$lastAsk->content) ? 'zh-TW' : 'zh-CN';
+                    }
                 }
-                return 'en';
             }
             return 'en';
         }
 
+        // —— 其它：继承上一轮或默认英文 —— 
         $last = $this->getSession('aimmi_last_lang');
         return $last ?: 'en';
     }
 
+    // 不再 HTTP 自调，直接用服務層生成 RAG 答案
+    protected function callRagDirect(string $question, ?string $tag, string $lang, ?string $country = null): string
+    {
+        try {
+            /** @var \App\Services\Rag\Embeddings $emb */
+            /** @var \App\Services\Rag\Pinecone   $pc  */
+            /** @var \App\Services\Rag\Generator  $gen */
+            $emb = app(\App\Services\Rag\Embeddings::class);
+            $pc  = app(\App\Services\Rag\Pinecone::class);
+            $gen = app(\App\Services\Rag\Generator::class);
 
+            // —— 下面這段邏輯與 RagController@ask 基本一致（簡化版）——
+            $qvec    = $emb->embed($question);
+            $filter  = $tag ? ['tag' => $tag] : null;
+            $matches = $pc->query($qvec, 15, $filter);
 
+            // 拼上下文
+            $contexts = [];
+            if (is_array($matches)) {
+                foreach ($matches as $m) {
+                    $contexts[] = (string)($m['metadata']['content'] ?? '');
+                }
+            }
+            $contexts = array_filter($contexts, fn($x) => $x !== '');
+            $context  = implode("\n---\n", $contexts);
+
+            $answer = $gen->answerWithContext($question, $context);
+            return (string)trim($answer);
+        } catch (\Throwable $e) {
+            \Log::error('callRagDirect failed: '.$e->getMessage());
+            return '';
+        }
+    }
+
+    protected function buildContextMessages(
+        int $memberId,
+        string $targetLang,
+        string $topic,
+        string $country,          // e.g., AU/US/PT/GLOBAL/UNKNOWN
+        array $tokens,            // 当前轮的短 token（d7 / h1b / ielts …）
+        int $max = 6
+    ): array {
+        // 读最近 40 条
+        $rows = \DB::table('chat_log')
+            ->where('member_id', $memberId)
+            ->whereIn('type', ['ask','reply'])
+            ->orderBy('id','desc')->limit(40)->get()->reverse();
+
+        // 语言过滤：与你现在的做法一致
+        $keep = [];
+        $rxTokens = $tokens ? '/('.implode('|', array_map(fn($t)=>preg_quote($t,'/'), $tokens)).')/i' : null;
+
+        // 计算 token Jaccard 相似度需要上一轮 tokens
+        $lastTokens = (array)$this->getSession('aimmi_last_tokens');
+        $overlap = count(array_intersect($tokens, $lastTokens));
+        $union   = max(1, count(array_unique(array_merge($tokens,$lastTokens))));
+        $jaccard = $overlap / $union;
+
+        // 如果主题或国家切换、或 token 相似度太低 → 彻底不带历史
+        $lastTopic   = (string)$this->getSession('aimmi_last_topic');
+        $lastCountry = (string)$this->getSession('aimmi_last_country');
+        if (($topic && $lastTopic && $topic !== $lastTopic)
+            || ($country && $lastCountry && $country !== $lastCountry && $country !== 'GLOBAL' && $lastCountry !== 'GLOBAL')
+            || ($jaccard < 0.34))
+        {
+            return [];
+        }
+
+        foreach ($rows as $r) {
+            $t    = strtolower($r->type ?? '');
+            $role = ($t === 'reply') ? 'model' : 'user';
+            $text = (string)($r->content ?? '');
+            if ($text === '') continue;
+
+            // 语言过滤
+            $hasHan = (bool)preg_match('/\p{Han}/u', $text);
+            if ($targetLang === 'en' && $hasHan) continue;
+            if (($targetLang === 'zh-CN' || $targetLang === 'zh-TW') && !$hasHan) continue;
+
+            // 主题与国家过滤（允许 GLOBAL 互通）
+            $rtopic   = (string)($r->chat_mode_topic ?? '');
+            $rcountry = (string)($r->chat_mode_country ?? '');
+            if ($rtopic !== '' && $topic !== '' && $rtopic !== $topic) continue;
+            if ($country !== 'GLOBAL' && $rcountry !== '' && $rcountry !== 'GLOBAL' && $rcountry !== $country) continue;
+
+            // token 过滤：若当前轮有 tokens，则历史必须至少命中其一
+            if ($rxTokens && !preg_match($rxTokens, $text)) continue;
+
+            $keep[] = ['role'=>$role, 'parts'=>[['text'=>mb_substr($text, 0, 2000)]]];
+            if (count($keep) >= $max) break;
+        }
+
+        return $keep;
+    }
 }
