@@ -2,11 +2,11 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\RagController;
+// use App\Http\Controllers\Api\RagController;
 use App\Http\Controllers\Api\DocumentController;
 
 Route::middleware('api')->group(function () {
-    Route::post('/rag/ask',  [RagController::class, 'ask'])->name('rag.ask');
+    // Route::post('/rag/ask',  [RagController::class, 'ask'])->name('rag.ask');
 
     // Document upload and analysis endpoints
     Route::post('/documents/upload', [DocumentController::class, 'upload'])->name('documents.upload');
