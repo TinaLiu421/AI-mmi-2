@@ -154,6 +154,27 @@ class Home extends WebController {
             $replySource = 'model';
             $aiOwnerName = 'AI-mmi';
 
+            // === ②.1 未登录用户免费额度限制（游客最多 3 次提问） ===
+            if (empty($member)) {
+                $guestAskCount = \DB::table('chat_log')
+                    ->whereNull('member_id')      // 只统计未登录的提问
+                    ->where('guest_id', $guestId)
+                    ->where('type', 'ask')
+                    ->count();
+
+                if ($guestAskCount >= 3) {
+                    // ★ 交给 Grok 生成「同语言」的限制提示
+                    $limitMsg = $this->buildLimitReply($rawQuestion);
+
+                    // 记录到 chat_log 里（方便你之后分析）
+                    $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-limit', 'AI-mmi');
+
+                    // 返回前端
+                    $this->jsonReply($rawQuestion, $limitMsg, 'free-limit', $member);
+                    return; // 终止后续逻辑（不再回答问题）
+                }
+            }
+
             /*
              * ❶/❷ RAG override 及后端直连逻辑已停用，留存注释便于将来恢复。
              * if ($useRag === 1 && $override !== '') {
@@ -667,7 +688,40 @@ class Home extends WebController {
         return response()->json(['status'=>200,'message'=>'xAI thread reset']);
     }
 
+    private function buildLimitReply(string $question): string
+    {
+        // 专门的 system prompt：只生成限制提示，不回答问题
+        $system = "
+    You are AI-mmi.
 
+    The user has reached their free Q&A limit.
+    Your task:
 
+    - Detect the language of the user's message.
+    - Reply ONLY in that same language.
+    - Do NOT answer the user's immigration or visa question.
+    - Instead, give ONE short, polite sentence with this meaning:
+    'You have reached your free question limit. I can't answer more questions unless you register and log in.'
+    - Do not mention xAI, Grok, LLM, tools, providers, or technical details.
+    - Do not add extra explanations, headings or formatting.
+    - Do not introduce yourself again unless the user explicitly asks who you are.
+    ";
+
+        $x = $this->callXaiResponses($question, [
+            'temperature'       => 0.2,
+            'max_output_tokens' => 128,
+            'model'             => 'grok-4-fast-reasoning',
+            'enable_search'     => false,           // 不需要联网/RAG
+            'collection_ids'    => [],             // 不用内部库
+            'system'            => $system,
+        ]);
+
+        if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
+            return trim($x['text']);
+        }
+
+        // 兜底：万一上游挂了，至少有一条英文提示
+        return 'You have reached your free Q&A limit. I can only continue after you register and log in to AI-mmi.';
+    }
 
 }
