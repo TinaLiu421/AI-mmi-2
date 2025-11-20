@@ -137,9 +137,6 @@ class Home extends WebController {
             }
             $rawQuestion = trim((string)$question);
 
-            // RAG 已停用，保留原参数读取逻辑供参考
-            // $useRag      = (int)($this->postParamValue('use_rag', request()->input('use_rag', 0)));
-            // $override    = (string)$this->postParamValue('override_reply', request()->input('override_reply', ''));
             $useRag   = 0;
             $override = '';
 
@@ -148,6 +145,54 @@ class Home extends WebController {
             $memberId  = $member['id'] ?? null;
             $guestId   = $this->getMyCookie('guest_id');
             $sessionId = session()->getId();
+
+            // === ②.5 留学类问题（education）→ 永远免费，且可触发升学引导 ===
+            $category    = $this->classifyEducationIntent($rawQuestion);
+            $isEdu       = ($category === 'education');
+            $applyIntent = false;
+
+            // 只有在确定是“教育类”时，才去额外判断是否有“申请意图”
+            if ($isEdu) {
+                $applyIntent = $this->detectApplyIntent($rawQuestion);
+            }
+
+            // === ③.1 已登录用户免费次数限制（Free 用户 5 次） ===
+
+            if (!empty($member)) {
+
+                // ① 判断是否付费用户
+                $isPaidUser = DB::table('subscriptions')
+                    ->where('member_id', $memberId)
+                    ->where('status', 'active')
+                    ->where(function ($q) {
+                        $q->whereNull('ends_at')
+                        ->orWhere('ends_at', '>', now());
+                    })
+                    ->exists();
+
+                // 如果不是付费用户，则 Free Plan 限制生效
+                if (!$isPaidUser && !$isEdu) {
+
+                    // ② 统计用户提问次数（只数 type='ask'）
+                    $memberAskCount = DB::table('chat_log')
+                        ->where('member_id', $memberId)
+                        ->where('type', 'ask')
+                        ->count();
+
+                    // ③ 超过 5 次 → 返回简短回答 + 升级提示
+                    if ($memberAskCount >= 5) {
+
+                        $limitMsg = $this->buildPaidPlanLimitReply($rawQuestion);
+
+                        // 入库
+                        $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi');
+
+                        // 返回用户
+                        $this->jsonReply($rawQuestion, $limitMsg, 'free-plan-limit', $member);
+                        return;
+                    }
+                }
+            }
 
             // === ③ 生成回复：不做任何“Agent 限制/语言判断/历史读取”===
             $reply       = '';
@@ -257,20 +302,20 @@ class Home extends WebController {
                     $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
                 } else {
                     $reply = $x['text'];
+
+                    // === 如果是留学问题 + 有申请意图 → 添加升学申请引导 ===
+                    if ($isEdu && $applyIntent) {
+                        $eduFooter = $this->buildEducationApplyMessage($rawQuestion);
+                        if ($eduFooter !== '') {
+                            $reply .= "\n\n" . $eduFooter;
+                        }
+                    }
+
                     $reply = preg_replace(
                         '/信息基于xAI内部集合检索的文件/u',
                         '信息基于AI-mmi内部集合检索的资料',
                         $reply
                     );
-
-                    // if (!empty($x['citations'])) {
-                    //     $reply .= "\n\n---\n**Sources**:\n";
-                    //     foreach ($x['citations'] as $i => $c) {
-                    //         $title = $c['title'] ?: ('Source #' . ($i + 1));
-                    //         $url   = $c['url']   ?: '';
-                    //         $reply .= "- {$title}" . ($url ? " — {$url}" : "") . "\n";
-                    //     }
-                    // }
                 }
 
                 $replySource = 'model';
@@ -722,6 +767,178 @@ class Home extends WebController {
 
         // 兜底：万一上游挂了，至少有一条英文提示
         return 'You have reached your free Q&A limit. I can only continue after you register and log in to AI-mmi.';
+    }
+
+    private function buildPaidPlanLimitReply(string $question): string
+    {
+        $system = "
+    You are AI-mmi.
+
+    The user is a FREE PLAN user and has exceeded their 5-message limit.
+    Your job:
+
+    1. Detect the user's language.
+    2. Provide a VERY SHORT (2–3 lines) general non-specific statement (do NOT answer the visa question).
+    3. Then append this upgrade message translated into the user's language:
+
+    'You’ve reached your free chat limit 😊
+    I now provide general information only.
+    For more detailed guidance and access to our full planning and comparison tools, please upgrade to a paid plan.
+    You’ll enjoy unlimited Q&A, updated information, personalized tools, and huge savings in time and cost.
+    👉 Click Upgrade to continue your journey.'
+
+    Rules:
+    - Do NOT mention xAI, Grok, LLM, provider names or tools.
+    - No citations or IDs.
+    - Output ONE block of text only.
+    ";
+
+        $x = $this->callXaiResponses($question, [
+            'temperature'       => 0.25,
+            'max_output_tokens' => 256,
+            'model'             => 'grok-4-fast-reasoning',
+            'enable_search'     => false,
+            'collection_ids'    => [],
+            'system'            => $system,
+        ]);
+
+        if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
+            return trim($x['text']);
+        }
+
+        // fallback
+        return "You’ve reached your free chat limit. Please upgrade to continue.";
+    }
+
+    private function classifyEducationIntent(string $question): string
+    {
+        $system = "
+    You are an intent classifier for AI-mmi.
+
+    Your ONLY job:
+    Determine whether the user question is about *international education / studying / school applications / courses / programs*.
+
+    Output ONLY one of the following EXACT JSON formats:
+
+    1) If the message is related to studying, universities, courses, school application, international students, academic entry requirements:
+    {
+    \"category\": \"education\"
+    }
+
+    2) Otherwise (migration visas, 485, PR, general questions, unrelated topics):
+    {
+    \"category\": \"non-education\"
+    }
+
+    RULES:
+    - Never explain your answer.
+    - Never add other fields.
+    - Always reply in JSON format.
+    - Language of user's question does not matter.
+    - This is NOT the final answer to the user. This is ONLY a classifier.
+    ";
+
+        $resp = $this->callXaiResponses($question, [
+            'temperature' => 0,
+            'max_output_tokens' => 64,
+            'enable_search' => false,
+            'system' => $system,
+            'model' => 'grok-4-fast-reasoning',
+        ]);
+
+        if (!is_array($resp) || empty($resp['text'])) return 'non-education';
+
+        $json = json_decode($resp['text'], true);
+
+        if (!empty($json['category']) && $json['category'] === 'education') {
+            return 'education';
+        }
+
+        return 'non-education';
+    }
+
+    private function buildEducationApplyMessage(string $question): string
+    {
+        $system = "
+    You are AI-mmi.
+
+    The user is asking about an education/study program.
+    Your job:
+    1. Detect the user's language.
+    2. Translate this message into the user's language:
+
+    'You meet the entry requirements for this program!
+    I can now help you move forward — preparing your documents, completing the forms, and submitting your application directly to the school.
+    The process is quick and seamless, with a small application fee to cover admin and submission support.
+
+    Would you like me to start your application? 🎓'
+
+    3. Output ONLY the translated paragraph. No explanation.
+    4. Never mention xAI, tools, IDs, citations.
+    ";
+
+        $x = $this->callXaiResponses($question, [
+            'temperature' => 0.2,
+            'max_output_tokens' => 256,
+            'model' => 'grok-4-fast-reasoning',
+            'enable_search' => false,
+            'system' => $system,
+        ]);
+
+        return !empty($x['text']) ? trim($x['text']) : '';
+    }
+
+    private function detectApplyIntent(string $question): bool
+    {
+        $system = "
+    You are an intent classifier for AI-mmi.
+
+    Your ONLY job:
+    Determine whether the user's message indicates they are preparing to APPLY for a school, course, or academic program.
+
+    The following count as APPLY INTENT:
+    - Asking how to apply
+    - Requesting to start application
+    - Asking documents needed for application
+    - Meeting entry requirements and asking 'what next'
+    - Saying they want to apply soon
+    - Asking you to help them apply
+    - Asking if they can submit an application now
+
+    The following DO NOT count:
+    - General education info
+    - Comparing courses
+    - Asking tuition fees
+    - Asking PR outcomes
+    - Asking campus life or scholarship info
+    - Purely exploratory questions
+
+    Output STRICTLY one JSON:
+
+    If apply intent detected:
+    {
+    \"apply\": true
+    }
+
+    If NOT:
+    {
+    \"apply\": false
+    }
+
+    Never explain. Never add anything else.
+    ";
+
+        $resp = $this->callXaiResponses($question, [
+            'temperature' => 0,
+            'max_output_tokens' => 50,
+            'enable_search' => false,
+            'system' => $system,
+            'model' => 'grok-4-fast-reasoning',
+        ]);
+
+        $json = json_decode($resp['text'] ?? '', true);
+
+        return !empty($json['apply']) && $json['apply'] === true;
     }
 
 }

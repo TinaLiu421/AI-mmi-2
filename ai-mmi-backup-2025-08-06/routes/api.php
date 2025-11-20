@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 // use App\Http\Controllers\Api\RagController;
 use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\CourseApplicationController;
 
 Route::middleware('api')->group(function () {
     // Route::post('/rag/ask',  [RagController::class, 'ask'])->name('rag.ask');
@@ -14,6 +15,10 @@ Route::middleware('api')->group(function () {
     Route::get('/documents', [DocumentController::class, 'list'])->name('documents.list');
     Route::delete('/documents/{id}', [DocumentController::class, 'delete'])->name('documents.delete');
     Route::post('/documents/{id}/reanalyze', [DocumentController::class, 'reanalyze'])->name('documents.reanalyze');
+
+    // Course applications
+    Route::post('/course-applications', [CourseApplicationController::class, 'store'])->name('course-applications.store');
+    Route::get('/course-applications/latest', [CourseApplicationController::class, 'latest'])->name('course-applications.latest');
 });
 
 

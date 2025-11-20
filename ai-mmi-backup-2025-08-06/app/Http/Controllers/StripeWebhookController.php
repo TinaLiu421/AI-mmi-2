@@ -65,7 +65,8 @@ class StripeWebhookController extends Controller
     protected function onCheckoutCompleted($session)
     {
         try {
-            $memberId = $session->client_reference_id ?? null;
+            $rawClientReference = $session->client_reference_id ?? null;
+            [$memberId, $applicationId] = $this->parseClientReference($rawClientReference);
 
             $subId   = $session->subscription ?? null;
             $cusId   = $session->customer ?? null;
@@ -126,6 +127,42 @@ class StripeWebhookController extends Controller
             if ($memberId && $cusId) {
                 DB::table('member')->where('id', $memberId);
                 // ->update(['stripe_customer_id' => $cusId]);
+            }
+
+            $application = null;
+            if ($applicationId) {
+                $application = DB::table('course_applications')->where('id', $applicationId)->first();
+            } elseif ($memberId) {
+                $application = DB::table('course_applications')
+                    ->where('member_id', $memberId)
+                    ->where('status', 'submitted')
+                    ->orderBy('updated_at', 'desc')
+                    ->first();
+            }
+
+            if ($application) {
+                try {
+                    DB::table('course_applications')
+                        ->where('id', $application->id)
+                        ->update([
+                            'payment_status'    => 'paid',
+                            'payment_reference' => $sessId,
+                            'updated_at'        => now(),
+                        ]);
+
+                    $application = DB::table('course_applications')->where('id', $application->id)->first();
+                    $this->notifyApplicationTeam($application);
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to update or notify course application payment status', [
+                        'application_id' => $application->id ?? $applicationId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            } else {
+                Log::info('No matching course application found for paid session', [
+                    'client_reference' => $rawClientReference,
+                    'member_id' => $memberId,
+                ]);
             }
 
             // 订阅创建（双重日志→定位）
@@ -341,6 +378,171 @@ class StripeWebhookController extends Controller
         }
 
         return view('web.pay_success');
+    }
+
+    protected function parseClientReference(?string $reference): array
+    {
+        $memberId = null;
+        $applicationId = null;
+
+        if (empty($reference)) {
+            return [$memberId, $applicationId];
+        }
+
+        if (preg_match('/^(\d+)\|APP\-([0-9]+)$/', $reference, $matches)) {
+            $memberId = (int) $matches[1];
+            $applicationId = (int) $matches[2];
+            return [$memberId, $applicationId];
+        }
+
+        if (is_numeric($reference)) {
+            $memberId = (int) $reference;
+        }
+
+        return [$memberId, $applicationId];
+    }
+
+    protected function notifyApplicationTeam($application): void
+    {
+        try {
+            $documents = json_decode($application->document_paths ?? '[]', true) ?: [];
+            $englishTests = json_decode($application->english_tests ?? '[]', true) ?: [];
+            $scholarships = json_decode($application->scholarship_colleges ?? '[]', true) ?: [];
+
+            $summary = [
+                'Applicant name'       => trim(($application->given_name ?? '') . ' ' . ($application->family_name ?? '')),
+                'Email'                => $application->email_address ?? '-',
+                'Mobile'               => $application->mobile_number ?? '-',
+                'Date of birth'        => $application->date_of_birth ?? '-',
+                'Nationality'          => $application->nationality ?? '-',
+                'Highest education'    => $application->highest_education ?? '-',
+                'Has English test'     => ($application->has_english_test ? 'Yes' : 'No'),
+                'English tests'        => $this->formatKeyValueList($englishTests),
+                'Financial support'    => ($application->has_financial_support ? 'Yes' : 'No'),
+                'Financial notes'      => $application->financial_notes ?? '-',
+                'Target institution'   => $application->target_institution ?? '-',
+                'Target program'       => $application->target_program ?? '-',
+                'Preferred start year' => $application->start_year ?? '-',
+                'Wants scholarship'    => ($application->wants_scholarship ? 'Yes' : 'No'),
+                'Scholarship colleges' => empty($scholarships) ? '-' : implode(', ', $scholarships),
+                'Residential address'  => nl2br(e($application->residential_address ?? '-')),
+            ];
+
+            $rows = '';
+            foreach ($summary as $label => $value) {
+                $rows .= '<tr><th align="left" style="padding:6px 10px;background:#f4f6fb;border:1px solid #dfe4ef;">'
+                    . e($label)
+                    . '</th><td style="padding:6px 10px;border:1px solid #dfe4ef;">'
+                    . (is_string($value) ? $value : e((string) $value))
+                    . '</td></tr>';
+            }
+
+            $docList = '';
+            foreach ($documents as $doc) {
+                $docList .= '<li>'
+                    . e($doc['label'] ?? $doc['original_name'] ?? 'Document')
+                    . ' - ' . e($doc['original_name'] ?? basename($doc['path'] ?? ''))
+                    . '</li>';
+            }
+            if (!$docList) {
+                $docList = '<li>No documents uploaded.</li>';
+            }
+
+            $html = '<h2>New paid course application</h2>'
+                . '<p>Payment reference: <strong>' . e($application->payment_reference ?? 'N/A') . '</strong></p>'
+                . '<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-family:Arial,Helvetica,sans-serif;font-size:14px;">'
+                . $rows
+                . '</table>'
+                . '<h3 style="margin-top:16px;">Documents</h3>'
+                . '<ul>' . $docList . '</ul>';
+
+            $attachments = [];
+            foreach ($documents as $doc) {
+                $filePath = !empty($doc['path']) ? public_path($doc['path']) : null;
+                if ($filePath && file_exists($filePath)) {
+                    $attachments[] = [
+                        'path' => $filePath,
+                        'name' => $doc['original_name'] ?? basename($filePath),
+                    ];
+                }
+            }
+
+            $subjectName = trim(($application->given_name ?? '') . ' ' . ($application->family_name ?? ''));
+            $subject = 'New Paid Course Application - ' . ($subjectName ?: ($application->email_address ?? 'Applicant'));
+            Log::info('Preparing course application email', [
+                'application_id' => $application->id,
+                'subject'        => $subject,
+                'attachments'    => count($attachments),
+            ]);
+            $this->sendCourseApplicationEmail($subject, $html, $attachments);
+        } catch (\Throwable $e) {
+            Log::error('Failed to notify application team: ' . $e->getMessage());
+        }
+    }
+
+    private function formatKeyValueList(array $items): string
+    {
+        if (empty($items)) {
+            return '-';
+        }
+        $parts = [];
+        foreach ($items as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $label = is_string($key) ? strtoupper($key) : ('Test ' . ($key + 1));
+            $parts[] = $label . ': ' . $value;
+        }
+        return empty($parts) ? '-' : implode(', ', $parts);
+    }
+
+    private function sendCourseApplicationEmail(string $subject, string $html, array $attachments = []): void
+    {
+        try {
+            require_once app_path('Libraries/sendgrid/sendgrid-php.php');
+            $email = new \SendGrid\Mail\Mail();
+            $fromAddress = env('MAIL_FROM_ADDRESS', 'no-reply@at-creative.com') ?: 'no-reply@at-creative.com';
+            $fromName = env('MAIL_FROM_NAME', 'AI-mmi') ?: 'AI-mmi';
+            $email->setFrom($fromAddress, $fromName);
+            $email->setSubject($subject);
+            $email->addTo('info@ai-mmi.com');
+            $email->addContent('text/html', $html);
+
+            foreach ($attachments as $file) {
+                $contents = @file_get_contents($file['path']);
+                if ($contents === false) {
+                    continue;
+                }
+                $mime = mime_content_type($file['path']) ?: 'application/octet-stream';
+                $email->addAttachment(
+                    base64_encode($contents),
+                    $mime,
+                    $file['name'],
+                    'attachment'
+                );
+            }
+
+            $apiKey = env('SENDGRID_API_KEY', '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');
+            if (empty($apiKey)) {
+                Log::error('SendGrid API key missing; cannot deliver course application email');
+                return;
+            }
+
+            $sendgrid = new \SendGrid($apiKey);
+            $response = $sendgrid->send($email);
+            if (method_exists($response, 'statusCode') && $response->statusCode() >= 400) {
+                Log::error('SendGrid API responded with error', [
+                    'status' => $response->statusCode(),
+                    'body'   => method_exists($response, 'body') ? $response->body() : null,
+                ]);
+            } else {
+                Log::info('Course application email dispatched via SendGrid', [
+                    'status' => method_exists($response, 'statusCode') ? $response->statusCode() : null,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('SendGrid delivery failed: ' . $e->getMessage());
+        }
     }
 
 }
