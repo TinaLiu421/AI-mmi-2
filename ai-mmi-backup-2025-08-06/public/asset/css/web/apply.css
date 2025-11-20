@@ -219,6 +219,12 @@
     font-size: 13px;
 }
 
+.checkbox-chip.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #d5deeb;
+}
+
 .checkbox-chip input {
     margin: 0;
 }

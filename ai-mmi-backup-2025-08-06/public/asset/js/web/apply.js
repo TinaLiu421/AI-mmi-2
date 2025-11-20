@@ -14,9 +14,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const dobInput = document.getElementById('date_of_birth');
     const englishTestSelect = document.getElementById('english-test-select');
     const englishTestScoresRow = document.getElementById('english-test-score-fields');
+    const englishTestRadios = form.querySelectorAll('input[name="has_english_test"]');
+    const scholarshipRadios = form.querySelectorAll('input[name="wants_scholarship"]');
+    const scholarshipOptionsContainer = form.querySelector('.scholarship-options');
 
     let isSubmitting = false;
     let currentApplication = null;
+    let hasTakenTest = false;
+    let wantsScholarship = false;
 
     const docDefaultText = {
         passport_copy: 'No file uploaded yet.',
@@ -50,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'TOEFL iBT': { max: 120, step: 1 },
         PTE: { max: 90, step: 1 },
     };
+
+    const englishScoreFields = ['overall', 'listening', 'speaking', 'reading', 'writing'];
 
     const formatDateForDisplay = (isoDate) => {
         if (!isoDate) {
@@ -191,6 +198,81 @@ document.addEventListener('DOMContentLoaded', () => {
         return !Number.isNaN(parseFloat(cleaned));
     };
 
+    const getScholarshipCheckboxes = () => form.querySelectorAll('input[name="scholarship_colleges[]"]');
+
+    const clearScholarshipColleges = () => {
+        getScholarshipCheckboxes().forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+    };
+
+    const applyScholarshipState = () => {
+        const disable = !wantsScholarship;
+        getScholarshipCheckboxes().forEach((checkbox) => {
+            checkbox.disabled = disable;
+            if (disable) {
+                checkbox.checked = false;
+            }
+            const wrapper = checkbox.closest('.checkbox-chip');
+            if (wrapper) {
+                wrapper.classList.toggle('is-disabled', disable);
+                wrapper.setAttribute('aria-disabled', disable ? 'true' : 'false');
+            }
+        });
+    };
+
+    const syncScholarshipState = () => {
+        if (!wantsScholarship) {
+            clearScholarshipColleges();
+        }
+        applyScholarshipState();
+    };
+
+    const clearEnglishTestFields = () => {
+        if (englishTestSelect) {
+            englishTestSelect.value = '';
+        }
+        if (englishTestScoresRow) {
+            englishTestScoresRow.querySelectorAll('input').forEach((input) => {
+                input.value = '';
+            });
+        }
+    };
+
+    const updateEnglishTestVisibility = () => {
+        if (!englishTestScoresRow) {
+            return;
+        }
+        const shouldShowScores = hasTakenTest && englishTestSelect && englishTestSelect.value;
+        englishTestScoresRow.style.display = shouldShowScores ? 'grid' : 'none';
+        if (!shouldShowScores) {
+            englishTestScoresRow.querySelectorAll('input').forEach((input) => {
+                input.value = '';
+            });
+        }
+    };
+
+    const applyEnglishTestDisabledState = () => {
+        const disable = !hasTakenTest;
+        if (englishTestSelect) {
+            englishTestSelect.disabled = disable;
+        }
+        if (englishTestScoresRow) {
+            englishTestScoresRow.querySelectorAll('input').forEach((input) => {
+                input.disabled = disable;
+            });
+        }
+    };
+
+    const syncEnglishTestState = () => {
+        if (!hasTakenTest) {
+            clearEnglishTestFields();
+        }
+        applyEnglishTestDisabledState();
+        updateEnglishTestConstraints();
+        updateEnglishTestVisibility();
+    };
+
     const hydrateForm = (application) => {
         if (!application) {
             return;
@@ -220,41 +302,38 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // English tests
+        if (dobInput) {
+            dobInput.value = formatDateForDisplay(application.date_of_birth);
+        }
+
+        hasTakenTest = !!application.has_english_test;
+        setRadioValue('has_english_test', hasTakenTest ? 'yes' : 'no');
         const englishTest = application.english_test || {};
         if (englishTestSelect && englishTestScoresRow) {
-            englishTestSelect.value = englishTest.selected || '';
-            if (englishTestSelect.value) {
-                englishTestScoresRow.style.display = 'grid';
-                updateEnglishTestConstraints();
+            if (hasTakenTest) {
+                englishTestSelect.value = englishTest.selected || '';
                 const scoreFields = englishTest.scores || {};
-                ['overall', 'listening', 'speaking', 'reading', 'writing'].forEach((field) => {
+                englishScoreFields.forEach((field) => {
                     const input = form.querySelector(`[name="english_test[scores][${field}]"]`);
                     if (input) {
                         input.value = scoreFields[field] || '';
                     }
                 });
             } else {
-                englishTestScoresRow.style.display = 'none';
-                englishTestScoresRow.querySelectorAll('input').forEach((input) => {
-                    input.value = '';
-                });
+                clearEnglishTestFields();
             }
         }
+        syncEnglishTestState();
 
-        if (dobInput) {
-            dobInput.value = formatDateForDisplay(application.date_of_birth);
-        }
-
-        setRadioValue('has_english_test', application.has_english_test ? 'yes' : 'no');
         setRadioValue('has_financial_support', application.has_financial_support ? 'yes' : 'no');
-        setRadioValue('wants_scholarship', application.wants_scholarship ? 'yes' : 'no');
 
-        // Scholarships
-        const selectedColleges = application.scholarship_colleges || [];
+        wantsScholarship = !!application.wants_scholarship;
+        setRadioValue('wants_scholarship', wantsScholarship ? 'yes' : 'no');
+        const selectedColleges = wantsScholarship ? application.scholarship_colleges || [] : [];
         form.querySelectorAll('input[name="scholarship_colleges[]"]').forEach((checkbox) => {
             checkbox.checked = selectedColleges.includes(checkbox.value);
         });
+        syncScholarshipState();
 
         syncDobInputMode();
         updateDocumentsUI(application.documents || {});
@@ -315,17 +394,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (englishTestSelect) {
+        formData.set('has_english_test', hasTakenTest ? 'yes' : 'no');
+        formData.set('wants_scholarship', wantsScholarship ? 'yes' : 'no');
+
+        if (englishTestSelect && hasTakenTest) {
             const selectedTest = englishTestSelect.value;
             formData.set('english_test[selected]', selectedTest);
             if (selectedTest) {
-                ['overall', 'listening', 'speaking', 'reading', 'writing'].forEach((field) => {
+                englishScoreFields.forEach((field) => {
                     const input = form.querySelector(`[name="english_test[scores][${field}]"]`);
                     if (input) {
                         formData.set(`english_test[scores][${field}]`, input.value || '');
                     }
                 });
+            } else {
+                englishScoreFields.forEach((field) => formData.delete(`english_test[scores][${field}]`));
             }
+        } else {
+            formData.delete('english_test[selected]');
+            englishScoreFields.forEach((field) => formData.delete(`english_test[scores][${field}]`));
+        }
+
+        if (!wantsScholarship) {
+            formData.delete('scholarship_colleges[]');
         }
 
         formData.set('intent', intent);
@@ -411,10 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (englishTestSelect && englishTestSelect.value) {
+        if (hasTakenTest && englishTestSelect && englishTestSelect.value) {
             const limit = englishTestLimits[englishTestSelect.value];
-            const scoreFields = ['overall', 'listening', 'speaking', 'reading', 'writing'];
-            for (const field of scoreFields) {
+            for (const field of englishScoreFields) {
                 const input = form.querySelector(`[name="english_test[scores][${field}]"]`);
                 const val = input ? input.value.trim() : '';
                 if (!val) {
@@ -467,22 +557,40 @@ document.addEventListener('DOMContentLoaded', () => {
         submitApplication('submit');
     };
 
+    if (englishTestRadios && englishTestRadios.length) {
+        englishTestRadios.forEach((radio) => {
+            radio.addEventListener('change', (event) => {
+                hasTakenTest = event.target.value === 'yes';
+                syncEnglishTestState();
+            });
+        });
+    }
+
     if (englishTestSelect && englishTestScoresRow) {
         englishTestSelect.addEventListener('change', () => {
-            if (englishTestSelect.value) {
-                englishTestScoresRow.style.display = 'grid';
-                updateEnglishTestConstraints();
-            } else {
-                englishTestScoresRow.style.display = 'none';
-                englishTestScoresRow.querySelectorAll('input').forEach((input) => {
-                    input.value = '';
-                });
-            }
+            syncEnglishTestState();
         });
         englishTestScoresRow.querySelectorAll('input').forEach((input) => {
             input.addEventListener('input', () => enforceScoreLimit(input));
         });
     }
+
+    if (scholarshipRadios && scholarshipRadios.length) {
+        scholarshipRadios.forEach((radio) => {
+            radio.addEventListener('change', (event) => {
+                wantsScholarship = event.target.value === 'yes';
+                syncScholarshipState();
+            });
+        });
+    }
+
+    const initialHasEnglishTest = form.querySelector('input[name="has_english_test"]:checked');
+    hasTakenTest = initialHasEnglishTest ? initialHasEnglishTest.value === 'yes' : false;
+    syncEnglishTestState();
+
+    const initialWantsScholarship = form.querySelector('input[name="wants_scholarship"]:checked');
+    wantsScholarship = initialWantsScholarship ? initialWantsScholarship.value === 'yes' : false;
+    syncScholarshipState();
 
     if (saveBtn) {
         saveBtn.addEventListener('click', handleSaveDraft);
