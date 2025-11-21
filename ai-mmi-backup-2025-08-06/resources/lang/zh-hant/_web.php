@@ -60,6 +60,8 @@ return
     'like'                      =>  '喜歡',
     'comment'                   =>  '評語',
     'share'                     =>  '分享',
+    'qa'                        =>  'Q&A',
+    'apply'                        =>  '現在就申請!',
     
     'choose_a_plan'             =>  '選擇一個計劃',
     'sign_up_as'                =>  '註冊為',

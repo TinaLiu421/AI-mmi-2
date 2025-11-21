@@ -1,5 +1,5 @@
 <?php if(!empty($_page_data['reply'])) { foreach ($_page_data['reply'] as $comment) { ?>
-<div class="replier">
+<div class="replier" data-comment-id="<?php echo $comment['id'];?>">
     <div class="avatar">
         <a href="<?php echo $_page_base_url.'/account/posts?uid='.$comment['member_id']; ?>">
             <img src="asset/image/icon-member.png" alt="icon-member"/>
@@ -18,6 +18,10 @@
             <?php echo time2Units(abs(strtotime($comment['created_at'])-strtotime(date('Y-m-d H:i:s'))), $_current_lang_index); ?> &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/>
         </div>
         <div class="message"><?php echo nl2br($comment['comment_content']); ?></div>
+        <div class="comment-action">
+            <!--<a href="javascript:void(0);" class="do-reply" data-id="<?php echo $comment['id'];?>">Reply</a>-->
+            <a href="javascript:void(0);" class="do-delete" data-id="<?php echo $comment['id'];?>">Delete</a>
+        </div>
     </div>
 </div>
 <?php }} ?>

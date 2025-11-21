@@ -60,6 +60,8 @@ return
     'like'                      =>  'Like',
     'comment'                   =>  'Comment',
     'share'                     =>  'Share',
+    'qa'                        =>  'Q&A',
+    'apply'                        =>  'Apply Now !',
     
     'choose_a_plan'             =>  'Choose a plan',
     'sign_up_as'                =>  'Sign up as',

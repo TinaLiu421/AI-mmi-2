@@ -72,23 +72,19 @@
 
         <div class="summary">
             <div class="total">
-                <div class="like">
-                    <img src="asset/image/icon-like-blue.png" alt="icon-like-blue"/>
-                    <span><?php echo number_format((int)$posts['total_like']); ?></span>
-                </div>
                 <div class="comment">
                     <?php echo str_replace('{num}', '<span>'.number_format((int)$posts['total_comment']).'</span>', $_page_lang['total_comments']); ?>
                 </div>
             </div>
             <div class="actions">
-                <a class="do-like" data-id="<?php echo $posts['id']; ?>">
-                    <img src="asset/image/icon-like.png" alt="icon-like"/>
-                    <span><?php echo $_page_lang['like']; ?></span>
-                </a>
-                <a class="do-comment" data-id="<?php echo $posts['id']; ?>">
+                <a class="do-toapply" data-id="<?php echo $posts['id']; ?>">
+                    <img src="asset/image/icon-apply.png" alt="icon-comment"/>
+                    <span><?php echo $_page_lang['apply']; ?></span>
+                </a>    
+                <a class="do-qanda" data-id="<?php echo $posts['id']; ?>">
                     <img src="asset/image/icon-comment.png" alt="icon-comment"/>
-                    <span><?php echo $_page_lang['comment']; ?></span>
-                </a>
+                    <span><?php echo $_page_lang['qa']; ?></span>
+                </a>        
                 <a class="do-share">
                     <img src="asset/image/icon-share.png" alt="icon-share"/>
                     <span><?php echo $_page_lang['share']; ?></span>
@@ -112,7 +108,7 @@
                 <div class="reply">
                 </div>
                 <textarea name="message" placeholder="<?php echo $_page_lang['account.enter_comment']; ?>"></textarea>
-                <button type="button" class="btn-send-comment" data-id="<?php echo $posts['id']; ?>"><img src="asset/image/icon-send.png" alt="icon-send"></button>
+                <button type="button" class="btn-send-comment" data-id="<?php echo $posts['id']; ?>" action = "<?php echo $_page_base_url.'/home/chat'; ?>" status="1"><img src="asset/image/icon-send.png" alt="icon-send"></button>
             </div>
         </div>
     </div>
