@@ -152,9 +152,9 @@ class Home extends WebController {
             $applyIntent = false;
 
             // 只有在确定是“教育类”时，才去额外判断是否有“申请意图”
-            if ($isEdu) {
-                $applyIntent = $this->detectApplyIntent($rawQuestion);
-            }
+            // if ($isEdu) {
+            //     $applyIntent = $this->detectApplyIntent($rawQuestion);
+            // }
 
             // === ③.1 已登录用户免费次数限制（Free 用户 5 次） ===
 
@@ -304,12 +304,12 @@ class Home extends WebController {
                     $reply = $x['text'];
 
                     // === 如果是留学问题 + 有申请意图 → 添加升学申请引导 ===
-                    if ($isEdu && $applyIntent) {
-                        $eduFooter = $this->buildEducationApplyMessage($rawQuestion);
-                        if ($eduFooter !== '') {
-                            $reply .= "\n\n" . $eduFooter;
-                        }
-                    }
+                    // if ($isEdu && $applyIntent) {
+                    //     $eduFooter = $this->buildEducationApplyMessage($rawQuestion);
+                    //     if ($eduFooter !== '') {
+                    //         $reply .= "\n\n" . $eduFooter;
+                    //     }
+                    // }
 
                     $reply = preg_replace(
                         '/信息基于xAI内部集合检索的文件/u',
@@ -857,88 +857,88 @@ class Home extends WebController {
         return 'non-education';
     }
 
-    private function buildEducationApplyMessage(string $question): string
-    {
-        $system = "
-    You are AI-mmi.
+    // private function buildEducationApplyMessage(string $question): string
+    // {
+    //     $system = "
+    // You are AI-mmi.
 
-    The user is asking about an education/study program.
-    Your job:
-    1. Detect the user's language.
-    2. Translate this message into the user's language:
+    // The user is asking about an education/study program.
+    // Your job:
+    // 1. Detect the user's language.
+    // 2. Translate this message into the user's language:
 
-    'You meet the entry requirements for this program!
-    I can now help you move forward — preparing your documents, completing the forms, and submitting your application directly to the school.
-    The process is quick and seamless, with a small application fee to cover admin and submission support.
+    // 'You meet the entry requirements for this program!
+    // I can now help you move forward — preparing your documents, completing the forms, and submitting your application directly to the school.
+    // The process is quick and seamless, with a small application fee to cover admin and submission support.
 
-    Would you like me to start your application? 🎓'
+    // Would you like me to start your application? 🎓'
 
-    3. Output ONLY the translated paragraph. No explanation.
-    4. Never mention xAI, tools, IDs, citations.
-    ";
+    // 3. Output ONLY the translated paragraph. No explanation.
+    // 4. Never mention xAI, tools, IDs, citations.
+    // ";
 
-        $x = $this->callXaiResponses($question, [
-            'temperature' => 0.2,
-            'max_output_tokens' => 256,
-            'model' => 'grok-4-fast-reasoning',
-            'enable_search' => false,
-            'system' => $system,
-        ]);
+    //     $x = $this->callXaiResponses($question, [
+    //         'temperature' => 0.2,
+    //         'max_output_tokens' => 256,
+    //         'model' => 'grok-4-fast-reasoning',
+    //         'enable_search' => false,
+    //         'system' => $system,
+    //     ]);
 
-        return !empty($x['text']) ? trim($x['text']) : '';
-    }
+    //     return !empty($x['text']) ? trim($x['text']) : '';
+    // }
 
-    private function detectApplyIntent(string $question): bool
-    {
-        $system = "
-    You are an intent classifier for AI-mmi.
+    // private function detectApplyIntent(string $question): bool
+    // {
+    //     $system = "
+    // You are an intent classifier for AI-mmi.
 
-    Your ONLY job:
-    Determine whether the user's message indicates they are preparing to APPLY for a school, course, or academic program.
+    // Your ONLY job:
+    // Determine whether the user's message indicates they are preparing to APPLY for a school, course, or academic program.
 
-    The following count as APPLY INTENT:
-    - Asking how to apply
-    - Requesting to start application
-    - Asking documents needed for application
-    - Meeting entry requirements and asking 'what next'
-    - Saying they want to apply soon
-    - Asking you to help them apply
-    - Asking if they can submit an application now
+    // The following count as APPLY INTENT:
+    // - Asking how to apply
+    // - Requesting to start application
+    // - Asking documents needed for application
+    // - Meeting entry requirements and asking 'what next'
+    // - Saying they want to apply soon
+    // - Asking you to help them apply
+    // - Asking if they can submit an application now
 
-    The following DO NOT count:
-    - General education info
-    - Comparing courses
-    - Asking tuition fees
-    - Asking PR outcomes
-    - Asking campus life or scholarship info
-    - Purely exploratory questions
+    // The following DO NOT count:
+    // - General education info
+    // - Comparing courses
+    // - Asking tuition fees
+    // - Asking PR outcomes
+    // - Asking campus life or scholarship info
+    // - Purely exploratory questions
 
-    Output STRICTLY one JSON:
+    // Output STRICTLY one JSON:
 
-    If apply intent detected:
-    {
-    \"apply\": true
-    }
+    // If apply intent detected:
+    // {
+    // \"apply\": true
+    // }
 
-    If NOT:
-    {
-    \"apply\": false
-    }
+    // If NOT:
+    // {
+    // \"apply\": false
+    // }
 
-    Never explain. Never add anything else.
-    ";
+    // Never explain. Never add anything else.
+    // ";
 
-        $resp = $this->callXaiResponses($question, [
-            'temperature' => 0,
-            'max_output_tokens' => 50,
-            'enable_search' => false,
-            'system' => $system,
-            'model' => 'grok-4-fast-reasoning',
-        ]);
+    //     $resp = $this->callXaiResponses($question, [
+    //         'temperature' => 0,
+    //         'max_output_tokens' => 50,
+    //         'enable_search' => false,
+    //         'system' => $system,
+    //         'model' => 'grok-4-fast-reasoning',
+    //     ]);
 
-        $json = json_decode($resp['text'] ?? '', true);
+    //     $json = json_decode($resp['text'] ?? '', true);
 
-        return !empty($json['apply']) && $json['apply'] === true;
-    }
+    //     return !empty($json['apply']) && $json['apply'] === true;
+    // }
 
 }
