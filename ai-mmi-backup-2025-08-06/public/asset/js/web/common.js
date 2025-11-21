@@ -2,11 +2,86 @@ var article_page = 1;
 var article_loading = false;
 var article_loading_enable = true;
 
+//var 仅调试推荐（救济），生产不推荐；最好使用const，但用其他方式确保声明只执行一次
+//报错重复声明
+var csrfToken = (typeof _token !== "undefined"&&_token)?_token: $('meta[name="csrf-token"]').attr('content');
+/*function applyCsrfToken(newToken){
+    if(!newToken) return;
+    csrfToken = newToken;
+    window._token = newToken;
+    $('meta[name="csrf-token"]').attr('content',newToken);
+    $.ajaxSetup({headers:{"X-CSRF-TOKEN": newToken}});
+    if (window.iweb && typeof md5 === "function") {
+    iweb.csrf_token = md5(md5("iweb@" + (location.hostname || "/")) + "@" + newToken);
+}
+
+}
+
+window.csrfRefreshing=window.csrfRefreshing || null;
+var csrfRefreshing = window.csrfRefreshing;
+
+function refreshCsrfToken(){
+    if(csrfRefreshing) return csrfRefreshing;
+    csrfRefreshing = fetch(window.location.href,{method:"GET",credentials:"same-origin"})
+        .then(res =>res.text())
+        .then(html=>{
+            const doc = new DOMParser().parseFromString(html,"text/html");
+            const meta = doc.querySelector('meta[name="csrf-token"]');
+            const token = meta && meta.getAttribute('content');
+            if (token)applyCsrfToken(token);
+            return token;
+        })
+        .catch(() => null)
+        .finally(()=>{csrfRefreshing = null;});
+    return csrfRefreshing;
+}*/
+
 $.ajaxSetup({
-    headers: {
-        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
-    },
+   headers: { "X-CSRF-TOKEN": csrfToken},
+   /*statusCode:{
+    408:handleCsrfExpiry,
+    419:handleCsrfExpiry
+   }*/
 });
+
+/*function handleCsrfExpiry(_, __, options) {
+  if (options.__retriedCsrf) { 
+    // failed at retry, directly refreshing the page
+    location.reload();
+    return;
+  }
+  refreshCsrfToken().then(token => {
+    if (!token) { location.reload(); return; }
+    // retry original requests, mark as retried, avoid cycle.
+    const retryOpts = $.extend(true, {}, options, { __retriedCsrf: true });
+    $.ajax(retryOpts);
+  });
+}
+
+function safeJsonParse(text) {
+  try { return JSON.parse(text); }
+  catch (e) { return null; }
+}
+
+function isCsrfExpiredPayload(xhr) {
+  if (!xhr) return false;
+  // statusCode 408/419 will already be handled by jquery.statusCode hook
+  if (xhr.status === 408 || xhr.status === 419) return false;
+  const body = xhr.responseJSON || safeJsonParse(xhr.responseText);
+  if (!body) return false;
+  const code = body.status || body.code;
+  if (code === 408 || code === 419) return true;
+  const msg = String(body.message || body.error || "").toLowerCase();
+  return msg.includes("csrf") && msg.includes("expire");
+}
+
+// Some endpoints return HTTP 200 but carry {status:408,message:"CSRF Token Expired"} in JSON.
+// Detect that pattern globally and re-run the request after refreshing the token.
+$(document).ajaxComplete(function (_, xhr, settings) {
+  if (!isCsrfExpiredPayload(xhr)) return;
+  handleCsrfExpiry(_, xhr, settings || {});
+});*/
+
 
 function mdToSafeHtml(md) {
   try {
@@ -491,7 +566,37 @@ function iweb_global_func() {
         );
     });
 
-    $(document).on("click", "a.do-comment", function () {
+    $(document).on("click", "a.do-toapply", function () {
+        var object = $(this);
+        //var posts_id = parseInt(object.data("id"));
+        window.location.href = _page_base_url+"/apply"
+    });
+
+    $(document).on("click", "a.do-qanda", function () {
+        var object = $(this);
+        var posts_id = parseInt(object.data("id"));
+        
+        //Is the comment component is open or close.
+        if (object.closest('div.post').find("div.leavecomment").is(":visible")) 
+        {
+            object.closest('div.post').find("div.leavecomment").slideUp();
+        } 
+        else {
+            //Open the comment component
+            $.get(
+                _page_base_url + "/account_article/comment/" + posts_id,
+                function (html) {
+                    object.closest('div.post').find("div.reply").html(html);
+                    object
+                        .closest('div.post')
+                        .find("div.leavecomment")
+                        .slideDown();
+                }
+            );
+        }
+    });
+
+    /*$(document).on("click", "a.do-comment", function () {
         var object = $(this);
         var posts_id = parseInt(object.data("id"));
         if (
@@ -510,7 +615,7 @@ function iweb_global_func() {
                 }
             );
         }
-    });
+    });*/
 
     $(document).on("click", "a.do-share", function () {
         var shareto = $(this).closest("div.actions").find("div.shareto");
@@ -529,17 +634,19 @@ function iweb_global_func() {
             .find('textarea[name="message"]')
             .val();
         if (iweb.isValue(message)) {
+            //1. submit comment to database
             iweb.post(
                 {
                     url: _page_base_url + "/account_article/comment",
                     values: {
                         posts_id: posts_id,
                         content: message,
-                        _token: _token,
+                        _token: csrfToken,
                     },
                     showProcessing: false,
                 },
                 function (response_data) {
+                    //2. Refresh the textbox
                     if (iweb.isMatch(response_data.status, 200)) {
                         object
                             .closest("div.leavecomment")
@@ -549,7 +656,8 @@ function iweb_global_func() {
                             .closest("div.post")
                             .find("div.total > div.comment > span")
                             .html(response_data.total);
-                        $.get(
+                        //3. refresh the comment list
+                            $.get(
                             _page_base_url +
                                 "/account_article/comment/" +
                                 posts_id,
@@ -558,11 +666,121 @@ function iweb_global_func() {
                                     .closest("div.post")
                                     .find("div.reply")
                                     .html(html);
+                                //4. active AI responding
+                                const $comment = object.closest("div.post").find("div.reply");
+                                const $target =$comment.find(".replier").last();
+                                var comment_id = $comment.data("comment-id");
+                                simulateAIReply(message,$target,comment_id);
                             }
-                        );
-                    } else if (iweb.isValue(response_data.url)) {
+                        ); 
+                    }else if (iweb.isValue(response_data.url)) {
                         window.location.href = response_data.url;
                     }
+                }
+            );
+        }
+    });
+
+    function simulateAIReply(userMessage,$commentContainer,comment_id){
+        if(!iweb.isValue(userMessage)) return false;
+        var thinkingIndicator =
+                '<div class="dialog reply thinking-indicator">' +
+                '<div class="avatar"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>' +
+                '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
+                '</div><div class="clearboth"></div>';
+        $commentContainer.append(thinkingIndicator);
+        $.post(
+            _page_base_url+"/home/chat",
+            {question:userMessage, _token:_token},
+            function(response_data){
+                if(response_data.status===200){
+                    console.log(response_data);
+                    $commentContainer.find(".thinking-indicator").remove();
+                    var md = response_data.answer_markdown||response_data.reply||"";
+                    var safeHtml = response_data.answer_html ? DOMPurify.sanitize(String(response_data.answer_html)): mdToSafeHtml(md);
+                    //const _token = $('meta[name="csrf-token"]').attr('content');
+                    iweb.post(
+                    {
+                        url: _page_base_url + "/account_article/comment",
+                        values: {
+                            posts_id: comment_id,
+                            content: md,
+                            _token: csrfToken,
+                            status: 2,
+                        },
+                        showProcessing: false,
+                    },function(saveRes){
+                        const replierHtml = `
+                        <div class="replier" data-comment-id= "￥{saveRes?.id??'ai-temp'">
+                        <div class="avatar">
+                        <a href="#">
+                            <img src="asset/image/icon-member.png" alt="icon-member"/>
+                            <div style="background-image:url('asset/image/logo-mmi.png')"></div>
+                        </a>
+                        </div>
+                        <div class="name">
+                        <div><a href="#">AI-mmi</a></div>
+                        <div class="hours">${new Date().toLocaleTimeString()} &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/></div>
+                        <div class="message">${safeHtml}</div>
+                        <div class="comment-action">
+                            <!-- <a href="javascript:void(0);" class="do-reply" data-id="ai-temp">Reply</a> -->
+                            <!-- <a href="javascript:void(0);" class="do-delete" data-id="ai-temp">Delete</a> -->
+                        </div>
+                        </div>
+                    </div>
+                    `;
+                    ($commentContainer.length ? $commentContainer.after(replierHtml) : $commentContainer.append(replierHtml));
+               
+                    })
+                    }
+                else{
+                     $commentContainer.find(".thinking-indicator").remove();
+                    return; 
+                }    
+            },
+            "json"
+        );
+    };
+
+    /*$(document).on("click", "a.do-reply", function() {
+        var object = $(this);
+        var commentId = object.data("id");
+        //var username = object.data("user");
+
+        // find the closet comment textbox
+        var leaveCommentDiv = object.closest('div.post').find('div.leavecomment');
+        var textarea = leaveCommentDiv.find('textarea[name="message"]');
+        var sendButton = leaveCommentDiv.find('button.btn-send-comment');
+
+        // fill text with '@username:'
+        //textarea.val("@" + username + " ").focus();
+        textarea.val("reply test").focus();
+        //update sendButton data-id to comment id
+        sendButton.data('data-id', commentId);
+        sendButton.data('status',2);
+
+    });*/
+
+    //delete comment
+    $(document).on("click", "a.do-delete", function () {
+        var object = $(this);
+        var posts_id = parseInt(object.data("id"));
+
+        //Is the comment component is open or close.
+        if (object.closest("div.post").find("div.leavecomment").is(":visible")) 
+        {
+            object.closest("div.post").find("div.leavecomment").slideUp();
+        } 
+        else {
+            //Open the comment component
+            $.get(
+                _page_base_url + "/account_article/comment/" + posts_id,
+                function (html) {
+                    object.closest("div.post").find("div.reply").html(html);
+                    object
+                        .closest("div.post")
+                        .find("div.leavecomment")
+                        .slideDown();
                 }
             );
         }
@@ -581,7 +799,8 @@ function iweb_global_func() {
             $("#ask-form").submit();
         }
     });
-
+    
+    // AI responding in chatbox
     iweb.form(
         "#ask-form",
         "json",

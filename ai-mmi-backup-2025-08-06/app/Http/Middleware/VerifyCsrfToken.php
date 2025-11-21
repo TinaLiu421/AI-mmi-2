@@ -12,9 +12,10 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        //
         'stripe/webhook',
-        'api/*',      // 如果带 /api 前缀也加上
-        '/chat/log'
+        'api/*',
+        'chat/log',
+        //'*/account_article/comment',
+        //'*/home/chat',
     ];
 }
