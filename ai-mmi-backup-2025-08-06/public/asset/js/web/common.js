@@ -668,9 +668,7 @@ function iweb_global_func() {
                                     .html(html);
                                 //4. active AI responding
                                 const $comment = object.closest("div.post").find("div.reply");
-                                const $target =$comment.find(".replier").last();
-                                var comment_id = $comment.data("comment-id");
-                                simulateAIReply(message,$target,comment_id);
+                                simulateAIReply(message,$comment,posts_id);
                             }
                         ); 
                     }else if (iweb.isValue(response_data.url)) {
@@ -681,21 +679,28 @@ function iweb_global_func() {
         }
     });
 
-    function simulateAIReply(userMessage,$commentContainer,comment_id){
+    function simulateAIReply(userMessage,$replyContainer,posts_id){
         if(!iweb.isValue(userMessage)) return false;
         var thinkingIndicator =
                 '<div class="dialog reply thinking-indicator">' +
                 '<div class="avatar"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>' +
                 '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
                 '</div><div class="clearboth"></div>';
-        $commentContainer.append(thinkingIndicator);
+        var $anchor = $replyContainer.find(".replier").first();
+        if($anchor.length){
+            $anchor.after(thinkingIndicator);
+        }else{
+            $replyContainer.append(thinkingIndicator);
+        }
+        var local_time = iweb.getDateTime(null,"time");
+        var itoken = window.btoa(md5(iweb.csrf_token + "#dt" + local_time) + "%" + local_time);
         $.post(
             _page_base_url+"/home/chat",
-            {question:userMessage, _token:_token},
+            {question:userMessage, _token:_token, itoken: itoken},
             function(response_data){
                 if(response_data.status===200){
                     console.log(response_data);
-                    $commentContainer.find(".thinking-indicator").remove();
+                    $replyContainer.find(".thinking-indicator").remove();
                     var md = response_data.answer_markdown||response_data.reply||"";
                     var safeHtml = response_data.answer_html ? DOMPurify.sanitize(String(response_data.answer_html)): mdToSafeHtml(md);
                     //const _token = $('meta[name="csrf-token"]').attr('content');
@@ -703,7 +708,7 @@ function iweb_global_func() {
                     {
                         url: _page_base_url + "/account_article/comment",
                         values: {
-                            posts_id: comment_id,
+                            posts_id: posts_id,
                             content: md,
                             _token: csrfToken,
                             status: 2,
@@ -729,12 +734,16 @@ function iweb_global_func() {
                         </div>
                     </div>
                     `;
-                    ($commentContainer.length ? $commentContainer.after(replierHtml) : $commentContainer.append(replierHtml));
+                    if($anchor.length){
+                        $anchor.after(replierHtml);
+                    }else{
+                        $replyContainer.append(replierHtml);
+                    }
                
                     })
                     }
                 else{
-                     $commentContainer.find(".thinking-indicator").remove();
+                     $replyContainer.find(".thinking-indicator").remove();
                     return; 
                 }    
             },

@@ -470,6 +470,14 @@ class Home extends WebController {
         $url     = rtrim(env('XAI_API_BASE', 'https://api.x.ai'), '/') . '/v1/responses';
         $model   = $opts['model'] ?? 'grok-4-fast-reasoning';
         $system  = $opts['system'] ?? null;
+        $timeout = (int)($opts['timeout'] ?? 30);
+        if ($timeout < 5) $timeout = 5;
+        if ($timeout > 90) $timeout = 90;
+        $connectTimeout = (int)($opts['connect_timeout'] ?? 15);
+        if ($connectTimeout < 2) $connectTimeout = 2;
+        if ($connectTimeout > $timeout) $connectTimeout = $timeout;
+        // avoid PHP max_execution_time fatals during long upstream waits
+        @set_time_limit($timeout + 10);
 
         // —— 温度：给默认值 + 边界
         $temperature = array_key_exists('temperature', $opts)
@@ -558,7 +566,8 @@ class Home extends WebController {
             ],
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_TIMEOUT        => $timeout,
+            CURLOPT_CONNECTTIMEOUT => $connectTimeout,
         ]);
         $resp = curl_exec($ch);
         $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
