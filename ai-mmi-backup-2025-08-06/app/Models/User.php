@@ -1,6 +1,7 @@
 <?php
 namespace App\Models;
 
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
