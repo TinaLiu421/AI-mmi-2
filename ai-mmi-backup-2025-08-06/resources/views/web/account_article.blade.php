@@ -84,6 +84,7 @@
                 <a class="do-qanda" data-id="<?php echo $posts['id']; ?>">
                     <img src="asset/image/icon-comment.png" alt="icon-comment"/>
                     <span><?php echo $_page_lang['qa']; ?></span>
+                    <span class="qa-support-label">AI-mmi Support</span>
                 </a>        
                 <a class="do-share">
                     <img src="asset/image/icon-share.png" alt="icon-share"/>

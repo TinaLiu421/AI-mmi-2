@@ -277,6 +277,7 @@ Rules:
                         'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                         'vector_store_ids'   => [],
                         'system'             => $qaSystemPrompt,
+                        'resume_thread'      => false,
                     ]);
 
                     if (!is_array($x) || empty($x['ok'])) {
@@ -552,8 +553,16 @@ Rules:
         if ($temperature < 0) $temperature = 0.0;
         if ($temperature > 1) $temperature = 1.0;
 
-        // —— 多轮上下文：上一轮 response_id（调试时你也可以先注释掉，避免旧对话干扰）
-        $prevId = $this->getXaiPrevResponseId();
+        $useThread = !array_key_exists('resume_thread', $opts) || (bool)$opts['resume_thread'];
+
+        // —— 多轮上下文：上一轮 response_id
+        $prevId = null;
+        if ($useThread) {
+            $prevId = $this->getXaiPrevResponseId();
+            if (!empty($prevId)) {
+                $payload['previous_response_id'] = $prevId;
+            }
+        }
 
         // —— 输入结构（支持可选 system）
         $input = [];
@@ -656,7 +665,7 @@ Rules:
         }
 
         // —— 保存本轮 response_id，供下一轮续接
-        if (!empty($data['id']) && is_string($data['id'])) {
+        if ($useThread && !empty($data['id']) && is_string($data['id'])) {
             $this->saveXaiPrevResponseId($data['id']);
         }
 

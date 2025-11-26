@@ -159,7 +159,7 @@ $qa = array_merge([
                                     <div class="qa-text"><?php echo qa_nl2br($qa_item['content']); ?></div>
                                 </div>
                             </div>
-                            <?php if(!empty($qa_item['answer'])) { $ans = $qa_item['answer']; ?>
+                            <?php if(!empty($qa_item['answer']) && trim((string)($qa_item['answer']['content'] ?? '')) !== '') { $ans = $qa_item['answer']; ?>
                             <div class="qa-answer">
                                 <div class="qa-avatar small" style="background-image:url('<?php echo $ans['member_avatar']; ?>');"></div>
                                 <div class="qa-content">
@@ -213,10 +213,23 @@ $qa = array_merge([
 
                     function renderQaItem(payload) {
                         var q = payload.question || {};
-                        var a = payload.answer || null;
+
+                        // 非常严格地判断 answer 是否有效
+                        var a = null;
+                        if (payload && payload.answer && typeof payload.answer === 'object') {
+                            var rawContent = payload.answer.content;
+                            var trimmed    = (rawContent === undefined || rawContent === null)
+                                ? ''
+                                : String(rawContent).trim();
+                            if (trimmed) {
+                                a = payload.answer;
+                            }
+                        }
+
                         var owner = q.owner || {};
                         var questionText = escapeHtml(q.content || '').replace(/\n/g, '<br>');
                         var html = '';
+
                         html += '<div class="qa-item" data-question-id="'+(q.id || '')+'">';
                         html +=   '<div class="qa-row">';
                         html +=     '<div class="qa-avatar" style="'+buildAvatarStyle(owner.avatar)+'"></div>';
@@ -228,23 +241,33 @@ $qa = array_merge([
                         html +=       '<div class="qa-text">'+questionText+'</div>';
                         html +=     '</div>';
                         html +=   '</div>';
+
                         if (a) {
-                            var answerOwner = a.owner || { name: 'AI-mmi', avatar: 'asset/image/logo-mmi.png', badge: 'Assistant' };
-                            var answerText = escapeHtml(a.content || '').replace(/\n/g, '<br>');
-                            html += '<div class="qa-answer">';
-                            html +=   '<div class="qa-avatar small" style="'+buildAvatarStyle(answerOwner.avatar)+'"></div>';
-                            html +=   '<div class="qa-content">';
-                            html +=     '<div class="qa-meta">';
-                            html +=       '<span class="qa-name">'+escapeHtml(answerOwner.name || 'AI-mmi')+'</span>';
-                            if (answerOwner.badge || a.badge) {
-                                html += '<span class="qa-badge">'+escapeHtml(answerOwner.badge || a.badge || '')+'</span>';
+                            var answerOwner = a.owner || {
+                                name: 'AI-mmi',
+                                avatar: 'asset/image/logo-mmi.png',
+                                badge: 'Assistant'
+                            };
+
+                            var answerTrim = String(a.content).trim();
+                            if (answerTrim) {
+                                var answerText = escapeHtml(answerTrim).replace(/\n/g, '<br>');
+                                html += '<div class="qa-answer">';
+                                html +=   '<div class="qa-avatar small" style="'+buildAvatarStyle(answerOwner.avatar)+'"></div>';
+                                html +=   '<div class="qa-content">';
+                                html +=     '<div class="qa-meta">';
+                                html +=       '<span class="qa-name">'+escapeHtml(answerOwner.name || 'AI-mmi')+'</span>';
+                                if (answerOwner.badge || a.badge) {
+                                    html += '<span class="qa-badge">'+escapeHtml(answerOwner.badge || a.badge || '')+'</span>';
+                                }
+                                html +=       '<span class="qa-time">'+escapeHtml(a.created_human || '')+'</span>';
+                                html +=     '</div>';
+                                html +=     '<div class="qa-text">'+answerText+'</div>';
+                                html +=   '</div>';
+                                html += '</div>';
                             }
-                            html +=       '<span class="qa-time">'+escapeHtml(a.created_human || '')+'</span>';
-                            html +=     '</div>';
-                            html +=     '<div class="qa-text">'+answerText+'</div>';
-                            html +=   '</div>';
-                            html += '</div>';
                         }
+
                         html += '</div>';
                         return html;
                     }
