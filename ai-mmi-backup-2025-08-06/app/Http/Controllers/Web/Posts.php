@@ -57,11 +57,10 @@ class Posts extends Home {
 
         $memberId = (int)$this->_current_member['id'];
         $now      = Carbon::now();
-        $answerText = '';
+        $answerText = null;
 
-        if (!$inScope) {
-            $answerText = $this->outOfScopeMessage($language);
-        } else {
+        if ($inScope) {
+
             $systemPrompt = "
 You are AI-mmi answering scholarship Q&A.
 
@@ -85,19 +84,25 @@ Rules:
             ]);
 
             if (!is_array($x) || empty($x['ok']) || empty($x['text'])) {
-                $answerText = is_array($x) ? ($x['text'] ?? 'Sorry, I cannot process this question right now.') : (string)$x;
+                // 这里是「模型挂了」的兜底提示，但仍然是 in-scope 的
+                $answerText = is_array($x)
+                    ? ($x['text'] ?? 'Sorry, I cannot process this question right now.')
+                    : (string)$x;
             } else {
                 $answerText = $x['text'];
             }
-        }
 
-        if ($answerText === '') {
-            $answerText = $this->outOfScopeMessage($language);
-        }
+            $answerText = trim((string)$answerText);
 
-        $maxTokens  = 600;
-        $answerText = $this->truncateByTokens($answerText, $maxTokens);
-        $answerText = $this->appendCtaLine($answerText, $language, $maxTokens);
+            // 万一真的空，就直接不给回复，不写 AI 记录
+            if ($answerText === '') {
+                $answerText = null;
+            } else {
+                $maxTokens  = 600;
+                $answerText = $this->truncateByTokens($answerText, $maxTokens);
+                $answerText = $this->appendCtaLine($answerText, $language, $maxTokens);
+            }
+        }
 
         $questionPayload = [
             'member_id'  => $memberId,
@@ -118,28 +123,47 @@ Rules:
 
             $questionId = DB::table($this->_qa_table)->insertGetId($questionPayload);
 
-            $answerPayload = [
-                'member_id'  => $memberId,
-                'posts_id'   => $postId,
-                'content'    => $answerText,
-                'status'     => 1,
-                'created_by' => $this->_ai_member_id,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-
-            if ($this->qaHasParentColumn()) {
-                $answerPayload['parent_id'] = $questionId;
-            }
-
-            $answerId = DB::table($this->_qa_table)->insertGetId($answerPayload);
-
-            DB::commit();
-
             $timestamps = [
                 'created_at' => $now->toDateTimeString(),
                 'updated_at' => $now->toDateTimeString(),
             ];
+
+            $answerResponse = null;
+
+            if ($inScope && $answerText !== null && trim($answerText) !== '') {
+                $answerPayload = [
+                    'member_id'  => $memberId,
+                    'posts_id'   => $postId,
+                    'content'    => $answerText,
+                    'status'     => 1,
+                    'created_by' => $this->_ai_member_id,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+
+                if ($this->qaHasParentColumn()) {
+                    $answerPayload['parent_id'] = $questionId;
+                }
+
+                $answerId = DB::table($this->_qa_table)->insertGetId($answerPayload);
+
+                $answerResponse = array_merge([
+                    'id'            => $answerId,
+                    'member_id'     => $memberId,
+                    'posts_id'      => $postId,
+                    'content'       => $answerText,
+                    'status'        => 1,
+                    'created_by'    => $this->_ai_member_id,
+                    'created_human' => $now->diffForHumans(),
+                    'owner'         => [
+                        'name'   => 'AI-mmi',
+                        'avatar' => 'asset/image/logo-mmi.png',
+                        'badge'  => 'Assistant',
+                    ],
+                ], $timestamps);
+            }
+
+            DB::commit();
 
             return response()->json([
                 'status'   => 200,
@@ -154,20 +178,7 @@ Rules:
                     'created_human' => $now->diffForHumans(),
                     'owner'      => $this->memberPresenter($this->_current_member),
                 ], $timestamps),
-                'answer'   => array_merge([
-                    'id'         => $answerId,
-                    'member_id'  => $memberId,
-                    'posts_id'   => $postId,
-                    'content'    => $answerText,
-                    'status'     => 1,
-                    'created_by' => $this->_ai_member_id,
-                    'created_human' => $now->diffForHumans(),
-                    'owner'      => [
-                        'name'   => 'AI-mmi',
-                        'avatar' => 'asset/image/logo-mmi.png',
-                        'badge'  => 'Assistant',
-                    ],
-                ], $timestamps),
+                'answer'   => $answerResponse,
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -331,14 +342,19 @@ Rules:
             ];
 
             if (!empty($answersByParent[$row->id])) {
-                $ans = $answersByParent[$row->id];
-                $question['answer'] = [
-                    'content'       => $ans->content,
-                    'member_name'   => 'AI-mmi',
-                    'member_avatar' => 'asset/image/logo-mmi.png',
-                    'created_human' => (!empty($ans->created_at)) ? Carbon::parse($ans->created_at)->diffForHumans() : '',
-                    'badge'         => 'Assistant',
-                ];
+                $ansContent = trim((string)$answersByParent[$row->id]->content);
+
+                // 只有内容非空才认为有 AI 回答
+                if ($ansContent !== '') {
+                    $ans = $answersByParent[$row->id];
+                    $question['answer'] = [
+                        'content'       => $ansContent,
+                        'member_name'   => 'AI-mmi',
+                        'member_avatar' => 'asset/image/logo-mmi.png',
+                        'created_human' => (!empty($ans->created_at)) ? Carbon::parse($ans->created_at)->diffForHumans() : '',
+                        'badge'         => 'Assistant',
+                    ];
+                }
             }
 
             return $question;

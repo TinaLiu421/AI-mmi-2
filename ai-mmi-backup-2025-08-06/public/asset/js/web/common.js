@@ -657,18 +657,16 @@ function iweb_global_func() {
                             .find("div.total > div.comment > span")
                             .html(response_data.total);
                         //3. refresh the comment list
-                            $.get(
+                        $.get(
                             _page_base_url +
                                 "/account_article/comment/" +
                                 posts_id,
                             function (html) {
-                                object
-                                    .closest("div.post")
-                                    .find("div.reply")
-                                    .html(html);
+                                const $reply = object.closest("div.post").find("div.reply");
+                                $reply.html(html);
+                                applyAiReplyClass($reply);
                                 //4. active AI responding
-                                const $comment = object.closest("div.post").find("div.reply");
-                                simulateAIReply(message,$comment,posts_id);
+                                simulateAIReply(message,$reply,posts_id);
                             }
                         ); 
                     }else if (iweb.isValue(response_data.url)) {
@@ -696,60 +694,81 @@ function iweb_global_func() {
         var itoken = window.btoa(md5(iweb.csrf_token + "#dt" + local_time) + "%" + local_time);
         $.post(
             _page_base_url+"/home/chat",
-            {question:userMessage, _token:_token, itoken: itoken},
+            {question:userMessage, _token:_token, itoken: itoken, from_qa: true},
             function(response_data){
                 if(response_data.status===200){
                     console.log(response_data);
                     $replyContainer.find(".thinking-indicator").remove();
-                    var md = response_data.answer_markdown||response_data.reply||"";
-                    var safeHtml = response_data.answer_html ? DOMPurify.sanitize(String(response_data.answer_html)): mdToSafeHtml(md);
-                    //const _token = $('meta[name="csrf-token"]').attr('content');
+                    var mdRaw = response_data.answer_markdown || response_data.reply || "";
+                    var md = (mdRaw === null || mdRaw === undefined) ? "" : String(mdRaw).trim();
+
+                    // If AI returned no content, skip saving/rendering any reply
+                    if (!md) {
+                        return;
+                    }
+
+                    var safeHtml = response_data.answer_html
+                        ? DOMPurify.sanitize(String(response_data.answer_html))
+                        : mdToSafeHtml(md);
+
                     iweb.post(
-                    {
-                        url: _page_base_url + "/account_article/comment",
-                        values: {
-                            posts_id: posts_id,
-                            content: md,
-                            _token: csrfToken,
-                            status: 2,
+                        {
+                            url: _page_base_url + "/account_article/comment",
+                            values: {
+                                posts_id: posts_id,
+                                content: md,
+                                _token: csrfToken,
+                                status: 2,
+                            },
+                            showProcessing: false,
                         },
-                        showProcessing: false,
-                    },function(saveRes){
-                        const replierHtml = `
-                        <div class="replier" data-comment-id= "￥{saveRes?.id??'ai-temp'">
-                        <div class="avatar">
-                        <a href="#">
-                            <img src="asset/image/icon-member.png" alt="icon-member"/>
-                            <div style="background-image:url('asset/image/logo-mmi.png')"></div>
-                        </a>
-                        </div>
-                        <div class="name">
-                        <div><a href="#">AI-mmi</a></div>
-                        <div class="hours">${new Date().toLocaleTimeString()} &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/></div>
-                        <div class="message">${safeHtml}</div>
-                        <div class="comment-action">
-                            <!-- <a href="javascript:void(0);" class="do-reply" data-id="ai-temp">Reply</a> -->
-                            <!-- <a href="javascript:void(0);" class="do-delete" data-id="ai-temp">Delete</a> -->
-                        </div>
-                        </div>
-                    </div>
-                    `;
-                    if($anchor.length){
-                        $anchor.after(replierHtml);
-                    }else{
-                        $replyContainer.append(replierHtml);
-                    }
-               
-                    })
-                    }
-                else{
-                     $replyContainer.find(".thinking-indicator").remove();
-                    return; 
-                }    
+                        function(saveRes){
+                            const replierHtml = `
+                            <div class="replier ai-reply" data-comment-id="${(saveRes && saveRes.id) ? saveRes.id : 'ai-temp'}" data-is-ai="1" data-status="2">
+                                <div class="avatar">
+                                    <a href="#">
+                                        <img src="asset/image/icon-member.png" alt="icon-member"/>
+                                        <div style="background-image:url('asset/image/logo-mmi.png')"></div>
+                                    </a>
+                                </div>
+                                <div class="name">
+                                    <div><a href="#">AI-mmi</a></div>
+                                    <div class="hours">${new Date().toLocaleTimeString()} &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/></div>
+                                    <div class="message">${safeHtml}</div>
+                                    <div class="comment-action">
+                                        <!-- <a href="javascript:void(0);" class="do-reply" data-id="ai-temp">Reply</a> -->
+                                        <!-- <a href="javascript:void(0);" class="do-delete" data-id="ai-temp">Delete</a> -->
+                                    </div>
+                                </div>
+                            </div>
+                            `;
+                            if($anchor.length){
+                                $anchor.after(replierHtml);
+                            }else{
+                                $replyContainer.append(replierHtml);
+                            }
+                            applyAiReplyClass($replyContainer);
+                        }
+                    );
+                } else {
+                    $replyContainer.find(".thinking-indicator").remove();
+                    return;
+                }
             },
             "json"
         );
     };
+
+    function applyAiReplyClass($container){
+        if(!$container || !$container.length) return;
+        $container.find(".replier").each(function(){
+            var $r = $(this);
+            var isAi = $r.data("is-ai") === 1 || $r.data("status") === 2 || ($r.find(".badge").length && $r.find(".badge").text().toLowerCase().indexOf("assistant")>-1);
+            if(isAi){
+                $r.addClass("ai-reply");
+            }
+        });
+    }
 
     /*$(document).on("click", "a.do-reply", function() {
         var object = $(this);
