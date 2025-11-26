@@ -31,4 +31,38 @@ class Apply extends WebController
 
         return $this->pageData($data)->pageView();
     }
+    
+    /**
+     * Verify reCAPTCHA token server-side
+     * @param string $token The reCAPTCHA response token
+     * @return bool True if verification passes, false otherwise
+     */
+    public function verifyRecaptcha($token)
+    {
+        $secret = env('RECAPTCHA_SECRET');
+        
+        if (empty($secret) || empty($token)) {
+            return false;
+        }
+
+        try {
+            $response = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                'secret'   => $secret,
+                'response' => $token,
+                'remoteip' => request()->ip(),
+            ]);
+
+            $data = $response->json();
+            
+            // For v2 checkbox, just check success
+            if (isset($data['success'])) {
+                return (bool) $data['success'];
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            \Log::error('reCAPTCHA verification error: ' . $e->getMessage());
+            return false;
+        }
+    } 
 }
