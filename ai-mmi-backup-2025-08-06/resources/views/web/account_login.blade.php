@@ -31,6 +31,7 @@
             </div>
             
             
+            <div class="clearboth"></div>
 
             <div class="action">
                 <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration' ;?>"><?php echo $_page_lang['btn.sign_up_now']; ?></a>

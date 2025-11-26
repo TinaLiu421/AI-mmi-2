@@ -269,7 +269,7 @@ class Account_Login extends WebController {
             }
         } else {
             $detailsDefaults['member_id'] = $memberId;
-            \DB::table('member_details')->insert($detailsDefaults);
+                \DB::table('member_details')->insert($detailsDefaults);
         }
     }
 }
