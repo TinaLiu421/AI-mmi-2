@@ -30,19 +30,8 @@
                 <a href="<?php echo $_page_base_url.'/account_forgot' ;?>"><u><?php echo $_page_lang['forgot_password']; ?>?</u></a>
             </div>
             
-            {{-- ==================== reCAPTCHA v2 Checkbox ==================== --}}
-            <div class="row" style="margin: 20px 0; text-align: center;">
-                <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-                <div class="g-recaptcha" data-sitekey="{{ env('RECAPTCHA_SITE_KEY') }}"></div>
-                
-                @error('g-recaptcha-response')
-                    <div style="color: red; margin-top: 10px;">
-                        {{ $message }}
-                    </div>
-                @enderror
-            </div>
+            
             <div class="clearboth"></div>
-            {{-- ================================================================= --}}
 
             <div class="action">
                 <a class="btn btn-back" href="<?php echo $_page_base_url.'/account_registration' ;?>"><?php echo $_page_lang['btn.sign_up_now']; ?></a>

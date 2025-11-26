@@ -288,9 +288,18 @@
                 </div>
             </section>
 
+                <!-- reCAPTCHA v2 Verification -->
+                <div class="recaptcha-container" style="margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 4px; border: 1px solid #e0e0e0;">
+                    <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">
+                        <strong>Security verification:</strong> Please verify that you're human before submitting.
+                    </p>
+                    <div class="g-recaptcha" data-sitekey="{{ env('RECAPTCHA_SITE_KEY') }}" data-callback="onRecaptchaSuccess" style="display: flex; justify-content: center;"></div>
+                    <input type="hidden" id="recaptcha_token" name="g-recaptcha-response" value="">
+                </div>
+
                 <div class="form-actions">
                     <button type="button" class="btn ghost" id="save-application">Save draft</button>
-                    <button type="button" class="btn primary" id="submit-application">Submit &amp; continue to payment</button>
+                    <button type="button" class="btn primary" id="submit-application" disabled style="opacity: 0.6; cursor: not-allowed;" title="Please verify with reCAPTCHA first">Submit &amp; continue to payment</button>
                 </div>
             </form>
         </div>
@@ -319,4 +328,26 @@
         </aside>
     </div>
 </div>
+
+<!-- reCAPTCHA Script & Verification Handler -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script>
+    // Called when reCAPTCHA is successfully verified
+    function onRecaptchaSuccess() {
+        const submitBtn = document.getElementById('submit-application');
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.title = '';
+    }
+
+    // Called when reCAPTCHA expires
+    function onRecaptchaExpire() {
+        const submitBtn = document.getElementById('submit-application');
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.title = 'Please verify with reCAPTCHA first';
+    }
+</script>
 @endsection

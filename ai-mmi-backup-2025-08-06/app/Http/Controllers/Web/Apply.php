@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\WebController;
+use Illuminate\Support\Facades\Http;
 
 class Apply extends WebController
 {
