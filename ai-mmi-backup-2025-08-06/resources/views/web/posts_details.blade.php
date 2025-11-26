@@ -38,6 +38,7 @@ $qa = array_merge([
 .qa-send:disabled{background:#9ca3af;cursor:not-allowed;}
 .qa-guest textarea{width:100%;border:1px dashed #d1d5db;border-radius:10px;padding:10px;min-height:90px;resize:none;background:#f3f4f6;color:#9ca3af;}
 .qa-login-link{display:inline-block;margin-top:8px;font-weight:600;color:#0f766e;}
+.qa-support{margin-left:auto;font-size:12px;font-weight:600;color:#ef4444;}
 @media (max-width: 640px){.qa-section{padding:12px;}.qa-answer{padding-left:32px;}}
 </style>
 <div class="inner-panel">
@@ -143,6 +144,7 @@ $qa = array_merge([
                             <div class="qa-title">Q&amp;A</div>
                             <div class="qa-subtext">Ask questions about this post. AI-mmi replies just below.</div>
                         </div>
+                        <div class="qa-support">AI-mmi Support</div>
                     </div>
                     <div class="qa-list" id="qa-list">
                         <?php if(!empty($qa['items'])) { foreach ($qa['items'] as $qa_item) { ?>

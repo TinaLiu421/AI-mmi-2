@@ -129,6 +129,15 @@ class Home extends WebController {
                 $this->pageResult(['status' => 400, 'message' => 'Please enter a question.']);
                 return;
             }
+            $sourceInput     = request()->input('source', null);
+            $fromQaLegacy    = request()->boolean('from_qa', false);
+            $isFromQa        = ($sourceInput === 'qa') || $fromQaLegacy;
+            $chatSource      = $isFromQa ? 'qa' : 'chat';
+            $logToChatTable  = !$isFromQa;
+            $storeChatConfig = [
+                'log_to_chat_table' => $logToChatTable,
+                'source'            => $chatSource,
+            ];
 
             if (is_array($question)) {
                 $question = json_encode($question, JSON_UNESCAPED_UNICODE);
@@ -136,6 +145,7 @@ class Home extends WebController {
                 $question = strval($question);
             }
             $rawQuestion = trim((string)$question);
+            $qaLang      = $isFromQa ? $this->detectLangZhOrEn($rawQuestion) : 'en';
 
             $useRag   = 0;
             $override = '';
@@ -185,7 +195,7 @@ class Home extends WebController {
                         $limitMsg = $this->buildPaidPlanLimitReply($rawQuestion);
 
                         // 入库
-                        $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi');
+                        $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi', $storeChatConfig);
 
                         // 返回用户
                         $this->jsonReply($rawQuestion, $limitMsg, 'free-plan-limit', $member);
@@ -212,7 +222,7 @@ class Home extends WebController {
                     $limitMsg = $this->buildLimitReply($rawQuestion);
 
                     // 记录到 chat_log 里（方便你之后分析）
-                    $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-limit', 'AI-mmi');
+                    $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-limit', 'AI-mmi', $storeChatConfig);
 
                     // 返回前端
                     $this->jsonReply($rawQuestion, $limitMsg, 'free-limit', $member);
@@ -239,8 +249,59 @@ class Home extends WebController {
              * }
              */
 
+            // ❸（QA 专用）主题限定 + CTA
+            if ($reply === '' && $isFromQa) {
+                if (!$this->isScholarshipOrPartnerSchoolQuestion($rawQuestion)) {
+                    // Out-of-scope: do not call xAI and do not return text
+                    $reply       = null;
+                    $replySource = 'qa-out-of-scope';
+                    $aiOwnerName = 'AI-mmi';
+                } else {
+                    $qaSystemPrompt = "
+You are AI-mmi handling scholarship and partner-school Q&A.
+
+Rules:
+- ONLY answer questions about the AI-mmi Scholarship or these partner schools: SBTA–SELA (Adelaide or Brisbane), Queensland Academy of Technology (QAT) (Brisbane or Sydney), Australia College of Tourism & Information Technology (ACTI) (Brisbane, Gold Coast, Cairns), Queensland International Institute (QII) (Brisbane), Rosehill College (Sydney).
+- Always search AI-mmi internal collections first; use web search only if collections have no relevant information.
+- If neither internal collections nor web search provide reliable information, clearly say you do not have enough information instead of guessing or hallucinating.
+- Keep answers concise and factual.
+- Detect whether the user's message is Chinese; if yes, reply in Chinese; otherwise reply in English.
+- Do not mention xAI, Grok, LLMs, tools, citations, collection IDs, or technical details in the user-visible answer.
+";
+
+                    $x = $this->callXaiResponses($rawQuestion, [
+                        'temperature'        => 0.2,
+                        'max_output_tokens'  => 600,
+                        'model'              => 'grok-4-fast-reasoning',
+                        'enable_search'      => true,
+                        'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+                        'vector_store_ids'   => [],
+                        'system'             => $qaSystemPrompt,
+                    ]);
+
+                    if (!is_array($x) || empty($x['ok'])) {
+                        $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
+                    } else {
+                        $reply = $x['text'];
+                        $reply = preg_replace(
+                            '/信息基于xAI内部集合检索的文件/u',
+                            '信息基于AI-mmi内部集合检索的资料',
+                            $reply
+                        );
+                    }
+
+                    if (mb_strlen($reply, 'UTF-8') > 2500) {
+                        $reply = mb_substr($reply, 0, 2500, 'UTF-8');
+                    }
+
+                    $reply       = $this->appendQaCta($reply, $qaLang);
+                    $replySource = 'model';
+                    $aiOwnerName = 'AI-mmi';
+                }
+            }
+
             // ❸ 纯模型
-            if ($reply === '') {
+            if ($reply === '' && !$isFromQa) {
                 $x = $this->callXaiResponses($rawQuestion, [
                     'temperature' => 0.2,
                     'max_output_tokens' => 2048,
@@ -323,7 +384,7 @@ class Home extends WebController {
             }
 
             // === ④ 入库 + 返回 ===
-            $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName);
+            $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
             $this->jsonReply($rawQuestion, $reply, $replySource, $member);
         });
 
@@ -391,8 +452,13 @@ class Home extends WebController {
     }
 
     // ✅ 入库统一处理
-    private function storeChat($memberId, $guestId, $sessionId, $question, $reply, $source, $aiOwnerName)
+    private function storeChat($memberId, $guestId, $sessionId, $question, $reply, $source, $aiOwnerName, array $options = [])
     {
+        $logToChatTable = $options['log_to_chat_table'] ?? true;
+        if (!$logToChatTable) {
+            return;
+        }
+
         try {
             $nowUtc = \Carbon\Carbon::now('UTC');
             $targetDate = (int)date('Ymd');
@@ -949,5 +1015,68 @@ class Home extends WebController {
 
     //     return !empty($json['apply']) && $json['apply'] === true;
     // }
+
+    private function detectLangZhOrEn(string $q): string
+    {
+        return preg_match('/[\x{4e00}-\x{9fff}]/u', $q) ? 'zh' : 'en';
+    }
+
+    private function isScholarshipOrPartnerSchoolQuestion(string $q): bool
+    {
+        $qLower = mb_strtolower($q, 'UTF-8');
+        $qLower = str_replace(['—', '–', '－'], '-', $qLower);
+
+        $keywords = [
+            // Scholarship / AI-mmi
+            'ai-mmi scholarship',
+            'ai mmi scholarship',
+            'scholarship',
+            '奖学金',
+            'ai-mmi奖学金',
+
+            // Partner schools
+            'sbta',
+            'sela',
+            'sbta–sela',
+            'sbta-sela',
+            'sbta sela',
+            'queensland academy of technology',
+            'qat',
+            'australia college of tourism & information technology',
+            'australia college of tourism and information technology',
+            'acti',
+            'queensland international institute',
+            'qii',
+            'rosehill college',
+        ];
+
+        foreach ($keywords as $kw) {
+            $kwLower = mb_strtolower($kw, 'UTF-8');
+            if (mb_strpos($qLower, $kwLower) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function qaOutOfScopeMessage(string $lang): string
+    {
+        if ($lang === 'zh') {
+            return '当前 Q&A 仅用于解答 AI-mmi Scholarship 及合作院校相关问题。请围绕奖学金或上述学校（SBTA–SELA、QAT、ACTI、QII、Rosehill College）提问。';
+        }
+
+        return 'This Q&A is reserved for questions about the AI-mmi Scholarship and our partner schools (SBTA–SELA, QAT, ACTI, QII, Rosehill College). Please ask about scholarships or the listed schools.';
+    }
+
+    private function appendQaCta(string $answer, string $lang): string
+    {
+        $cta = $lang === 'zh'
+            ? '欢迎使用位于POST卡片左下角的「Apply Now!」按钮通过AI-mmi快速申请，开启您的精彩留学之旅'
+            : 'You’re welcome to use the “Apply Now!” button at the bottom-left of this post card to submit your AI-mmi application and start your exciting study journey.';
+
+        $trimmed = rtrim($answer);
+        return $trimmed === '' ? $cta : $trimmed . "\n" . $cta;
+    }
 
 }

@@ -39,6 +39,9 @@ class Posts extends Home {
             ], 422);
         }
 
+        $language = $this->detectLanguage($question);
+        $inScope  = $this->isScholarshipOrPartnerSchoolQuestion($question);
+
         // ensure post exists and active
         $postExists = DB::table('member_posts')
             ->where('id', $postId)
@@ -54,6 +57,47 @@ class Posts extends Home {
 
         $memberId = (int)$this->_current_member['id'];
         $now      = Carbon::now();
+        $answerText = '';
+
+        if (!$inScope) {
+            $answerText = $this->outOfScopeMessage($language);
+        } else {
+            $systemPrompt = "
+You are AI-mmi answering scholarship Q&A.
+
+Rules:
+- ONLY answer questions about the AI-mmi Scholarship or these partner schools: SBTA–SELA (Adelaide or Brisbane), QAT (Brisbane or Sydney), ACTI (Brisbane, Gold Coast, Cairns), QII (Brisbane), Rosehill College (Sydney).
+- Always search AI-mmi internal collections first; use web search only if collections have no relevant information.
+- If neither internal collections nor web search provide reliable information, state that you do not have enough information instead of guessing.
+- Keep answers concise and factual.
+- Detect whether the user's message is Chinese; if yes, reply in Chinese; otherwise reply in English.
+- Do not mention xAI, Grok, LLMs, tools, citations, collection IDs, or technical details in the user-visible answer.
+";
+
+            $x = $this->callXaiResponses($question, [
+                'temperature'        => 0.2,
+                'max_output_tokens'  => 600,
+                'model'              => 'grok-4-fast-reasoning',
+                'enable_search'      => true,
+                'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+                'vector_store_ids'   => [],
+                'system'             => $systemPrompt,
+            ]);
+
+            if (!is_array($x) || empty($x['ok']) || empty($x['text'])) {
+                $answerText = is_array($x) ? ($x['text'] ?? 'Sorry, I cannot process this question right now.') : (string)$x;
+            } else {
+                $answerText = $x['text'];
+            }
+        }
+
+        if ($answerText === '') {
+            $answerText = $this->outOfScopeMessage($language);
+        }
+
+        $maxTokens  = 600;
+        $answerText = $this->truncateByTokens($answerText, $maxTokens);
+        $answerText = $this->appendCtaLine($answerText, $language, $maxTokens);
 
         $questionPayload = [
             'member_id'  => $memberId,
@@ -68,8 +112,6 @@ class Posts extends Home {
         if ($this->qaHasParentColumn()) {
             $questionPayload['parent_id'] = null;
         }
-
-        $answerText = $this->buildAiAnswerPlaceholder($question);
 
         try {
             DB::beginTransaction();
@@ -301,5 +343,105 @@ class Posts extends Home {
 
             return $question;
         })->toArray();
+    }
+
+    private function detectLanguage(string $question): string
+    {
+        return preg_match('/[\x{4e00}-\x{9fff}]/u', $question) ? 'zh' : 'en';
+    }
+
+    private function isScholarshipOrPartnerSchoolQuestion(string $question): bool
+    {
+        $qLower = mb_strtolower($question, 'UTF-8');
+        $qLower = str_replace(['—', '–', '－'], '-', $qLower);
+
+        $keywords = [
+            // Scholarship / AI-mmi
+            'ai-mmi scholarship',
+            'ai mmi scholarship',
+            'scholarship',
+            '奖学金',
+            'ai-mmi奖学金',
+
+            // Partner schools
+            'sbta',
+            'sela',
+            'sbta–sela',
+            'sbta-sela',
+            'sbta sela',
+            'queensland academy of technology',
+            'qat',
+            'australia college of tourism & information technology',
+            'australia college of tourism and information technology',
+            'acti',
+            'queensland international institute',
+            'qii',
+            'rosehill college',
+        ];
+
+        foreach ($keywords as $kw) {
+            $kwLower = mb_strtolower($kw, 'UTF-8');
+            if (mb_strpos($qLower, $kwLower) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function outOfScopeMessage(string $language): string
+    {
+        if ($language === 'zh') {
+            return '当前 Q&A 仅用于解答 AI-mmi Scholarship 及合作院校相关问题…';
+        }
+
+        return 'This Q&A is reserved for questions about the AI-mmi Scholarship and partner schools…';
+    }
+
+    private function appendCtaLine(string $answer, string $language, int $maxTokens = 0): string
+    {
+        $cta = $language === 'zh'
+            ? '欢迎使用位于POST卡片左下角的「Apply Now!」按钮通过AI-mmi快速申请，开启您的精彩留学之旅'
+            : 'You’re welcome to use the “Apply Now!” button at the bottom-left of this post card to submit your AI-mmi application and start your exciting study journey.';
+
+        $trimmed = rtrim($answer);
+        $combined = $trimmed === '' ? $cta : $trimmed . "\n\n" . $cta;
+
+        if ($maxTokens > 0) {
+            $maxChars = $maxTokens * 4;
+            if (mb_strlen($combined, 'UTF-8') > $maxChars) {
+                $ctaChars = mb_strlen($cta, 'UTF-8');
+                $budget   = $maxChars - $ctaChars - 2; // reserve for "\n\n"
+                if ($budget <= 0) {
+                    return $cta;
+                }
+
+                $trimmedAnswer = $trimmed === ''
+                    ? ''
+                    : rtrim(mb_substr($trimmed, 0, $budget, 'UTF-8'));
+
+                return $trimmedAnswer === ''
+                    ? $cta
+                    : $trimmedAnswer . "\n\n" . $cta;
+            }
+        }
+
+        return $combined;
+    }
+
+    private function truncateByTokens(string $text, int $maxTokens): string
+    {
+        if ($maxTokens <= 0) {
+            return '';
+        }
+
+        $maxChars = $maxTokens * 4;
+        $trimmed  = trim($text);
+
+        if (mb_strlen($trimmed, 'UTF-8') <= $maxChars) {
+            return $trimmed;
+        }
+
+        return mb_substr($trimmed, 0, $maxChars, 'UTF-8');
     }
 }
