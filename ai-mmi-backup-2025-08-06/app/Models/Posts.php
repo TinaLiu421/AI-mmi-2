@@ -344,24 +344,58 @@ class Posts extends BaseModel {
         $query->where($this->_posts_table.'_comment.status', '>', 0);
         $query->where($this->_member_table.'.status', '>', 0);
         
+        $commentTable = DB::getTablePrefix().$this->_posts_table.'_comment';
+        $memberTable  = DB::getTablePrefix().$this->_member_table;
+
         $query->select([
             $this->_posts_table.'_comment.id',
             $this->_member_table.'.id AS member_id',
-            $this->_member_table.'.avatar',
-            $this->_member_table.'.alias_name',
+            DB::raw("CASE WHEN {$commentTable}.status = 2 THEN 'asset/image/logo-mmi.png' ELSE {$memberTable}.avatar END AS avatar"),
+            DB::raw("CASE WHEN {$commentTable}.status = 2 THEN 'AI-mmi' ELSE {$memberTable}.alias_name END AS alias_name"),
             $this->_posts_table.'_comment.content AS comment_content',
+            DB::raw("{$commentTable}.status"),
             $this->_posts_table.'_comment.created_at'
         ]);
         
         $query->orderBy($this->_posts_table.'_comment.id', 'DESC');
         
-        return $this->revisedData($query->get()->map(function($items) {
+        $result = $this->revisedData($query->get()->map(function($items) {
             $data = [];
             foreach ($items as $item_key => $item_value) {
                 $data[$item_key] = $item_value;
             }
             return $data;
         })->toArray(), true);
+
+        // Reorder so AI replies (status = 2) always sit directly under the latest user question.
+        $ordered = [];
+        $pendingAnswers = [];
+
+        foreach ($result as $row) {
+            if ((int)($row['status'] ?? 0) === 2) {
+                $pendingAnswers[] = $row;
+                continue;
+            }
+
+            $ordered[] = $row;
+
+            if (!empty($pendingAnswers)) {
+                // append oldest pending first to preserve chronological feel
+                foreach (array_reverse($pendingAnswers) as $ans) {
+                    $ordered[] = $ans;
+                }
+                $pendingAnswers = [];
+            }
+        }
+
+        // leftover AI-only rows (if any) should still render
+        if (!empty($pendingAnswers)) {
+            foreach (array_reverse($pendingAnswers) as $ans) {
+                $ordered[] = $ans;
+            }
+        }
+
+        return $ordered;
     }
     
     public function saveComment($data = []) {
