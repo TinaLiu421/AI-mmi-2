@@ -29,6 +29,16 @@ class About_Us extends WebController {
     public function contact() {
         // post
         $this->pageAction(function() {
+            // server-side reCAPTCHA verification
+            $token = $this->postParamValue('g-recaptcha-response') ?: request()->input('g-recaptcha-response');
+            if (empty($token) || !$this->verifyRecaptcha($token)) {
+                $this->pageResult([
+                    'status'  => 400,
+                    'message' => $this->_page_lang['recaptcha_failed'] ?? 'reCAPTCHA verification failed'
+                ]);
+                return;
+            }
+
             $subject = $this->_today_datetime.' - Contact Us 聯絡我們';
             $body = '<table style="border-spacing:0;border-collapse:collapse;width:100%;">';
                 $body.= '<tr>';

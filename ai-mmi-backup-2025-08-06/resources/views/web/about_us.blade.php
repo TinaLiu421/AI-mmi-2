@@ -50,8 +50,13 @@
             </div>
             <div class="clearboth"></div>
             
+            <div class="recaptcha-container" style="margin: 20px 0; text-align: center;">
+                <p style="margin-bottom:8px;">Security verification: Please verify you're human before submitting.</p>
+                <div class="g-recaptcha" data-sitekey="{{ env('RECAPTCHA_SITE_KEY') }}" data-callback="onRecaptchaSuccess" data-expired-callback="onRecaptchaExpire"></div>
+                <input type="hidden" id="recaptcha_token" name="g-recaptcha-response" value="">
+            </div>
             <div class="row">
-                <button type="submit" class="btn btn-next"><?php echo $_page_lang['btn.submit']; ?></button>
+                <button type="submit" class="btn btn-next" id="submit-contact" disabled style="opacity:0.6;cursor:not-allowed;" title="Please verify with reCAPTCHA first"><?php echo $_page_lang['btn.submit']; ?></button>
             </div>
             <div class="clearboth"></div>
         </form>
@@ -77,4 +82,35 @@
     </div>
     <?php } ?>
 </div>
+<!-- reCAPTCHA script & client handlers -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script>
+    function onRecaptchaSuccess() {
+        var btn = document.getElementById('submit-contact');
+        if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.title = '';
+        }
+        var tokenInput = document.getElementById('recaptcha_token');
+        if (tokenInput && typeof grecaptcha !== 'undefined') {
+            tokenInput.value = grecaptcha.getResponse();
+        }
+    }
+
+    function onRecaptchaExpire() {
+        var btn = document.getElementById('submit-contact');
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'not-allowed';
+            btn.title = 'Please verify with reCAPTCHA first';
+        }
+        var tokenInput = document.getElementById('recaptcha_token');
+        if (tokenInput) {
+            tokenInput.value = '';
+        }
+    }
+</script>
 @endsection
