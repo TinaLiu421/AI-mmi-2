@@ -32,7 +32,7 @@ class Apply extends WebController
 
         return $this->pageData($data)->pageView();
     }
-
+    
     /**
      * Verify reCAPTCHA token server-side
      * @param string $token The reCAPTCHA response token
@@ -65,5 +65,5 @@ class Apply extends WebController
             \Log::error('reCAPTCHA verification error: ' . $e->getMessage());
             return false;
         }
-    }
+    } 
 }
