@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\WebController;
 use Laravel\Socialite\Facades\Socialite;
+use App\Rules\RecaptchaRule;
 
 class Account_Login extends WebController {
 
@@ -271,5 +272,11 @@ class Account_Login extends WebController {
             $detailsDefaults['member_id'] = $memberId;
                 \DB::table('member_details')->insert($detailsDefaults);
         }
+
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+            'g-recaptcha-response' => ['required', new RecaptchaRule()],
+        ]);
     }
 }

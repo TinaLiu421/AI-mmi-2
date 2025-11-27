@@ -63,6 +63,14 @@
         "preferred-install": "dist",
         "sort-packages": true,
         "cache-dir": "/home/atonlin2/public_html/at-creative-official-website.atonline-appmaker.com/laravel8/cache",
+        "allow-plugins": {
+            "php-http/discovery": true
+        },
+        "audit": {
+            "ignore": [
+                "PKSA-8qx3-n5y5-vvnd"
+            ]
+        },
         "platform": {
             "php": "7.4"
         }

@@ -1,27 +1,48 @@
-<?php if(!empty($_page_data['reply'])) { foreach ($_page_data['reply'] as $comment) { ?>
-<div class="replier" data-comment-id="<?php echo $comment['id'];?>">
+<?php
+function commentAvatarUrl($avatar = '') {
+    $avatar = trim((string)$avatar);
+    if ($avatar === '') return '';
+    if (stripos($avatar, 'asset/') === 0 || preg_match('/^https?:\/\//i', $avatar)) {
+        return $avatar;
+    }
+    if (file_exists('upload/member_avatar/'.$avatar)) {
+        return 'upload/member_avatar/'.$avatar;
+    }
+    if (file_exists('upload/member_logo/'.$avatar)) {
+        return 'upload/member_logo/'.$avatar;
+    }
+    return $avatar;
+}
+
+if(!empty($_page_data['reply'])) { foreach ($_page_data['reply'] as $comment) {
+$isAi = (int)($comment['status'] ?? 0) === 2 || strcasecmp($comment['alias_name'] ?? '', 'AI-mmi') === 0;
+$avatarUrl = commentAvatarUrl($comment['avatar'] ?? '');
+if ($isAi) {
+    $avatarUrl = 'asset/image/logo-mmi.png';
+} elseif ($avatarUrl === '') {
+    $avatarUrl = 'asset/image/icon-member.png';
+}
+$name = $isAi ? 'AI-mmi' : ($comment['alias_name'] ?? 'User');
+$profileUrl = $isAi ? '#' : ($_page_base_url.'/account/posts?uid='.$comment['member_id']);
+?>
+<div class="replier <?php echo $isAi ? 'ai-reply' : ''; ?>" data-comment-id="<?php echo $comment['id'];?>" data-status="<?php echo (int)($comment['status'] ?? 0); ?>" data-is-ai="<?php echo $isAi ? 1 : 0; ?>">
     <div class="avatar">
-        <a href="<?php echo $_page_base_url.'/account/posts?uid='.$comment['member_id']; ?>">
+        <a href="<?php echo $profileUrl; ?>">
             <img src="asset/image/icon-member.png" alt="icon-member"/>
-            <?php if(!empty($comment['avatar'])){ ?>
-            <?php if(file_exists('upload/member_avatar/'.$comment['avatar'])) { ?>
-            <div style="background-image:url('<?php echo 'upload/member_avatar/'.$comment['avatar']; ?>')"></div>
-            <?php } else { ?>
-            <div style="background-image:url('<?php echo 'upload/member_logo/'.$comment['avatar']; ?>')"></div>
-            <?php } ?>
+            <?php if(!empty($avatarUrl)) { ?>
+            <div style="background-image:url('<?php echo $avatarUrl; ?>')"></div>
             <?php } ?>
         </a>
     </div>
     <div class="name">
-        <div><a href="<?php echo $_page_base_url.'/account/posts?uid='.$comment['member_id']; ?>"><?php echo $comment['alias_name']; ?></a></div>
+        <div>
+            <a href="<?php echo $profileUrl; ?>"><?php echo $name; ?></a>
+            <?php if($isAi) { ?><span class="badge">Assistant</span><?php } ?>
+        </div>
         <div class="hours">
             <?php echo time2Units(abs(strtotime($comment['created_at'])-strtotime(date('Y-m-d H:i:s'))), $_current_lang_index); ?> &#x2022; <img src="asset/image/icon-earth.png" alt="icon-earth" width="16"/>
         </div>
         <div class="message"><?php echo nl2br($comment['comment_content']); ?></div>
-        <div class="comment-action">
-            <!--<a href="javascript:void(0);" class="do-reply" data-id="<?php echo $comment['id'];?>">Reply</a>-->
-            <a href="javascript:void(0);" class="do-delete" data-id="<?php echo $comment['id'];?>">Delete</a>
-        </div>
     </div>
 </div>
 <?php }} ?>

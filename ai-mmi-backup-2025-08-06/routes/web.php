@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\RouteMapping;
+use App\Http\Controllers\Web\Posts as WebPosts;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
+Route::get('/posts/details/{postId}', [WebPosts::class, 'details'])->name('posts.details');
+Route::post('/posts/{postId}/qa-ask', [WebPosts::class, 'qaAsk']);
 
 /*
 |--------------------------------------------------------------------------
@@ -18,8 +21,6 @@ Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name
 */
 
 Route::any('{segments?}', [App\Http\Controllers\RouteMapping::class, 'index'])->where('segments', '^(?!stripe)([0-9a-zA-Z_\-\/]+)?$');
-
-
 
 
 
