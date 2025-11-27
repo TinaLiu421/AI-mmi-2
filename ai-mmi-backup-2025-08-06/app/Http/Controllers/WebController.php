@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Http;
 
 class WebController extends CoreController {
     protected $_member_model = null;
@@ -12,6 +13,36 @@ class WebController extends CoreController {
         parent::__construct($data);
         $this->initialize();
       
+    }
+
+    /**
+     * Verify Google reCAPTCHA v2 token server-side
+     * @param string $token
+     * @return bool
+     */
+    protected function verifyRecaptcha($token)
+    {
+        $secret = env('RECAPTCHA_SECRET');
+        if (empty($secret) || empty($token)) {
+            return false;
+        }
+
+        try {
+            $response = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                'secret'   => $secret,
+                'response' => $token,
+                'remoteip' => request()->ip(),
+            ]);
+
+            $data = $response->json();
+            if (isset($data['success'])) {
+                return (bool) $data['success'];
+            }
+            return false;
+        } catch (\Exception $e) {
+            \Log::error('reCAPTCHA verification error: ' . $e->getMessage());
+            return false;
+        }
     }
     
     protected function setMyCookie($name, $value)
