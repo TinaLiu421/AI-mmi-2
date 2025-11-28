@@ -830,7 +830,8 @@ Rules:
     - Reply ONLY in that same language.
     - Do NOT answer the user's immigration or visa question.
     - Instead, give ONE short, polite sentence with this meaning:
-    'You have reached your free question limit. I can't answer more questions unless you register and log in.'
+    'Looks like you’ve used up your free questions for now.
+    If you’d like to continue, just register or log in — it only takes a moment.'
     - Do not mention xAI, Grok, LLM, tools, providers, or technical details.
     - Do not add extra explanations, headings or formatting.
     - Do not introduce yourself again unless the user explicitly asks who you are.
@@ -850,7 +851,8 @@ Rules:
         }
 
         // 兜底：万一上游挂了，至少有一条英文提示
-        return 'You have reached your free Q&A limit. I can only continue after you register and log in to AI-mmi.';
+        return 'Looks like you’ve used up your free questions for now.
+                If you’d like to continue, just register or log in — it only takes a moment.';
     }
 
     private function buildPaidPlanLimitReply(string $question): string
