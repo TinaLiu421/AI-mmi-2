@@ -84,16 +84,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const showStatus = (type, message) => {
-        if (!statusBanner) {
-            return;
-        }
+        console.log('[STATUS]', type, message);   // ⬅️ 新增
+
+        if (!statusBanner) return;
         statusBanner.classList.remove('success', 'error', 'is-visible');
-        if (!message) {
-            return;
-        }
+        if (!message) return;
+
         statusBanner.classList.add(type === 'success' ? 'success' : 'error', 'is-visible');
         statusBanner.innerHTML = message;
     };
+
 
     const toggleButtons = (state) => {
         [saveBtn, submitBtn].forEach((btn) => {
@@ -335,7 +335,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         syncScholarshipState();
 
-        syncDobInputMode();
         updateDocumentsUI(application.documents || {});
         renderPaymentWidget(application);
     };
@@ -379,14 +378,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const submitApplication = async (intent) => {
-        if (isSubmitting) {
-            return;
-        }
+        if (isSubmitting) return;
         isSubmitting = true;
         toggleButtons(true);
         showStatus('success', 'Saving...');
 
         const formData = new FormData(form);
+
         if (dobInput) {
             const isoDob = parseDisplayDate(dobInput.value);
             if (isoDob) {
@@ -402,17 +400,22 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.set('english_test[selected]', selectedTest);
             if (selectedTest) {
                 englishScoreFields.forEach((field) => {
-                    const input = form.querySelector(`[name="english_test[scores][${field}]"]`);
+                    const input = form.querySelector(
+                        `[name="english_test[scores][${field}]"]`
+                    );
                     if (input) {
-                        formData.set(`english_test[scores][${field}]`, input.value || '');
+                        formData.set(
+                            `english_test[scores][${field}]`,
+                            input.value || ''
+                        );
                     }
                 });
-            } else {
-                englishScoreFields.forEach((field) => formData.delete(`english_test[scores][${field}]`));
             }
         } else {
             formData.delete('english_test[selected]');
-            englishScoreFields.forEach((field) => formData.delete(`english_test[scores][${field}]`));
+            englishScoreFields.forEach((field) =>
+                formData.delete(`english_test[scores][${field}]`)
+            );
         }
 
         if (!wantsScholarship) {
@@ -425,26 +428,51 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/course-applications', {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    Accept: 'application/json',
-                },
+                headers: { Accept: 'application/json' },
                 credentials: 'same-origin',
             });
 
-            const data = await response.json();
+            console.log('HTTP status:', response.status);
+
+            const raw = await response.text();
+            console.log('RAW body:', raw);
+
+            let data;
+            try {
+                data = JSON.parse(raw);
+            } catch (e) {
+                console.error('JSON parse failed:', e);
+                showStatus('error', 'Server returned invalid JSON.');
+                return;
+            }
+
+            console.log('Parsed JSON:', data);
+
             if (!response.ok) {
-                const errMsg = formatErrors(data.errors, data.message || 'Unable to save application.');
+                const errMsg = formatErrors(
+                    data.errors,
+                    data.message || 'Unable to save application.'
+                );
                 showStatus('error', errMsg);
                 return;
             }
 
+            if (!data.application) {
+                console.error('No application in response:', data);
+                showStatus('error', 'Missing application data from server.');
+                return;
+            }
+
             hydrateForm(data.application);
+
             const message =
                 intent === 'save'
                     ? 'Draft saved successfully.'
-                    : 'Application submitted successfully! You can now complete the payment.';
+                    : (data.message || 'Application submitted successfully.');
+
             showStatus('success', message);
         } catch (error) {
+            console.error('submitApplication CATCH error:', error); // ⬅️ 看这个
             showStatus('error', 'Something went wrong. Please try again.');
         } finally {
             isSubmitting = false;
