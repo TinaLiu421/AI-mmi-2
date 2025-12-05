@@ -926,7 +926,7 @@ function iweb_global_func() {
                   
                         scrollChatToBottom();
                     }
-                    $("#ask_question").attr("placeholder", "Ask about immigrations, visas, or migration...");
+                    $("#ask_question").attr("placeholder", "Ask about study, visa, migration or life overseas...");
                     // RAG 字段已停用
                     
                 } else {
