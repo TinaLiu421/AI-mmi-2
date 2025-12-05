@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusBanner = document.getElementById('application-status');
     const saveBtn = document.getElementById('save-application');
     const submitBtn = document.getElementById('submit-application');
+    const applyPageTop = document.getElementById('apply-page-top');
     const paymentWidget = document.getElementById('payment-widget');
     const paymentCard = document.getElementById('payment-card');
     const paymentConfig = paymentCard ? paymentCard.dataset : {};
@@ -574,11 +575,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
+    const scrollToApplyTop = () => {
+        if (applyPageTop) {
+            applyPageTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     const handleSaveDraft = () => {
         submitApplication('save');
     };
 
     const handleSubmit = () => {
+        scrollToApplyTop();
         if (!validateSubmission()) {
             return;
         }

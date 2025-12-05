@@ -22,7 +22,7 @@
     ];
 @endphp
 
-<div class="apply-page" data-member-id="{{ $member['id'] ?? '' }}">
+<div class="apply-page" id="apply-page-top" data-member-id="{{ $member['id'] ?? '' }}">
     <section class="card apply-hero">
         <div>
             <p class="eyebrow">Education · Course Application</p>
@@ -299,7 +299,7 @@
 
                 <div class="form-actions">
                     <button type="button" class="btn ghost" id="save-application">Save draft</button>
-                    <button type="button" class="btn primary" id="submit-application" disabled style="opacity: 0.6; cursor: not-allowed;" title="Please verify with reCAPTCHA first">Submit &amp; continue to payment</button>
+                    <button type="button" class="btn primary" id="submit-application" disabled style="opacity: 0.6; cursor: not-allowed;" title="Please verify with reCAPTCHA first">Submit</button>
                 </div>
             </form>
         </div>
