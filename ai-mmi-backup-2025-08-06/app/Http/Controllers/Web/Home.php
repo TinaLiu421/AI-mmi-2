@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\WebController;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Services\ConversationFlowService;
 use Illuminate\Support\Facades\Schema;
@@ -272,7 +273,7 @@ Rules:
                     $x = $this->callXaiResponses($rawQuestion, [
                         'temperature'        => 0.2,
                         'max_output_tokens'  => 600,
-                        'model'              => 'grok-4-fast-reasoning',
+                        'model'              => 'grok-4-1-fast-reasoning',
                         'enable_search'      => true,
                         'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                         'vector_store_ids'   => [],
@@ -282,6 +283,7 @@ Rules:
 
                     if (!is_array($x) || empty($x['ok'])) {
                         $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
+                        $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
                     } else {
                         $reply = $x['text'];
                         $reply = preg_replace(
@@ -289,6 +291,7 @@ Rules:
                             '信息基于AI-mmi内部集合检索的资料',
                             $reply
                         );
+                        $replySource = $x['source'] ?? 'model';
                     }
 
                     if (mb_strlen($reply, 'UTF-8') > 2500) {
@@ -296,7 +299,6 @@ Rules:
                     }
 
                     $reply       = $this->appendQaCta($reply, $qaLang);
-                    $replySource = 'model';
                     $aiOwnerName = 'AI-mmi';
                 }
             }
@@ -306,7 +308,7 @@ Rules:
                 $x = $this->callXaiResponses($rawQuestion, [
                     'temperature' => 0.2,
                     'max_output_tokens' => 2048,
-                    'model' => 'grok-4-fast-reasoning',
+                    'model' => 'grok-4-1-fast-reasoning',
                     'enable_search'     => true,
                     'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                     'vector_store_ids' => [],
@@ -362,6 +364,7 @@ Rules:
 
                 if (!is_array($x) || empty($x['ok'])) {
                     $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
+                    $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
                 } else {
                     $reply = $x['text'];
 
@@ -378,9 +381,10 @@ Rules:
                         '信息基于AI-mmi内部集合检索的资料',
                         $reply
                     );
+
+                    $replySource = $x['source'] ?? 'model';
                 }
 
-                $replySource = 'model';
                 $aiOwnerName = 'AI-mmi';
             }
 
@@ -402,7 +406,8 @@ Rules:
                     ? ($this->_current_member['alias_name'] ?? 'User') : 'AI-mmi';
                 $m['owner_avatar'] = strtolower($m['type']) === 'ask'
                     ? 'asset/image/icon-member.png' : 'asset/image/logo-mmi.png';
-                $m['content']      = strtolower($m['type']) === 'ask' ? nl2br($m['content']) : $m['content'];
+                $m['content_raw']  = $m['content'];
+                $m['content_html'] = nl2br(e($m['content']));
                 $m['created_time'] = !empty($m['created_at'])
                     ? \Carbon\Carbon::parse($m['created_at'], 'UTC')->toIso8601String() : null;
             }
@@ -465,6 +470,8 @@ Rules:
             $targetDate = (int)date('Ymd');
             \DB::beginTransaction();
 
+            $hasReplySourceColumn = $this->chatLogHasReplySource();
+
             $askId = \DB::table('chat_log')->insertGetId([
                 'member_id'   => $memberId,
                 'guest_id'    => $guestId,
@@ -479,7 +486,7 @@ Rules:
             ]);
             \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
-            \DB::table('chat_log')->insert([
+            $replyPayload = [
                 'member_id'   => $memberId,
                 'guest_id'    => $guestId,
                 'session_id'  => $sessionId,
@@ -490,13 +497,34 @@ Rules:
                 'status'      => 1,
                 'created_at'  => $nowUtc,
                 'updated_at'  => $nowUtc,
-            ]);
+            ];
+            if ($hasReplySourceColumn) {
+                $replyPayload['reply_source'] = $source;
+            }
+
+            \DB::table('chat_log')->insert($replyPayload);
 
             \DB::commit();
         } catch (\Throwable $e) {
             \DB::rollBack();
             \Log::error('CHAT DB INSERT FAIL: ' . $e->getMessage());
         }
+    }
+
+    private function chatLogHasReplySource(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            $cached = \Illuminate\Support\Facades\Schema::hasColumn('chat_log', 'reply_source');
+        } catch (\Throwable $e) {
+            $cached = false;
+        }
+
+        return $cached;
     }
 
     // ✅ 输出统一处理
@@ -506,8 +534,12 @@ Rules:
         $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
         $this->pageResult([
             'status'               => 200,
-            'content'              => nl2br($question),
+            'content'              => (string)$question,
+            'content_raw'          => (string)$question,
+            'content_html'         => nl2br(e($question)),
             'reply'                => $reply,
+            'reply_raw'            => $reply,
+            'reply_html'           => nl2br(e($reply)),
             'answer_markdown'      => $reply,
             'content_created_at'   => $nowUtcIso,
             'reply_created_at'     => $nowUtcIso,
@@ -531,20 +563,31 @@ Rules:
         $apiKey = env('XAI_API_KEY');
         if (!$apiKey) {
             \Log::error('XAI_API_KEY missing');
-            return ['ok'=>false, 'text'=>'[Upstream Error] Missing API key', 'citations'=>[], 'raw'=>null];
+            return $this->friendlyFallbackResult($question, 'upstream-error', 'missing-api-key');
+        }
+
+        if ($this->isUpstreamCircuitOpen()) {
+            \Log::warning('xAI circuit breaker open; skip upstream call');
+            return $this->friendlyFallbackResult($question, 'upstream-error', 'circuit-open');
         }
 
         $url     = rtrim(env('XAI_API_BASE', 'https://api.x.ai'), '/') . '/v1/responses';
-        $model   = $opts['model'] ?? 'grok-4-fast-reasoning';
+        $model   = $opts['model'] ?? 'grok-4-1-fast-reasoning';
         $system  = $opts['system'] ?? null;
-        $timeout = (int)($opts['timeout'] ?? 30);
-        if ($timeout < 5) $timeout = 5;
-        if ($timeout > 90) $timeout = 90;
-        $connectTimeout = (int)($opts['connect_timeout'] ?? 15);
-        if ($connectTimeout < 2) $connectTimeout = 2;
-        if ($connectTimeout > $timeout) $connectTimeout = $timeout;
+        $timeoutInitial = (float)($opts['timeout'] ?? env('XAI_TIMEOUT', 60));
+        // 保底 60s，避免误用更短值导致 30s 超时
+        if ($timeoutInitial < 60) $timeoutInitial = 60;
+        if ($timeoutInitial > 180) $timeoutInitial = 180;
+        $timeoutRetry = (float)($opts['retry_timeout'] ?? env('XAI_RETRY_TIMEOUT', 75));
+        if ($timeoutRetry < $timeoutInitial) $timeoutRetry = $timeoutInitial;
+        if ($timeoutRetry > 240) $timeoutRetry = 240;
+        $timeoutInitialMs = (int)($opts['timeout_ms'] ?? env('XAI_TIMEOUT_MS', 0));
+        $timeoutRetryMs   = (int)($opts['retry_timeout_ms'] ?? env('XAI_RETRY_TIMEOUT_MS', 0));
+        $connectTimeout = (float)($opts['connect_timeout'] ?? env('XAI_CONNECT_TIMEOUT', 10));
+        if ($connectTimeout < 1) $connectTimeout = 1;
+        $connectTimeout = min($connectTimeout, $timeoutInitial, $timeoutRetry);
         // avoid PHP max_execution_time fatals during long upstream waits
-        @set_time_limit($timeout + 10);
+        @set_time_limit((int)ceil($timeoutRetry + 10));
 
         // —— 温度：给默认值 + 边界
         $temperature = array_key_exists('temperature', $opts)
@@ -629,63 +672,291 @@ Rules:
 
         \Log::info('xAI payload => ' . json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
-        // —— 请求
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => [
-                'Authorization: Bearer ' . $apiKey,
-                'Content-Type: application/json',
-                'Accept: application/json',
-            ],
-            CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => $timeout,
-            CURLOPT_CONNECTTIMEOUT => $connectTimeout,
-        ]);
-        $resp = curl_exec($ch);
-        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if (curl_errno($ch)) {
-            $err = curl_error($ch);
+        $maxAttempts = 2; // 1 retry
+        $backoffMs   = [300, 800];
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            if ($attempt > 1) {
+                $sleepMs = $backoffMs[$attempt - 2] ?? end($backoffMs);
+                if ($sleepMs > 0) {
+                    usleep((int)$sleepMs * 1000);
+                }
+            }
+
+            $timeoutToUse   = $attempt === 1 ? $timeoutInitial : $timeoutRetry;
+            $timeoutMsToUse = $attempt === 1 ? $timeoutInitialMs : $timeoutRetryMs;
+            $timeLimitGuard = $timeoutMsToUse > 0 ? max($timeoutToUse, $timeoutMsToUse / 1000) : $timeoutToUse;
+            @set_time_limit((int)ceil($timeLimitGuard + 10));
+
+            $ch = curl_init();
+            $curlOptions = [
+                CURLOPT_URL            => $url,
+                CURLOPT_POST           => true,
+                CURLOPT_HTTPHEADER     => [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                ],
+                CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => $timeoutToUse,
+                CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+            ];
+
+            if ($timeoutMsToUse > 0) {
+                $curlOptions[CURLOPT_TIMEOUT_MS] = $timeoutMsToUse;
+            }
+
+            curl_setopt_array($ch, $curlOptions);
+
+            $startTime   = microtime(true);
+            $resp        = curl_exec($ch);
+            $http        = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErrNo   = curl_errno($ch);
+            $curlErrMsg  = $curlErrNo ? curl_error($ch) : '';
             curl_close($ch);
-            \Log::error('xAI CURL error: '.$err);
-            return ['ok'=>false, 'text'=>'[Upstream Error] '.$err, 'citations'=>[], 'raw'=>null];
+            $elapsedMs   = (int)round((microtime(true) - $startTime) * 1000);
+
+            $requestId   = $this->extractXaiRequestId($resp);
+            $isTimeout   = $curlErrNo === CURLE_OPERATION_TIMEDOUT;
+            $isHttp5xx   = $http >= 500 && $http < 600;
+            $errorType   = null;
+
+            if ($curlErrNo) {
+                $errorType = $isTimeout ? 'timeout' : 'curl';
+            } elseif ($http < 200 || $http >= 300) {
+                $errorType = $isHttp5xx ? 'http-5xx' : 'http-error';
+            }
+
+            if ($errorType !== null) {
+                $this->logUpstreamFailure($errorType, $http, $curlErrNo, $curlErrMsg, $elapsedMs, $requestId, $attempt);
+                $shouldRetry = ($isTimeout || $isHttp5xx) && $attempt < $maxAttempts;
+                if ($shouldRetry) {
+                    continue;
+                }
+
+                $this->recordUpstreamFailure($errorType);
+                return $this->friendlyFallbackResult(
+                    $question,
+                    $isTimeout ? 'upstream-timeout' : 'upstream-error',
+                    $errorType,
+                    ['http_status' => $http, 'request_id' => $requestId]
+                );
+            }
+
+            $data = json_decode($resp, true);
+            if (!is_array($data)) {
+                $this->logUpstreamFailure('non-json', $http, $curlErrNo, $curlErrMsg, $elapsedMs, $requestId, $attempt, [
+                    'resp_head' => mb_substr((string)$resp, 0, 300)
+                ]);
+
+                $shouldRetry = $isHttp5xx && $attempt < $maxAttempts;
+                if ($shouldRetry) {
+                    continue;
+                }
+
+                $this->recordUpstreamFailure('non-json');
+                return $this->friendlyFallbackResult(
+                    $question,
+                    'upstream-error',
+                    'non-json',
+                    ['http_status' => $http, 'request_id' => $requestId]
+                );
+            }
+
+            // 额外日志：看看工具调用情况（Responses 原始 JSON 字段）
+            \Log::info('xAI raw response (truncated) => ' . mb_substr($resp ?? '', 0, 800));
+
+            // —— 保存本轮 response_id，供下一轮续接
+            if ($useThread && !empty($data['id']) && is_string($data['id'])) {
+                $this->saveXaiPrevResponseId($data['id']);
+            }
+
+            // —— 提取文本 & 引用
+            $text      = $this->xaiExtractText($data);
+            $citations = $this->xaiExtractCitations($data);
+
+            $toolCalls = $this->xaiExtractToolCalls($data);
+            \Log::info('xAI tool_calls(extracted) => ' . json_encode($toolCalls, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+            \Log::info('xAI citations(extracted)  => ' . json_encode($citations, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+            if ($text === '') {
+                $this->logUpstreamFailure('empty-output', $http, $curlErrNo, $curlErrMsg, $elapsedMs, $requestId, $attempt);
+                $this->recordUpstreamFailure('empty-output');
+                return $this->friendlyFallbackResult(
+                    $question,
+                    'upstream-error',
+                    'empty-output',
+                    ['http_status' => $http, 'request_id' => $requestId]
+                );
+            }
+
+            $this->resetUpstreamFailureWindow();
+
+            return ['ok'=>true, 'text'=>$text, 'citations'=>$citations, 'raw'=>$data, 'source'=>'model'];
         }
-        curl_close($ch);
 
-        $data = json_decode($resp, true);
-
-        // 额外日志：看看工具调用情况（Responses 原始 JSON 字段）
-        \Log::info('xAI raw response (truncated) => ' . mb_substr($resp ?? '', 0, 800));
-
-        if ($http < 200 || $http >= 300 || !is_array($data)) {
-            \Log::error("xAI HTTP {$http} body: ".$resp);
-            return ['ok'=>false, 'text'=>"[Upstream Error] HTTP {$http}", 'citations'=>[], 'raw'=>$resp];
-        }
-
-        // —— 保存本轮 response_id，供下一轮续接
-        if ($useThread && !empty($data['id']) && is_string($data['id'])) {
-            $this->saveXaiPrevResponseId($data['id']);
-        }
-
-        // —— 提取文本 & 引用
-        $text      = $this->xaiExtractText($data);
-        $citations = $this->xaiExtractCitations($data);
-
-        $toolCalls = $this->xaiExtractToolCalls($data);
-        \Log::info('xAI tool_calls(extracted) => ' . json_encode($toolCalls, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-        \Log::info('xAI citations(extracted)  => ' . json_encode($citations, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-
-
-        if ($text === '') {
-            \Log::warning('xAI parsed empty text; payload head='.mb_substr($resp, 0, 300));
-            return ['ok'=>false, 'text'=>'[Upstream Error] Empty output', 'citations'=>[], 'raw'=>$data];
-        }
-
-        return ['ok'=>true, 'text'=>$text, 'citations'=>$citations, 'raw'=>$data];
+        // 极端情况：循环未返回时兜底
+        $this->recordUpstreamFailure('unknown');
+        return $this->friendlyFallbackResult($question, 'upstream-error', 'unknown');
     }
 
+
+    private function friendlyFallbackResult(string $question, string $replySource, string $errorType, array $meta = []): array
+    {
+        return [
+            'ok'         => false,
+            'text'       => $this->buildFallbackMessage($question),
+            'citations'  => [],
+            'raw'        => null,
+            'source'     => $replySource,
+            'error_type' => $errorType,
+            'meta'       => $meta,
+        ];
+    }
+
+    private function buildFallbackMessage(string $question): string
+    {
+        $lang = $this->detectFallbackLanguage($question);
+        $messages = [
+            'en' => "Sorry, I’m having trouble reaching the knowledge service right now. Please try again in a moment, or rephrase your question. If you want, tell me your country and goal and I’ll start with a quick overview.",
+            'zh' => "抱歉，我现在连接服务有点不稳定。请稍后再试或换个问法。你也可以告诉我国家和目标，我先给你一个简要的方向。",
+            'es' => "Lo siento, tengo problemas para conectar con el servicio de conocimiento. Intenta de nuevo en un momento o reformula tu pregunta. Si quieres, dime tu país y objetivo y te doy una visión rápida.",
+            'fr' => "Désolé, j’ai du mal à joindre le service d’information. Réessaie dans un instant ou reformule ta question. Si tu veux, dis-moi ton pays et ton objectif et je te donne un aperçu rapide.",
+            'pt' => "Desculpe, estou com dificuldade para acessar o serviço de conhecimento. Tente novamente em instantes ou reformule sua pergunta. Se quiser, diga-me seu país e objetivo e faço um resumo rápido.",
+            'de' => "Entschuldigung, ich kann den Wissensdienst gerade nicht erreichen. Bitte versuche es gleich noch einmal oder formuliere deine Frage neu. Wenn du möchtest, nenne mir dein Land und dein Ziel, ich gebe dir einen kurzen Überblick.",
+            'ja' => "申し訳ありません。知識サービスに接続しづらい状態です。少し待ってから再試行するか、質問を言い換えてください。国と目的を教えていただければ、まず簡単な概要をお伝えします。",
+            'ko' => "죄송합니다. 지식 서비스 연결이 원활하지 않습니다. 잠시 후 다시 시도하거나 질문을 바꿔 주세요. 원하시면 국가와 목표를 알려주시면 먼저 간단히 안내드릴게요.",
+            'ru' => "Извините, сейчас не удаётся подключиться к сервису знаний. Попробуйте позже или переформулируйте вопрос. Если хотите, скажите страну и цель, и я дам краткий обзор.",
+            'ar' => "عذرًا، أواجه صعوبة في الوصول إلى خدمة المعرفة الآن. جرّب مرة أخرى بعد قليل أو أعد صياغة سؤالك. أخبرني ببلدك وهدفك وسأقدم لك ملخصًا سريعًا.",
+        ];
+
+        if (!isset($messages[$lang])) {
+            $lang = 'en';
+        }
+
+        return $messages[$lang];
+    }
+
+    private function detectFallbackLanguage(string $question): string
+    {
+        $lower = mb_strtolower($question, 'UTF-8');
+
+        if (preg_match('/[\x{4e00}-\x{9fff}]/u', $question)) return 'zh';
+        if (preg_match('/[\x{3040}-\x{30ff}]/u', $question)) return 'ja';
+        if (preg_match('/[\x{1100}-\x{11ff}\x{3130}-\x{318f}\x{ac00}-\x{d7af}]/u', $question)) return 'ko';
+        if (preg_match('/[\x{0600}-\x{06ff}]/u', $question)) return 'ar';
+        if (preg_match('/[\x{0400}-\x{04FF}]/u', $question)) return 'ru';
+        if (preg_match('/[äöüß]/iu', $lower)) return 'de';
+        if (preg_match('/[ãõáéíóúç]/iu', $lower)) return 'pt';
+        if (preg_match('/[áéíóúñ¿¡]/iu', $lower)) return 'es';
+        if (preg_match('/[àâçéèêëîïôûùü]/iu', $lower)) return 'fr';
+
+        return 'en';
+    }
+
+    private function logUpstreamFailure(string $errorType, ?int $httpStatus, ?int $curlErrNo, ?string $curlErrMsg, int $elapsedMs, ?string $requestId, int $attempt, array $extra = []): void
+    {
+        $context = [
+            'error_type'  => $errorType,
+            'http_status' => $httpStatus,
+            'curl_errno'  => $curlErrNo,
+            'curl_error'  => $curlErrMsg,
+            'elapsed_ms'  => $elapsedMs,
+            'request_id'  => $requestId,
+            'attempt'     => $attempt,
+        ];
+
+        if (!empty($extra)) {
+            $context = array_merge($context, $extra);
+        }
+
+        \Log::error('xAI upstream failure', $context);
+    }
+
+    private function recordUpstreamFailure(string $errorType): void
+    {
+        $now          = microtime(true);
+        $windowKey    = $this->failureWindowCacheKey();
+        $breakerKey   = $this->breakerCacheKey();
+        $windowSecs   = 120;
+        $breakerSecs  = 120;
+        $failures     = Cache::get($windowKey, []);
+        if (!is_array($failures)) {
+            $failures = [];
+        }
+
+        $failures[] = $now;
+        $failures = array_values(array_filter($failures, function ($ts) use ($now, $windowSecs) {
+            return ($now - (float)$ts) <= $windowSecs;
+        }));
+
+        Cache::put($windowKey, $failures, now()->addSeconds($windowSecs + 30));
+
+        if (count($failures) >= 3) {
+            Cache::put($breakerKey, $now + $breakerSecs, now()->addSeconds($breakerSecs + 5));
+            \Log::warning('xAI circuit breaker opened', [
+                'failures_last_2m' => count($failures),
+                'last_error_type'  => $errorType,
+            ]);
+        }
+    }
+
+    private function resetUpstreamFailureWindow(): void
+    {
+        Cache::forget($this->failureWindowCacheKey());
+    }
+
+    private function isUpstreamCircuitOpen(): bool
+    {
+        $openUntil = Cache::get($this->breakerCacheKey());
+        if (is_numeric($openUntil) && (float)$openUntil > microtime(true)) {
+            return true;
+        }
+
+        if ($openUntil) {
+            Cache::forget($this->breakerCacheKey());
+        }
+
+        return false;
+    }
+
+    private function failureWindowCacheKey(): string
+    {
+        return 'xai_responses_failures_window';
+    }
+
+    private function breakerCacheKey(): string
+    {
+        return 'xai_responses_breaker_until';
+    }
+
+    private function extractXaiRequestId($resp): ?string
+    {
+        if (!is_string($resp) || $resp === '') {
+            return null;
+        }
+
+        $data = json_decode($resp, true);
+        if (!is_array($data)) {
+            return null;
+        }
+
+        if (!empty($data['id']) && is_string($data['id'])) {
+            return $data['id'];
+        }
+        if (!empty($data['response_id']) && is_string($data['response_id'])) {
+            return $data['response_id'];
+        }
+        if (!empty($data['response']['id']) && is_string($data['response']['id'])) {
+            return $data['response']['id'];
+        }
+        if (!empty($data['error']['request_id']) && is_string($data['error']['request_id'])) {
+            return $data['error']['request_id'];
+        }
+
+        return null;
+    }
 
     private function xaiHttpPost(string $url, array $headers, array $payload): array
     {
@@ -840,7 +1111,7 @@ Rules:
         $x = $this->callXaiResponses($question, [
             'temperature'       => 0.2,
             'max_output_tokens' => 128,
-            'model'             => 'grok-4-fast-reasoning',
+            'model'             => 'grok-4-1-fast-reasoning',
             'enable_search'     => false,           // 不需要联网/RAG
             'collection_ids'    => [],             // 不用内部库
             'system'            => $system,
@@ -882,7 +1153,7 @@ Rules:
         $x = $this->callXaiResponses($question, [
             'temperature'       => 0.25,
             'max_output_tokens' => 256,
-            'model'             => 'grok-4-fast-reasoning',
+            'model'             => 'grok-4-1-fast-reasoning',
             'enable_search'     => false,
             'collection_ids'    => [],
             'system'            => $system,
@@ -929,7 +1200,7 @@ Rules:
             'max_output_tokens' => 64,
             'enable_search' => false,
             'system' => $system,
-            'model' => 'grok-4-fast-reasoning',
+            'model' => 'grok-4-1-fast-reasoning',
         ]);
 
         if (!is_array($resp) || empty($resp['text'])) return 'non-education';

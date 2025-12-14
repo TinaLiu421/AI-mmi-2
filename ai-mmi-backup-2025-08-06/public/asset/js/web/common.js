@@ -862,7 +862,7 @@ function iweb_global_func() {
                     ? (_current_member.type == 1 ? "upload/member_avatar/" : "upload/member_logo/") + _current_member.avatar
                     : "asset/image/icon-member.png",
                 name: (_current_member && _current_member.name) ? _current_member.name : "You",
-                text: escapeHtml(userQuestion),
+                text: userQuestion,
                 createdAtIso: new Date().toISOString(),
             });
             $("main.page-body div.chat-area div.box > div.show-message").append(userHtml);
@@ -1127,16 +1127,17 @@ function loadChatMessage(init) {
                 const isAi = (role === "reply");
                 // 历史数据也可能是 markdown/纯文本；AI 的消息转为安全 HTML，用户消息保留纯文本
                 let textForBubble;
+                const contentRaw = value.content_raw || value.content || "";
                 if (isAi) {
-                if (value.content_html) {
-                    textForBubble = DOMPurify.sanitize(String(value.content_html));
+                    if (value.content_html) {
+                        textForBubble = DOMPurify.sanitize(String(value.content_html));
+                    } else {
+                        const md = contentRaw;
+                        const mdDecorated = decorateMarkdownWithEmojis(md);
+                        textForBubble = mdToSafeHtml(mdDecorated);
+                    }
                 } else {
-                    const md = value.content || "";
-                    const mdDecorated = decorateMarkdownWithEmojis(md);
-                    textForBubble = mdToSafeHtml(mdDecorated);
-                }
-                } else {
-                textForBubble = value.content || "";
+                    textForBubble = contentRaw;
                 }
 
                 const bubbleHtml = renderBubble({

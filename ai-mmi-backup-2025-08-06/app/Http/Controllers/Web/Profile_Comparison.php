@@ -36,7 +36,7 @@ class Profile_Comparison extends WebController
         $prompt = $this->buildGeminiComparisonPromptFromChat($chatHistory);
 
         try {
-            $geminiResponse = $this->callGeminiForComparison($prompt);
+            $geminiResponse = $this->callComparisonProvider($prompt);
 
             $this->pageResult([
                 'status' => 200,
@@ -44,9 +44,9 @@ class Profile_Comparison extends WebController
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Gemini comparison failed', [
+            \Log::error('Visa comparison generation failed', [
                 'error' => $e->getMessage(),
-                'member_id' => $this->_current_member['id']
+                'member_id' => $this->_current_member['id'] ?? null
             ]);
 
             $this->pageResult([
@@ -420,9 +420,41 @@ Before returning your JSON response, verify that EVERY requirement meets these s
 - ❌ "Character requirements need to be met" → ✅ "Police Clearance Certificate from all countries where lived 6+ months"
 PROMPT;
     }
+
+    protected function callComparisonProvider($prompt)
+    {
+        $lastError = null;
+
+        if (!empty(env('GEMINI_API_KEY'))) {
+            try {
+                return $this->callGeminiForComparison($prompt);
+            } catch (\Exception $e) {
+                $lastError = $e;
+                \Log::warning('Gemini comparison failed, fallback to xAI', [
+                    'error' => $e->getMessage(),
+                    'member_id' => $this->_current_member['id'] ?? null
+                ]);
+            }
+        }
+
+        if (!empty(env('XAI_API_KEY'))) {
+            return $this->callXaiForComparison($prompt);
+        }
+
+        if ($lastError) {
+            throw $lastError;
+        }
+
+        throw new \Exception('No AI provider configured (missing GEMINI_API_KEY and XAI_API_KEY)');
+    }
+
     protected function callGeminiForComparison($prompt)
     {
         $apiKey = env('GEMINI_API_KEY');
+        if (empty($apiKey)) {
+            throw new \Exception('GEMINI_API_KEY is not configured');
+        }
+
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' . $apiKey;
 
         $data = [
@@ -479,6 +511,121 @@ PROMPT;
         $comparisonData = $this->validateAndRecalculateScores($comparisonData);
 
         return $comparisonData;
+    }
+
+    protected function callXaiForComparison($prompt)
+    {
+        $apiKey = env('XAI_API_KEY');
+        if (empty($apiKey)) {
+            throw new \Exception('XAI_API_KEY is not configured');
+        }
+
+        $url = rtrim(env('XAI_API_BASE', 'https://api.x.ai'), '/') . '/v1/responses';
+        $timeout = (int)env('XAI_TIMEOUT', 60);
+        $connectTimeout = 15;
+
+        $payload = [
+            'model' => env('XAI_MODEL', 'grok-4-1-fast-reasoning'),
+            'input' => [
+                [
+                    'role' => 'system',
+                    'content' => [[
+                        'type' => 'input_text',
+                        'text' => 'You are a visa eligibility expert. Reply with ONLY raw JSON that matches the provided schema. Do not include markdown, code fences, or commentary.'
+                    ]]
+                ],
+                [
+                    'role' => 'user',
+                    'content' => [[
+                        'type' => 'input_text',
+                        'text' => $prompt
+                    ]]
+                ]
+            ],
+            'temperature' => 0.3,
+            'max_output_tokens' => 4096
+        ];
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $apiKey,
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlError) {
+            throw new \Exception('xAI request failed: ' . $curlError);
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            throw new \Exception('xAI API returned error: ' . $response);
+        }
+
+        $result = json_decode($response, true);
+        $xaiText = $this->extractXaiText($result);
+
+        if (empty($xaiText)) {
+            throw new \Exception('Empty response from xAI');
+        }
+
+        $jsonMatch = [];
+        if (preg_match('/```json\\s*(\\{.*?\\})\\s*```/s', $xaiText, $jsonMatch)) {
+            $xaiText = $jsonMatch[1];
+        }
+
+        $comparisonData = json_decode($xaiText, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('Invalid JSON from xAI: ' . json_last_error_msg());
+        }
+
+        $comparisonData = $this->filterGenericExceptions($comparisonData);
+        $comparisonData = $this->validateAndRecalculateScores($comparisonData);
+
+        return $comparisonData;
+    }
+
+    protected function extractXaiText($data): string
+    {
+        if (is_array($data)) {
+            if (!empty($data['output_text']) && is_string($data['output_text'])) {
+                return trim($data['output_text']);
+            }
+
+            if (!empty($data['output']) && is_array($data['output'])) {
+                $chunks = [];
+                foreach ($data['output'] as $block) {
+                    if (empty($block['content']) || !is_array($block['content'])) {
+                        continue;
+                    }
+                    foreach ($block['content'] as $segment) {
+                        if (($segment['type'] ?? '') === 'output_text') {
+                            $text = trim((string)($segment['text'] ?? ''));
+                            if ($text !== '') {
+                                $chunks[] = $text;
+                            }
+                        }
+                    }
+                }
+                if (!empty($chunks)) {
+                    return trim(implode("\n", $chunks));
+                }
+            }
+        }
+
+        return '';
     }
 
     protected function filterGenericExceptions($comparisonData)
