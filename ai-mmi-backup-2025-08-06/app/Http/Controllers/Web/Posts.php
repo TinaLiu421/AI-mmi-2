@@ -76,7 +76,7 @@ Rules:
             $x = $this->callXaiResponses($question, [
                 'temperature'        => 0.2,
                 'max_output_tokens'  => 600,
-                'model'              => 'grok-4-fast-reasoning',
+                'model'              => 'grok-4-1-fast-reasoning',
                 'enable_search'      => true,
                 'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                 'vector_store_ids'   => [],
