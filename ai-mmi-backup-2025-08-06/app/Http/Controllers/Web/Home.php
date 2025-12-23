@@ -303,7 +303,7 @@ Rules:
                 }
             }
 
-            // ❸ 纯模型
+            // ❸ 纯模型 Pure model
             if ($reply === '' && !$isFromQa) {
                 $x = $this->callXaiResponses($rawQuestion, [
                     'temperature' => 0.2,
