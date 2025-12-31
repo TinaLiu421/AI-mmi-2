@@ -1088,6 +1088,113 @@ Rules:
         return response()->json(['status'=>200,'message'=>'xAI thread reset']);
     }
 
+    public function chatStream()
+    {
+        $question = request()->input('question', '');
+
+        // Use a StreamedResponse so Laravel can handle streaming properly.
+        return response()->stream(function() use ($question) {
+            // Disable buffers and ensure immediate flush inside the stream.
+            @ini_set('zlib.output_compression', 'Off');
+            @ini_set('implicit_flush', 1);
+            while (ob_get_level()) { @ob_end_flush(); }
+            @ob_implicit_flush(true);
+            ignore_user_abort(true);
+            set_time_limit(0);
+
+            // Basic validations
+            if (trim($question) === '') {
+                echo "data: " . json_encode(['error' => 'Empty question']) . "\n\n";
+                flush();
+                return;
+            }
+
+            $apiKey = env('XAI_API_KEY');
+            if (!$apiKey) {
+                echo "data: " . json_encode(['error' => 'API key missing']) . "\n\n";
+                flush();
+                return;
+            }
+
+            // Apply same validations as regular chat()
+            $member = $this->_current_member;
+            $guestId = $this->getMyCookie('guest_id');
+
+            if (empty($member)) {
+                $guestAskCount = \DB::table('chat_log')
+                    ->whereNull('member_id')
+                    ->where('guest_id', $guestId)
+                    ->where('type', 'ask')
+                    ->count();
+
+                if ($guestAskCount >= 3) {
+                    echo "data: " . json_encode(['content' => 'Looks like you\'ve used up your free questions. Please register or log in.']) . "\n\n";
+                    echo "data: [DONE]\n\n";
+                    flush();
+                    return;
+                }
+            }
+
+            // Prepare payload for upstream streaming API
+            $systemPrompt = "You are AI-mmi..."; // use the same system prompt as chat()
+
+            $payload = [
+                'model' => env('XAI_MODEL', 'grok-4-1-fast-reasoning'),
+                'messages' => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user', 'content' => $question]
+                ],
+                'stream' => true,
+                'temperature' => 0.2,
+                'max_tokens' => 2048,
+            ];
+
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => 'https://api.x.ai/v1/chat/completions',
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                    'Accept: text/event-stream',
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+                CURLOPT_WRITEFUNCTION => function($ch, $data) {
+                    $lines = preg_split('/\r\n|\n|\r/', $data);
+                    foreach ($lines as $line) {
+                        if ($line === '') continue;
+                        if (strpos($line, 'data:') === 0) {
+                            echo $line . "\n";
+                        } else {
+                            echo 'data: ' . $line . "\n";
+                        }
+                    }
+                    echo "\n";
+                    if (function_exists('ob_flush')) @ob_flush();
+                    @flush();
+                    return strlen($data);
+                },
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_BUFFERSIZE => 4096,
+                CURLOPT_FORBID_REUSE => false,
+                CURLOPT_TCP_KEEPALIVE => 1,
+            ]);
+
+            curl_exec($ch);
+            if (curl_errno($ch)) {
+                echo "data: " . json_encode(['error' => curl_error($ch)]) . "\n\n";
+                flush();
+            }
+            curl_close($ch);
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+            'Connection' => 'keep-alive',
+        ]);
+    }
+
     private function buildLimitReply(string $question): string
     {
         // 专门的 system prompt：只生成限制提示，不回答问题

@@ -215,6 +215,146 @@ function buildTimeLineHtml(text) {
     return '<div class="time">' + text + "</div>";
 }
 
+// Streaming function
+function streamResponse(question, bubbleId) {
+    const $bubble = $('#' + bubbleId);
+    const $text = $bubble.find('.txt');
+    let fullText = '';
+    
+    // Use POST with FormData
+    const formData = new FormData();
+    formData.append('question', question);
+    formData.append('_token', _token);
+
+    // Ensure CSRF token is fresh before attempting the streaming POST.
+    // If the token has expired (server returns 408/419) the page may have a
+    // newer token embedded in the HTML meta tag. We fetch the page (same-origin)
+    // and extract the meta tag to update `_token` and `csrfToken`.
+    function ensureFreshCsrf() {
+        return new Promise((resolve) => {
+            try {
+                // If _token exists and looks non-empty, assume it's fine.
+                if (typeof _token !== 'undefined' && String(_token).trim().length > 8) {
+                    return resolve();
+                }
+            } catch (e) {
+                // fallthrough
+            }
+
+            fetch(window.location.href, { method: 'GET', credentials: 'same-origin', cache: 'no-store' })
+                .then(res => res.text())
+                .then(html => {
+                    try {
+                        const doc = new DOMParser().parseFromString(html, 'text/html');
+                        const meta = doc.querySelector('meta[name="csrf-token"]');
+                        const token = meta && meta.getAttribute('content');
+                        if (token) {
+                            // update globals used elsewhere
+                            _token = token;
+                            csrfToken = token;
+                            // update meta tag in current document too
+                            const existing = document.querySelector('meta[name="csrf-token"]');
+                            if (existing) existing.setAttribute('content', token);
+                            resolve();
+                            return;
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                    resolve();
+                })
+                .catch(() => resolve());
+        });
+    }
+    
+    // Use POST with FormData to the streaming endpoint at the site root.
+    // Refresh CSRF if needed, then call streaming POST
+    ensureFreshCsrf().then(() => {
+        // update form token after refresh (if it changed)
+        try { formData.set('_token', _token); } catch (e) {}
+
+        fetch('/chat/stream', {
+            method: 'POST',
+            body: formData,
+            // ensure cookies/session are sent
+            credentials: 'same-origin',
+            // keep connection open for streaming
+            cache: 'no-store'
+        })
+        .then(response => {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            function read() {
+                reader.read().then(({done, value}) => {
+                    if (done) {
+                        // Process any remaining buffer
+                        if (buffer.length) processChunk('\n');
+                        $bubble.removeClass('streaming');
+                        return;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Process complete lines, keep the last partial line in buffer
+                    let lastNewline = buffer.lastIndexOf('\n');
+                    if (lastNewline !== -1) {
+                        const chunk = buffer.slice(0, lastNewline + 1);
+                        buffer = buffer.slice(lastNewline + 1);
+                        processChunk(chunk);
+                    }
+
+                    read();
+                }).catch(err => {
+                    console.error('Read error', err);
+                    $bubble.removeClass('streaming');
+                });
+            }
+
+            function processChunk(chunk) {
+                const lines = chunk.split(/\r\n|\n|\r/);
+
+                lines.forEach(line => {
+                    line = line.trim();
+                    if (!line) return;
+
+                    if (line.startsWith('data:') && !line.includes('[DONE]')) {
+                        // Allow both 'data:' and 'data: '
+                        const dataStr = line.replace(/^data:\s*/,'');
+                        try {
+                            const data = JSON.parse(dataStr);
+
+                            if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                                fullText += data.choices[0].delta.content;
+
+                                // Update display
+                                const decorated = decorateMarkdownWithEmojis(fullText);
+                                const safeHtml = mdToSafeHtml(decorated);
+                                $text.html(safeHtml);
+
+                                // Scroll
+                                scrollChatToBottom();
+                            }
+                        } catch(e) {
+                            // Skip parse errors
+                        }
+                    }
+                });
+            }
+
+            read();
+        })
+        .catch(error => {
+            console.error('Stream error:', error);
+            $text.html('<span style="color: orange;">Streaming failed. Please try again.</span>');
+        });
+
+    });
+
+}
+
+
 function iweb_global_func() {
     // Welcome message is now handled by welcome_message.js
     $(document).on(
@@ -854,9 +994,8 @@ function iweb_global_func() {
 
             // ---- 保留 textarea 的 name 即可，无需隐藏字段 ----
 
-            // —— 显示用户气泡、thinking 动画（保持你原来的写法）——
-            window.__lastUserQuestion = userQuestion;
-            var userHtml = renderBubble({ /* 你的原参数：role/avatar/name/text/time */ 
+            // Show user bubble
+            const userHtml = renderBubble({ 
                 role: "ask",
                 avatar: _current_member && _current_member.avatar
                     ? (_current_member.type == 1 ? "upload/member_avatar/" : "upload/member_logo/") + _current_member.avatar
@@ -867,78 +1006,34 @@ function iweb_global_func() {
             });
             $("main.page-body div.chat-area div.box > div.show-message").append(userHtml);
 
-            var thinkingIndicator =
-                '<div class="dialog reply thinking-indicator">' +
-                '<div class="avatar"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>' +
-                '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
-                '</div><div class="clearboth"></div>';
-            $("main.page-body div.chat-area div.box > div.show-message").append(thinkingIndicator);
-            scrollChatToBottom();
-
-            // UI：清空输入框&占位
-            $ta.val("").attr("placeholder","Thinking...");
-
-            /*
-             * RAG 拦截逻辑已停用，直接走原有表单提交流程。
-             */
-            return true;
+            // Create AI bubble
+            const bubbleId = 'ai-' + Date.now();
+            const aiHtml = `
+                <div class="dialog reply" id="${bubbleId}">
+                    <div class="avatar"><div style="background-image:url('/asset/image/logo-mmi.png')"></div></div>
+                    <div class="name">AI-mmi</div>
+                    <div class="time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    <div class="clearboth"></div>
+                    <div class="txt chat-markdown"></div>
+                </div>
+                <div class="clearboth"></div>
+            `;
+            $("main.page-body div.chat-area div.box > div.show-message").append(aiHtml);
+            
+            // Start streaming
+            streamResponse(userQuestion, bubbleId);
+            
+            // Clear input
+            $ta.val("").attr("placeholder", "AI is responding...");
+            
+            return false; // Prevent normal form submission
         },
-
-            // —— ❹：successFn（第二个回调）保持你原来的实现不变 —— 
-            function (response_data) {
-                // 这部分用你原来的渲染逻辑：移除 thinking、显示回复、FA 引导、顶部按钮等
-                $(".thinking-indicator").remove();
-
-                // 提交完成后，务必把 textarea 的 name 还原（为下一轮做准备）
-                const $ta = $("#ask_question");
-                const n = $ta.attr("data-old-name");
-                if (n) $ta.attr("name", n).removeAttr("data-old-name");
-
-                if (iweb.isMatch(response_data.status, 200)) {
-                    if (iweb.isValue(response_data.reply) || iweb.isValue(response_data.answer_html) || iweb.isValue(response_data.answer_markdown)) {
-                        // 优先后端提供的 HTML；否则把 Markdown/纯文本转为安全 HTML
-                        const md = response_data.answer_markdown || response_data.reply || "";
-                        const mdDecorated = decorateMarkdownWithEmojis(md);
-                        const safeHtml = response_data.answer_html
-                        ? DOMPurify.sanitize(String(response_data.answer_html))
-                        : mdToSafeHtml(mdDecorated);
-
-                        const replyHtml = renderBubble({
-                        role: "reply",
-                        avatar: response_data.ai_owner_avatar || "asset/image/logo-mmi.png",
-                        name: response_data.ai_owner_name || "AI-mmi",
-                        text: safeHtml,
-                        createdAtIso: response_data.reply_created_at || new Date().toISOString(),
-                        isHtml: true,
-                    });
-                    $(
-                        "main.page-body div.chat-area div.box > div.show-message"
-                    ).append(replyHtml);
-
-                       // Show flow prompt if available
-                    if (response_data.flow_prompt) {
-                        $("main.page-body div.chat-area div.box > div.show-message").append(
-                            `<div class="dialog reply"><div class="txt chat-markdown">${
-                            mdToSafeHtml(response_data.flow_prompt)
-                            }</div></div><div class="clearboth"></div>`
-                        );
-                    }
-                  
-                        scrollChatToBottom();
-                    }
-                    $("#ask_question").attr("placeholder", "Ask about study, visa, migration or life overseas...");
-                    // RAG 字段已停用
-                    
-                } else {
-                    iweb.alert(response_data.message, function () {
-                        if (iweb.isValue(response_data.url)) {
-                            window.location.href = response_data.url;
-                    }
-                });
-                }
-            }
-        );
-    }
+        // successFn (fallback)
+        function (response_data) {
+            $("#ask_question").attr("placeholder", "Ask about study, visa...");
+        }
+    );
+}
 
 function iweb_global_func_done() {
     // load full article content

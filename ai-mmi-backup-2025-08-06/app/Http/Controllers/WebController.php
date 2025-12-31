@@ -11,7 +11,12 @@ class WebController extends CoreController {
 
     public function __construct(array $data = []) {
         parent::__construct($data);
-        $this->initialize();
+        // Only initialize when mapping data is present. During container
+        // instantiation (artisan commands, route:list, etc.) the parent
+        // constructor may have been called with empty mapping data.
+        if (!empty($this->_mapping_data) && is_array($this->_mapping_data)) {
+            $this->initialize();
+        }
       
     }
 
