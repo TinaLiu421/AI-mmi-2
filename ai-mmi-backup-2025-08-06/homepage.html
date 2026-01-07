@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <base href="http://127.0.0.1:8000/">
+        <title>AI-mmi</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <link href="asset/image/logo-mmi.png" rel="icon" type="image/x-icon">
+    
+                <meta name="csrf-token" content="95928940f898aca8dac22d92b36d21be">
+                <meta name="description" content="">
+        
+        <meta property="og:title" content="AI-mmi">
+        <meta property="og:description" content="">
+                <meta property="og:url" content="http://127.0.0.1:8000/en">
+        <meta property="og:type" content="website">
+        
+                <link href="http://127.0.0.1:8000/en" rel="alternate" hreflang="en">
+                <link href="http://127.0.0.1:8000/zh-hant" rel="alternate" hreflang="zh-hant">
+                <link href="http://127.0.0.1:8000/zh-hans" rel="alternate" hreflang="zh-hans">
+                
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+        <link href="/asset/lib/icon/css/font-awesome.min.css" rel="stylesheet" type="text/css"/>
+        <link href="asset/lib/base/iweb.min.css" rel="stylesheet" type="text/css">
+                <link href="asset/lib/slider/slick.min.css?v=20251231" rel="stylesheet" type="text/css">
+                <link href="asset/css/web/common.css?v=20251231" rel="stylesheet" type="text/css">
+                <link href="asset/css/web/home.css?v=20251231" rel="stylesheet" type="text/css">
+        
+        <script src="asset/lib/base/jquery.min.js" type="text/javascript"></script>
+        <script src="asset/lib/base/iweb.min.js" type="text/javascript"></script>
+        <script type="text/javascript">
+        const _page_global_lang = JSON.parse('{"confirm_delete_all":"Are you sure want to delete the selected items?","confirm_delete_one":"Are you sure want to delete this item?","confirm_void_all":"Are you sure want to void the selected items?","confirm_void_one":"Are you sure want to void this item?","title":"Title","sub_title":"Sub Title","content":"Content","use_crop":"Cropped","use_crop_no":"No","use_crop_yes":"Yes","url":"Link","extra_1":"Extra 1","extra_2":"Extra 2","revised_coordinates":"Revised Coordinates","save":"Save"}');
+        const _page_base_url = 'http://127.0.0.1:8000/en';
+        const _token = 'PKrHXIXZkCWiUORn7wm26KE1WUaYqJz10JKp5F5W';
+        const _current_member = null;
+        </script>
+                <script src="asset/lib/slider/slick.min.js?v=20251231" type="text/javascript"></script>
+                <script src="asset/js/web/common.js?v=20251231" type="text/javascript"></script>
+                <script src="asset/js/web/home.js?v=20251231" type="text/javascript"></script>
+                <!-- Welcome message module (must load before common.js) -->
+        <link href="asset/css/web/welcome_message.css?v=20251231" rel="stylesheet" type="text/css">
+        <script src="asset/js/web/welcome_message.js?v=20251231" type="text/javascript"></script>
+        <!-- Conversation flow styles -->
+        <link href="asset/css/web/conversation_flow.css?v=20251231" rel="stylesheet" type="text/css">
+        <!-- Document Upload styles -->
+        <link href="asset/css/web/document-upload.css?v=20251231" rel="stylesheet" type="text/css">
+
+        <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+        <script src="asset/js/web/common.js?v=20251231" type="text/javascript"></script>
+
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16657487633"></script>
+        <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'AW-16657487633');
+        </script>
+    </head>
+    <body>
+                <header class="page-header">
+            <div>
+                <a class="logo" href="http://127.0.0.1:8000/en">
+                    <img src="asset/image/logo.png" alt="logo">
+                </a>
+
+                <div class="controls">
+                     <div class="service_provider_info">
+                        <a href="http://127.0.0.1:8000/en/service_provider_info">
+                            <img src="asset/image/service_provider.png" alt="icon-service-provider"/>
+                            <span>Service Provider</span>
+                        </a>
+                    </div>
+                    <div class="lang">
+                        <a>
+                            <img src="asset/image/icon-lang.png" alt="icon-lang"/>
+                            <span>Eng</span>
+                        </a>
+                        <div class="options header-dropdown">
+                                                        <a href="http://127.0.0.1:8000/en">
+                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAt1BMVEWSmb66z+18msdig8La3u+tYX9IaLc7W7BagbmcUW+kqMr/q6n+//+hsNv/lIr/jIGMnNLJyOP9/fyQttT/wb3/////aWn+YWF5kNT0oqz0i4ueqtIZNJjhvt/8gn//WVr/6+rN1+o9RKZwgcMPJpX/VFT9UEn+RUX8Ozv2Ly+FGzdYZrfU1e/8LS/lQkG/mbVUX60AE231hHtcdMb0mp3qYFTFwNu3w9prcqSURGNDaaIUMX5FNW5wYt7AAAAAjklEQVR4AR3HNUJEMQCGwf+L8RR36ajR+1+CEuvRdd8kK9MNAiRQNgJmVDAt1yM6kSzYVJUsPNssAk5N7ZFKjVNFAY4co6TAOI+kyQm+LFUEBEKKzuWUNB7rSH/rSnvOulOGk+QlXTBqMIrfYX4tSe2nP3iRa/KNK7uTmWJ5a9+erZ3d+18od4ytiZdvZyuKWy8o3UpTVAAAAABJRU5ErkJggg==" alt="English" width="16" height="11" style="width: 16px; height: 11px;">
+                                <span>English</span>
+                            </a>
+                                                        
+                                                        <a href="http://127.0.0.1:8000/zh-hant">
+                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAS1BMVEXqAADjAADZAAD2e3v0dXXzbGzyYWHxWFjyUlLuSkrQAAD5jY76m5zsPz/qNTXnKir56en6w8PmGxvKAAD5z9D6qqvjDw/32dnCAADqlhvuAAAAYElEQVR4AQXBUU6DUBRAwTm8SwqJ+9+m8cva0uBMgBBkkUiqYSWrkpeNxL6/76w5R/L1WZ9jXoONqvs5fWeyrGWux9i3Na5ji3Ftfv/uIZtG+8/78TxA7Skj4qxwcNrBPxiAEpMq30QZAAAAAElFTkSuQmCC" alt="繁體中文" width="16" height="11" style="width: 16px; height: 11px;">
+                                <span>繁體中文</span>
+                            </a>
+                            
+                                                        <a href="http://127.0.0.1:8000/zh-hans">
+                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAXVBMVEXUAADlQgDLAADBAADtgXn63Xjypnf1wHHpcG/oZmbmXVzlU1PjS0q1AAD981775VvwnVD2zkvhPz/fNzfdMjHcKyvaJyfsi0baISHYGhqqAADWExPTDQ2jAACfAAApGpDBAAAAWklEQVR4ATXIhQHDQBTDUMll2n/RMiU5/vQsAE4EsPbaKVOU+pXNwc/WKQXeDZMKu+psCXw/Z7efarmENd6GIwGpXhUvM4spxoiEbouRNT7Fmtaq+RG4wAqZZvceD8DeIelqAAAAAElFTkSuQmCC" alt="简体中文" width="16" height="11" style="width: 16px; height: 11px;">
+                                <span>简体中文</span>
+                            </a>
+                                                    </div>
+                    </div>
+                    
+                                        <div class="member">
+                        <a href="http://127.0.0.1:8000/en/account_login">
+                            <img src="asset/image/icon-member1.png" alt="icon-member"/>
+                            <span>Sign In</span>
+                        </a>
+                    </div>
+                                        <div class="menu">
+                        <a class="open-menu show"><img src="asset/image/icon-menu.png" alt="icon-menu"/></a>
+                        <a class="close-menu"><img src="asset/image/icon-close.png" alt="icon-close"/></a>
+                        <ul class="header-dropdown">
+                                                        <li>
+                                <a href="#" class="parent-node">Countries</a>
+                                <ol>
+                                                                <li>
+                                    <a href="http://127.0.0.1:8000/en/visa_options/?country=4">
+                                        <img src="cache/a6714f8c7d36de5fcbb4693cafd6d60d.png">
+                                        <span>Australia</span>
+                                    </a>
+                                </li>
+                                                                <li>
+                                    <a href="http://127.0.0.1:8000/en/visa_options/?country=1">
+                                        <img src="cache/cb2e0a398b6727db6b7a1c3f2cd235ca.png">
+                                        <span>Britain</span>
+                                    </a>
+                                </li>
+                                                                <li>
+                                    <a href="http://127.0.0.1:8000/en/visa_options/?country=3">
+                                        <img src="cache/2d70187193d3efa62f3e90854528ebd6.png">
+                                        <span>Canada</span>
+                                    </a>
+                                </li>
+                                                                <li>
+                                    <a href="http://127.0.0.1:8000/en/visa_options/?country=2">
+                                        <img src="cache/267fb96d22c8e7882417180c5f82870d.png">
+                                        <span>United States</span>
+                                    </a>
+                                </li>
+                                                                </ol>
+                            </li>
+                                                        <li>
+                                <a href="http://127.0.0.1:8000/en/forum">Forum</a>
+                            </li>
+                            <li>
+                                <a href="http://127.0.0.1:8000/en/about_us">About Us</a>
+                            </li>
+                                                        <li>
+                                <a href="http://127.0.0.1:8000/en/account_login">Sign In</a>
+                            </li>
+                                                    </ul>
+                    </div>
+                </div>
+            </div>
+        </header>
+         
+        <main class="page-body">
+            <div class="page-content home">
+                <div class="info-area">
+                    <div class="banner">
+    <div class="desktop">
+            </div>
+    <div class="mobile">
+            </div>
+    <div class="country">
+        
+    </div>
+</div>
+
+<div class="inner-panel">
+        <div class="news-event">
+        <div id="hslider-news" class="hslider">
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/56">
+                    <div class="photo">
+                        <img src="cache/943e7883fb9dccc7ef8d0e5af28f4112.jpg" alt=""/>
+                                                <iframe src="https://www.youtube.com/embed/lOWS65bdu2k"></iframe>
+                                            </div>
+                    <div class="title">
+                        Move for the Better! Australia is Calling                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/49">
+                    <div class="photo">
+                        <img src="cache/aa1a748d70b5a5c59495b8256f04d1c1.jpeg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Australia's Working Holiday Visa (WHV) is set to receive more favorable policies                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/46">
+                    <div class="photo">
+                        <img src="cache/caa09c42882b0b2d8cbea69bd525e310.jpeg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Canada's August Immigration Policy Update Presents New Challenges for Hong Kongers🇨🇦🇭🇰                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/43">
+                    <div class="photo">
+                        <img src="cache/97ac704547b43c5042811ea435407968.jpeg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Canadian Study Abroad Trends: Colleges Gain Popularity!                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/36">
+                    <div class="photo">
+                        <img src="cache/efa00f4d79c611d2e5f824b7e306560c.jpeg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Australia Tightens Student Visa Rules, Doubles Visa Fees                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/33">
+                    <div class="photo">
+                        <img src="cache/6c31ab54643651199b407e4d32601ec8.jpeg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Top 10 Most Desired Countries to Immigrate to                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/22">
+                    <div class="photo">
+                        <img src="cache/c3b2c7b32a67d683f6b2d010dfa6418e.jpg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Australia tightens student visa rules                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/25">
+                    <div class="photo">
+                        <img src="cache/1a15fd49e31decb1a46cc4f2e790d930.jpg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Canada caps student permits in 2024                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/26">
+                    <div class="photo">
+                        <img src="cache/49207881b301c2fa551cd424839a46f5.jpg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Top University Rankings 2025                    </div>
+                </a>
+            </div>
+                        <div>
+                <a class="link" href="http://127.0.0.1:8000/en/posts/details/21">
+                    <div class="photo">
+                        <img src="cache/5687b67293505c25db5e0a3c2e72efdf.jpg" alt=""/>
+                                            </div>
+                    <div class="title">
+                        Australia cuts migration by half                    </div>
+                </a>
+            </div>
+                    </div>
+    </div>
+        
+        
+    <div class="article-list" data-mid="0"></div>
+</div>
+                </div>
+                <div class="chat-area">
+
+                    <div>
+                        <div class="box">
+                            <a class="btn-close-mobile">
+                                <img src="asset/image/icon-close.png" alt="icon-close"/>
+                            </a>
+
+                            <!-- Chat Action Buttons -->
+                            <div class="chat-action-buttons" style="display: none">
+                                <a href="/agents" class="chat-action-btn" title="Talk to Agent">
+                                    <i class="fa fa-user"></i><span>Talk to Agent</span>
+                                </a>
+                                <a href="/upgrade" class="chat-action-btn" title="Upgrade Plan">
+                                    <i class="fa fa-star"></i><span>Upgrade</span>
+                                </a>
+                                <!-- Profile Comparison Button -->
+                                <a href="/profile_comparison" id="profile-comparison-action-btn" class="chat-action-btn" title="My Profile & Visa Options">
+                                    <i class="fa fa-percent"></i><span>My Eligibility</span>
+                                </a>
+                            </div>
+
+                            <div class="show-message">
+                                <!-- Welcome Message Component -->
+                                <div class="welcome-message">
+    <div class="welcome-message__video-container">
+        <div class="welcome-message__video-wrapper">
+            <video id="welcome-robot-video" autoplay loop muted playsinline>
+                <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
+            </video>
+            <a id="welcome-sound-control" href="javascript:void(0);" title="Click to unmute">
+                <i class="fa fa-microphone-slash"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="welcome-message__transcript">
+        <div class="welcome-message__transcript-line"></div>
+    </div>
+
+    <div class="welcome-message__footer">
+        AI-powered Migration & Study Support - With Instant Access to Human Expert    </div>
+</div>
+                            </div>
+
+                            <form id="ask-form" method="post" action="http://127.0.0.1:8000/en/home/chat" data-showProcessing="0">
+                                <div><input type="hidden" name="_token" value="PKrHXIXZkCWiUORn7wm26KE1WUaYqJz10JKp5F5W"></div>
+                                <input type="hidden" id="question_number" name="question_number" value="1">
+                                <div class="input-question show">
+                                    <div class="robot-container">
+                                        <div class="robot">
+                                            <video id="chat-robot-video" autoplay loop muted playsinline>
+                                                <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
+                                            </video>
+                                            <a id="sound-control" href="javascript:void(0);">
+                                                <i class="fa fa-microphone"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="input-wrapper">
+                                        <input type="text" id="ask_question" name="question" placeholder="Ask about study, migration or life overseas..."/>
+                                        <div class="input-buttons-group">
+                                            <button type="button" id="doc-upload-btn" class="btn-document-upload" onclick="document.getElementById('doc-file-input').click();" title="Upload documents">
+                                                <img src="asset/image/upload.png" alt="upload">
+                                            </button>
+                                            <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+                                            <button type="submit" title="Send">
+                                                <img src="asset/image/icon-send.png" alt="icon-send"/>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="clearboth"></div>
+                    </div>
+                </div>
+                <div class="clearboth"></div>
+            </div>
+        </main>
+                <footer class="page-footer">
+            <div>
+                <a href="http://127.0.0.1:8000/en/privacy_statement">
+                    Terms of Use, Privacy & Cookie Policy                </a>
+                 |
+                <a href="http://127.0.0.1:8000/en/data_deletion">
+                    Data Deletion                </a>
+            </div>
+            <div>Copyright @ 2025. AI-mmi. All Rights Reserved</div>
+        </footer>
+        
+        <!-- Mobile Chat Button -->
+        <button class="mobile-chat-button">Chat with AI-mmi</button>
+        <div id="bottom-white-space" style="height:0px;"></div>
+        <!--  -->
+    <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+
+    <script>
+    // If the page is restored via “backward cache (bfcache)”, force a refresh once.
+    window.addEventListener('pageshow', function (e) {
+    const nav = performance.getEntriesByType('navigation')[0];
+    const isBFCache = e.persisted || (nav && nav.type === 'back_forward');
+    if (isBFCache) {
+        // Avoid infinite loops: Only refresh during the first recovery.
+        if (!window.__reloaded_after_bfcache__) {
+        window.__reloaded_after_bfcache__ = true;
+        location.reload(); // Hard refresh (fetch new page from server)
+        }
+    }
+    });
+    </script>
+
+    <!-- Document Upload Handler -->
+    <script src="asset/js/web/document-upload.js?v=20251231" type="text/javascript"></script>
+    </body>
+</html>
