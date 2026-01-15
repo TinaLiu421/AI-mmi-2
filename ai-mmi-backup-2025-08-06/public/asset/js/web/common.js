@@ -216,144 +216,98 @@ function buildTimeLineHtml(text) {
 }
 
 // Streaming function
+// Streaming function
 function streamResponse(question, bubbleId) {
     const $bubble = $('#' + bubbleId);
     const $text = $bubble.find('.txt');
     let fullText = '';
     
+    // === ADD THESE 2 LINES (your itoken generation) ===
+    const local_time = iweb.getDateTime(null, "time");
+    const itoken = window.btoa(md5(iweb.csrf_token + "#dt" + local_time) + "%" + local_time);
+    
     // Use POST with FormData
     const formData = new FormData();
     formData.append('question', question);
     formData.append('_token', _token);
-
-    // Ensure CSRF token is fresh before attempting the streaming POST.
-    // If the token has expired (server returns 408/419) the page may have a
-    // newer token embedded in the HTML meta tag. We fetch the page (same-origin)
-    // and extract the meta tag to update `_token` and `csrfToken`.
-    function ensureFreshCsrf() {
-        return new Promise((resolve) => {
-            try {
-                // If _token exists and looks non-empty, assume it's fine.
-                if (typeof _token !== 'undefined' && String(_token).trim().length > 8) {
-                    return resolve();
-                }
-            } catch (e) {
-                // fallthrough
-            }
-
-            fetch(window.location.href, { method: 'GET', credentials: 'same-origin', cache: 'no-store' })
-                .then(res => res.text())
-                .then(html => {
-                    try {
-                        const doc = new DOMParser().parseFromString(html, 'text/html');
-                        const meta = doc.querySelector('meta[name="csrf-token"]');
-                        const token = meta && meta.getAttribute('content');
-                        if (token) {
-                            // update globals used elsewhere
-                            _token = token;
-                            csrfToken = token;
-                            // update meta tag in current document too
-                            const existing = document.querySelector('meta[name="csrf-token"]');
-                            if (existing) existing.setAttribute('content', token);
-                            resolve();
-                            return;
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-                    resolve();
-                })
-                .catch(() => resolve());
-        });
-    }
+    formData.append('itoken', itoken); // ← ADD THIS LINE
     
-    // Use POST with FormData to the streaming endpoint at the site root.
-    // Refresh CSRF if needed, then call streaming POST
-    ensureFreshCsrf().then(() => {
-        // update form token after refresh (if it changed)
-        try { formData.set('_token', _token); } catch (e) {}
+    // ... REST OF YOUR EXISTING CODE STAYS EXACTLY THE SAME ...
+    fetch('/chat/stream', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+        cache: 'no-store'
+    })
+    .then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-        fetch('/chat/stream', {
-            method: 'POST',
-            body: formData,
-            // ensure cookies/session are sent
-            credentials: 'same-origin',
-            // keep connection open for streaming
-            cache: 'no-store'
-        })
-        .then(response => {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            function read() {
-                reader.read().then(({done, value}) => {
-                    if (done) {
-                        // Process any remaining buffer
-                        if (buffer.length) processChunk('\n');
-                        $bubble.removeClass('streaming');
-                        return;
-                    }
-
-                    buffer += decoder.decode(value, { stream: true });
-
-                    // Process complete lines, keep the last partial line in buffer
-                    let lastNewline = buffer.lastIndexOf('\n');
-                    if (lastNewline !== -1) {
-                        const chunk = buffer.slice(0, lastNewline + 1);
-                        buffer = buffer.slice(lastNewline + 1);
-                        processChunk(chunk);
-                    }
-
-                    read();
-                }).catch(err => {
-                    console.error('Read error', err);
+        function read() {
+            reader.read().then(({done, value}) => {
+                if (done) {
+                    // Process any remaining buffer
+                    if (buffer.length) processChunk('\n');
                     $bubble.removeClass('streaming');
-                });
-            }
+                    return;
+                }
 
-            function processChunk(chunk) {
-                const lines = chunk.split(/\r\n|\n|\r/);
+                buffer += decoder.decode(value, { stream: true });
 
-                lines.forEach(line => {
-                    line = line.trim();
-                    if (!line) return;
+                // Process complete lines, keep the last partial line in buffer
+                let lastNewline = buffer.lastIndexOf('\n');
+                if (lastNewline !== -1) {
+                    const chunk = buffer.slice(0, lastNewline + 1);
+                    buffer = buffer.slice(lastNewline + 1);
+                    processChunk(chunk);
+                }
 
-                    if (line.startsWith('data:') && !line.includes('[DONE]')) {
-                        // Allow both 'data:' and 'data: '
-                        const dataStr = line.replace(/^data:\s*/,'');
-                        try {
-                            const data = JSON.parse(dataStr);
+                read();
+            }).catch(err => {
+                console.error('Read error', err);
+                $bubble.removeClass('streaming');
+            });
+        }
 
-                            if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
-                                fullText += data.choices[0].delta.content;
+        function processChunk(chunk) {
+            const lines = chunk.split(/\r\n|\n|\r/);
 
-                                // Update display
-                                const decorated = decorateMarkdownWithEmojis(fullText);
-                                const safeHtml = mdToSafeHtml(decorated);
-                                $text.html(safeHtml);
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return;
 
-                                // Scroll
-                                scrollChatToBottom();
-                            }
-                        } catch(e) {
-                            // Skip parse errors
+                if (line.startsWith('data:') && !line.includes('[DONE]')) {
+                    // Allow both 'data:' and 'data: '
+                    const dataStr = line.replace(/^data:\s*/,'');
+                    try {
+                        const data = JSON.parse(dataStr);
+
+                        if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                            fullText += data.choices[0].delta.content;
+
+                            // Update display
+                            const decorated = decorateMarkdownWithEmojis(fullText);
+                            const safeHtml = mdToSafeHtml(decorated);
+                            $text.html(safeHtml);
+
+                            // Scroll
+                            scrollChatToBottom();
                         }
+                    } catch(e) {
+                        // Skip parse errors
                     }
-                });
-            }
+                }
+            });
+        }
 
-            read();
-        })
-        .catch(error => {
-            console.error('Stream error:', error);
-            $text.html('<span style="color: orange;">Streaming failed. Please try again.</span>');
-        });
-
+        read();
+    })
+    .catch(error => {
+        console.error('Stream error:', error);
+        $text.html('<span style="color: orange;">Streaming failed. Please try again.</span>');
     });
-
 }
-
 
 function iweb_global_func() {
     // Welcome message is now handled by welcome_message.js
