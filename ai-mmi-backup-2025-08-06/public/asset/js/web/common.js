@@ -222,90 +222,103 @@ function streamResponse(question, bubbleId) {
     const $text = $bubble.find('.txt');
     let fullText = '';
     
-    // === ADD THESE 2 LINES (your itoken generation) ===
+    // === ADD THINKING INDICATOR ===
+    $text.html('<span class="thinking">Thinking<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>');
+    $bubble.addClass('streaming');
+    
+    // === USE YOUR EXISTING itoken GENERATION ===
     const local_time = iweb.getDateTime(null, "time");
     const itoken = window.btoa(md5(iweb.csrf_token + "#dt" + local_time) + "%" + local_time);
     
-    // Use POST with FormData
+    // === SAME FORM DATA AS REGULAR CHAT ===
     const formData = new FormData();
     formData.append('question', question);
-    formData.append('_token', _token);
-    formData.append('itoken', itoken); // ← ADD THIS LINE
+    formData.append('_token', csrfToken);
+    formData.append('itoken', itoken); // Your custom CSRF
     
-    // ... REST OF YOUR EXISTING CODE STAYS EXACTLY THE SAME ...
     fetch('/chat/stream', {
         method: 'POST',
         body: formData,
-        credentials: 'same-origin',
-        cache: 'no-store'
+        credentials: 'same-origin'
     })
     .then(response => {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-
+        
         function read() {
             reader.read().then(({done, value}) => {
                 if (done) {
-                    // Process any remaining buffer
-                    if (buffer.length) processChunk('\n');
                     $bubble.removeClass('streaming');
                     return;
                 }
-
+                
                 buffer += decoder.decode(value, { stream: true });
-
-                // Process complete lines, keep the last partial line in buffer
+                
+                // Process SSE lines
                 let lastNewline = buffer.lastIndexOf('\n');
                 if (lastNewline !== -1) {
                     const chunk = buffer.slice(0, lastNewline + 1);
                     buffer = buffer.slice(lastNewline + 1);
-                    processChunk(chunk);
+                    
+                    const lines = chunk.split('\n');
+                    lines.forEach(line => {
+                        line = line.trim();
+                        if (!line) return;
+                        
+                        if (line === 'data: [DONE]') {
+                            $bubble.removeClass('streaming');
+                            return;
+                        }
+                        
+                        if (line.startsWith('data:')) {
+                            const dataStr = line.substring(5).trim();
+                            try {
+                                const data = JSON.parse(dataStr);
+                                
+                                // Handle error from PHP
+                                if (data.error) {
+                                    $text.html(`<span style="color: red;">${data.error}</span>`);
+                                    return;
+                                }
+                                
+                                // Handle OpenAI-compatible format
+                                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                                    // === REMOVE THINKING INDICATOR WHEN FIRST TEXT ARRIVES ===
+                                    if ($text.find('.thinking').length) {
+                                        $text.empty();
+                                    }
+                                    
+                                    fullText += data.choices[0].delta.content;
+                                    
+                                    // === SAME RENDERING AS REGULAR CHAT ===
+                                    const decorated = decorateMarkdownWithEmojis(fullText);
+                                    const safeHtml = mdToSafeHtml(decorated);
+                                    $text.html(safeHtml);
+                                    
+                                    scrollChatToBottom();
+                                }
+                                
+                            } catch(e) {
+                                // Ignore parse errors
+                            }
+                        }
+                    });
                 }
-
+                
                 read();
             }).catch(err => {
-                console.error('Read error', err);
+                console.error('Stream error:', err);
                 $bubble.removeClass('streaming');
+                $text.html('<span style="color: orange;">Stream interrupted</span>');
             });
         }
-
-        function processChunk(chunk) {
-            const lines = chunk.split(/\r\n|\n|\r/);
-
-            lines.forEach(line => {
-                line = line.trim();
-                if (!line) return;
-
-                if (line.startsWith('data:') && !line.includes('[DONE]')) {
-                    // Allow both 'data:' and 'data: '
-                    const dataStr = line.replace(/^data:\s*/,'');
-                    try {
-                        const data = JSON.parse(dataStr);
-
-                        if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
-                            fullText += data.choices[0].delta.content;
-
-                            // Update display
-                            const decorated = decorateMarkdownWithEmojis(fullText);
-                            const safeHtml = mdToSafeHtml(decorated);
-                            $text.html(safeHtml);
-
-                            // Scroll
-                            scrollChatToBottom();
-                        }
-                    } catch(e) {
-                        // Skip parse errors
-                    }
-                }
-            });
-        }
-
+        
         read();
     })
     .catch(error => {
-        console.error('Stream error:', error);
-        $text.html('<span style="color: orange;">Streaming failed. Please try again.</span>');
+        console.error('Fetch error:', error);
+        $text.html('<span style="color: orange;">Connection failed. Please try again.</span>');
     });
 }
 
