@@ -522,7 +522,7 @@ class StripeWebhookController extends Controller
                 );
             }
 
-            $apiKey = env('SENDGRID_API_KEY', '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');
+            $apiKey = getenv('SENDGRID_API_KEY');
             if (empty($apiKey)) {
                 Log::error('SendGrid API key missing; cannot deliver course application email');
                 return;

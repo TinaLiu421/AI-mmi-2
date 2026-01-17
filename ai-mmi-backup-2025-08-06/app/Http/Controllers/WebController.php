@@ -99,7 +99,9 @@ class WebController extends CoreController {
                 $html
             );
 
-            $sendgrid = new \SendGrid('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');
+            $apiKey = getenv('SENDGRID_API_KEY');
+            
+            $sendgrid = new \SendGrid($apiKey);
             try {
                 if($sendgrid->send($email)) {
                     return true;
