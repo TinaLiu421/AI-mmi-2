@@ -987,6 +987,9 @@ function iweb_global_func() {
             `;
             $("main.page-body div.chat-area div.box > div.show-message").append(aiHtml);
             
+            // Scroll to bottom when new bubbles are added
+            scrollChatToBottom();
+
             // Start streaming
             streamResponse(userQuestion, bubbleId);
             
