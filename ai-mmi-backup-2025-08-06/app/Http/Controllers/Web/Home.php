@@ -1088,277 +1088,407 @@ Rules:
         return response()->json(['status'=>200,'message'=>'xAI thread reset']);
     }
 
-    private function buildLimitReply(string $question): string
-    {
-        // 专门的 system prompt：只生成限制提示，不回答问题
-        $system = "
-    You are AI-mmi.
+    public function chatStream()
+{
+    $question = request()->input('question', '');
 
-    The user has reached their free Q&A limit.
-    Your task:
+    // Use a StreamedResponse so Laravel can handle streaming properly.
+    return response()->stream(function() use ($question) {
+        // Disable buffers and ensure immediate flush inside the stream.
+        @ini_set('zlib.output_compression', 'Off');
+        @ini_set('implicit_flush', 1);
+        while (ob_get_level()) { @ob_end_flush(); }
+        @ob_implicit_flush(true);
+        ignore_user_abort(true);
+        set_time_limit(0);
 
-    - Detect the language of the user's message.
-    - Reply ONLY in that same language.
-    - Do NOT answer the user's immigration or visa question.
-    - Instead, give ONE short, polite sentence with this meaning:
-    'Looks like you’ve used up your free questions for now.
-    If you’d like to continue, just register or log in — it only takes a moment.'
-    - Do not mention xAI, Grok, LLM, tools, providers, or technical details.
-    - Do not add extra explanations, headings or formatting.
-    - Do not introduce yourself again unless the user explicitly asks who you are.
-    ";
-
-        $x = $this->callXaiResponses($question, [
-            'temperature'       => 0.2,
-            'max_output_tokens' => 128,
-            'model'             => 'grok-4-1-fast-reasoning',
-            'enable_search'     => false,           // 不需要联网/RAG
-            'collection_ids'    => [],             // 不用内部库
-            'system'            => $system,
-        ]);
-
-        if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
-            return trim($x['text']);
+        // Basic validations
+        if (trim($question) === '') {
+            echo "data: " . json_encode(['error' => 'Empty question']) . "\n\n";
+            flush();
+            return;
         }
 
-        // 兜底：万一上游挂了，至少有一条英文提示
-        return 'Looks like you’ve used up your free questions for now.
-                If you’d like to continue, just register or log in — it only takes a moment.';
-    }
-
-    private function buildPaidPlanLimitReply(string $question): string
-    {
-        $system = "
-    You are AI-mmi.
-
-    The user is a FREE PLAN user and has exceeded their 5-message limit.
-    Your job:
-
-    1. Detect the user's language.
-    2. Provide a VERY SHORT (2–3 lines) general non-specific statement (do NOT answer the visa question).
-    3. Then append this upgrade message translated into the user's language:
-
-    'You’ve reached your free chat limit 😊
-    I now provide general information only.
-    For more detailed guidance and access to our full planning and comparison tools, please upgrade to a paid plan.
-    You’ll enjoy unlimited Q&A, updated information, personalized tools, and huge savings in time and cost.
-    👉 Click Upgrade to continue your journey.'
-
-    Rules:
-    - Do NOT mention xAI, Grok, LLM, provider names or tools.
-    - No citations or IDs.
-    - Output ONE block of text only.
-    ";
-
-        $x = $this->callXaiResponses($question, [
-            'temperature'       => 0.25,
-            'max_output_tokens' => 256,
-            'model'             => 'grok-4-1-fast-reasoning',
-            'enable_search'     => false,
-            'collection_ids'    => [],
-            'system'            => $system,
-        ]);
-
-        if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
-            return trim($x['text']);
+        $apiKey = env('XAI_API_KEY');
+        if (!$apiKey) {
+            echo "data: " . json_encode(['error' => 'API key missing']) . "\n\n";
+            flush();
+            return;
         }
 
-        // fallback
-        return "You’ve reached your free chat limit. Please upgrade to continue.";
-    }
+        // Apply same validations as regular chat()
+        $member = $this->_current_member;
+        $guestId = $this->getMyCookie('guest_id');
 
-    private function classifyEducationIntent(string $question): string
-    {
-        $system = "
-    You are an intent classifier for AI-mmi.
+        if (empty($member)) {
+            $guestAskCount = \DB::table('chat_log')
+                ->whereNull('member_id')
+                ->where('guest_id', $guestId)
+                ->where('type', 'ask')
+                ->count();
 
-    Your ONLY job:
-    Determine whether the user question is about *international education / studying / school applications / courses / programs*.
-
-    Output ONLY one of the following EXACT JSON formats:
-
-    1) If the message is related to studying, universities, courses, school application, international students, academic entry requirements:
-    {
-    \"category\": \"education\"
-    }
-
-    2) Otherwise (migration visas, 485, PR, general questions, unrelated topics):
-    {
-    \"category\": \"non-education\"
-    }
-
-    RULES:
-    - Never explain your answer.
-    - Never add other fields.
-    - Always reply in JSON format.
-    - Language of user's question does not matter.
-    - This is NOT the final answer to the user. This is ONLY a classifier.
-    ";
-
-        $resp = $this->callXaiResponses($question, [
-            'temperature' => 0,
-            'max_output_tokens' => 64,
-            'enable_search' => false,
-            'system' => $system,
-            'model' => 'grok-4-1-fast-reasoning',
-        ]);
-
-        if (!is_array($resp) || empty($resp['text'])) return 'non-education';
-
-        $json = json_decode($resp['text'], true);
-
-        if (!empty($json['category']) && $json['category'] === 'education') {
-            return 'education';
-        }
-
-        return 'non-education';
-    }
-
-    // private function buildEducationApplyMessage(string $question): string
-    // {
-    //     $system = "
-    // You are AI-mmi.
-
-    // The user is asking about an education/study program.
-    // Your job:
-    // 1. Detect the user's language.
-    // 2. Translate this message into the user's language:
-
-    // 'You meet the entry requirements for this program!
-    // I can now help you move forward — preparing your documents, completing the forms, and submitting your application directly to the school.
-    // The process is quick and seamless, with a small application fee to cover admin and submission support.
-
-    // Would you like me to start your application? 🎓'
-
-    // 3. Output ONLY the translated paragraph. No explanation.
-    // 4. Never mention xAI, tools, IDs, citations.
-    // ";
-
-    //     $x = $this->callXaiResponses($question, [
-    //         'temperature' => 0.2,
-    //         'max_output_tokens' => 256,
-    //         'model' => 'grok-4-fast-reasoning',
-    //         'enable_search' => false,
-    //         'system' => $system,
-    //     ]);
-
-    //     return !empty($x['text']) ? trim($x['text']) : '';
-    // }
-
-    // private function detectApplyIntent(string $question): bool
-    // {
-    //     $system = "
-    // You are an intent classifier for AI-mmi.
-
-    // Your ONLY job:
-    // Determine whether the user's message indicates they are preparing to APPLY for a school, course, or academic program.
-
-    // The following count as APPLY INTENT:
-    // - Asking how to apply
-    // - Requesting to start application
-    // - Asking documents needed for application
-    // - Meeting entry requirements and asking 'what next'
-    // - Saying they want to apply soon
-    // - Asking you to help them apply
-    // - Asking if they can submit an application now
-
-    // The following DO NOT count:
-    // - General education info
-    // - Comparing courses
-    // - Asking tuition fees
-    // - Asking PR outcomes
-    // - Asking campus life or scholarship info
-    // - Purely exploratory questions
-
-    // Output STRICTLY one JSON:
-
-    // If apply intent detected:
-    // {
-    // \"apply\": true
-    // }
-
-    // If NOT:
-    // {
-    // \"apply\": false
-    // }
-
-    // Never explain. Never add anything else.
-    // ";
-
-    //     $resp = $this->callXaiResponses($question, [
-    //         'temperature' => 0,
-    //         'max_output_tokens' => 50,
-    //         'enable_search' => false,
-    //         'system' => $system,
-    //         'model' => 'grok-4-fast-reasoning',
-    //     ]);
-
-    //     $json = json_decode($resp['text'] ?? '', true);
-
-    //     return !empty($json['apply']) && $json['apply'] === true;
-    // }
-
-    private function detectLangZhOrEn(string $q): string
-    {
-        return preg_match('/[\x{4e00}-\x{9fff}]/u', $q) ? 'zh' : 'en';
-    }
-
-    private function isScholarshipOrPartnerSchoolQuestion(string $q): bool
-    {
-        $qLower = mb_strtolower($q, 'UTF-8');
-        $qLower = str_replace(['—', '–', '－'], '-', $qLower);
-
-        $keywords = [
-            // Scholarship / AI-mmi
-            'ai-mmi scholarship',
-            'ai mmi scholarship',
-            'scholarship',
-            '奖学金',
-            'ai-mmi奖学金',
-
-            // Partner schools
-            'sbta',
-            'sela',
-            'sbta–sela',
-            'sbta-sela',
-            'sbta sela',
-            'queensland academy of technology',
-            'qat',
-            'australia college of tourism & information technology',
-            'australia college of tourism and information technology',
-            'acti',
-            'queensland international institute',
-            'qii',
-            'rosehill college',
-        ];
-
-        foreach ($keywords as $kw) {
-            $kwLower = mb_strtolower($kw, 'UTF-8');
-            if (mb_strpos($qLower, $kwLower) !== false) {
-                return true;
+            if ($guestAskCount >= 3) {
+                echo "data: " . json_encode(['content' => 'Looks like you\'ve used up your free questions. Please register or log in.']) . "\n\n";
+                echo "data: [DONE]\n\n";
+                flush();
+                return;
             }
         }
 
-        return false;
-    }
+        // Prepare payload for upstream streaming API
+        $systemPrompt = "You are AI-mmi..."; // use the same system prompt as chat()
 
-    private function qaOutOfScopeMessage(string $lang): string
-    {
-        if ($lang === 'zh') {
-            return '当前 Q&A 仅用于解答 AI-mmi Scholarship 及合作院校相关问题。请围绕奖学金或上述学校（SBTA–SELA、QAT、ACTI、QII、Rosehill College）提问。';
+        $payload = [
+            'model' => env('XAI_MODEL', 'grok-4-1-fast-reasoning'),
+            'messages' => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user', 'content' => $question]
+            ],
+            'stream' => true,
+            'temperature' => 0.2,
+            'max_tokens' => 2048,
+        ];
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => 'https://api.x.ai/v1/chat/completions',
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $apiKey,
+                'Content-Type: application/json',
+                'Accept: text/event-stream',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_WRITEFUNCTION => function($ch, $data) {
+                $lines = preg_split('/\r\n|\n|\r/', $data);
+                foreach ($lines as $line) {
+                    if ($line === '') continue;
+                    if (strpos($line, 'data:') === 0) {
+                        echo $line . "\n";
+                    } else {
+                        echo 'data: ' . $line . "\n";
+                    }
+                }
+                echo "\n";
+                if (function_exists('ob_flush')) @ob_flush();
+                @flush();
+                return strlen($data);
+            },
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_BUFFERSIZE => 4096,
+            CURLOPT_FORBID_REUSE => false,
+            CURLOPT_TCP_KEEPALIVE => 1,
+        ]);
+
+        curl_exec($ch);
+        if (curl_errno($ch)) {
+            echo "data: " . json_encode(['error' => curl_error($ch)]) . "\n\n";
+            flush();
         }
-
-        return 'This Q&A is reserved for questions about the AI-mmi Scholarship and our partner schools (SBTA–SELA, QAT, ACTI, QII, Rosehill College). Please ask about scholarships or the listed schools.';
-    }
-
-    private function appendQaCta(string $answer, string $lang): string
-    {
-        $cta = $lang === 'zh'
-            ? '欢迎使用位于POST卡片左下角的「Apply Now!」按钮通过AI-mmi快速申请，开启您的精彩留学之旅'
-            : 'You’re welcome to use the “Apply Now!” button at the bottom-left of this post card to submit your AI-mmi application and start your exciting study journey.';
-
-        $trimmed = rtrim($answer);
-        return $trimmed === '' ? $cta : $trimmed . "\n" . $cta;
-    }
-
+        curl_close($ch);
+    }, 200, [
+        'Content-Type' => 'text/event-stream',
+        'Cache-Control' => 'no-cache',
+        'X-Accel-Buffering' => 'no',
+        'Connection' => 'keep-alive',
+    ]);
 }
+
+// === STREAMING HELPER METHODS ===
+private function streamError($message) {
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    echo "data: " . json_encode(['error' => $message]) . "\n\n";
+    echo "data: [DONE]\n\n";
+    flush();
+    exit();
+}
+
+private function streamMessage($message) {
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    
+    // Stream the message word by word (like AI response)
+    $words = explode(' ', $message);
+    foreach ($words as $word) {
+        echo "data: " . json_encode([
+            'choices' => [[
+                'delta' => ['content' => $word . ' ']
+            ]]
+        ]) . "\n\n";
+        flush();
+        usleep(50000); // 50ms delay between words
+    }
+    
+    echo "data: [DONE]\n\n";
+    flush();
+    exit();
+}
+
+private function processFinalText($text, $isFromQa, $lang) {
+    // Apply same post-processing as chat()
+    $processed = preg_replace(
+        '/信息基于xAI内部集合检索的文件/u',
+        '信息基于AI-mmi内部集合检索的资料',
+        $text
+    );
+    
+    // Add QA CTA if needed (same as chat())
+    if ($isFromQa) {
+        $processed = $this->appendQaCta($processed, $lang);
+    }
+    
+    // Truncate if too long (same as chat())
+    if (mb_strlen($processed, 'UTF-8') > 2500) {
+        $processed = mb_substr($processed, 0, 2500, 'UTF-8');
+    }
+    
+    return trim($processed);
+}
+
+private function saveStreamedReply($fullText, $question, $memberId, $guestId, $sessionId, $logToChatTable, $chatSource) {
+    try {
+        if (!$logToChatTable) {
+            return;
+        }
+        
+        $askId = $this->getSession('current_streaming_ask_id');
+        if (!$askId) {
+            // If no ask ID in session, create new one
+            $nowUtc = \Carbon\Carbon::now('UTC');
+            $targetDate = (int)date('Ymd');
+            
+            $askId = \DB::table('chat_log')->insertGetId([
+                'member_id'   => $memberId,
+                'guest_id'    => $guestId,
+                'session_id'  => $sessionId,
+                'related_id'  => 0,
+                'target_date' => $targetDate,
+                'type'        => 'ask',
+                'content'     => $question,
+                'status'      => 1,
+                'is_streaming' => 1,
+                'created_at'  => $nowUtc,
+                'updated_at'  => $nowUtc,
+            ]);
+            \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
+        }
+        
+        $nowUtc = \Carbon\Carbon::now('UTC');
+        $targetDate = (int)date('Ymd');
+        
+        $replyPayload = [
+            'member_id'   => $memberId,
+            'guest_id'    => $guestId,
+            'session_id'  => $sessionId,
+            'related_id'  => $askId,
+            'target_date' => $targetDate,
+            'type'        => 'reply',
+            'content'     => $fullText,
+            'status'      => 1,
+            'is_streaming' => 1,
+            'created_at'  => $nowUtc,
+            'updated_at'  => $nowUtc,
+            'reply_source' => 'model',
+        ];
+        
+        \DB::table('chat_log')->insert($replyPayload);
+        
+        $this->delSession('current_streaming_ask_id');
+        
+    } catch (\Exception $e) {
+        \Log::error('Stream reply save failed: ' . $e->getMessage());
+    }
+}
+
+private function buildLimitReply(string $question): string
+{
+    // 专门的 system prompt：只生成限制提示，不回答问题
+    $system = "
+You are AI-mmi.
+
+The user has reached their free Q&A limit.
+Your task:
+
+- Detect the language of the user's message.
+- Reply ONLY in that same language.
+- Do NOT answer the user's immigration or visa question.
+- Instead, give ONE short, polite sentence with this meaning:
+'Looks like you've used up your free questions for now.
+If you'd like to continue, just register or log in — it only takes a moment.'
+- Do not mention xAI, Grok, LLM, tools, providers, or technical details.
+- Do not add extra explanations, headings or formatting.
+- Do not introduce yourself again unless the user explicitly asks who you are.
+";
+
+    $x = $this->callXaiResponses($question, [
+        'temperature'       => 0.2,
+        'max_output_tokens' => 128,
+        'model'             => 'grok-4-1-fast-reasoning',
+        'enable_search'     => false,           // 不需要联网/RAG
+        'collection_ids'    => [],             // 不用内部库
+        'system'            => $system,
+    ]);
+
+    if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
+        return trim($x['text']);
+    }
+
+    // 兜底：万一上游挂了，至少有一条英文提示
+    return "Looks like you've used up your free questions for now.
+        If you'd like to continue, just register or log in — it only takes a moment.";
+    }
+
+private function buildPaidPlanLimitReply(string $question): string
+{
+    $system = "
+You are AI-mmi.
+
+The user is a FREE PLAN user and has exceeded their 5-message limit.
+Your job:
+
+1. Detect the user's language.
+2. Provide a VERY SHORT (2–3 lines) general non-specific statement (do NOT answer the visa question).
+3. Then append this upgrade message translated into the user's language:
+
+'You've reached your free chat limit 😊
+I now provide general information only.
+For more detailed guidance and access to our full planning and comparison tools, please upgrade to a paid plan.
+You'll enjoy unlimited Q&A, updated information, personalized tools, and huge savings in time and cost.
+👉 Click Upgrade to continue your journey.'
+
+Rules:
+- Do NOT mention xAI, Grok, LLM, provider names or tools.
+- No citations or IDs.
+- Output ONE block of text only.
+";
+
+    $x = $this->callXaiResponses($question, [
+        'temperature'       => 0.25,
+        'max_output_tokens' => 256,
+        'model'             => 'grok-4-1-fast-reasoning',
+        'enable_search'     => false,
+        'collection_ids'    => [],
+        'system'            => $system,
+    ]);
+
+    if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
+        return trim($x['text']);
+    }
+
+    // fallback
+    return "You've reached your free chat limit. Please upgrade to continue.";
+}
+
+private function classifyEducationIntent(string $question): string
+{
+    $system = "
+You are an intent classifier for AI-mmi.
+
+Your ONLY job:
+Determine whether the user question is about *international education / studying / school applications / courses / programs*.
+
+Output ONLY one of the following EXACT JSON formats:
+
+1) If the message is related to studying, universities, courses, school application, international students, academic entry requirements:
+{
+\"category\": \"education\"
+}
+
+2) Otherwise (migration visas, 485, PR, general questions, unrelated topics):
+{
+\"category\": \"non-education\"
+}
+
+RULES:
+- Never explain your answer.
+- Never add other fields.
+- Always reply in JSON format.
+- Language of user's question does not matter.
+- This is NOT the final answer to the user. This is ONLY a classifier.
+";
+
+    $resp = $this->callXaiResponses($question, [
+        'temperature' => 0,
+        'max_output_tokens' => 64,
+        'enable_search' => false,
+        'system' => $system,
+        'model' => 'grok-4-1-fast-reasoning',
+    ]);
+
+    if (!is_array($resp) || empty($resp['text'])) return 'non-education';
+
+    $json = json_decode($resp['text'], true);
+
+    if (!empty($json['category']) && $json['category'] === 'education') {
+        return 'education';
+    }
+
+    return 'non-education';
+}
+
+private function detectLangZhOrEn(string $q): string
+{
+    return preg_match('/[\x{4e00}-\x{9fff}]/u', $q) ? 'zh' : 'en';
+}
+
+private function isScholarshipOrPartnerSchoolQuestion(string $q): bool
+{
+    $qLower = mb_strtolower($q, 'UTF-8');
+    $qLower = str_replace(['—', '–', '－'], '-', $qLower);
+
+    $keywords = [
+        // Scholarship / AI-mmi
+        'ai-mmi scholarship',
+        'ai mmi scholarship',
+        'scholarship',
+        '奖学金',
+        'ai-mmi奖学金',
+
+        // Partner schools
+        'sbta',
+        'sela',
+        'sbta–sela',
+        'sbta-sela',
+        'sbta sela',
+        'queensland academy of technology',
+        'qat',
+        'australia college of tourism & information technology',
+        'australia college of tourism and information technology',
+        'acti',
+        'queensland international institute',
+        'qii',
+        'rosehill college',
+    ];
+
+    foreach ($keywords as $kw) {
+        $kwLower = mb_strtolower($kw, 'UTF-8');
+        if (mb_strpos($qLower, $kwLower) !== false) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+private function qaOutOfScopeMessage(string $lang): string
+{
+    if ($lang === 'zh') {
+        return '当前 Q&A 仅用于解答 AI-mmi Scholarship 及合作院校相关问题。请围绕奖学金或上述学校（SBTA–SELA、QAT、ACTI、QII、Rosehill College）提问。';
+    }
+
+    return 'This Q&A is reserved for questions about the AI-mmi Scholarship and our partner schools (SBTA–SELA, QAT, ACTI, QII, Rosehill College). Please ask about scholarships or the listed schools.';
+}
+
+private function appendQaCta(string $answer, string $lang): string
+{
+    $cta = $lang === 'zh'
+        ? '欢迎使用位于POST卡片左下角的「Apply Now!」按钮通过AI-mmi快速申请，开启您的精彩留学之旅'
+        : 'You\'re welcome to use the "Apply Now!" button at the bottom-left of this post card to submit your AI-mmi application and start your exciting study journey.';
+
+    $trimmed = rtrim($answer);
+    return $trimmed === '' ? $cta : $trimmed . "\n" . $cta;
+ }
+}
+ // ← ADD THIS CLOSING BRACE FOR THE CLASS!

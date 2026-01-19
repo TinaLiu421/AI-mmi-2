@@ -444,7 +444,9 @@ class AdminController extends CoreController {
                 $html
             );
 
-            $sendgrid = new \SendGrid('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');
+            $apiKey = getenv('SENDGRID_API_KEY');
+            
+            $sendgrid = new \SendGrid($apiKey);
 
             try {
                 if($sendgrid->send($email)) {
