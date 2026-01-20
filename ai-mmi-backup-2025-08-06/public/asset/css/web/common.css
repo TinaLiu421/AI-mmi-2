@@ -982,11 +982,13 @@ main.page-body .chat-area .box .input-question .robot-container {
 }
 
 .thinking-indicator .dot {
+    display: inline-block;
     width: 6px;
     height: 6px;
     background-color: currentColor;
     border-radius: 50%;
     animation: thinking-bounce 1.4s infinite ease-in-out;
+    margin: 0 2px;
 }
 
 .thinking-indicator .dot:nth-child(1) {

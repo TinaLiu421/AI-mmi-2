@@ -123,13 +123,30 @@ class Home extends WebController {
     public function chat($init = 0)
     {
         $this->pageAction(function () {
-
             // === ① 读取参数（仅保留必要项） ===
             $question = $this->postParamValue('question', request()->input('question', ''));
             if (trim($question) === '') {
-                $this->pageResult(['status' => 400, 'message' => 'Please enter a question.']);
+                header('Content-Type: text/event-stream');
+                header('Cache-Control: no-cache');
+                header('X-Accel-Buffering: no');
+                echo "data: " . json_encode(['error' => 'Please enter a question.']) . "\n\n";
+                echo "data: [DONE]\n\n";
+                flush();
                 return;
             }
+            
+            // streaming header setting
+            header('Content-Type: text/event-stream');
+            header('Cache-Control: no-cache');
+            header('X-Accel-Buffering: no');
+            header('Connection: keep-alive');
+            @ini_set('zlib.output_compression', 'Off');
+            @ini_set('implicit_flush', 1);
+            while (ob_get_level()) { @ob_end_flush(); }
+            @ob_implicit_flush(true);
+            ignore_user_abort(true);
+            set_time_limit(0);
+            
             $sourceInput     = request()->input('source', null);
             $fromQaLegacy    = request()->boolean('from_qa', false);
             $isFromQa        = ($sourceInput === 'qa') || $fromQaLegacy;
@@ -198,8 +215,8 @@ class Home extends WebController {
                         // 入库
                         $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi', $storeChatConfig);
 
-                        // 返回用户
-                        $this->jsonReply($rawQuestion, $limitMsg, 'free-plan-limit', $member);
+                        // Streaming
+                        $this->streamResponse($limitMsg);
                         return;
                     }
                 }
@@ -225,9 +242,9 @@ class Home extends WebController {
                     // 记录到 chat_log 里（方便你之后分析）
                     $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-limit', 'AI-mmi', $storeChatConfig);
 
-                    // 返回前端
-                    $this->jsonReply($rawQuestion, $limitMsg, 'free-limit', $member);
-                    return; // 终止后续逻辑（不再回答问题）
+                    // Streaming
+                    $this->streamResponse($limitMsg);
+                    return;
                 }
             }
 
@@ -257,6 +274,10 @@ class Home extends WebController {
                     $reply       = null;
                     $replySource = 'qa-out-of-scope';
                     $aiOwnerName = 'AI-mmi';
+                    
+                    $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
+                    $this->streamResponse('');
+                    exit();
                 } else {
                     $qaSystemPrompt = "
 You are AI-mmi handling scholarship and partner-school Q&A.
@@ -298,38 +319,40 @@ Rules:
                         $reply = mb_substr($reply, 0, 2500, 'UTF-8');
                     }
 
-                    $reply       = $this->appendQaCta($reply, $qaLang);
-                    $aiOwnerName = 'AI-mmi';
+                    $reply = $this->appendQaCta($reply, $qaLang);
+                    
+                    $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
+                    $this->streamResponse($reply);
+                    exit();
                 }
             }
+            
+            // === RAG & 답안 정의 ===
+            // ❸ 纯模型 Pure model - 직접 xAI 스트리밍
+            if (!$isFromQa) {
+                // === 스트리밍 헤더 재확인 ===
+                header('Content-Type: text/event-stream');
+                header('Cache-Control: no-cache');
+                header('X-Accel-Buffering: no');
+                header('Connection: keep-alive');
+                
+                $systemPrompt = "You are AI-mmi, specialised in immigration and visa queries.
 
-            // ❸ 纯模型 Pure model
-            if ($reply === '' && !$isFromQa) {
-                $x = $this->callXaiResponses($rawQuestion, [
-                    'temperature' => 0.2,
-                    'max_output_tokens' => 2048,
-                    'model' => 'grok-4-1-fast-reasoning',
-                    'enable_search'     => true,
-                    'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
-                    'vector_store_ids' => [],
-                    'system' => "
-                    You are AI-mmi, specialised in immigration and visa queries.
+## Identity & Naming
+- Always refer to yourself as \"AI-mmi\".
+- Never mention xAI, Grok, LLM, model, provider names or any tool names in the answer.
+- Do NOT mention things like file_search, collections_search, web_search, vector stores, file IDs or collection IDs.
+- Do NOT output citations, file IDs, collection IDs or any other technical identifiers in user-visible text.
 
-                    ## Identity & Naming
-                    - Always refer to yourself as “AI-mmi”.
-                    - Never mention xAI, Grok, LLM, model, provider names or any tool names in the answer.
-                    - Do NOT mention things like file_search, collections_search, web_search, vector stores, file IDs or collection IDs.
-                    - Do NOT output citations, file IDs, collection IDs or any other technical identifiers in user-visible text.
-
-                    ## Language Behaviour (auto follow user language)
-                    - Detect the language of the user's latest message and reply in that same language.
+## Language Behaviour (auto follow user language)
+- Detect the language of the user's latest message and reply in that same language.
                     - If the user writes in Simplified Chinese, reply in Simplified Chinese.
                     - If the user writes in Traditional Chinese, reply in Traditional Chinese.
                     - If the user writes in Japanese, reply in Japanese.
                     - For any other language (e.g. French, Spanish, etc.), mirror that language naturally.
                     - If the user mixes languages, default to the language used in the last sentence that contains the real question.
 
-                    ## Greeting Behaviour (only first reply)
+## Greeting Behaviour (only first reply)
                     - Only when this is the FIRST reply in a new conversation thread, start with a short greeting + self-introduction.
                     - First reply greeting templates:
                         - English: “Hi this is AI-mmi, your smart education and migration assistant.”
@@ -356,41 +379,89 @@ Rules:
                     - Citations, technical IDs, raw metadata are for internal logging only.
                     - They MUST NOT appear in user-visible output.
 
-                    ### RESPONSE STYLE
-                    - Provide precise, structured, factual information.
-                    - Keep the tone professional, clear and user-friendly.",
-
-                ]);
-
-                if (!is_array($x) || empty($x['ok'])) {
-                    $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
-                    $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
-                } else {
-                    $reply = $x['text'];
-
-                    // === 如果是留学问题 + 有申请意图 → 添加升学申请引导 ===
-                    // if ($isEdu && $applyIntent) {
-                    //     $eduFooter = $this->buildEducationApplyMessage($rawQuestion);
-                    //     if ($eduFooter !== '') {
-                    //         $reply .= "\n\n" . $eduFooter;
-                    //     }
-                    // }
-
-                    $reply = preg_replace(
-                        '/信息基于xAI内部集合检索的文件/u',
-                        '信息基于AI-mmi内部集合检索的资料',
-                        $reply
-                    );
-
-                    $replySource = $x['source'] ?? 'model';
+### RESPONSE STYLE
+- Provide precise, structured, factual information.
+- Keep the tone professional, clear and user-friendly.";
+                
+                $apiKey = env('XAI_API_KEY');
+                if (!$apiKey) {
+                    echo "data: " . json_encode(['choices' => [['delta' => ['content' => 'API configuration error']]]]) . "\n\n";
+                    echo "data: [DONE]\n\n";
+                    flush();
+                    exit();
                 }
-
-                $aiOwnerName = 'AI-mmi';
+                
+                // xAI API에 직접 스트리밍 연결
+                $payload = [
+                    'model' => 'grok-4-1-fast-reasoning',
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $rawQuestion]
+                    ],
+                    'stream' => true,
+                    'temperature' => 0.2,
+                    'max_tokens' => 2048,
+                ];
+                
+                $ch = curl_init();
+                curl_setopt_array($ch, [
+                    CURLOPT_URL => 'https://api.x.ai/v1/chat/completions',
+                    CURLOPT_POST => true,
+                    CURLOPT_HTTPHEADER => [
+                        'Authorization: Bearer ' . $apiKey,
+                        'Content-Type: application/json',
+                    ],
+                    CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+                    CURLOPT_WRITEFUNCTION => function($ch, $data) {
+                        echo $data;
+                        if (function_exists('ob_flush')) @ob_flush();
+                        @flush();
+                        return strlen($data);
+                    },
+                    CURLOPT_TIMEOUT => 0,
+                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                    CURLOPT_BUFFERSIZE => 4096,
+                    CURLOPT_FORBID_REUSE => false,
+                    CURLOPT_TCP_KEEPALIVE => 1,
+                ]);
+                
+                $fullResponse = '';
+                $ch2 = curl_copy_handle($ch);
+                curl_setopt($ch2, CURLOPT_WRITEFUNCTION, function($ch, $data) use (&$fullResponse) {
+                    $fullResponse .= $data;
+                    return strlen($data);
+                });
+                curl_exec($ch2);
+                curl_close($ch2);
+                
+                curl_exec($ch);
+                
+                if (curl_errno($ch)) {
+                    echo "data: " . json_encode(['choices' => [['delta' => ['content' => 'Error: ' . curl_error($ch)]]]]) . "\n\n";
+                }
+                
+                curl_close($ch);
+                
+                $lines = explode("\n", $fullResponse);
+                $fullText = '';
+                foreach ($lines as $line) {
+                    if (strpos($line, 'data:') === 0) {
+                        $json = trim(substr($line, 5));
+                        if ($json && $json !== '[DONE]') {
+                            $obj = @json_decode($json, true);
+                            if ($obj && isset($obj['choices'][0]['delta']['content'])) {
+                                $fullText .= $obj['choices'][0]['delta']['content'];
+                            }
+                        }
+                    }
+                }
+                
+                if (!empty($fullText)) {
+                    $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $fullText, $replySource, $aiOwnerName, $storeChatConfig);
+                }
+                
+                exit();
             }
-
-            // === ④ 入库 + 返回 ===
-            $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
-            $this->jsonReply($rawQuestion, $reply, $replySource, $member);
         });
 
         if (request()->isMethod('post')) return;
@@ -413,6 +484,25 @@ Rules:
             }
         }
         echo json_encode($chat_message);
+    }
+
+    private function streamResponse($reply)
+    {
+        // write streaming response word by word
+        $words = explode(' ', $reply);
+        foreach ($words as $word) {
+            $data = [
+                'choices' => [[
+                    'delta' => ['content' => $word . ' ']
+                ]]
+            ];
+            echo "data: " . json_encode($data) . "\n\n";
+            flush();
+            usleep(50000); // 50ms delay
+        }
+        
+        echo "data: [DONE]\n\n";
+        flush();
     }
 
     public function logRag(\Illuminate\Http\Request $request)
@@ -1088,114 +1178,7 @@ Rules:
         return response()->json(['status'=>200,'message'=>'xAI thread reset']);
     }
 
-    public function chatStream()
-{
-    $question = request()->input('question', '');
-
-    // Use a StreamedResponse so Laravel can handle streaming properly.
-    return response()->stream(function() use ($question) {
-        // Disable buffers and ensure immediate flush inside the stream.
-        @ini_set('zlib.output_compression', 'Off');
-        @ini_set('implicit_flush', 1);
-        while (ob_get_level()) { @ob_end_flush(); }
-        @ob_implicit_flush(true);
-        ignore_user_abort(true);
-        set_time_limit(0);
-
-        // Basic validations
-        if (trim($question) === '') {
-            echo "data: " . json_encode(['error' => 'Empty question']) . "\n\n";
-            flush();
-            return;
-        }
-
-        $apiKey = env('XAI_API_KEY');
-        if (!$apiKey) {
-            echo "data: " . json_encode(['error' => 'API key missing']) . "\n\n";
-            flush();
-            return;
-        }
-
-        // Apply same validations as regular chat()
-        $member = $this->_current_member;
-        $guestId = $this->getMyCookie('guest_id');
-
-        if (empty($member)) {
-            $guestAskCount = \DB::table('chat_log')
-                ->whereNull('member_id')
-                ->where('guest_id', $guestId)
-                ->where('type', 'ask')
-                ->count();
-
-            if ($guestAskCount >= 3) {
-                echo "data: " . json_encode(['content' => 'Looks like you\'ve used up your free questions. Please register or log in.']) . "\n\n";
-                echo "data: [DONE]\n\n";
-                flush();
-                return;
-            }
-        }
-
-        // Prepare payload for upstream streaming API
-        $systemPrompt = "You are AI-mmi..."; // use the same system prompt as chat()
-
-        $payload = [
-            'model' => env('XAI_MODEL', 'grok-4-1-fast-reasoning'),
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $question]
-            ],
-            'stream' => true,
-            'temperature' => 0.2,
-            'max_tokens' => 2048,
-        ];
-
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => 'https://api.x.ai/v1/chat/completions',
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $apiKey,
-                'Content-Type: application/json',
-                'Accept: text/event-stream',
-            ],
-            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            CURLOPT_WRITEFUNCTION => function($ch, $data) {
-                $lines = preg_split('/\r\n|\n|\r/', $data);
-                foreach ($lines as $line) {
-                    if ($line === '') continue;
-                    if (strpos($line, 'data:') === 0) {
-                        echo $line . "\n";
-                    } else {
-                        echo 'data: ' . $line . "\n";
-                    }
-                }
-                echo "\n";
-                if (function_exists('ob_flush')) @ob_flush();
-                @flush();
-                return strlen($data);
-            },
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_BUFFERSIZE => 4096,
-            CURLOPT_FORBID_REUSE => false,
-            CURLOPT_TCP_KEEPALIVE => 1,
-        ]);
-
-        curl_exec($ch);
-        if (curl_errno($ch)) {
-            echo "data: " . json_encode(['error' => curl_error($ch)]) . "\n\n";
-            flush();
-        }
-        curl_close($ch);
-    }, 200, [
-        'Content-Type' => 'text/event-stream',
-        'Cache-Control' => 'no-cache',
-        'X-Accel-Buffering' => 'no',
-        'Connection' => 'keep-alive',
-    ]);
-}
-
-// === STREAMING HELPER METHODS ===
+    // === STREAMING HELPER METHODS ===
 private function streamError($message) {
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');

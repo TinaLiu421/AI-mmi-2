@@ -223,20 +223,19 @@ function streamResponse(question, bubbleId) {
     let fullText = '';
     
     // === ADD THINKING INDICATOR ===
-    $text.html('<span class="thinking">Thinking<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>');
+    $text.html('<span class="thinking-indicator">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></span>');
     $bubble.addClass('streaming');
     
     // === USE YOUR EXISTING itoken GENERATION ===
     const local_time = iweb.getDateTime(null, "time");
     const itoken = window.btoa(md5(iweb.csrf_token + "#dt" + local_time) + "%" + local_time);
     
-    // === SAME FORM DATA AS REGULAR CHAT ===
     const formData = new FormData();
     formData.append('question', question);
     formData.append('_token', csrfToken);
     formData.append('itoken', itoken); // Your custom CSRF
     
-    fetch('/chat/stream', {
+    fetch(_page_base_url + '/home/chat', {
         method: 'POST',
         body: formData,
         credentials: 'same-origin'
@@ -283,24 +282,29 @@ function streamResponse(question, bubbleId) {
                                 }
                                 
                                 // Handle OpenAI-compatible format
-                                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
-                                    // === REMOVE THINKING INDICATOR WHEN FIRST TEXT ARRIVES ===
-                                    if ($text.find('.thinking').length) {
-                                        $text.empty();
+                                if (data.choices && data.choices[0] && data.choices[0].delta) {
+                                    const content = data.choices[0].delta.content || '';
+                                    
+                                    // Only process non-empty content
+                                    if (content.length > 0) {
+                                        // === REMOVE THINKING INDICATOR WHEN FIRST REAL TEXT ARRIVES ===
+                                        if ($text.find('.thinking-indicator').length) {
+                                            $text.empty();
+                                        }
+                                        
+                                        fullText += content;
+                                        
+                                        // === SAME RENDERING AS REGULAR CHAT ===
+                                        const decorated = decorateMarkdownWithEmojis(fullText);
+                                        const safeHtml = mdToSafeHtml(decorated);
+                                        $text.html(safeHtml);
+                                        
+                                        scrollChatToBottom();
                                     }
-                                    
-                                    fullText += data.choices[0].delta.content;
-                                    
-                                    // === SAME RENDERING AS REGULAR CHAT ===
-                                    const decorated = decorateMarkdownWithEmojis(fullText);
-                                    const safeHtml = mdToSafeHtml(decorated);
-                                    $text.html(safeHtml);
-                                    
-                                    scrollChatToBottom();
                                 }
                                 
                             } catch(e) {
-                                // Ignore parse errors
+                                console.error('Streaming parse error:', e, 'data:', dataStr);
                             }
                         }
                     });
