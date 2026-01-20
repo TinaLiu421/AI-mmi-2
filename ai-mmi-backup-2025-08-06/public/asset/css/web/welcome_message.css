@@ -235,3 +235,75 @@
         padding-top: 8px;
     }
 }
+
+/* Chat Mode Buttons */
+.welcome-message__buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    margin-top: -10px;
+    width: 100%;
+    max-width: 400px;
+    flex-shrink: 0;
+}
+
+.welcome-message__button {
+    flex: 1;
+    height: 80px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.welcome-message__button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.welcome-message__button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(3px) brightness(0.7);
+    z-index: 1;
+}
+
+.welcome-message__button--migration::before {
+    background-image: url('/asset/image/migration.jpg');
+}
+
+.welcome-message__button--study::before {
+    background-image: url('/asset/image/study.jpg');
+}
+
+.welcome-message__button-text {
+    position: relative;
+    z-index: 2;
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 700px) {
+    .welcome-message__buttons {
+        flex-direction: column;
+        max-width: 100%;
+    }
+    
+    .welcome-message__button {
+        height: 70px;
+    }
+}
