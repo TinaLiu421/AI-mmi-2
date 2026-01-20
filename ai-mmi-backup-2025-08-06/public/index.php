@@ -7,6 +7,17 @@ define('LARAVEL_START', microtime(true));
 
 /*
 |--------------------------------------------------------------------------
+| Suppress PHP 8.4 Deprecation Warnings
+|--------------------------------------------------------------------------
+|
+| Suppress deprecation warnings for Laravel 8 compatibility with PHP 8.4
+|
+*/
+
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
+/*
+|--------------------------------------------------------------------------
 | Check If The Application Is Under Maintenance
 |--------------------------------------------------------------------------
 |

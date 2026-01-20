@@ -82,6 +82,10 @@
     </div>
     <?php } ?>
 </div>
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 <!-- reCAPTCHA script & client handlers -->
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <script>

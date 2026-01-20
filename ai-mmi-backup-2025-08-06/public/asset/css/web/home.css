@@ -1,13 +1,14 @@
+/* Banner Styles */
 div.page-content.home div.banner {
     position: relative;
+    width: 100%;
+    margin-bottom: 30px;
 }
 
-div.page-content.home div.banner > div.desktop {
+div.page-content.home div.banner img.banner-img {
+    width: 100%;
+    height: auto;
     display: block;
-}
-
-div.page-content.home div.banner > div.mobile {
-    display: none;
 }
 
 div.page-content.home div.news-event {
