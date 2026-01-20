@@ -102,6 +102,7 @@ header.page-header {
     background-image: url("/asset/image/nav-background.jpg");
     background-size: cover;
     background-position: center;
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: var(--shadow-lg);
@@ -241,6 +242,7 @@ header.page-header .controls .menu > a {
     font-size: large;
     font-weight: 800;
     transition: var(--transition-normal);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     justify-content: center;
 }
@@ -328,6 +330,7 @@ main.page-body .page-content {
     max-width: 1920px;
     margin: 0 auto;
     margin-right: 450px;
+    position: relative;
 }
 
 /* Info Area */
@@ -484,6 +487,7 @@ main.page-body .chat-area > div {
 main.page-body .chat-area .top {
     padding: var(--space-6);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     display: block;
 }
@@ -505,6 +509,7 @@ main.page-body .chat-area .input-question .robot {
     overflow: hidden;
     background: rgba(255, 255, 255, 0.9);
     border: white 2px solid;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 30px rgba(255, 255, 255, 0.3),
         var(--shadow-glow);
@@ -540,6 +545,7 @@ main.page-body .chat-area .input-question .robot a#sound-control {
     border-radius: var(--radius-full);
     cursor: pointer;
     transition: var(--transition-fast);
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     z-index: 2;
 }
@@ -561,6 +567,7 @@ main.page-body .chat-area .box {
     flex-direction: column;
     position: relative;
     margin-top: 0;
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     overflow: hidden;
 }
@@ -624,6 +631,24 @@ main.page-body .chat-area .box .show-message {
     width: 100%;
 }
 
+/* Webkit scrollbar fallback for Safari and older Chrome */
+main.page-body .chat-area .box .show-message::-webkit-scrollbar {
+    width: 6px;
+}
+
+main.page-body .chat-area .box .show-message::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+main.page-body .chat-area .box .show-message::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-full);
+}
+
+main.page-body .chat-area .box .show-message::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
 main.page-body .chat-area.show .box .show-message {
     max-height: none;
 }
@@ -659,6 +684,7 @@ main.page-body .chat-area .box .show-message .chat-date span {
     font-weight: 500;
     padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-full);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -738,6 +764,7 @@ main.page-body .chat-area .box .show-message .dialog .txt {
     font-size: 1rem;
     line-height: 1.5;
     position: relative;
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     transition: var(--transition-normal);
@@ -851,10 +878,11 @@ main.page-body .chat-area .box .input-question .robot-container {
     background: var(--neutral-200);
     border: 1px solid var(--neutral-300);
     border-radius: var(--radius-xl);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: var(--transition-normal);
     padding: 4px;
-    min-height: auto;
+    min-height: 0;
     min-width: 0; /* important for flex children */
 }
 
@@ -1273,7 +1301,7 @@ footer.page-footer a:hover {
         border-right: none;
         padding: 0;
         padding-bottom: 0;
-        min-height: auto;
+        min-height: 0;
         width: 100%;
     }
 
@@ -1339,10 +1367,12 @@ footer.page-footer a:hover {
         justify-content: center;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-backdrop-filter: blur(10px);
         backdrop-filter: blur(10px);
         text-decoration: none;
         width: 100vh;
         -webkit-tap-highlight-color: transparent;
+        -webkit-user-select: none;
         user-select: none;
     }
 
@@ -1557,6 +1587,7 @@ div.iweb-processing > div.loading > svg > circle {
 
 div.iweb-info-dialog {
     background: rgba(15, 23, 42, 0.8);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
 }
 

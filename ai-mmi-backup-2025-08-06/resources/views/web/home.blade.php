@@ -1,20 +1,8 @@
 @extends('web.common')
 @section('content')
+<!-- Banner Section -->
 <div class="banner">
-    <div class="desktop">
-        <?php if(!empty($_page_data['details']['media_files']['banner_'.$_current_lang_index])) { 
-            foreach ($_page_data['details']['media_files']['banner_'.$_current_lang_index] as $banner) {
-            ?>
-        <img src="<?php echo $banner['url']; ?>" alt="<?php echo $banner['file_name']; ?>"/>
-        <?php }} ?>
-    </div>
-    <div class="mobile">
-        <?php if(!empty($_page_data['details']['media_files']['mobile_banner_'.$_current_lang_index])) { 
-            foreach ($_page_data['details']['media_files']['mobile_banner_'.$_current_lang_index] as $banner) {
-            ?>
-        <img src="<?php echo $banner['url']; ?>" alt="<?php echo $banner['file_name']; ?>"/>
-        <?php }} ?>
-    </div>
+    <img src="/asset/image/home-banner.svg" alt="AI-mmi Banner" class="banner-img"/>
     <div class="country">
         
     </div>
