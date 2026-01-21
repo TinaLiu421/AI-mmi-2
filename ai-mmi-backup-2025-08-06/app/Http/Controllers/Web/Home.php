@@ -121,144 +121,121 @@ class Home extends WebController {
     }
 
     public function chat($init = 0)
-    {
-        $this->pageAction(function () {
+{
+    $this->pageAction(function () {
+        // === ① 读取参数（仅保留必要项） ===
+        $question = $this->postParamValue('question', request()->input('question', ''));
+        if (trim($question) === '') {
+            // SSE error for empty question
+            header('Content-Type: text/event-stream');
+            header('Cache-Control: no-cache');
+            header('X-Accel-Buffering: no');
+            echo "data: " . json_encode(['error' => 'Please enter a question.']) . "\n\n";
+            echo "data: [DONE]\n\n";
+            flush();
+            return;
+        }
 
-            // === ① 读取参数（仅保留必要项） ===
-            $question = $this->postParamValue('question', request()->input('question', ''));
-            if (trim($question) === '') {
-                $this->pageResult(['status' => 400, 'message' => 'Please enter a question.']);
-                return;
-            }
-            $sourceInput     = request()->input('source', null);
-            $fromQaLegacy    = request()->boolean('from_qa', false);
-            $isFromQa        = ($sourceInput === 'qa') || $fromQaLegacy;
-            $chatSource      = $isFromQa ? 'qa' : 'chat';
-            $logToChatTable  = !$isFromQa;
-            $storeChatConfig = [
-                'log_to_chat_table' => $logToChatTable,
-                'source'            => $chatSource,
-            ];
+        // SSE streaming headers
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('X-Accel-Buffering: no');
+        header('Connection: keep-alive');
+        @ini_set('zlib.output_compression', 'Off');
+        @ini_set('implicit_flush', 1);
+        while (ob_get_level()) { @ob_end_flush(); }
+        @ob_implicit_flush(true);
+        ignore_user_abort(true);
+        set_time_limit(0);
 
-            if (is_array($question)) {
-                $question = json_encode($question, JSON_UNESCAPED_UNICODE);
-            } elseif (!is_string($question)) {
-                $question = strval($question);
-            }
-            $rawQuestion = trim((string)$question);
-            $qaLang      = $isFromQa ? $this->detectLangZhOrEn($rawQuestion) : 'en';
+        $sourceInput     = request()->input('source', null);
+        $fromQaLegacy    = request()->boolean('from_qa', false);
+        $isFromQa        = ($sourceInput === 'qa') || $fromQaLegacy;
+        $chatSource      = $isFromQa ? 'qa' : 'chat';
+        $logToChatTable  = !$isFromQa;
+        $storeChatConfig = [
+            'log_to_chat_table' => $logToChatTable,
+            'source'            => $chatSource,
+        ];
 
-            $useRag   = 0;
-            $override = '';
+        if (is_array($question)) {
+            $question = json_encode($question, JSON_UNESCAPED_UNICODE);
+        } elseif (!is_string($question)) {
+            $question = strval($question);
+        }
+        $rawQuestion = trim((string)$question);
+        $qaLang      = $isFromQa ? $this->detectLangZhOrEn($rawQuestion) : 'en';
 
-            // === ② 会话身份（保留即可） ===
-            $member    = $this->_current_member ?: null;
-            $memberId  = $member['id'] ?? null;
-            $guestId   = $this->getMyCookie('guest_id');
-            $sessionId = session()->getId();
+        // === ② 会话身份 ===
+        $member    = $this->_current_member ?: null;
+        $memberId  = $member['id'] ?? null;
+        $guestId   = $this->getMyCookie('guest_id');
+        $sessionId = session()->getId();
 
-            // === ②.5 留学类问题（education）→ 永远免费，且可触发升学引导 ===
-            $category    = $this->classifyEducationIntent($rawQuestion);
-            $isEdu       = ($category === 'education');
-            $applyIntent = false;
+        // === ②.5 留学类问题（education）→ 永远免费 ===
+        $category    = $this->classifyEducationIntent($rawQuestion);
+        $isEdu       = ($category === 'education');
+        $applyIntent = false;
 
-            // 只有在确定是“教育类”时，才去额外判断是否有“申请意图”
-            // if ($isEdu) {
-            //     $applyIntent = $this->detectApplyIntent($rawQuestion);
-            // }
+        // === ③.1 已登录用户免费次数限制（Free 用户 5 次） ===
+        if (!empty($member)) {
+            $isPaidUser = DB::table('subscriptions')
+                ->where('member_id', $memberId)
+                ->where('status', 'active')
+                ->where(function ($q) {
+                    $q->whereNull('ends_at')
+                      ->orWhere('ends_at', '>', now());
+                })
+                ->exists();
 
-            // === ③.1 已登录用户免费次数限制（Free 用户 5 次） ===
-
-            if (!empty($member)) {
-
-                // ① 判断是否付费用户
-                $isPaidUser = DB::table('subscriptions')
+            if (!$isPaidUser && !$isEdu) {
+                $memberAskCount = DB::table('chat_log')
                     ->where('member_id', $memberId)
-                    ->where('status', 'active')
-                    ->where(function ($q) {
-                        $q->whereNull('ends_at')
-                        ->orWhere('ends_at', '>', now());
-                    })
-                    ->exists();
-
-                // 如果不是付费用户，则 Free Plan 限制生效
-                if (!$isPaidUser && !$isEdu) {
-
-                    // ② 统计用户提问次数（只数 type='ask'）
-                    $memberAskCount = DB::table('chat_log')
-                        ->where('member_id', $memberId)
-                        ->where('type', 'ask')
-                        ->count();
-
-                    // ③ 超过 5 次 → 返回简短回答 + 升级提示
-                    if ($memberAskCount >= 5) {
-
-                        $limitMsg = $this->buildPaidPlanLimitReply($rawQuestion);
-
-                        // 入库
-                        $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi', $storeChatConfig);
-
-                        // 返回用户
-                        $this->jsonReply($rawQuestion, $limitMsg, 'free-plan-limit', $member);
-                        return;
-                    }
-                }
-            }
-
-            // === ③ 生成回复：不做任何“Agent 限制/语言判断/历史读取”===
-            $reply       = '';
-            $replySource = 'model';
-            $aiOwnerName = 'AI-mmi';
-
-            // === ②.1 未登录用户免费额度限制（游客最多 3 次提问） ===
-            if (empty($member)) {
-                $guestAskCount = \DB::table('chat_log')
-                    ->whereNull('member_id')      // 只统计未登录的提问
-                    ->where('guest_id', $guestId)
                     ->where('type', 'ask')
                     ->count();
 
-                if ($guestAskCount >= 3) {
-                    // ★ 交给 Grok 生成「同语言」的限制提示
-                    $limitMsg = $this->buildLimitReply($rawQuestion);
-
-                    // 记录到 chat_log 里（方便你之后分析）
-                    $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-limit', 'AI-mmi', $storeChatConfig);
-
-                    // 返回前端
-                    $this->jsonReply($rawQuestion, $limitMsg, 'free-limit', $member);
-                    return; // 终止后续逻辑（不再回答问题）
+                if ($memberAskCount >= 5) {
+                    $limitMsg = $this->buildPaidPlanLimitReply($rawQuestion);
+                    $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi', $storeChatConfig);
+                    $this->streamResponse($limitMsg); // SSE
+                    return;
                 }
             }
+        }
 
-            /*
-             * ❶/❷ RAG override 及后端直连逻辑已停用，留存注释便于将来恢复。
-             * if ($useRag === 1 && $override !== '') {
-             *     $reply       = trim($override);
-             *     $replySource = 'rag-override';
-             *     $aiOwnerName = 'AI-mmi (Policy)';
-             * }
-             *
-             * if ($reply === '' && $useRag === 1) {
-             *     $rag = $this->callRagDirect($rawQuestion, null, '', null);
-             *     $rag = is_string($rag) ? trim($rag) : '';
-             *     if ($rag !== '' && mb_strlen($rag) >= 30) {
-             *         $reply       = $rag;
-             *         $replySource = 'rag-direct';
-             *         $aiOwnerName = 'AI-mmi (Policy)';
-             *     }
-             * }
-             */
+        // === ③ 生成回复 ===
+        $reply       = '';
+        $replySource = 'model';
+        $aiOwnerName = 'AI-mmi';
 
-            // ❸（QA 专用）主题限定 + CTA
-            if ($reply === '' && $isFromQa) {
-                if (!$this->isScholarshipOrPartnerSchoolQuestion($rawQuestion)) {
-                    // Out-of-scope: do not call xAI and do not return text
-                    $reply       = null;
-                    $replySource = 'qa-out-of-scope';
-                    $aiOwnerName = 'AI-mmi';
-                } else {
-                    $qaSystemPrompt = "
+        // === ②.1 未登录用户免费额度限制（游客最多 3 次提问） ===
+        if (empty($member)) {
+            $guestAskCount = \DB::table('chat_log')
+                ->whereNull('member_id')
+                ->where('guest_id', $guestId)
+                ->where('type', 'ask')
+                ->count();
+
+            if ($guestAskCount >= 3) {
+                $limitMsg = $this->buildLimitReply($rawQuestion);
+                $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-limit', 'AI-mmi', $storeChatConfig);
+                $this->streamResponse($limitMsg); // SSE
+                return;
+            }
+        }
+
+        // ❸（QA 专用）主题限定 + CTA + RAG
+        if ($reply === '' && $isFromQa) {
+            if (!$this->isScholarshipOrPartnerSchoolQuestion($rawQuestion)) {
+                $reply       = null;
+                $replySource = 'qa-out-of-scope';
+                $aiOwnerName = 'AI-mmi';
+
+                $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
+                $this->streamResponse(''); // send empty SSE and [DONE]
+                return;
+            } else {
+                $qaSystemPrompt = "
 You are AI-mmi handling scholarship and partner-school Q&A.
 
 Rules:
@@ -270,96 +247,15 @@ Rules:
 - Do not mention xAI, Grok, LLMs, tools, citations, collection IDs, or technical details in the user-visible answer.
 ";
 
-                    $x = $this->callXaiResponses($rawQuestion, [
-                        'temperature'        => 0.2,
-                        'max_output_tokens'  => 600,
-                        'model'              => 'grok-4-1-fast-reasoning',
-                        'enable_search'      => true,
-                        'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
-                        'vector_store_ids'   => [],
-                        'system'             => $qaSystemPrompt,
-                        'resume_thread'      => false,
-                    ]);
-
-                    if (!is_array($x) || empty($x['ok'])) {
-                        $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
-                        $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
-                    } else {
-                        $reply = $x['text'];
-                        $reply = preg_replace(
-                            '/信息基于xAI内部集合检索的文件/u',
-                            '信息基于AI-mmi内部集合检索的资料',
-                            $reply
-                        );
-                        $replySource = $x['source'] ?? 'model';
-                    }
-
-                    if (mb_strlen($reply, 'UTF-8') > 2500) {
-                        $reply = mb_substr($reply, 0, 2500, 'UTF-8');
-                    }
-
-                    $reply       = $this->appendQaCta($reply, $qaLang);
-                    $aiOwnerName = 'AI-mmi';
-                }
-            }
-
-            // ❸ 纯模型 Pure model
-            if ($reply === '' && !$isFromQa) {
                 $x = $this->callXaiResponses($rawQuestion, [
-                    'temperature' => 0.2,
-                    'max_output_tokens' => 2048,
-                    'model' => 'grok-4-1-fast-reasoning',
-                    'enable_search'     => true,
-                    'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
-                    'vector_store_ids' => [],
-                    'system' => "
-                    You are AI-mmi, specialised in immigration and visa queries.
-
-                    ## Identity & Naming
-                    - Always refer to yourself as “AI-mmi”.
-                    - Never mention xAI, Grok, LLM, model, provider names or any tool names in the answer.
-                    - Do NOT mention things like file_search, collections_search, web_search, vector stores, file IDs or collection IDs.
-                    - Do NOT output citations, file IDs, collection IDs or any other technical identifiers in user-visible text.
-
-                    ## Language Behaviour (auto follow user language)
-                    - Detect the language of the user's latest message and reply in that same language.
-                    - If the user writes in Simplified Chinese, reply in Simplified Chinese.
-                    - If the user writes in Traditional Chinese, reply in Traditional Chinese.
-                    - If the user writes in Japanese, reply in Japanese.
-                    - For any other language (e.g. French, Spanish, etc.), mirror that language naturally.
-                    - If the user mixes languages, default to the language used in the last sentence that contains the real question.
-
-                    ## Greeting Behaviour (only first reply)
-                    - Only when this is the FIRST reply in a new conversation thread, start with a short greeting + self-introduction.
-                    - First reply greeting templates:
-                        - English: “Hi this is AI-mmi, your smart education and migration assistant.”
-                        - Simplified Chinese: “您好！我是 AI-mmi，您的智能留学和移民助理。”
-                        - Traditional Chinese: “您好！我是 AI-mmi，您的智能留學和移民助理。”
-                        - Other languages: translate the English sentence naturally into that language.
-                    - In all later replies in the SAME conversation:
-                        - Do NOT introduce yourself again.
-                        - Normally do NOT add extra greetings; answer the question directly.
-                    - If the user only says something like “thank you”, “谢谢”, “多謝”, you may respond with a short friendly closing sentence in the same language, without re-introducing yourself.
-
-                    ### INTERNAL KNOWLEDGE RULES
-                    - When internal collections are available, you MUST first attempt to retrieve internal policy files.
-                    - If you used internal collections, you may add one natural-language sentence such as: 
-                    'The above information is based on data retrieved from AI-mmi's internal repository.' 
-                    or equivalent wording in the user's language.
-                    - If no relevant internal document is found, fall back to public web sources.
-                    - If public sources are used, you may optionally state in natural language:
-                    “本次仅使用公开资料（未使用 AI-mmi 内部资料库）。”
-                    or equivalent wording in the user's language.
-                    - DO NOT fabricate or guess internal documents or policies.
-
-                    ### CITATION & TECHNICAL INFO
-                    - Citations, technical IDs, raw metadata are for internal logging only.
-                    - They MUST NOT appear in user-visible output.
-
-                    ### RESPONSE STYLE
-                    - Provide precise, structured, factual information.
-                    - Keep the tone professional, clear and user-friendly.",
-
+                    'temperature'        => 0.2,
+                    'max_output_tokens'  => 4096,
+                    'model'              => 'grok-4-1-fast-reasoning',
+                    'enable_search'      => true,
+                    'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+                    'vector_store_ids'   => [],
+                    'system'             => $qaSystemPrompt,
+                    'resume_thread'      => false,
                 ]);
 
                 if (!is_array($x) || empty($x['ok'])) {
@@ -367,52 +263,173 @@ Rules:
                     $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
                 } else {
                     $reply = $x['text'];
-
-                    // === 如果是留学问题 + 有申请意图 → 添加升学申请引导 ===
-                    // if ($isEdu && $applyIntent) {
-                    //     $eduFooter = $this->buildEducationApplyMessage($rawQuestion);
-                    //     if ($eduFooter !== '') {
-                    //         $reply .= "\n\n" . $eduFooter;
-                    //     }
-                    // }
-
                     $reply = preg_replace(
                         '/信息基于xAI内部集合检索的文件/u',
                         '信息基于AI-mmi内部集合检索的资料',
                         $reply
                     );
-
                     $replySource = $x['source'] ?? 'model';
                 }
 
+                // QA: keep 2500-char safety cap
+                if (mb_strlen($reply, 'UTF-8') > 2500) {
+                    $reply = mb_substr($reply, 0, 2500, 'UTF-8');
+                }
+
+                $reply = $this->appendQaCta($reply, $qaLang);
                 $aiOwnerName = 'AI-mmi';
-            }
 
-            // === ④ 入库 + 返回 ===
-            $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
-            $this->jsonReply($rawQuestion, $reply, $replySource, $member);
-        });
-
-        if (request()->isMethod('post')) return;
-
-        // === ⑤ GET 拉历史（保持不变） ===
-        $max_date_int = $this->getSession('max_chat_date_int');
-        if (!empty($init)) $max_date_int = '';
-        $chat_message = [];
-        if (!empty($this->_current_member)) {
-            $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int);
-            foreach ($chat_message as &$m) {
-                $m['owner_name']   = strtolower($m['type']) === 'ask'
-                    ? ($this->_current_member['alias_name'] ?? 'User') : 'AI-mmi';
-                $m['owner_avatar'] = strtolower($m['type']) === 'ask'
-                    ? 'asset/image/icon-member.png' : 'asset/image/logo-mmi.png';
-                $m['content_raw']  = $m['content'];
-                $m['content_html'] = nl2br(e($m['content']));
-                $m['created_time'] = !empty($m['created_at'])
-                    ? \Carbon\Carbon::parse($m['created_at'], 'UTC')->toIso8601String() : null;
+                $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
+                $this->streamResponse($reply); // SSE full reply
+                return;
             }
         }
-        echo json_encode($chat_message);
+
+        // === ❹ 普通聊天：Grok RAG（不截断，SSE 输出） ===
+        if ($reply === '' && !$isFromQa) {
+            $systemPrompt = "You are AI-mmi, specialised in immigration and visa queries.
+
+## Identity & Naming
+- Always refer to yourself as \"AI-mmi\".
+- Never mention xAI, Grok, LLM, model, provider names or any tool names in the answer.
+- Do NOT mention things like file_search, collections_search, web_search, vector stores, file IDs or collection IDs.
+- Do NOT output citations, file IDs, collection IDs or any other technical identifiers in user-visible text.
+
+## Language Behaviour (auto follow user language)
+- Detect the language of the user's latest message and reply in that same language.
+- If the user writes in Simplified Chinese, reply in Simplified Chinese.
+- If the user writes in Traditional Chinese, reply in Traditional Chinese.
+- If the user writes in Japanese, reply in Japanese.
+- For any other language (e.g. French, Spanish, etc.), mirror that language naturally.
+- If the user mixes languages, default to the language used in the last sentence that contains the real question.
+
+## Greeting Behaviour (only first reply)
+- Only when this is the FIRST reply in a new conversation thread, start with a short greeting + self-introduction.
+- First reply greeting templates:
+    - English: “Hi this is AI-mmi, your smart education and migration assistant.”
+    - Simplified Chinese: “您好！我是 AI-mmi，您的智能留学和移民助理。”
+    - Traditional Chinese: “您好！我是 AI-mmi，您的智能留學和移民助理。”
+    - Other languages: translate the English sentence naturally into that language.
+- In all later replies in the SAME conversation:
+    - Do NOT introduce yourself again.
+    - Normally do NOT add extra greetings; answer the question directly.
+- If the user only says something like “thank you”, “谢谢”, “多謝”, you may respond with a short friendly closing sentence in the same language, without re-introducing yourself.
+
+### INTERNAL KNOWLEDGE RULES
+- When internal collections are available, you MUST first attempt to retrieve internal policy files.
+- If you used internal collections, you may add one natural-language sentence such as:
+  “The above information is based on data retrieved from AI-mmi's internal repository.”
+  or equivalent wording in the user's language.
+- If no relevant internal document is found, fall back to public web sources.
+- If public sources are used, you may optionally state in natural language:
+  “本次仅使用公开资料（未使用 AI-mmi 内部资料库）。”
+  or equivalent wording in the user's language.
+- DO NOT fabricate or guess internal documents or policies.
+
+### CITATION & TECHNICAL INFO
+- Citations, technical IDs, raw metadata are for internal logging only.
+- They MUST NOT appear in user-visible output.
+
+### RESPONSE STYLE
+- Provide precise, structured, factual information.
+- Keep the tone professional, clear and user-friendly.";
+
+            $x = $this->callXaiResponses($rawQuestion, [
+                'temperature'        => 0.2,
+                'max_output_tokens'  => 4096,  // higher cap, no PHP truncation
+                'model'              => 'grok-4-1-fast-reasoning',
+                'enable_search'      => true,
+                'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+                'vector_store_ids'   => [],
+                'system'             => $systemPrompt,
+                'resume_thread'      => true,
+            ]);
+
+            if (!is_array($x) || empty($x['ok'])) {
+                $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
+                $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
+            } else {
+                $reply = $x['text'];
+                $reply = preg_replace(
+                    '/信息基于xAI内部集合检索的文件/u',
+                    '信息基于AI-mmi内部集合检索的资料',
+                    $reply
+                );
+                $replySource = $x['source'] ?? 'model';
+            }
+
+            // IMPORTANT: no mb_substr / no truncation here.
+            $aiOwnerName = 'AI-mmi';
+
+            // Save full reply (for history) and also stream it
+            $this->saveStreamedReply(
+                $reply,
+                $rawQuestion,
+                $memberId,
+                $guestId,
+                $sessionId,
+                $logToChatTable,
+                $chatSource
+            );
+
+            $this->streamResponse($reply); // SSE word-by-word, same format common.js expects
+            return;
+        }
+
+        // Fallback: unlikely
+        $this->saveStreamedReply(
+            (string)$reply,
+            $rawQuestion,
+            $memberId,
+            $guestId,
+            $sessionId,
+            $logToChatTable,
+            $chatSource
+        );
+        $this->streamResponse((string)$reply);
+    });
+
+    if (request()->isMethod('post')) return;
+
+    // === ⑤ GET 拉历史（保持不变） ===
+    $max_date_int = $this->getSession('max_chat_date_int');
+    if (!empty($init)) $max_date_int = '';
+    $chat_message = [];
+    if (!empty($this->_current_member)) {
+        $chat_message = $this->loadModel('chatlog')->getAll($this->_current_member['id'], $max_date_int);
+        foreach ($chat_message as &$m) {
+            $m['owner_name']   = strtolower($m['type']) === 'ask'
+                ? ($this->_current_member['alias_name'] ?? 'User') : 'AI-mmi';
+            $m['owner_avatar'] = strtolower($m['type']) === 'ask'
+                ? 'asset/image/icon-member.png' : 'asset/image/logo-mmi.png';
+            $m['content_raw']  = $m['content'];
+            $m['content_html'] = nl2br(e($m['content']));
+            $m['created_time'] = !empty($m['created_at'])
+                ? \Carbon\Carbon::parse($m['created_at'], 'UTC')->toIso8601String() : null;
+        }
+    }
+    echo json_encode($chat_message);
+}
+
+
+
+    private function streamResponse($reply)
+    {
+        // write streaming response word by word
+        $words = explode(' ', $reply);
+        foreach ($words as $word) {
+            $data = [
+                'choices' => [[
+                    'delta' => ['content' => $word . ' ']
+                ]]
+            ];
+            echo "data: " . json_encode($data) . "\n\n";
+            flush();
+            usleep(50000); // 50ms delay
+        }
+        
+        echo "data: [DONE]\n\n";
+        flush();
     }
 
     public function logRag(\Illuminate\Http\Request $request)
@@ -1088,114 +1105,7 @@ Rules:
         return response()->json(['status'=>200,'message'=>'xAI thread reset']);
     }
 
-    public function chatStream()
-{
-    $question = request()->input('question', '');
-
-    // Use a StreamedResponse so Laravel can handle streaming properly.
-    return response()->stream(function() use ($question) {
-        // Disable buffers and ensure immediate flush inside the stream.
-        @ini_set('zlib.output_compression', 'Off');
-        @ini_set('implicit_flush', 1);
-        while (ob_get_level()) { @ob_end_flush(); }
-        @ob_implicit_flush(true);
-        ignore_user_abort(true);
-        set_time_limit(0);
-
-        // Basic validations
-        if (trim($question) === '') {
-            echo "data: " . json_encode(['error' => 'Empty question']) . "\n\n";
-            flush();
-            return;
-        }
-
-        $apiKey = env('XAI_API_KEY');
-        if (!$apiKey) {
-            echo "data: " . json_encode(['error' => 'API key missing']) . "\n\n";
-            flush();
-            return;
-        }
-
-        // Apply same validations as regular chat()
-        $member = $this->_current_member;
-        $guestId = $this->getMyCookie('guest_id');
-
-        if (empty($member)) {
-            $guestAskCount = \DB::table('chat_log')
-                ->whereNull('member_id')
-                ->where('guest_id', $guestId)
-                ->where('type', 'ask')
-                ->count();
-
-            if ($guestAskCount >= 3) {
-                echo "data: " . json_encode(['content' => 'Looks like you\'ve used up your free questions. Please register or log in.']) . "\n\n";
-                echo "data: [DONE]\n\n";
-                flush();
-                return;
-            }
-        }
-
-        // Prepare payload for upstream streaming API
-        $systemPrompt = "You are AI-mmi..."; // use the same system prompt as chat()
-
-        $payload = [
-            'model' => env('XAI_MODEL', 'grok-4-1-fast-reasoning'),
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $question]
-            ],
-            'stream' => true,
-            'temperature' => 0.2,
-            'max_tokens' => 2048,
-        ];
-
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => 'https://api.x.ai/v1/chat/completions',
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $apiKey,
-                'Content-Type: application/json',
-                'Accept: text/event-stream',
-            ],
-            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            CURLOPT_WRITEFUNCTION => function($ch, $data) {
-                $lines = preg_split('/\r\n|\n|\r/', $data);
-                foreach ($lines as $line) {
-                    if ($line === '') continue;
-                    if (strpos($line, 'data:') === 0) {
-                        echo $line . "\n";
-                    } else {
-                        echo 'data: ' . $line . "\n";
-                    }
-                }
-                echo "\n";
-                if (function_exists('ob_flush')) @ob_flush();
-                @flush();
-                return strlen($data);
-            },
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_BUFFERSIZE => 4096,
-            CURLOPT_FORBID_REUSE => false,
-            CURLOPT_TCP_KEEPALIVE => 1,
-        ]);
-
-        curl_exec($ch);
-        if (curl_errno($ch)) {
-            echo "data: " . json_encode(['error' => curl_error($ch)]) . "\n\n";
-            flush();
-        }
-        curl_close($ch);
-    }, 200, [
-        'Content-Type' => 'text/event-stream',
-        'Cache-Control' => 'no-cache',
-        'X-Accel-Buffering' => 'no',
-        'Connection' => 'keep-alive',
-    ]);
-}
-
-// === STREAMING HELPER METHODS ===
+    // === STREAMING HELPER METHODS ===
 private function streamError($message) {
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
