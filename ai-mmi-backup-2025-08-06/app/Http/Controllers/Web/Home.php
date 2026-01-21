@@ -126,6 +126,7 @@ class Home extends WebController {
         // === ① 读取参数（仅保留必要项） ===
         $question = $this->postParamValue('question', request()->input('question', ''));
         if (trim($question) === '') {
+            // SSE error for empty question
             header('Content-Type: text/event-stream');
             header('Cache-Control: no-cache');
             header('X-Accel-Buffering: no');
@@ -135,7 +136,7 @@ class Home extends WebController {
             return;
         }
 
-        // streaming header setting
+        // SSE streaming headers
         header('Content-Type: text/event-stream');
         header('Cache-Control: no-cache');
         header('X-Accel-Buffering: no');
@@ -196,7 +197,7 @@ class Home extends WebController {
                 if ($memberAskCount >= 5) {
                     $limitMsg = $this->buildPaidPlanLimitReply($rawQuestion);
                     $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi', $storeChatConfig);
-                    $this->streamResponse($limitMsg);
+                    $this->streamResponse($limitMsg); // SSE
                     return;
                 }
             }
@@ -218,12 +219,12 @@ class Home extends WebController {
             if ($guestAskCount >= 3) {
                 $limitMsg = $this->buildLimitReply($rawQuestion);
                 $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-limit', 'AI-mmi', $storeChatConfig);
-                $this->streamResponse($limitMsg);
+                $this->streamResponse($limitMsg); // SSE
                 return;
             }
         }
 
-        // ❸（QA 专用）主题限定 + CTA
+        // ❸（QA 专用）主题限定 + CTA + RAG
         if ($reply === '' && $isFromQa) {
             if (!$this->isScholarshipOrPartnerSchoolQuestion($rawQuestion)) {
                 $reply       = null;
@@ -231,8 +232,8 @@ class Home extends WebController {
                 $aiOwnerName = 'AI-mmi';
 
                 $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
-                $this->streamResponse('');
-                exit();
+                $this->streamResponse(''); // send empty SSE and [DONE]
+                return;
             } else {
                 $qaSystemPrompt = "
 You are AI-mmi handling scholarship and partner-school Q&A.
@@ -248,7 +249,7 @@ Rules:
 
                 $x = $this->callXaiResponses($rawQuestion, [
                     'temperature'        => 0.2,
-                    'max_output_tokens'  => 600,
+                    'max_output_tokens'  => 4096,
                     'model'              => 'grok-4-1-fast-reasoning',
                     'enable_search'      => true,
                     'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
@@ -270,22 +271,22 @@ Rules:
                     $replySource = $x['source'] ?? 'model';
                 }
 
+                // QA: keep 2500-char safety cap
                 if (mb_strlen($reply, 'UTF-8') > 2500) {
                     $reply = mb_substr($reply, 0, 2500, 'UTF-8');
                 }
 
                 $reply = $this->appendQaCta($reply, $qaLang);
+                $aiOwnerName = 'AI-mmi';
 
                 $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
-                $this->streamResponse($reply);
-                exit();
+                $this->streamResponse($reply); // SSE full reply
+                return;
             }
         }
 
-        // === Grok RAG via Responses API for general chat ===
-        if (!$isFromQa) {
-            // streaming headers already set above
-
+        // === ❹ 普通聊天：Grok RAG（不截断，SSE 输出） ===
+        if ($reply === '' && !$isFromQa) {
             $systemPrompt = "You are AI-mmi, specialised in immigration and visa queries.
 
 ## Identity & Naming
@@ -333,28 +334,34 @@ Rules:
 - Provide precise, structured, factual information.
 - Keep the tone professional, clear and user-friendly.";
 
-            $opts = [
-                'model'             => 'grok-4-1-fast-reasoning',
-                'system'            => $systemPrompt,
-                'enable_search'     => true,  // web_search + file_search
-                'collection_ids'    => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'], // TODO: replace with your real IDs
-                'file_search_max'   => 15,
-                'resume_thread'     => true,
-                'temperature'       => 0.2,
-                'max_output_tokens' => 2048,
-            ];
-
-            $x = $this->callXaiResponses($rawQuestion, $opts);
+            $x = $this->callXaiResponses($rawQuestion, [
+                'temperature'        => 0.2,
+                'max_output_tokens'  => 4096,  // higher cap, no PHP truncation
+                'model'              => 'grok-4-1-fast-reasoning',
+                'enable_search'      => true,
+                'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+                'vector_store_ids'   => [],
+                'system'             => $systemPrompt,
+                'resume_thread'      => true,
+            ]);
 
             if (!is_array($x) || empty($x['ok'])) {
-                $reply       = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
-                $replySource = $x['source'] ?? 'upstream-error';
+                $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
+                $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
             } else {
-                $reply       = $this->processFinalText($x['text'], false, '');
+                $reply = $x['text'];
+                $reply = preg_replace(
+                    '/信息基于xAI内部集合检索的文件/u',
+                    '信息基于AI-mmi内部集合检索的资料',
+                    $reply
+                );
                 $replySource = $x['source'] ?? 'model';
             }
 
-            // Save as streaming reply
+            // IMPORTANT: no mb_substr / no truncation here.
+            $aiOwnerName = 'AI-mmi';
+
+            // Save full reply (for history) and also stream it
             $this->saveStreamedReply(
                 $reply,
                 $rawQuestion,
@@ -365,10 +372,21 @@ Rules:
                 $chatSource
             );
 
-            // Stream to frontend in SSE JSON chunks
-            $this->streamResponse($reply);
+            $this->streamResponse($reply); // SSE word-by-word, same format common.js expects
             return;
         }
+
+        // Fallback: unlikely
+        $this->saveStreamedReply(
+            (string)$reply,
+            $rawQuestion,
+            $memberId,
+            $guestId,
+            $sessionId,
+            $logToChatTable,
+            $chatSource
+        );
+        $this->streamResponse((string)$reply);
     });
 
     if (request()->isMethod('post')) return;
@@ -392,6 +410,7 @@ Rules:
     }
     echo json_encode($chat_message);
 }
+
 
 
     private function streamResponse($reply)
