@@ -1,4 +1,13 @@
 $(document).ready(function() {
+    // Predefined messages for each study option
+    const studyMessages = {
+        'program-finder': 'Which programs, fields of study, or courses would you recommend as the best match for my academic history, career aspirations, and long-term objectives?',
+        'cost-estimates': 'What are the estimated total costs (tuition, living expenses, visa/application fees, etc.)?',
+        'admission-plan': 'Could you please outline the key admission and visa requirements, along with the step-by-step application process?',
+        'scholarship-search': 'What scholarships, bursaries, grants, or other forms of financial assistance are available for international students / applicants in my situation, and what are the eligibility requirements and application deadlines?',
+        'timeline-actions': 'What are the available intake periods / commencement dates for the recommended programs, and what are the corresponding application submission deadlines? Please make a timeline for me.'
+    };
+
     // Handle study option button clicks
     $('.study-option-button').on('click', function(e) {
         const action = $(this).data('action');
@@ -10,8 +19,46 @@ $(document).ready(function() {
             return true;
         }
         
-        // For buttons without proper links, prevent default and show a message
+        // Prevent default action
         e.preventDefault();
-        console.log('Study action:', action, '- Coming soon!');
+        
+        // Check if this action has a predefined message
+        if (studyMessages[action]) {
+            // Send message to chatbox
+            sendToChatbox(studyMessages[action]);
+        } else {
+            console.log('Study action:', action, '- No message defined');
+        }
     });
+
+    /**
+     * Send a predefined message to the chatbox
+     */
+    function sendToChatbox(message) {
+        // Get the chat input field
+        const $chatInput = $('#ask_question');
+        
+        if ($chatInput.length === 0) {
+            console.error('Chat input not found');
+            return;
+        }
+
+        // Set the message in the input field
+        $chatInput.val(message);
+
+        // Show mobile chat if on mobile
+        if ($(window).width() <= 768) {
+            if (!$('main.page-body div.chat-area').hasClass('show-mobile')) {
+                toggleMobileChat();
+            }
+        }
+
+        // Scroll to chat area smoothly
+        $('html, body').animate({
+            scrollTop: $('.chat-area').offset().top - 100
+        }, 500, function() {
+            // Auto-submit the form after scrolling
+            $('#ask-form').submit();
+        });
+    }
 });

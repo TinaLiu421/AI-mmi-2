@@ -22,6 +22,25 @@
     visibility: visible !important;
 }
 
+/* When user has chat history, show only the buttons at the top */
+.welcome-message.has-history {
+    display: block !important;
+    position: static;
+    height: auto;
+    padding: 10px 0;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Show buttons even when welcome message is hidden */
+.welcome-message__buttons {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: relative;
+    z-index: 1;
+}
+
 /* Big Round Video Avatar */
 .welcome-message__video-container {
     margin-bottom: 25px;
@@ -241,10 +260,19 @@
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
-    margin-top: -10px;
+    margin-top: 10px;
     width: 100%;
     max-width: 400px;
     flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+}
+
+/* Ensure buttons are always visible */
+.welcome-message__buttons {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .welcome-message__button {

@@ -218,6 +218,7 @@ header.page-header .controls {
 header.page-header .controls .lang,
 header.page-header .controls .member,
 header.page-header .controls .service_provider_info,
+header.page-header .controls .upgrade_link,
 header.page-header .controls .menu {
     position: relative;
     flex-shrink: 0;
@@ -226,6 +227,7 @@ header.page-header .controls .menu {
 /* Shared control appearance for controls */
 header.page-header .controls .lang > a,
 header.page-header .controls .service_provider_info > a,
+header.page-header .controls .upgrade_link > a,
 header.page-header .controls .member a,
 header.page-header .controls .menu > a {
     display: flex;
@@ -250,6 +252,7 @@ header.page-header .controls .menu > a {
 header.page-header .controls .lang > a:hover,
 header.page-header .controls .member a:hover,
 header.page-header .controls .service_provider_info > a:hover,
+header.page-header .controls .upgrade_link > a:hover,
 header.page-header .controls .menu > a:hover {
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.22);
@@ -278,6 +281,7 @@ header.page-header .controls .menu ul li a {
 header.page-header .controls .lang > a img,
 header.page-header .controls .member a img,
 header.page-header .controls .service_provider_info > a img,
+header.page-header .controls .upgrade_link > a i,
 header.page-header .controls .menu > a img {
     width: var(--header-control-icon) !important;
     height: var(--header-control-icon) !important;
@@ -305,6 +309,7 @@ header.page-header .controls > * {
 /* Accessible focus ring for keyboard users */
 header.page-header .controls .lang > a:focus,
 header.page-header .controls .service_provider_info > a:focus,
+header.page-header .controls .upgrade_link > a:focus,
 header.page-header .controls .member a:focus,
 header.page-header .controls .menu > a:focus {
     outline: none;
@@ -2444,6 +2449,62 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
 
 .chat-action-buttons .chat-action-btn i {
     font-size: 16px;
+}
+
+/* Study and Migration buttons in chat-action-buttons - match welcome message style */
+.chat-action-buttons .chat-action-btn--study,
+.chat-action-buttons .chat-action-btn--migration {
+    flex: 1;
+    height: 80px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    padding: 0;
+}
+
+.chat-action-buttons .chat-action-btn--study:hover,
+.chat-action-buttons .chat-action-btn--migration:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.chat-action-buttons .chat-action-btn--study::before,
+.chat-action-buttons .chat-action-btn--migration::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(3px) brightness(0.7);
+    z-index: 1;
+}
+
+.chat-action-buttons .chat-action-btn--study::before {
+    background-image: url('/asset/image/study.jpg');
+}
+
+.chat-action-buttons .chat-action-btn--migration::before {
+    background-image: url('/asset/image/migration.jpg');
+}
+
+.chat-action-buttons .chat-action-btn-text {
+    position: relative;
+    z-index: 2;
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 /* 让机器人 Markdown 更易读 */

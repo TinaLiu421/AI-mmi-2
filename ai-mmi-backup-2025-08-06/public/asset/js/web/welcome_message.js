@@ -49,7 +49,9 @@ function initWelcomeMessage() {
             var hasChatHistory = data && data.length > 0;
 
             if (hasChatHistory) {
-                $(".welcome-message").removeClass("show").hide();
+                // Hide the entire welcome message when user has chat history
+                $(".welcome-message").hide();
+                
                 // Show upload button when there's chat history
                 $("#doc-upload-btn").show();
             } else {

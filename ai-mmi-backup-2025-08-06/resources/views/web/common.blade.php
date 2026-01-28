@@ -75,6 +75,12 @@
                 </a>
 
                 <div class="controls">
+                     <div class="upgrade_link">
+                        <a href="/upgrade">
+                            <i class="fa fa-star"></i>
+                            <span>Upgrade</span>
+                        </a>
+                    </div>
                      <div class="service_provider_info">
                         <a href="<?php echo $_page_base_url.'/service_provider_info'; ?>">
                             <img src="asset/image/service_provider.png" alt="icon-service-provider"/>
@@ -188,15 +194,11 @@
 
                             <!-- Chat Action Buttons -->
                             <div class="chat-action-buttons" style="display: none">
-                                <a href="/agents" class="chat-action-btn" title="<?php echo $_page_lang['chat_robot.talk_to_agent']; ?>">
-                                    <i class="fa fa-user"></i><span><?php echo $_page_lang['chat_robot.talk_to_agent']; ?></span>
+                                <a href="<?php echo $_page_base_url.'/study'; ?>" class="chat-action-btn chat-action-btn--study" title="Study">
+                                    <span class="chat-action-btn-text">Study</span>
                                 </a>
-                                <a href="/upgrade" class="chat-action-btn" title="<?php echo $_page_lang['chat_robot.upgrade_plan']; ?>">
-                                    <i class="fa fa-star"></i><span><?php echo $_page_lang['chat_robot.upgrade']; ?></span>
-                                </a>
-                                <!-- Profile Comparison Button -->
-                                <a href="/profile_comparison" id="profile-comparison-action-btn" class="chat-action-btn" title="<?php echo $_page_lang['chat_robot.my_eligibility_title']; ?>">
-                                    <i class="fa fa-percent"></i><span><?php echo $_page_lang['chat_robot.my_eligibility']; ?></span>
+                                <a href="<?php echo $_page_base_url.'/migration'; ?>" class="chat-action-btn chat-action-btn--migration" title="Migration">
+                                    <span class="chat-action-btn-text">Migration</span>
                                 </a>
                             </div>
 
