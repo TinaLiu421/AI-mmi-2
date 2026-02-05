@@ -1,4 +1,4 @@
-app_member-- Adminer 5.4.1 MariaDB 5.5.5-10.5.29-MariaDB-deb11-log dump
+-- Adminer 5.4.1 MariaDB 5.5.5-10.5.29-MariaDB-deb11-log dump
 
 SET NAMES utf8;
 SET time_zone = '+00:00';

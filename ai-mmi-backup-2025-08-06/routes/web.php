@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
 Route::get('/posts/details/{postId}', [WebPosts::class, 'details'])->name('posts.details');
 Route::post('/posts/{postId}/qa-ask', [WebPosts::class, 'qaAsk']);
+// Streaming endpoint for AI responses handled by controller
+use App\Http\Controllers\Web\Home as HomeController;
+Route::post('/chat/stream', [HomeController::class, 'chatStream'])->name('chat.stream');
 
 /*
 |--------------------------------------------------------------------------

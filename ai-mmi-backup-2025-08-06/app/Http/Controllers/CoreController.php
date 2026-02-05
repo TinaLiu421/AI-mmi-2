@@ -47,9 +47,14 @@ class CoreController extends Controller {
     // init
     public function __construct($data = null) {
         $this->_mapping_data = $data;
-        // exit if empty
-        if(empty($this->_mapping_data)) { 
-            return abort(404); 
+        // If mapping data is empty, allow the controller to be instantiated by the container
+        // (for artisan commands, route:list, middleware gathering, etc.) without aborting.
+        // Full initialization (loading language, page meta, session handling) requires
+        // valid mapping data and will be skipped when it's absent.
+        if (empty($this->_mapping_data)) {
+            // keep mapping_data as empty array to avoid PHP warnings elsewhere
+            $this->_mapping_data = [];
+            return;
         }
         
         // set current date & time
@@ -412,27 +417,69 @@ class CoreController extends Controller {
     protected function pageMeta($data = [], $use_default = true, $prefix = true) {
         $setting_model = $this->loadModel('setting');
         
-        // default title
+        // default title (normalize inputs to strings to avoid array->string warnings)
         $default_app_title = $setting_model->getByName('meta_title', $this->_current_lang_index);
-        $data['title'] = implode(' - ', array_filter(array_unique([
+        $title_parts = [
             ((!empty($data['title']))?$data['title']:''),
             ((!empty($default_app_title) && $prefix)?$default_app_title:'')
-        ])));
+        ];
+        $normalized_parts = [];
+        foreach ($title_parts as $part) {
+            if (is_array($part)) {
+                // flatten array parts to a single string (preserve readable separators)
+                $part = implode(' ', array_filter(array_map(function($p){ return is_scalar($p) ? (string)$p : ''; }, $part)));
+            } elseif (is_object($part)) {
+                $part = method_exists($part, '__toString') ? (string)$part : '';
+            } else {
+                $part = (string)$part;
+            }
+            $part = trim($part);
+            if ($part !== '') { $normalized_parts[] = $part; }
+        }
+        $data['title'] = implode(' - ', array_unique($normalized_parts));
 
         // default description
         if(!isset($data['description']) || (empty($data['description']) && $use_default)) {
             $data['description'] = $setting_model->getByName('meta_description', $this->_current_lang_index);
         }
-        
+
         // default image
         if(!isset($data['image']) || (empty($data['image']) && $use_default)) {
-            $data['image'] = $setting_model->getByName('meta_image', $this->_current_lang_index);;
+            $data['image'] = $setting_model->getByName('meta_image', $this->_current_lang_index);
         }
-        
-        $this->_meta_data['title'] = (!empty($data['title']))?$this->toPlainText($data['title']):'';
-        $this->_meta_data['description'] = (!empty($data['description']))?$this->toPlainText($data['description']):'';
-        $this->_meta_data['image'] = (!empty($data['image']))?$this->toPlainText($data['image']):'';
-        $this->_meta_data['url'] = (!empty($data['url']))?$this->toPlainText($data['url']):$this->_mapping_data['current_url'];
+
+        // normalize description/image/url to scalar strings to avoid passing arrays to toPlainText()
+        $desc_val = isset($data['description']) ? $data['description'] : '';
+        if (is_array($desc_val)) {
+            $desc_val = implode(' ', array_filter(array_map('strval', $desc_val)));
+        } elseif (is_object($desc_val)) {
+            $desc_val = method_exists($desc_val, '__toString') ? (string)$desc_val : '';
+        } else {
+            $desc_val = (string)$desc_val;
+        }
+
+        $img_val = isset($data['image']) ? $data['image'] : '';
+        if (is_array($img_val)) {
+            $img_val = implode(' ', array_filter(array_map('strval', $img_val)));
+        } elseif (is_object($img_val)) {
+            $img_val = method_exists($img_val, '__toString') ? (string)$img_val : '';
+        } else {
+            $img_val = (string)$img_val;
+        }
+
+        $url_val = isset($data['url']) ? $data['url'] : '';
+        if (is_array($url_val)) {
+            $url_val = implode(' ', array_filter(array_map('strval', $url_val)));
+        } elseif (is_object($url_val)) {
+            $url_val = method_exists($url_val, '__toString') ? (string)$url_val : '';
+        } else {
+            $url_val = (string)$url_val;
+        }
+
+        $this->_meta_data['title'] = (!empty($data['title'])) ? $this->toPlainText($data['title']) : '';
+        $this->_meta_data['description'] = (!empty($desc_val)) ? $this->toPlainText($desc_val) : '';
+        $this->_meta_data['image'] = (!empty($img_val)) ? $this->toPlainText($img_val) : '';
+        $this->_meta_data['url'] = (!empty($url_val)) ? $this->toPlainText($url_val) : $this->_mapping_data['current_url'];
         
         return $this;
     }

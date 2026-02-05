@@ -22,25 +22,25 @@
     ];
 @endphp
 
-<div class="apply-page" data-member-id="{{ $member['id'] ?? '' }}">
+<div class="apply-page" id="apply-page-top" data-member-id="{{ $member['id'] ?? '' }}">
     <section class="card apply-hero">
         <div>
             <p class="eyebrow">Education · Course Application</p>
-            <h1>Tell us about your study plan</h1>
-            <p>Complete the form, attach the required documents, and pay the US$100 refundable* application fee to secure priority support from our counsellors.</p>
+            <h1>Tell AI-mmi about your study plan</h1>
+            <p>Complete the form, attach the required documents, and NO application fee to secure priority support from AI-mmi counsellors.</p>
         </div>
             <ul class="hero-highlights">
                 <li>
                     <strong>Complete Support</strong>
-                    <p>We review your goals, budget, scholarship interest, and documents in one place.</p>
+                    <p>AI-mmi will review your goals, budget, scholarship interest, and documents in one place.</p>
                 </li>
                 <li>
                     <strong>Documents &amp; Payment</strong>
-                    <p>Upload your passport, academic certificates, English results, and proof of funds, then pay securely via Stripe.</p>
+                    <p>Upload your passport, academic certificates, English results, and proof of funds, then pay AUD $0 securely via Stripe.</p>
                 </li>
                 <li>
                     <strong>Scholarship Ready</strong>
-                    <p>Let us know the colleges you want so we can match the best AUD$1,000 scholarships.</p>
+                    <p>Let AI-mmi know the colleges you want so AI-mmi can match the best AUD$1,000 scholarships.</p>
                 </li>
             </ul>
     </section>
@@ -299,7 +299,7 @@
 
                 <div class="form-actions">
                     <button type="button" class="btn ghost" id="save-application">Save draft</button>
-                    <button type="button" class="btn primary" id="submit-application" disabled style="opacity: 0.6; cursor: not-allowed;" title="Please verify with reCAPTCHA first">Submit &amp; continue to payment</button>
+                    <button type="button" class="btn primary" id="submit-application" disabled style="opacity: 0.6; cursor: not-allowed;" title="Please verify with reCAPTCHA first">Submit</button>
                 </div>
             </form>
         </div>
@@ -319,9 +319,6 @@
                             </div>
                         </div>
                     </div>
-                    <p class="payment-note">
-                        *The fee is nonrefundable if you withdraw, delay or change your application.
-                    </p>
                 </div>
             </section>
 

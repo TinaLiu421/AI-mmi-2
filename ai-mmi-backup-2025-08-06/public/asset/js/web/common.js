@@ -215,6 +215,113 @@ function buildTimeLineHtml(text) {
     return '<div class="time">' + text + "</div>";
 }
 
+// Streaming function
+// Streaming function
+function streamResponse(question, bubbleId) {
+    const $bubble = $('#' + bubbleId);
+    const $text = $bubble.find('.txt');
+    let fullText = '';
+    
+    // === ADD THINKING INDICATOR ===
+    $text.html('<span class="thinking">Thinking<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>');
+    $bubble.addClass('streaming');
+    
+    // === USE YOUR EXISTING itoken GENERATION ===
+    const local_time = iweb.getDateTime(null, "time");
+    const itoken = window.btoa(md5(iweb.csrf_token + "#dt" + local_time) + "%" + local_time);
+    
+    // === SAME FORM DATA AS REGULAR CHAT ===
+    const formData = new FormData();
+    formData.append('question', question);
+    formData.append('_token', csrfToken);
+    formData.append('itoken', itoken); // Your custom CSRF
+    
+    fetch('/chat/stream', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        
+        function read() {
+            reader.read().then(({done, value}) => {
+                if (done) {
+                    $bubble.removeClass('streaming');
+                    return;
+                }
+                
+                buffer += decoder.decode(value, { stream: true });
+                
+                // Process SSE lines
+                let lastNewline = buffer.lastIndexOf('\n');
+                if (lastNewline !== -1) {
+                    const chunk = buffer.slice(0, lastNewline + 1);
+                    buffer = buffer.slice(lastNewline + 1);
+                    
+                    const lines = chunk.split('\n');
+                    lines.forEach(line => {
+                        line = line.trim();
+                        if (!line) return;
+                        
+                        if (line === 'data: [DONE]') {
+                            $bubble.removeClass('streaming');
+                            return;
+                        }
+                        
+                        if (line.startsWith('data:')) {
+                            const dataStr = line.substring(5).trim();
+                            try {
+                                const data = JSON.parse(dataStr);
+                                
+                                // Handle error from PHP
+                                if (data.error) {
+                                    $text.html(`<span style="color: red;">${data.error}</span>`);
+                                    return;
+                                }
+                                
+                                // Handle OpenAI-compatible format
+                                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                                    // === REMOVE THINKING INDICATOR WHEN FIRST TEXT ARRIVES ===
+                                    if ($text.find('.thinking').length) {
+                                        $text.empty();
+                                    }
+                                    
+                                    fullText += data.choices[0].delta.content;
+                                    
+                                    // === SAME RENDERING AS REGULAR CHAT ===
+                                    const decorated = decorateMarkdownWithEmojis(fullText);
+                                    const safeHtml = mdToSafeHtml(decorated);
+                                    $text.html(safeHtml);
+                                    
+                                    scrollChatToBottom();
+                                }
+                                
+                            } catch(e) {
+                                // Ignore parse errors
+                            }
+                        }
+                    });
+                }
+                
+                read();
+            }).catch(err => {
+                console.error('Stream error:', err);
+                $bubble.removeClass('streaming');
+                $text.html('<span style="color: orange;">Stream interrupted</span>');
+            });
+        }
+        
+        read();
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        $text.html('<span style="color: orange;">Connection failed. Please try again.</span>');
+    });
+}
+
 function iweb_global_func() {
     // Welcome message is now handled by welcome_message.js
     $(document).on(
@@ -854,91 +961,49 @@ function iweb_global_func() {
 
             // ---- 保留 textarea 的 name 即可，无需隐藏字段 ----
 
-            // —— 显示用户气泡、thinking 动画（保持你原来的写法）——
-            window.__lastUserQuestion = userQuestion;
-            var userHtml = renderBubble({ /* 你的原参数：role/avatar/name/text/time */ 
+            // Show user bubble
+            const userHtml = renderBubble({ 
                 role: "ask",
                 avatar: _current_member && _current_member.avatar
                     ? (_current_member.type == 1 ? "upload/member_avatar/" : "upload/member_logo/") + _current_member.avatar
                     : "asset/image/icon-member.png",
                 name: (_current_member && _current_member.name) ? _current_member.name : "You",
-                text: escapeHtml(userQuestion),
+                text: userQuestion,
                 createdAtIso: new Date().toISOString(),
             });
             $("main.page-body div.chat-area div.box > div.show-message").append(userHtml);
 
-            var thinkingIndicator =
-                '<div class="dialog reply thinking-indicator">' +
-                '<div class="avatar"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>' +
-                '<div class="txt">Thinking<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
-                '</div><div class="clearboth"></div>';
-            $("main.page-body div.chat-area div.box > div.show-message").append(thinkingIndicator);
+            // Create AI bubble
+            const bubbleId = 'ai-' + Date.now();
+            const aiHtml = `
+                <div class="dialog reply" id="${bubbleId}">
+                    <div class="avatar"><div style="background-image:url('/asset/image/logo-mmi.png')"></div></div>
+                    <div class="name">AI-mmi</div>
+                    <div class="time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    <div class="clearboth"></div>
+                    <div class="txt chat-markdown"></div>
+                </div>
+                <div class="clearboth"></div>
+            `;
+            $("main.page-body div.chat-area div.box > div.show-message").append(aiHtml);
+            
+            // Scroll to bottom when new bubbles are added
             scrollChatToBottom();
 
-            // UI：清空输入框&占位
-            $ta.val("").attr("placeholder","Thinking...");
-
-            /*
-             * RAG 拦截逻辑已停用，直接走原有表单提交流程。
-             */
-            return true;
+            // Start streaming
+            streamResponse(userQuestion, bubbleId);
+            
+            // Clear input
+            $ta.val("").attr("placeholder", "AI is responding...");
+            
+            return false; // Prevent normal form submission
         },
-
-            // —— ❹：successFn（第二个回调）保持你原来的实现不变 —— 
-            function (response_data) {
-                // 这部分用你原来的渲染逻辑：移除 thinking、显示回复、FA 引导、顶部按钮等
-                $(".thinking-indicator").remove();
-
-                // 提交完成后，务必把 textarea 的 name 还原（为下一轮做准备）
-                const $ta = $("#ask_question");
-                const n = $ta.attr("data-old-name");
-                if (n) $ta.attr("name", n).removeAttr("data-old-name");
-
-                if (iweb.isMatch(response_data.status, 200)) {
-                    if (iweb.isValue(response_data.reply) || iweb.isValue(response_data.answer_html) || iweb.isValue(response_data.answer_markdown)) {
-                        // 优先后端提供的 HTML；否则把 Markdown/纯文本转为安全 HTML
-                        const md = response_data.answer_markdown || response_data.reply || "";
-                        const mdDecorated = decorateMarkdownWithEmojis(md);
-                        const safeHtml = response_data.answer_html
-                        ? DOMPurify.sanitize(String(response_data.answer_html))
-                        : mdToSafeHtml(mdDecorated);
-
-                        const replyHtml = renderBubble({
-                        role: "reply",
-                        avatar: response_data.ai_owner_avatar || "asset/image/logo-mmi.png",
-                        name: response_data.ai_owner_name || "AI-mmi",
-                        text: safeHtml,
-                        createdAtIso: response_data.reply_created_at || new Date().toISOString(),
-                        isHtml: true,
-                    });
-                    $(
-                        "main.page-body div.chat-area div.box > div.show-message"
-                    ).append(replyHtml);
-
-                       // Show flow prompt if available
-                    if (response_data.flow_prompt) {
-                        $("main.page-body div.chat-area div.box > div.show-message").append(
-                            `<div class="dialog reply"><div class="txt chat-markdown">${
-                            mdToSafeHtml(response_data.flow_prompt)
-                            }</div></div><div class="clearboth"></div>`
-                        );
-                    }
-                  
-                        scrollChatToBottom();
-                    }
-                    $("#ask_question").attr("placeholder", "Ask about immigrations, visas, or migration...");
-                    // RAG 字段已停用
-                    
-                } else {
-                    iweb.alert(response_data.message, function () {
-                        if (iweb.isValue(response_data.url)) {
-                            window.location.href = response_data.url;
-                    }
-                });
-                }
-            }
-        );
-    }
+        // successFn (fallback)
+        function (response_data) {
+            $("#ask_question").attr("placeholder", "Ask about study, visa...");
+        }
+    );
+}
 
 function iweb_global_func_done() {
     // load full article content
@@ -1127,16 +1192,17 @@ function loadChatMessage(init) {
                 const isAi = (role === "reply");
                 // 历史数据也可能是 markdown/纯文本；AI 的消息转为安全 HTML，用户消息保留纯文本
                 let textForBubble;
+                const contentRaw = value.content_raw || value.content || "";
                 if (isAi) {
-                if (value.content_html) {
-                    textForBubble = DOMPurify.sanitize(String(value.content_html));
+                    if (value.content_html) {
+                        textForBubble = DOMPurify.sanitize(String(value.content_html));
+                    } else {
+                        const md = contentRaw;
+                        const mdDecorated = decorateMarkdownWithEmojis(md);
+                        textForBubble = mdToSafeHtml(mdDecorated);
+                    }
                 } else {
-                    const md = value.content || "";
-                    const mdDecorated = decorateMarkdownWithEmojis(md);
-                    textForBubble = mdToSafeHtml(mdDecorated);
-                }
-                } else {
-                textForBubble = value.content || "";
+                    textForBubble = contentRaw;
                 }
 
                 const bubbleHtml = renderBubble({

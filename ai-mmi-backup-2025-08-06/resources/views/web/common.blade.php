@@ -222,7 +222,7 @@
                                         </div>
                                     </div>
                                     <div class="input-wrapper">
-                                        <input type="text" id="ask_question" name="question" placeholder="Ask me about migration and study..."/>
+                                        <input type="text" id="ask_question" name="question" placeholder="Ask about study, migration or life overseas..."/>
                                         <div class="input-buttons-group">
                                             <button type="button" id="doc-upload-btn" class="btn-document-upload" onclick="document.getElementById('doc-file-input').click();" title="Upload documents">
                                                 <img src="asset/image/upload.png" alt="upload">

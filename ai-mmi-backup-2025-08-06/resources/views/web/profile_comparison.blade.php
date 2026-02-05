@@ -453,9 +453,29 @@ tbody tr.missing {
 </style>
 
 <script>
+const defaultNoticeMessage = 'Please chat with AI first to share your information before generating comparison';
+
+function showNotification(message) {
+    const toast = document.getElementById('no-history-notification');
+    if (!toast) return;
+
+    const textEl = toast.querySelector('span');
+    if (textEl) {
+        textEl.textContent = message || defaultNoticeMessage;
+    }
+    toast.style.display = 'block';
+}
+
+function hideNotification() {
+    const toast = document.getElementById('no-history-notification');
+    if (toast) {
+        toast.style.display = 'none';
+    }
+}
+
 function loadAIComparison() {
     document.getElementById('loading').style.display = 'block';
-    document.getElementById('no-history-notification').style.display = 'none';
+    hideNotification();
 
     fetch(_page_base_url + '/profile_comparison/get_ai_comparison', {
         method: 'POST',
@@ -468,15 +488,15 @@ function loadAIComparison() {
         if (data.status === 200 && data.comparison) {
             displayResults(data.comparison);
         } else if (data.status === 400 && data.message.includes('No chat history')) {
-            document.getElementById('no-history-notification').style.display = 'block';
+            showNotification(data.message);
         } else {
-            document.getElementById('no-history-notification').style.display = 'block';
+            showNotification(data.message || defaultNoticeMessage);
         }
     })
     .catch(error => {
         console.error('Error:', error);
         document.getElementById('loading').style.display = 'none';
-        document.getElementById('no-history-notification').style.display = 'block';
+        showNotification('Unable to load comparison: ' + error.message);
     });
 }
 
@@ -504,7 +524,9 @@ function recalculateComparison() {
         if (data.status === 200 && data.comparison) {
             displayResults(data.comparison);
         } else {
-            alert('Error: ' + (data.message || 'Failed to generate comparison'));
+            const errorMsg = data.message || 'Failed to generate comparison';
+            showNotification(errorMsg);
+            alert('Error: ' + errorMsg);
             document.getElementById('results').style.display = 'block';
         }
     })
@@ -514,6 +536,7 @@ function recalculateComparison() {
         document.getElementById('results').style.display = 'block';
         btn.disabled = false;
         btn.classList.remove('spinning');
+        showNotification('Failed to recalculate comparison. Please try again.');
         alert('Failed to recalculate comparison. Please try again.');
     });
 }

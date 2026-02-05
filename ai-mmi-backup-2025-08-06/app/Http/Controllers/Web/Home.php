@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\WebController;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Services\ConversationFlowService;
 use Illuminate\Support\Facades\Schema;
@@ -272,7 +273,7 @@ Rules:
                     $x = $this->callXaiResponses($rawQuestion, [
                         'temperature'        => 0.2,
                         'max_output_tokens'  => 600,
-                        'model'              => 'grok-4-fast-reasoning',
+                        'model'              => 'grok-4-1-fast-reasoning',
                         'enable_search'      => true,
                         'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                         'vector_store_ids'   => [],
@@ -282,6 +283,7 @@ Rules:
 
                     if (!is_array($x) || empty($x['ok'])) {
                         $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
+                        $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
                     } else {
                         $reply = $x['text'];
                         $reply = preg_replace(
@@ -289,6 +291,7 @@ Rules:
                             '信息基于AI-mmi内部集合检索的资料',
                             $reply
                         );
+                        $replySource = $x['source'] ?? 'model';
                     }
 
                     if (mb_strlen($reply, 'UTF-8') > 2500) {
@@ -296,17 +299,16 @@ Rules:
                     }
 
                     $reply       = $this->appendQaCta($reply, $qaLang);
-                    $replySource = 'model';
                     $aiOwnerName = 'AI-mmi';
                 }
             }
 
-            // ❸ 纯模型
+            // ❸ 纯模型 Pure model
             if ($reply === '' && !$isFromQa) {
                 $x = $this->callXaiResponses($rawQuestion, [
                     'temperature' => 0.2,
                     'max_output_tokens' => 2048,
-                    'model' => 'grok-4-fast-reasoning',
+                    'model' => 'grok-4-1-fast-reasoning',
                     'enable_search'     => true,
                     'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                     'vector_store_ids' => [],
@@ -362,6 +364,7 @@ Rules:
 
                 if (!is_array($x) || empty($x['ok'])) {
                     $reply = is_array($x) ? ($x['text'] ?? '[Error: Unknown reply]') : (string)$x;
+                    $replySource = is_array($x) && !empty($x['source']) ? $x['source'] : 'upstream-error';
                 } else {
                     $reply = $x['text'];
 
@@ -378,9 +381,10 @@ Rules:
                         '信息基于AI-mmi内部集合检索的资料',
                         $reply
                     );
+
+                    $replySource = $x['source'] ?? 'model';
                 }
 
-                $replySource = 'model';
                 $aiOwnerName = 'AI-mmi';
             }
 
@@ -402,7 +406,8 @@ Rules:
                     ? ($this->_current_member['alias_name'] ?? 'User') : 'AI-mmi';
                 $m['owner_avatar'] = strtolower($m['type']) === 'ask'
                     ? 'asset/image/icon-member.png' : 'asset/image/logo-mmi.png';
-                $m['content']      = strtolower($m['type']) === 'ask' ? nl2br($m['content']) : $m['content'];
+                $m['content_raw']  = $m['content'];
+                $m['content_html'] = nl2br(e($m['content']));
                 $m['created_time'] = !empty($m['created_at'])
                     ? \Carbon\Carbon::parse($m['created_at'], 'UTC')->toIso8601String() : null;
             }
@@ -465,6 +470,8 @@ Rules:
             $targetDate = (int)date('Ymd');
             \DB::beginTransaction();
 
+            $hasReplySourceColumn = $this->chatLogHasReplySource();
+
             $askId = \DB::table('chat_log')->insertGetId([
                 'member_id'   => $memberId,
                 'guest_id'    => $guestId,
@@ -479,7 +486,7 @@ Rules:
             ]);
             \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
-            \DB::table('chat_log')->insert([
+            $replyPayload = [
                 'member_id'   => $memberId,
                 'guest_id'    => $guestId,
                 'session_id'  => $sessionId,
@@ -490,13 +497,34 @@ Rules:
                 'status'      => 1,
                 'created_at'  => $nowUtc,
                 'updated_at'  => $nowUtc,
-            ]);
+            ];
+            if ($hasReplySourceColumn) {
+                $replyPayload['reply_source'] = $source;
+            }
+
+            \DB::table('chat_log')->insert($replyPayload);
 
             \DB::commit();
         } catch (\Throwable $e) {
             \DB::rollBack();
             \Log::error('CHAT DB INSERT FAIL: ' . $e->getMessage());
         }
+    }
+
+    private function chatLogHasReplySource(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            $cached = \Illuminate\Support\Facades\Schema::hasColumn('chat_log', 'reply_source');
+        } catch (\Throwable $e) {
+            $cached = false;
+        }
+
+        return $cached;
     }
 
     // ✅ 输出统一处理
@@ -506,8 +534,12 @@ Rules:
         $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
         $this->pageResult([
             'status'               => 200,
-            'content'              => nl2br($question),
+            'content'              => (string)$question,
+            'content_raw'          => (string)$question,
+            'content_html'         => nl2br(e($question)),
             'reply'                => $reply,
+            'reply_raw'            => $reply,
+            'reply_html'           => nl2br(e($reply)),
             'answer_markdown'      => $reply,
             'content_created_at'   => $nowUtcIso,
             'reply_created_at'     => $nowUtcIso,
@@ -531,20 +563,31 @@ Rules:
         $apiKey = env('XAI_API_KEY');
         if (!$apiKey) {
             \Log::error('XAI_API_KEY missing');
-            return ['ok'=>false, 'text'=>'[Upstream Error] Missing API key', 'citations'=>[], 'raw'=>null];
+            return $this->friendlyFallbackResult($question, 'upstream-error', 'missing-api-key');
+        }
+
+        if ($this->isUpstreamCircuitOpen()) {
+            \Log::warning('xAI circuit breaker open; skip upstream call');
+            return $this->friendlyFallbackResult($question, 'upstream-error', 'circuit-open');
         }
 
         $url     = rtrim(env('XAI_API_BASE', 'https://api.x.ai'), '/') . '/v1/responses';
-        $model   = $opts['model'] ?? 'grok-4-fast-reasoning';
+        $model   = $opts['model'] ?? 'grok-4-1-fast-reasoning';
         $system  = $opts['system'] ?? null;
-        $timeout = (int)($opts['timeout'] ?? 30);
-        if ($timeout < 5) $timeout = 5;
-        if ($timeout > 90) $timeout = 90;
-        $connectTimeout = (int)($opts['connect_timeout'] ?? 15);
-        if ($connectTimeout < 2) $connectTimeout = 2;
-        if ($connectTimeout > $timeout) $connectTimeout = $timeout;
+        $timeoutInitial = (float)($opts['timeout'] ?? env('XAI_TIMEOUT', 60));
+        // 保底 60s，避免误用更短值导致 30s 超时
+        if ($timeoutInitial < 60) $timeoutInitial = 60;
+        if ($timeoutInitial > 180) $timeoutInitial = 180;
+        $timeoutRetry = (float)($opts['retry_timeout'] ?? env('XAI_RETRY_TIMEOUT', 75));
+        if ($timeoutRetry < $timeoutInitial) $timeoutRetry = $timeoutInitial;
+        if ($timeoutRetry > 240) $timeoutRetry = 240;
+        $timeoutInitialMs = (int)($opts['timeout_ms'] ?? env('XAI_TIMEOUT_MS', 0));
+        $timeoutRetryMs   = (int)($opts['retry_timeout_ms'] ?? env('XAI_RETRY_TIMEOUT_MS', 0));
+        $connectTimeout = (float)($opts['connect_timeout'] ?? env('XAI_CONNECT_TIMEOUT', 10));
+        if ($connectTimeout < 1) $connectTimeout = 1;
+        $connectTimeout = min($connectTimeout, $timeoutInitial, $timeoutRetry);
         // avoid PHP max_execution_time fatals during long upstream waits
-        @set_time_limit($timeout + 10);
+        @set_time_limit((int)ceil($timeoutRetry + 10));
 
         // —— 温度：给默认值 + 边界
         $temperature = array_key_exists('temperature', $opts)
@@ -629,63 +672,291 @@ Rules:
 
         \Log::info('xAI payload => ' . json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
-        // —— 请求
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => [
-                'Authorization: Bearer ' . $apiKey,
-                'Content-Type: application/json',
-                'Accept: application/json',
-            ],
-            CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => $timeout,
-            CURLOPT_CONNECTTIMEOUT => $connectTimeout,
-        ]);
-        $resp = curl_exec($ch);
-        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if (curl_errno($ch)) {
-            $err = curl_error($ch);
+        $maxAttempts = 2; // 1 retry
+        $backoffMs   = [300, 800];
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            if ($attempt > 1) {
+                $sleepMs = $backoffMs[$attempt - 2] ?? end($backoffMs);
+                if ($sleepMs > 0) {
+                    usleep((int)$sleepMs * 1000);
+                }
+            }
+
+            $timeoutToUse   = $attempt === 1 ? $timeoutInitial : $timeoutRetry;
+            $timeoutMsToUse = $attempt === 1 ? $timeoutInitialMs : $timeoutRetryMs;
+            $timeLimitGuard = $timeoutMsToUse > 0 ? max($timeoutToUse, $timeoutMsToUse / 1000) : $timeoutToUse;
+            @set_time_limit((int)ceil($timeLimitGuard + 10));
+
+            $ch = curl_init();
+            $curlOptions = [
+                CURLOPT_URL            => $url,
+                CURLOPT_POST           => true,
+                CURLOPT_HTTPHEADER     => [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                ],
+                CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => $timeoutToUse,
+                CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+            ];
+
+            if ($timeoutMsToUse > 0) {
+                $curlOptions[CURLOPT_TIMEOUT_MS] = $timeoutMsToUse;
+            }
+
+            curl_setopt_array($ch, $curlOptions);
+
+            $startTime   = microtime(true);
+            $resp        = curl_exec($ch);
+            $http        = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErrNo   = curl_errno($ch);
+            $curlErrMsg  = $curlErrNo ? curl_error($ch) : '';
             curl_close($ch);
-            \Log::error('xAI CURL error: '.$err);
-            return ['ok'=>false, 'text'=>'[Upstream Error] '.$err, 'citations'=>[], 'raw'=>null];
+            $elapsedMs   = (int)round((microtime(true) - $startTime) * 1000);
+
+            $requestId   = $this->extractXaiRequestId($resp);
+            $isTimeout   = $curlErrNo === CURLE_OPERATION_TIMEDOUT;
+            $isHttp5xx   = $http >= 500 && $http < 600;
+            $errorType   = null;
+
+            if ($curlErrNo) {
+                $errorType = $isTimeout ? 'timeout' : 'curl';
+            } elseif ($http < 200 || $http >= 300) {
+                $errorType = $isHttp5xx ? 'http-5xx' : 'http-error';
+            }
+
+            if ($errorType !== null) {
+                $this->logUpstreamFailure($errorType, $http, $curlErrNo, $curlErrMsg, $elapsedMs, $requestId, $attempt);
+                $shouldRetry = ($isTimeout || $isHttp5xx) && $attempt < $maxAttempts;
+                if ($shouldRetry) {
+                    continue;
+                }
+
+                $this->recordUpstreamFailure($errorType);
+                return $this->friendlyFallbackResult(
+                    $question,
+                    $isTimeout ? 'upstream-timeout' : 'upstream-error',
+                    $errorType,
+                    ['http_status' => $http, 'request_id' => $requestId]
+                );
+            }
+
+            $data = json_decode($resp, true);
+            if (!is_array($data)) {
+                $this->logUpstreamFailure('non-json', $http, $curlErrNo, $curlErrMsg, $elapsedMs, $requestId, $attempt, [
+                    'resp_head' => mb_substr((string)$resp, 0, 300)
+                ]);
+
+                $shouldRetry = $isHttp5xx && $attempt < $maxAttempts;
+                if ($shouldRetry) {
+                    continue;
+                }
+
+                $this->recordUpstreamFailure('non-json');
+                return $this->friendlyFallbackResult(
+                    $question,
+                    'upstream-error',
+                    'non-json',
+                    ['http_status' => $http, 'request_id' => $requestId]
+                );
+            }
+
+            // 额外日志：看看工具调用情况（Responses 原始 JSON 字段）
+            \Log::info('xAI raw response (truncated) => ' . mb_substr($resp ?? '', 0, 800));
+
+            // —— 保存本轮 response_id，供下一轮续接
+            if ($useThread && !empty($data['id']) && is_string($data['id'])) {
+                $this->saveXaiPrevResponseId($data['id']);
+            }
+
+            // —— 提取文本 & 引用
+            $text      = $this->xaiExtractText($data);
+            $citations = $this->xaiExtractCitations($data);
+
+            $toolCalls = $this->xaiExtractToolCalls($data);
+            \Log::info('xAI tool_calls(extracted) => ' . json_encode($toolCalls, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+            \Log::info('xAI citations(extracted)  => ' . json_encode($citations, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+            if ($text === '') {
+                $this->logUpstreamFailure('empty-output', $http, $curlErrNo, $curlErrMsg, $elapsedMs, $requestId, $attempt);
+                $this->recordUpstreamFailure('empty-output');
+                return $this->friendlyFallbackResult(
+                    $question,
+                    'upstream-error',
+                    'empty-output',
+                    ['http_status' => $http, 'request_id' => $requestId]
+                );
+            }
+
+            $this->resetUpstreamFailureWindow();
+
+            return ['ok'=>true, 'text'=>$text, 'citations'=>$citations, 'raw'=>$data, 'source'=>'model'];
         }
-        curl_close($ch);
 
-        $data = json_decode($resp, true);
-
-        // 额外日志：看看工具调用情况（Responses 原始 JSON 字段）
-        \Log::info('xAI raw response (truncated) => ' . mb_substr($resp ?? '', 0, 800));
-
-        if ($http < 200 || $http >= 300 || !is_array($data)) {
-            \Log::error("xAI HTTP {$http} body: ".$resp);
-            return ['ok'=>false, 'text'=>"[Upstream Error] HTTP {$http}", 'citations'=>[], 'raw'=>$resp];
-        }
-
-        // —— 保存本轮 response_id，供下一轮续接
-        if ($useThread && !empty($data['id']) && is_string($data['id'])) {
-            $this->saveXaiPrevResponseId($data['id']);
-        }
-
-        // —— 提取文本 & 引用
-        $text      = $this->xaiExtractText($data);
-        $citations = $this->xaiExtractCitations($data);
-
-        $toolCalls = $this->xaiExtractToolCalls($data);
-        \Log::info('xAI tool_calls(extracted) => ' . json_encode($toolCalls, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-        \Log::info('xAI citations(extracted)  => ' . json_encode($citations, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-
-
-        if ($text === '') {
-            \Log::warning('xAI parsed empty text; payload head='.mb_substr($resp, 0, 300));
-            return ['ok'=>false, 'text'=>'[Upstream Error] Empty output', 'citations'=>[], 'raw'=>$data];
-        }
-
-        return ['ok'=>true, 'text'=>$text, 'citations'=>$citations, 'raw'=>$data];
+        // 极端情况：循环未返回时兜底
+        $this->recordUpstreamFailure('unknown');
+        return $this->friendlyFallbackResult($question, 'upstream-error', 'unknown');
     }
 
+
+    private function friendlyFallbackResult(string $question, string $replySource, string $errorType, array $meta = []): array
+    {
+        return [
+            'ok'         => false,
+            'text'       => $this->buildFallbackMessage($question),
+            'citations'  => [],
+            'raw'        => null,
+            'source'     => $replySource,
+            'error_type' => $errorType,
+            'meta'       => $meta,
+        ];
+    }
+
+    private function buildFallbackMessage(string $question): string
+    {
+        $lang = $this->detectFallbackLanguage($question);
+        $messages = [
+            'en' => "Sorry, I’m having trouble reaching the knowledge service right now. Please try again in a moment, or rephrase your question. If you want, tell me your country and goal and I’ll start with a quick overview.",
+            'zh' => "抱歉，我现在连接服务有点不稳定。请稍后再试或换个问法。你也可以告诉我国家和目标，我先给你一个简要的方向。",
+            'es' => "Lo siento, tengo problemas para conectar con el servicio de conocimiento. Intenta de nuevo en un momento o reformula tu pregunta. Si quieres, dime tu país y objetivo y te doy una visión rápida.",
+            'fr' => "Désolé, j’ai du mal à joindre le service d’information. Réessaie dans un instant ou reformule ta question. Si tu veux, dis-moi ton pays et ton objectif et je te donne un aperçu rapide.",
+            'pt' => "Desculpe, estou com dificuldade para acessar o serviço de conhecimento. Tente novamente em instantes ou reformule sua pergunta. Se quiser, diga-me seu país e objetivo e faço um resumo rápido.",
+            'de' => "Entschuldigung, ich kann den Wissensdienst gerade nicht erreichen. Bitte versuche es gleich noch einmal oder formuliere deine Frage neu. Wenn du möchtest, nenne mir dein Land und dein Ziel, ich gebe dir einen kurzen Überblick.",
+            'ja' => "申し訳ありません。知識サービスに接続しづらい状態です。少し待ってから再試行するか、質問を言い換えてください。国と目的を教えていただければ、まず簡単な概要をお伝えします。",
+            'ko' => "죄송합니다. 지식 서비스 연결이 원활하지 않습니다. 잠시 후 다시 시도하거나 질문을 바꿔 주세요. 원하시면 국가와 목표를 알려주시면 먼저 간단히 안내드릴게요.",
+            'ru' => "Извините, сейчас не удаётся подключиться к сервису знаний. Попробуйте позже или переформулируйте вопрос. Если хотите, скажите страну и цель, и я дам краткий обзор.",
+            'ar' => "عذرًا، أواجه صعوبة في الوصول إلى خدمة المعرفة الآن. جرّب مرة أخرى بعد قليل أو أعد صياغة سؤالك. أخبرني ببلدك وهدفك وسأقدم لك ملخصًا سريعًا.",
+        ];
+
+        if (!isset($messages[$lang])) {
+            $lang = 'en';
+        }
+
+        return $messages[$lang];
+    }
+
+    private function detectFallbackLanguage(string $question): string
+    {
+        $lower = mb_strtolower($question, 'UTF-8');
+
+        if (preg_match('/[\x{4e00}-\x{9fff}]/u', $question)) return 'zh';
+        if (preg_match('/[\x{3040}-\x{30ff}]/u', $question)) return 'ja';
+        if (preg_match('/[\x{1100}-\x{11ff}\x{3130}-\x{318f}\x{ac00}-\x{d7af}]/u', $question)) return 'ko';
+        if (preg_match('/[\x{0600}-\x{06ff}]/u', $question)) return 'ar';
+        if (preg_match('/[\x{0400}-\x{04FF}]/u', $question)) return 'ru';
+        if (preg_match('/[äöüß]/iu', $lower)) return 'de';
+        if (preg_match('/[ãõáéíóúç]/iu', $lower)) return 'pt';
+        if (preg_match('/[áéíóúñ¿¡]/iu', $lower)) return 'es';
+        if (preg_match('/[àâçéèêëîïôûùü]/iu', $lower)) return 'fr';
+
+        return 'en';
+    }
+
+    private function logUpstreamFailure(string $errorType, ?int $httpStatus, ?int $curlErrNo, ?string $curlErrMsg, int $elapsedMs, ?string $requestId, int $attempt, array $extra = []): void
+    {
+        $context = [
+            'error_type'  => $errorType,
+            'http_status' => $httpStatus,
+            'curl_errno'  => $curlErrNo,
+            'curl_error'  => $curlErrMsg,
+            'elapsed_ms'  => $elapsedMs,
+            'request_id'  => $requestId,
+            'attempt'     => $attempt,
+        ];
+
+        if (!empty($extra)) {
+            $context = array_merge($context, $extra);
+        }
+
+        \Log::error('xAI upstream failure', $context);
+    }
+
+    private function recordUpstreamFailure(string $errorType): void
+    {
+        $now          = microtime(true);
+        $windowKey    = $this->failureWindowCacheKey();
+        $breakerKey   = $this->breakerCacheKey();
+        $windowSecs   = 120;
+        $breakerSecs  = 120;
+        $failures     = Cache::get($windowKey, []);
+        if (!is_array($failures)) {
+            $failures = [];
+        }
+
+        $failures[] = $now;
+        $failures = array_values(array_filter($failures, function ($ts) use ($now, $windowSecs) {
+            return ($now - (float)$ts) <= $windowSecs;
+        }));
+
+        Cache::put($windowKey, $failures, now()->addSeconds($windowSecs + 30));
+
+        if (count($failures) >= 3) {
+            Cache::put($breakerKey, $now + $breakerSecs, now()->addSeconds($breakerSecs + 5));
+            \Log::warning('xAI circuit breaker opened', [
+                'failures_last_2m' => count($failures),
+                'last_error_type'  => $errorType,
+            ]);
+        }
+    }
+
+    private function resetUpstreamFailureWindow(): void
+    {
+        Cache::forget($this->failureWindowCacheKey());
+    }
+
+    private function isUpstreamCircuitOpen(): bool
+    {
+        $openUntil = Cache::get($this->breakerCacheKey());
+        if (is_numeric($openUntil) && (float)$openUntil > microtime(true)) {
+            return true;
+        }
+
+        if ($openUntil) {
+            Cache::forget($this->breakerCacheKey());
+        }
+
+        return false;
+    }
+
+    private function failureWindowCacheKey(): string
+    {
+        return 'xai_responses_failures_window';
+    }
+
+    private function breakerCacheKey(): string
+    {
+        return 'xai_responses_breaker_until';
+    }
+
+    private function extractXaiRequestId($resp): ?string
+    {
+        if (!is_string($resp) || $resp === '') {
+            return null;
+        }
+
+        $data = json_decode($resp, true);
+        if (!is_array($data)) {
+            return null;
+        }
+
+        if (!empty($data['id']) && is_string($data['id'])) {
+            return $data['id'];
+        }
+        if (!empty($data['response_id']) && is_string($data['response_id'])) {
+            return $data['response_id'];
+        }
+        if (!empty($data['response']['id']) && is_string($data['response']['id'])) {
+            return $data['response']['id'];
+        }
+        if (!empty($data['error']['request_id']) && is_string($data['error']['request_id'])) {
+            return $data['error']['request_id'];
+        }
+
+        return null;
+    }
 
     private function xaiHttpPost(string $url, array $headers, array $payload): array
     {
@@ -817,275 +1088,407 @@ Rules:
         return response()->json(['status'=>200,'message'=>'xAI thread reset']);
     }
 
-    private function buildLimitReply(string $question): string
-    {
-        // 专门的 system prompt：只生成限制提示，不回答问题
-        $system = "
-    You are AI-mmi.
+    public function chatStream()
+{
+    $question = request()->input('question', '');
 
-    The user has reached their free Q&A limit.
-    Your task:
+    // Use a StreamedResponse so Laravel can handle streaming properly.
+    return response()->stream(function() use ($question) {
+        // Disable buffers and ensure immediate flush inside the stream.
+        @ini_set('zlib.output_compression', 'Off');
+        @ini_set('implicit_flush', 1);
+        while (ob_get_level()) { @ob_end_flush(); }
+        @ob_implicit_flush(true);
+        ignore_user_abort(true);
+        set_time_limit(0);
 
-    - Detect the language of the user's message.
-    - Reply ONLY in that same language.
-    - Do NOT answer the user's immigration or visa question.
-    - Instead, give ONE short, polite sentence with this meaning:
-    'You have reached your free question limit. I can't answer more questions unless you register and log in.'
-    - Do not mention xAI, Grok, LLM, tools, providers, or technical details.
-    - Do not add extra explanations, headings or formatting.
-    - Do not introduce yourself again unless the user explicitly asks who you are.
-    ";
-
-        $x = $this->callXaiResponses($question, [
-            'temperature'       => 0.2,
-            'max_output_tokens' => 128,
-            'model'             => 'grok-4-fast-reasoning',
-            'enable_search'     => false,           // 不需要联网/RAG
-            'collection_ids'    => [],             // 不用内部库
-            'system'            => $system,
-        ]);
-
-        if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
-            return trim($x['text']);
+        // Basic validations
+        if (trim($question) === '') {
+            echo "data: " . json_encode(['error' => 'Empty question']) . "\n\n";
+            flush();
+            return;
         }
 
-        // 兜底：万一上游挂了，至少有一条英文提示
-        return 'You have reached your free Q&A limit. I can only continue after you register and log in to AI-mmi.';
-    }
-
-    private function buildPaidPlanLimitReply(string $question): string
-    {
-        $system = "
-    You are AI-mmi.
-
-    The user is a FREE PLAN user and has exceeded their 5-message limit.
-    Your job:
-
-    1. Detect the user's language.
-    2. Provide a VERY SHORT (2–3 lines) general non-specific statement (do NOT answer the visa question).
-    3. Then append this upgrade message translated into the user's language:
-
-    'You’ve reached your free chat limit 😊
-    I now provide general information only.
-    For more detailed guidance and access to our full planning and comparison tools, please upgrade to a paid plan.
-    You’ll enjoy unlimited Q&A, updated information, personalized tools, and huge savings in time and cost.
-    👉 Click Upgrade to continue your journey.'
-
-    Rules:
-    - Do NOT mention xAI, Grok, LLM, provider names or tools.
-    - No citations or IDs.
-    - Output ONE block of text only.
-    ";
-
-        $x = $this->callXaiResponses($question, [
-            'temperature'       => 0.25,
-            'max_output_tokens' => 256,
-            'model'             => 'grok-4-fast-reasoning',
-            'enable_search'     => false,
-            'collection_ids'    => [],
-            'system'            => $system,
-        ]);
-
-        if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
-            return trim($x['text']);
+        $apiKey = env('XAI_API_KEY');
+        if (!$apiKey) {
+            echo "data: " . json_encode(['error' => 'API key missing']) . "\n\n";
+            flush();
+            return;
         }
 
-        // fallback
-        return "You’ve reached your free chat limit. Please upgrade to continue.";
-    }
+        // Apply same validations as regular chat()
+        $member = $this->_current_member;
+        $guestId = $this->getMyCookie('guest_id');
 
-    private function classifyEducationIntent(string $question): string
-    {
-        $system = "
-    You are an intent classifier for AI-mmi.
+        if (empty($member)) {
+            $guestAskCount = \DB::table('chat_log')
+                ->whereNull('member_id')
+                ->where('guest_id', $guestId)
+                ->where('type', 'ask')
+                ->count();
 
-    Your ONLY job:
-    Determine whether the user question is about *international education / studying / school applications / courses / programs*.
-
-    Output ONLY one of the following EXACT JSON formats:
-
-    1) If the message is related to studying, universities, courses, school application, international students, academic entry requirements:
-    {
-    \"category\": \"education\"
-    }
-
-    2) Otherwise (migration visas, 485, PR, general questions, unrelated topics):
-    {
-    \"category\": \"non-education\"
-    }
-
-    RULES:
-    - Never explain your answer.
-    - Never add other fields.
-    - Always reply in JSON format.
-    - Language of user's question does not matter.
-    - This is NOT the final answer to the user. This is ONLY a classifier.
-    ";
-
-        $resp = $this->callXaiResponses($question, [
-            'temperature' => 0,
-            'max_output_tokens' => 64,
-            'enable_search' => false,
-            'system' => $system,
-            'model' => 'grok-4-fast-reasoning',
-        ]);
-
-        if (!is_array($resp) || empty($resp['text'])) return 'non-education';
-
-        $json = json_decode($resp['text'], true);
-
-        if (!empty($json['category']) && $json['category'] === 'education') {
-            return 'education';
-        }
-
-        return 'non-education';
-    }
-
-    // private function buildEducationApplyMessage(string $question): string
-    // {
-    //     $system = "
-    // You are AI-mmi.
-
-    // The user is asking about an education/study program.
-    // Your job:
-    // 1. Detect the user's language.
-    // 2. Translate this message into the user's language:
-
-    // 'You meet the entry requirements for this program!
-    // I can now help you move forward — preparing your documents, completing the forms, and submitting your application directly to the school.
-    // The process is quick and seamless, with a small application fee to cover admin and submission support.
-
-    // Would you like me to start your application? 🎓'
-
-    // 3. Output ONLY the translated paragraph. No explanation.
-    // 4. Never mention xAI, tools, IDs, citations.
-    // ";
-
-    //     $x = $this->callXaiResponses($question, [
-    //         'temperature' => 0.2,
-    //         'max_output_tokens' => 256,
-    //         'model' => 'grok-4-fast-reasoning',
-    //         'enable_search' => false,
-    //         'system' => $system,
-    //     ]);
-
-    //     return !empty($x['text']) ? trim($x['text']) : '';
-    // }
-
-    // private function detectApplyIntent(string $question): bool
-    // {
-    //     $system = "
-    // You are an intent classifier for AI-mmi.
-
-    // Your ONLY job:
-    // Determine whether the user's message indicates they are preparing to APPLY for a school, course, or academic program.
-
-    // The following count as APPLY INTENT:
-    // - Asking how to apply
-    // - Requesting to start application
-    // - Asking documents needed for application
-    // - Meeting entry requirements and asking 'what next'
-    // - Saying they want to apply soon
-    // - Asking you to help them apply
-    // - Asking if they can submit an application now
-
-    // The following DO NOT count:
-    // - General education info
-    // - Comparing courses
-    // - Asking tuition fees
-    // - Asking PR outcomes
-    // - Asking campus life or scholarship info
-    // - Purely exploratory questions
-
-    // Output STRICTLY one JSON:
-
-    // If apply intent detected:
-    // {
-    // \"apply\": true
-    // }
-
-    // If NOT:
-    // {
-    // \"apply\": false
-    // }
-
-    // Never explain. Never add anything else.
-    // ";
-
-    //     $resp = $this->callXaiResponses($question, [
-    //         'temperature' => 0,
-    //         'max_output_tokens' => 50,
-    //         'enable_search' => false,
-    //         'system' => $system,
-    //         'model' => 'grok-4-fast-reasoning',
-    //     ]);
-
-    //     $json = json_decode($resp['text'] ?? '', true);
-
-    //     return !empty($json['apply']) && $json['apply'] === true;
-    // }
-
-    private function detectLangZhOrEn(string $q): string
-    {
-        return preg_match('/[\x{4e00}-\x{9fff}]/u', $q) ? 'zh' : 'en';
-    }
-
-    private function isScholarshipOrPartnerSchoolQuestion(string $q): bool
-    {
-        $qLower = mb_strtolower($q, 'UTF-8');
-        $qLower = str_replace(['—', '–', '－'], '-', $qLower);
-
-        $keywords = [
-            // Scholarship / AI-mmi
-            'ai-mmi scholarship',
-            'ai mmi scholarship',
-            'scholarship',
-            '奖学金',
-            'ai-mmi奖学金',
-
-            // Partner schools
-            'sbta',
-            'sela',
-            'sbta–sela',
-            'sbta-sela',
-            'sbta sela',
-            'queensland academy of technology',
-            'qat',
-            'australia college of tourism & information technology',
-            'australia college of tourism and information technology',
-            'acti',
-            'queensland international institute',
-            'qii',
-            'rosehill college',
-        ];
-
-        foreach ($keywords as $kw) {
-            $kwLower = mb_strtolower($kw, 'UTF-8');
-            if (mb_strpos($qLower, $kwLower) !== false) {
-                return true;
+            if ($guestAskCount >= 3) {
+                echo "data: " . json_encode(['content' => 'Looks like you\'ve used up your free questions. Please register or log in.']) . "\n\n";
+                echo "data: [DONE]\n\n";
+                flush();
+                return;
             }
         }
 
-        return false;
-    }
+        // Prepare payload for upstream streaming API
+        $systemPrompt = "You are AI-mmi..."; // use the same system prompt as chat()
 
-    private function qaOutOfScopeMessage(string $lang): string
-    {
-        if ($lang === 'zh') {
-            return '当前 Q&A 仅用于解答 AI-mmi Scholarship 及合作院校相关问题。请围绕奖学金或上述学校（SBTA–SELA、QAT、ACTI、QII、Rosehill College）提问。';
+        $payload = [
+            'model' => env('XAI_MODEL', 'grok-4-1-fast-reasoning'),
+            'messages' => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user', 'content' => $question]
+            ],
+            'stream' => true,
+            'temperature' => 0.2,
+            'max_tokens' => 2048,
+        ];
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => 'https://api.x.ai/v1/chat/completions',
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $apiKey,
+                'Content-Type: application/json',
+                'Accept: text/event-stream',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_WRITEFUNCTION => function($ch, $data) {
+                $lines = preg_split('/\r\n|\n|\r/', $data);
+                foreach ($lines as $line) {
+                    if ($line === '') continue;
+                    if (strpos($line, 'data:') === 0) {
+                        echo $line . "\n";
+                    } else {
+                        echo 'data: ' . $line . "\n";
+                    }
+                }
+                echo "\n";
+                if (function_exists('ob_flush')) @ob_flush();
+                @flush();
+                return strlen($data);
+            },
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_BUFFERSIZE => 4096,
+            CURLOPT_FORBID_REUSE => false,
+            CURLOPT_TCP_KEEPALIVE => 1,
+        ]);
+
+        curl_exec($ch);
+        if (curl_errno($ch)) {
+            echo "data: " . json_encode(['error' => curl_error($ch)]) . "\n\n";
+            flush();
         }
-
-        return 'This Q&A is reserved for questions about the AI-mmi Scholarship and our partner schools (SBTA–SELA, QAT, ACTI, QII, Rosehill College). Please ask about scholarships or the listed schools.';
-    }
-
-    private function appendQaCta(string $answer, string $lang): string
-    {
-        $cta = $lang === 'zh'
-            ? '欢迎使用位于POST卡片左下角的「Apply Now!」按钮通过AI-mmi快速申请，开启您的精彩留学之旅'
-            : 'You’re welcome to use the “Apply Now!” button at the bottom-left of this post card to submit your AI-mmi application and start your exciting study journey.';
-
-        $trimmed = rtrim($answer);
-        return $trimmed === '' ? $cta : $trimmed . "\n" . $cta;
-    }
-
+        curl_close($ch);
+    }, 200, [
+        'Content-Type' => 'text/event-stream',
+        'Cache-Control' => 'no-cache',
+        'X-Accel-Buffering' => 'no',
+        'Connection' => 'keep-alive',
+    ]);
 }
+
+// === STREAMING HELPER METHODS ===
+private function streamError($message) {
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    echo "data: " . json_encode(['error' => $message]) . "\n\n";
+    echo "data: [DONE]\n\n";
+    flush();
+    exit();
+}
+
+private function streamMessage($message) {
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    
+    // Stream the message word by word (like AI response)
+    $words = explode(' ', $message);
+    foreach ($words as $word) {
+        echo "data: " . json_encode([
+            'choices' => [[
+                'delta' => ['content' => $word . ' ']
+            ]]
+        ]) . "\n\n";
+        flush();
+        usleep(50000); // 50ms delay between words
+    }
+    
+    echo "data: [DONE]\n\n";
+    flush();
+    exit();
+}
+
+private function processFinalText($text, $isFromQa, $lang) {
+    // Apply same post-processing as chat()
+    $processed = preg_replace(
+        '/信息基于xAI内部集合检索的文件/u',
+        '信息基于AI-mmi内部集合检索的资料',
+        $text
+    );
+    
+    // Add QA CTA if needed (same as chat())
+    if ($isFromQa) {
+        $processed = $this->appendQaCta($processed, $lang);
+    }
+    
+    // Truncate if too long (same as chat())
+    if (mb_strlen($processed, 'UTF-8') > 2500) {
+        $processed = mb_substr($processed, 0, 2500, 'UTF-8');
+    }
+    
+    return trim($processed);
+}
+
+private function saveStreamedReply($fullText, $question, $memberId, $guestId, $sessionId, $logToChatTable, $chatSource) {
+    try {
+        if (!$logToChatTable) {
+            return;
+        }
+        
+        $askId = $this->getSession('current_streaming_ask_id');
+        if (!$askId) {
+            // If no ask ID in session, create new one
+            $nowUtc = \Carbon\Carbon::now('UTC');
+            $targetDate = (int)date('Ymd');
+            
+            $askId = \DB::table('chat_log')->insertGetId([
+                'member_id'   => $memberId,
+                'guest_id'    => $guestId,
+                'session_id'  => $sessionId,
+                'related_id'  => 0,
+                'target_date' => $targetDate,
+                'type'        => 'ask',
+                'content'     => $question,
+                'status'      => 1,
+                'is_streaming' => 1,
+                'created_at'  => $nowUtc,
+                'updated_at'  => $nowUtc,
+            ]);
+            \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
+        }
+        
+        $nowUtc = \Carbon\Carbon::now('UTC');
+        $targetDate = (int)date('Ymd');
+        
+        $replyPayload = [
+            'member_id'   => $memberId,
+            'guest_id'    => $guestId,
+            'session_id'  => $sessionId,
+            'related_id'  => $askId,
+            'target_date' => $targetDate,
+            'type'        => 'reply',
+            'content'     => $fullText,
+            'status'      => 1,
+            'is_streaming' => 1,
+            'created_at'  => $nowUtc,
+            'updated_at'  => $nowUtc,
+            'reply_source' => 'model',
+        ];
+        
+        \DB::table('chat_log')->insert($replyPayload);
+        
+        $this->delSession('current_streaming_ask_id');
+        
+    } catch (\Exception $e) {
+        \Log::error('Stream reply save failed: ' . $e->getMessage());
+    }
+}
+
+private function buildLimitReply(string $question): string
+{
+    // 专门的 system prompt：只生成限制提示，不回答问题
+    $system = "
+You are AI-mmi.
+
+The user has reached their free Q&A limit.
+Your task:
+
+- Detect the language of the user's message.
+- Reply ONLY in that same language.
+- Do NOT answer the user's immigration or visa question.
+- Instead, give ONE short, polite sentence with this meaning:
+'Looks like you've used up your free questions for now.
+If you'd like to continue, just register or log in — it only takes a moment.'
+- Do not mention xAI, Grok, LLM, tools, providers, or technical details.
+- Do not add extra explanations, headings or formatting.
+- Do not introduce yourself again unless the user explicitly asks who you are.
+";
+
+    $x = $this->callXaiResponses($question, [
+        'temperature'       => 0.2,
+        'max_output_tokens' => 128,
+        'model'             => 'grok-4-1-fast-reasoning',
+        'enable_search'     => false,           // 不需要联网/RAG
+        'collection_ids'    => [],             // 不用内部库
+        'system'            => $system,
+    ]);
+
+    if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
+        return trim($x['text']);
+    }
+
+    // 兜底：万一上游挂了，至少有一条英文提示
+    return "Looks like you've used up your free questions for now.
+        If you'd like to continue, just register or log in — it only takes a moment.";
+    }
+
+private function buildPaidPlanLimitReply(string $question): string
+{
+    $system = "
+You are AI-mmi.
+
+The user is a FREE PLAN user and has exceeded their 5-message limit.
+Your job:
+
+1. Detect the user's language.
+2. Provide a VERY SHORT (2–3 lines) general non-specific statement (do NOT answer the visa question).
+3. Then append this upgrade message translated into the user's language:
+
+'You've reached your free chat limit 😊
+I now provide general information only.
+For more detailed guidance and access to our full planning and comparison tools, please upgrade to a paid plan.
+You'll enjoy unlimited Q&A, updated information, personalized tools, and huge savings in time and cost.
+👉 Click Upgrade to continue your journey.'
+
+Rules:
+- Do NOT mention xAI, Grok, LLM, provider names or tools.
+- No citations or IDs.
+- Output ONE block of text only.
+";
+
+    $x = $this->callXaiResponses($question, [
+        'temperature'       => 0.25,
+        'max_output_tokens' => 256,
+        'model'             => 'grok-4-1-fast-reasoning',
+        'enable_search'     => false,
+        'collection_ids'    => [],
+        'system'            => $system,
+    ]);
+
+    if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
+        return trim($x['text']);
+    }
+
+    // fallback
+    return "You've reached your free chat limit. Please upgrade to continue.";
+}
+
+private function classifyEducationIntent(string $question): string
+{
+    $system = "
+You are an intent classifier for AI-mmi.
+
+Your ONLY job:
+Determine whether the user question is about *international education / studying / school applications / courses / programs*.
+
+Output ONLY one of the following EXACT JSON formats:
+
+1) If the message is related to studying, universities, courses, school application, international students, academic entry requirements:
+{
+\"category\": \"education\"
+}
+
+2) Otherwise (migration visas, 485, PR, general questions, unrelated topics):
+{
+\"category\": \"non-education\"
+}
+
+RULES:
+- Never explain your answer.
+- Never add other fields.
+- Always reply in JSON format.
+- Language of user's question does not matter.
+- This is NOT the final answer to the user. This is ONLY a classifier.
+";
+
+    $resp = $this->callXaiResponses($question, [
+        'temperature' => 0,
+        'max_output_tokens' => 64,
+        'enable_search' => false,
+        'system' => $system,
+        'model' => 'grok-4-1-fast-reasoning',
+    ]);
+
+    if (!is_array($resp) || empty($resp['text'])) return 'non-education';
+
+    $json = json_decode($resp['text'], true);
+
+    if (!empty($json['category']) && $json['category'] === 'education') {
+        return 'education';
+    }
+
+    return 'non-education';
+}
+
+private function detectLangZhOrEn(string $q): string
+{
+    return preg_match('/[\x{4e00}-\x{9fff}]/u', $q) ? 'zh' : 'en';
+}
+
+private function isScholarshipOrPartnerSchoolQuestion(string $q): bool
+{
+    $qLower = mb_strtolower($q, 'UTF-8');
+    $qLower = str_replace(['—', '–', '－'], '-', $qLower);
+
+    $keywords = [
+        // Scholarship / AI-mmi
+        'ai-mmi scholarship',
+        'ai mmi scholarship',
+        'scholarship',
+        '奖学金',
+        'ai-mmi奖学金',
+
+        // Partner schools
+        'sbta',
+        'sela',
+        'sbta–sela',
+        'sbta-sela',
+        'sbta sela',
+        'queensland academy of technology',
+        'qat',
+        'australia college of tourism & information technology',
+        'australia college of tourism and information technology',
+        'acti',
+        'queensland international institute',
+        'qii',
+        'rosehill college',
+    ];
+
+    foreach ($keywords as $kw) {
+        $kwLower = mb_strtolower($kw, 'UTF-8');
+        if (mb_strpos($qLower, $kwLower) !== false) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+private function qaOutOfScopeMessage(string $lang): string
+{
+    if ($lang === 'zh') {
+        return '当前 Q&A 仅用于解答 AI-mmi Scholarship 及合作院校相关问题。请围绕奖学金或上述学校（SBTA–SELA、QAT、ACTI、QII、Rosehill College）提问。';
+    }
+
+    return 'This Q&A is reserved for questions about the AI-mmi Scholarship and our partner schools (SBTA–SELA, QAT, ACTI, QII, Rosehill College). Please ask about scholarships or the listed schools.';
+}
+
+private function appendQaCta(string $answer, string $lang): string
+{
+    $cta = $lang === 'zh'
+        ? '欢迎使用位于POST卡片左下角的「Apply Now!」按钮通过AI-mmi快速申请，开启您的精彩留学之旅'
+        : 'You\'re welcome to use the "Apply Now!" button at the bottom-left of this post card to submit your AI-mmi application and start your exciting study journey.';
+
+    $trimmed = rtrim($answer);
+    return $trimmed === '' ? $cta : $trimmed . "\n" . $cta;
+ }
+}
+ // ← ADD THIS CLOSING BRACE FOR THE CLASS!
