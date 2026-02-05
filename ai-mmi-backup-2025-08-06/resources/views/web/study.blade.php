@@ -57,7 +57,7 @@
         <div class="study-option-card">
             <div class="study-option-title">How to get in?</div>
             <div class="study-option-question">
-                Could you please outline the key admission and visa requirements, along with the step-by-step application process?
+                The major outline of the key admission and visa requirements, along with the step-by-step application process.
             </div>
             <a href="javascript:void(0);" class="study-option-button" data-action="admission-plan">
                 Admission Plan
@@ -87,7 +87,7 @@
         <div class="study-option-card">
             <div class="study-option-title">Talk to agent</div>
             <div class="study-option-question">
-                Would it be possible to arrange a detailed consultation with a licensed education or migration consultant / agent to review my profile and discuss personalized options?
+                Contact our study abroad advisors for personalized assistance and support throughout your application process.
             </div>
             <a href="javascript:void(0);" class="study-option-button" data-action="contact-agent">
                 Contact An Agent
@@ -99,4 +99,10 @@
 
 @push('js')
 <script src="/asset/js/web/study.js?v={{ date('Ymd') }}"></script>
+@if(session('trigger_assessment'))
+<script>
+    window.triggerAssessment = true;
+    window.assessmentPrompt = {!! json_encode(session('eligibility_assessment')['prompt'] ?? '') !!};
+</script>
+@endif
 @endpush

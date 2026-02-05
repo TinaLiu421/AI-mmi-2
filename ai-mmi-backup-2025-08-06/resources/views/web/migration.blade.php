@@ -69,4 +69,10 @@
 
 @push('js')
 <script src="/asset/js/web/migration.js?v={{ date('Ymd') }}"></script>
+@if(session('trigger_assessment'))
+<script>
+    window.triggerAssessment = true;
+    window.assessmentPrompt = {!! json_encode(session('eligibility_assessment')['prompt'] ?? '') !!};
+</script>
+@endif
 @endpush

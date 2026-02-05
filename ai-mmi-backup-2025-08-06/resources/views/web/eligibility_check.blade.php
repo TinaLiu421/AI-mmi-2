@@ -13,7 +13,7 @@
         <p>Complete this eligibility assessment to discover your study abroad opportunities</p>
     </div>
 
-    <form id="eligibility-form" class="eligibility-form">
+    <form id="eligibility-form" class="eligibility-form" method="POST" action="/{{ $_current_lang_code }}/eligibility_check/assess">
         @csrf
         
         <!-- Question 1: Destination Countries -->
@@ -160,4 +160,10 @@
 
 @push('js')
 <script src="/asset/js/web/eligibility_check.js?v={{ date('Ymd') }}"></script>
+@if(session('trigger_assessment'))
+<script>
+    window.triggerAssessment = true;
+    window.assessmentPrompt = {!! json_encode(session('eligibility_assessment')['prompt'] ?? '') !!};
+</script>
+@endif
 @endpush

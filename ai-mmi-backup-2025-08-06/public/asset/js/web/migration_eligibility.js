@@ -6,35 +6,35 @@ $(function() {
 
     function initializeFormHandlers() {
         // Handle English test radio button changes
-        $('input[name="english_test"]').on('change', function() {
-            if ($(this).val() === 'yes') {
-                $('#testResultsSection').slideDown(300);
+        $('input[name="english_test_completed"]').on('change', function() {
+            if ($(this).val() === 'Yes') {
+                $('#test-results-group').slideDown(300);
             } else {
-                $('#testResultsSection').slideUp(300);
+                $('#test-results-group').slideUp(300);
                 // Clear test results when hidden
-                $('#testResultsSection input').val('');
+                $('#test-results-group input').val('');
             }
         });
 
         // Handle destination work experience radio button changes
-        $('input[name="destination_work"]').on('change', function() {
-            if ($(this).val() === 'yes') {
-                $('#destinationWorkYears').slideDown(300);
+        $('input[name="destination_work_experience"]').on('change', function() {
+            if ($(this).val() === 'Yes') {
+                $('#destination-years-group').slideDown(300);
             } else {
-                $('#destinationWorkYears').slideUp(300);
+                $('#destination-years-group').slideUp(300);
                 // Clear value when hidden
-                $('#destination_years').val('');
+                $('select[name="destination_work_years"]').val('');
             }
         });
 
         // Handle outstanding achievements radio button changes
-        $('input[name="achievements"]').on('change', function() {
-            if ($(this).val() === 'yes') {
-                $('#achievementDetails').slideDown(300);
+        $('input[name="outstanding_achievements"]').on('change', function() {
+            if ($(this).val() === 'Yes') {
+                $('#achievements-details-group').slideDown(300);
             } else {
-                $('#achievementDetails').slideUp(300);
+                $('#achievements-details-group').slideUp(300);
                 // Clear text when hidden
-                $('#achievement_details').val('');
+                $('textarea[name="achievements_details"]').val('');
             }
         });
 
@@ -49,7 +49,7 @@ $(function() {
         });
 
         // Form submission handler
-        $('#migration_eligibility_form').on('submit', function(e) {
+        $('#eligibility-form').on('submit', function(e) {
             e.preventDefault();
             
             // Validate form
@@ -57,37 +57,33 @@ $(function() {
                 return false;
             }
 
-            // Show loading state
-            const submitBtn = $(this).find('button[type="submit"]');
-            const originalText = submitBtn.html();
-            submitBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Assessing...');
-
-            // Collect form data
-            const formData = new FormData(this);
-            
-            // Send to backend
-            $.ajax({
-                url: page_base_url + '/migration_eligibility/submit',
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(response) {
-                    // Show results
-                    displayResults(response);
-                },
-                error: function(xhr, status, error) {
-                    alert('An error occurred while processing your request. Please try again.');
-                    submitBtn.prop('disabled', false).html(originalText);
-                },
-                complete: function() {
-                    // Re-enable button after processing
-                    setTimeout(function() {
-                        submitBtn.prop('disabled', false).html(originalText);
-                    }, 1000);
-                }
-            });
+            // Submit form to backend
+            this.submit();
         });
+    }
+
+    // Check if we need to trigger AI assessment after redirect
+    if (window.triggerAssessment && window.assessmentPrompt) {
+        // Scroll to chat area if mobile
+        if (window.innerWidth <= 768) {
+            if (typeof toggleMobileChat === 'function') {
+                toggleMobileChat();
+            }
+        } else {
+            // Scroll to chat on desktop
+            $('html, body').animate({
+                scrollTop: $('#chat-messages').offset().top - 100
+            }, 500);
+        }
+        
+        // Wait a moment for the page to settle
+        setTimeout(function() {
+            // Set the message in the chat input
+            $('#ask_question').val(window.assessmentPrompt);
+            
+            // Submit the chat form to get AI assessment
+            $('#ask-form').submit();
+        }, 500);
     }
 
     function validateForm() {
@@ -136,15 +132,15 @@ $(function() {
         }
 
         // Check if English test option is selected
-        if (!$('input[name="english_test"]:checked').val()) {
+        if (!$('input[name="english_test_completed"]:checked').val()) {
             alert('Please indicate if you have completed an English proficiency test.');
             isValid = false;
-            firstError = firstError || $('input[name="english_test"]').first();
+            firstError = firstError || $('input[name="english_test_completed"]').first();
         }
 
         // If English test is Yes, validate test results
-        if ($('input[name="english_test"]:checked').val() === 'yes') {
-            const hasTestScore = $('#testResultsSection input').filter(function() {
+        if ($('input[name="english_test_completed"]:checked').val() === 'Yes') {
+            const hasTestScore = $('#test-results-group input').filter(function() {
                 return $(this).val() && $(this).val().trim() !== '';
             }).length > 0;
 
@@ -163,17 +159,17 @@ $(function() {
         }
 
         // Check if achievements option is selected
-        if (!$('input[name="achievements"]:checked').val()) {
+        if (!$('input[name="outstanding_achievements"]:checked').val()) {
             alert('Please indicate if you have outstanding achievements.');
             isValid = false;
-            firstError = firstError || $('input[name="achievements"]').first();
+            firstError = firstError || $('input[name="outstanding_achievements"]').first();
         }
 
         // Check if destination work experience option is selected
-        if (!$('input[name="destination_work"]:checked').val()) {
+        if (!$('input[name="destination_work_experience"]:checked').val()) {
             alert('Please indicate if you have work experience in the destination country.');
             isValid = false;
-            firstError = firstError || $('input[name="destination_work"]').first();
+            firstError = firstError || $('input[name="destination_work_experience"]').first();
         }
 
         // Scroll to first error if any
@@ -224,7 +220,7 @@ $(function() {
     });
 
     // Initialize on page load - hide conditional sections
-    $('#testResultsSection').hide();
-    $('#destinationWorkYears').hide();
-    $('#achievementDetails').hide();
+    $('#test-results-group').hide();
+    $('#destination-years-group').hide();
+    $('#achievements-details-group').hide();
 });
