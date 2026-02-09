@@ -701,6 +701,8 @@ Rules:
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => $timeoutToUse,
                 CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+                CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification for local development
+                CURLOPT_SSL_VERIFYHOST => false,
             ];
 
             if ($timeoutMsToUse > 0) {
@@ -1135,58 +1137,66 @@ Rules:
             }
         }
 
-        // Prepare payload for upstream streaming API
-        $systemPrompt = "You are AI-mmi..."; // use the same system prompt as chat()
+        // Use RAG-enabled approach like chat()
+        $systemPrompt = "
+You are AI-mmi, specialised in immigration and visa queries.
 
-        $payload = [
-            'model' => env('XAI_MODEL', 'grok-4-1-fast-reasoning'),
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $question]
-            ],
-            'stream' => true,
+## Identity & Naming
+- Always refer to yourself as \"AI-mmi\".
+- Never mention xAI, Grok, LLM, model, provider names or any tool names in the answer.
+
+## Language Behaviour (auto follow user language)
+- Detect the language of the user's latest message and reply in that same language.
+
+## INTERNAL KNOWLEDGE RULES
+- When internal collections are available, you MUST first attempt to retrieve internal policy files.
+- DO NOT hallucinate or make up information; if you truly do not know, say so clearly.
+
+## Overall Tone
+- Professional, friendly and helpful.
+";
+
+        // Call RAG-enabled API
+        \Log::info('chatStream: Calling RAG with question: ' . $question);
+        
+        $result = $this->callXaiResponses($question, [
             'temperature' => 0.2,
-            'max_tokens' => 2048,
-        ];
-
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => 'https://api.x.ai/v1/chat/completions',
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $apiKey,
-                'Content-Type: application/json',
-                'Accept: text/event-stream',
-            ],
-            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            CURLOPT_WRITEFUNCTION => function($ch, $data) {
-                $lines = preg_split('/\r\n|\n|\r/', $data);
-                foreach ($lines as $line) {
-                    if ($line === '') continue;
-                    if (strpos($line, 'data:') === 0) {
-                        echo $line . "\n";
-                    } else {
-                        echo 'data: ' . $line . "\n";
-                    }
-                }
-                echo "\n";
-                if (function_exists('ob_flush')) @ob_flush();
-                @flush();
-                return strlen($data);
-            },
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_BUFFERSIZE => 4096,
-            CURLOPT_FORBID_REUSE => false,
-            CURLOPT_TCP_KEEPALIVE => 1,
+            'max_output_tokens' => 2048,
+            'model' => 'grok-4-1-fast-reasoning',
+            'enable_search' => true,
+            'collection_ids' => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+            'system' => $systemPrompt,
+            'resume_thread' => false,
         ]);
 
-        curl_exec($ch);
-        if (curl_errno($ch)) {
-            echo "data: " . json_encode(['error' => curl_error($ch)]) . "\n\n";
+        \Log::info('chatStream: RAG result ok=' . (is_array($result) && !empty($result['ok']) ? 'true' : 'false'));
+        
+        if (!is_array($result) || empty($result['ok'])) {
+            $errorText = is_array($result) ? ($result['text'] ?? 'Error occurred') : (string)$result;
+            \Log::error('chatStream: RAG failed with error: ' . $errorText);
+            echo "data: " . json_encode(['error' => $errorText]) . "\n\n";
+            echo "data: [DONE]\n\n";
             flush();
+            return;
         }
-        curl_close($ch);
+
+        $reply = $result['text'];
+        \Log::info('chatStream: Got reply, length=' . mb_strlen($reply));
+        $reply = preg_replace('/信息基于xAI内部集合检索的文件/u', '信息基于AI-mmi内部集合检索的资料', $reply);
+
+        // Stream word by word
+        $words = preg_split('/(\s+)/u', $reply, -1, PREG_SPLIT_DELIM_CAPTURE);
+        \Log::info('chatStream: Streaming ' . count($words) . ' words');
+        foreach ($words as $word) {
+            if ($word === '') continue;
+            echo "data: " . json_encode(['choices' => [['delta' => ['content' => $word]]]]) . "\n\n";
+            if (function_exists('ob_flush')) @ob_flush();
+            @flush();
+            usleep(30000);
+        }
+
+        echo "data: [DONE]\n\n";
+        flush();
     }, 200, [
         'Content-Type' => 'text/event-stream',
         'Cache-Control' => 'no-cache',
