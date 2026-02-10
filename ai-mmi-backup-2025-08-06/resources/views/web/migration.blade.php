@@ -59,7 +59,7 @@
             <div class="migration-option-question">
                 Contact our migration advisors for personalized assistance and support throughout your application process.
             </div>
-            <a href="javascript:void(0);" class="migration-option-button" data-action="contact-agent">
+            <a href="<?php echo $_page_base_url.'/agent_chat'; ?>" class="migration-option-button">
                 Contact An Agent
             </a>
         </div>

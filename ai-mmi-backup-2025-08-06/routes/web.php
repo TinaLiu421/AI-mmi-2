@@ -3,6 +3,7 @@
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\RouteMapping;
 use App\Http\Controllers\Web\Posts as WebPosts;
+use App\Http\Controllers\Web\Agent_chat as AgentChatController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
@@ -11,6 +12,11 @@ Route::post('/posts/{postId}/qa-ask', [WebPosts::class, 'qaAsk']);
 // Streaming endpoint for AI responses handled by controller
 use App\Http\Controllers\Web\Home as HomeController;
 Route::post('/chat/stream', [HomeController::class, 'chatStream'])->name('chat.stream');
+
+// Agent chat routes (API endpoints)
+Route::get('/agent_chat/messages/{targetType}/{targetId}', [AgentChatController::class, 'messages']);
+Route::get('/agent_chat/threads', [AgentChatController::class, 'threads']);
+Route::post('/agent_chat/send', [AgentChatController::class, 'send']);
 
 /*
 |--------------------------------------------------------------------------

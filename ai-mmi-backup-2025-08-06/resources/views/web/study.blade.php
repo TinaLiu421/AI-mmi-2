@@ -89,7 +89,7 @@
             <div class="study-option-question">
                 Contact our study abroad advisors for personalized assistance and support throughout your application process.
             </div>
-            <a href="javascript:void(0);" class="study-option-button" data-action="contact-agent">
+            <a href="<?php echo $_page_base_url.'/agent_chat'; ?>" class="study-option-button">
                 Contact An Agent
             </a>
         </div>

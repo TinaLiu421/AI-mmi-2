@@ -49,15 +49,21 @@ class Account_Login extends WebController {
         session(['oauth_type' => $type]);
 
         // 避免自动选择旧账号
-        return Socialite::driver('google')
-            ->with(['prompt' => 'select_account'])
-            ->redirect();
+        $driver = Socialite::driver('google')->with(['prompt' => 'select_account']);
+        if (app()->environment('local')) {
+            $driver->redirectUrl(url('/account_login/google_callback'));
+        }
+        return $driver->redirect();
     }
 
     public function google_callback() {
         try {
             // 生产常见反代环境下更稳
-            $googleUser = Socialite::driver('google')->stateless()->user();
+            $driver = Socialite::driver('google')->stateless();
+            if (app()->environment('local')) {
+                $driver->redirectUrl(url('/account_login/google_callback'));
+            }
+            $googleUser = $driver->user();
 
             $intendedType = (int) session('oauth_type', 1);  // 1 or 3
             $this->clearOauthSession();

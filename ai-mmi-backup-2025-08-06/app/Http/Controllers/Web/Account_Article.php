@@ -24,6 +24,10 @@ class Account_Article extends WebController {
             $list_posts = $this->_posts_model->getAll(['member_id' => $target_member_id, 'show_lang' => $this->_current_lang_index]);
         }
 
+        if (empty($list_posts['data'])) {
+            $list_posts = $this->_posts_model->getAll(['member_id' => $target_member_id]);
+        }
+
         // load view
         return $this->pageData(
         [

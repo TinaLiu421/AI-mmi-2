@@ -221,6 +221,30 @@ function streamResponse(question, bubbleId) {
     const $bubble = $('#' + bubbleId);
     const $text = $bubble.find('.txt');
     let fullText = '';
+    let renderMode = 'plain';
+    let renderScheduled = false;
+
+    function renderPlain() {
+        const safe = escapeHtml(fullText || '').replace(/\n/g, '<br>');
+        $text.html(safe);
+    }
+
+    function renderMarkdown() {
+        const decorated = decorateMarkdownWithEmojis(fullText);
+        const safeHtml = mdToSafeHtml(decorated);
+        $text.html(safeHtml);
+    }
+
+    function scheduleRender() {
+        if (renderScheduled) return;
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+            renderScheduled = false;
+            if (renderMode === 'markdown') renderMarkdown();
+            else renderPlain();
+            scrollChatToBottom();
+        });
+    }
     
     // === ADD THINKING INDICATOR ===
     $text.html('<span class="thinking">Thinking<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>');
@@ -267,6 +291,8 @@ function streamResponse(question, bubbleId) {
                         if (!line) return;
                         
                         if (line === 'data: [DONE]') {
+                            renderMode = 'markdown';
+                            renderMarkdown();
                             $bubble.removeClass('streaming');
                             return;
                         }
@@ -290,13 +316,7 @@ function streamResponse(question, bubbleId) {
                                     }
                                     
                                     fullText += data.choices[0].delta.content;
-                                    
-                                    // === SAME RENDERING AS REGULAR CHAT ===
-                                    const decorated = decorateMarkdownWithEmojis(fullText);
-                                    const safeHtml = mdToSafeHtml(decorated);
-                                    $text.html(safeHtml);
-                                    
-                                    scrollChatToBottom();
+                                    scheduleRender();
                                 }
                                 
                             } catch(e) {

@@ -39,6 +39,15 @@ class Home extends WebController {
             'show_highlight'    =>  1
         ]);
 
+        if (empty($list_news['data'])) {
+            $list_news = $this->loadModel('posts')->getAll(
+            [
+                'show_type'         =>  1,
+                'show_page_size'    =>  10,
+                'show_highlight'    =>  1
+            ]);
+        }
+
         if(!empty($list_news['data'])) {
             $list_news = $list_news['data'];
             foreach ($list_news as $news_key => $news) {
@@ -74,6 +83,15 @@ class Home extends WebController {
             'show_page_size'    =>  10,
             'show_highlight'    =>  1
         ]);
+
+        if (empty($list_events['data'])) {
+            $list_events = $this->loadModel('posts')->getAll(
+            [
+                'show_type'         =>  2,
+                'show_page_size'    =>  10,
+                'show_highlight'    =>  1
+            ]);
+        }
 
         if(!empty($list_events['data'])) {
             $list_events = $list_events['data'];
@@ -212,11 +230,14 @@ class Home extends WebController {
 
             // === ②.1 未登录用户免费额度限制（游客最多 3 次提问） ===
             if (empty($member)) {
-                $guestAskCount = \DB::table('chat_log')
-                    ->whereNull('member_id')      // 只统计未登录的提问
-                    ->where('guest_id', $guestId)
-                    ->where('type', 'ask')
-                    ->count();
+                $guestAskCount = 0;
+                if ($this->chatLogHasGuestId()) {
+                    $guestAskCount = \DB::table('chat_log')
+                        ->whereNull('member_id')      // 只统计未登录的提问
+                        ->where('guest_id', $guestId)
+                        ->where('type', 'ask')
+                        ->count();
+                }
 
                 if ($guestAskCount >= 3) {
                     // ★ 交给 Grok 生成「同语言」的限制提示
@@ -472,10 +493,8 @@ Rules:
 
             $hasReplySourceColumn = $this->chatLogHasReplySource();
 
-            $askId = \DB::table('chat_log')->insertGetId([
+            $askPayload = [
                 'member_id'   => $memberId,
-                'guest_id'    => $guestId,
-                'session_id'  => $sessionId,
                 'related_id'  => 0,
                 'target_date' => $targetDate,
                 'type'        => 'ask',
@@ -483,13 +502,19 @@ Rules:
                 'status'      => 1,
                 'created_at'  => $nowUtc,
                 'updated_at'  => $nowUtc,
-            ]);
+            ];
+            if ($this->chatLogHasGuestId()) {
+                $askPayload['guest_id'] = $guestId;
+            }
+            if ($this->chatLogHasSessionId()) {
+                $askPayload['session_id'] = $sessionId;
+            }
+
+            $askId = \DB::table('chat_log')->insertGetId($askPayload);
             \DB::table('chat_log')->where('id', $askId)->update(['related_id' => $askId]);
 
             $replyPayload = [
                 'member_id'   => $memberId,
-                'guest_id'    => $guestId,
-                'session_id'  => $sessionId,
                 'related_id'  => $askId,
                 'target_date' => $targetDate,
                 'type'        => 'reply',
@@ -498,6 +523,12 @@ Rules:
                 'created_at'  => $nowUtc,
                 'updated_at'  => $nowUtc,
             ];
+            if ($this->chatLogHasGuestId()) {
+                $replyPayload['guest_id'] = $guestId;
+            }
+            if ($this->chatLogHasSessionId()) {
+                $replyPayload['session_id'] = $sessionId;
+            }
             if ($hasReplySourceColumn) {
                 $replyPayload['reply_source'] = $source;
             }
@@ -520,6 +551,38 @@ Rules:
 
         try {
             $cached = \Illuminate\Support\Facades\Schema::hasColumn('chat_log', 'reply_source');
+        } catch (\Throwable $e) {
+            $cached = false;
+        }
+
+        return $cached;
+    }
+
+    private function chatLogHasGuestId(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            $cached = \Illuminate\Support\Facades\Schema::hasColumn('chat_log', 'guest_id');
+        } catch (\Throwable $e) {
+            $cached = false;
+        }
+
+        return $cached;
+    }
+
+    private function chatLogHasSessionId(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            $cached = \Illuminate\Support\Facades\Schema::hasColumn('chat_log', 'session_id');
         } catch (\Throwable $e) {
             $cached = false;
         }
@@ -633,12 +696,25 @@ Rules:
         // —— 统一维护一个工具数组
         $tools = [];
 
-        // === File Search（用你的 collection id 当作 vector_store_ids）===
+        // === File Search（需要 vector_store_ids）===
         $collectionIds  = isset($opts['collection_ids']) && is_array($opts['collection_ids'])
             ? array_values($opts['collection_ids']) : [];
 
-        // 如果你确认 xAI 那边就是用 collection_xxx 作为向量库 id，那这里就直接塞进去
-        $vectorStoreIds = $collectionIds;  
+        // Prefer explicit vector store IDs (env or opts). Do NOT substitute collection IDs here.
+        $envVectorStores = array_filter(array_map('trim', explode(',', (string)env('XAI_VECTOR_STORE_IDS', ''))));
+        $vectorStoreIds = isset($opts['vector_store_ids']) && is_array($opts['vector_store_ids'])
+            ? array_values(array_filter($opts['vector_store_ids']))
+            : [];
+        if (empty($vectorStoreIds) && !empty($envVectorStores)) {
+            $vectorStoreIds = array_values($envVectorStores);
+        }
+        $allowCollectionIds = filter_var(env('XAI_ALLOW_COLLECTION_IDS', false), FILTER_VALIDATE_BOOLEAN);
+        if (empty($vectorStoreIds) && $allowCollectionIds && !empty($collectionIds)) {
+            $vectorStoreIds = $collectionIds;
+            \Log::warning('xAI file_search using collection_ids as vector_store_ids (compat mode).');
+        } elseif (empty($vectorStoreIds) && !empty($collectionIds)) {
+            \Log::warning('xAI file_search disabled: vector_store_ids missing (collection_ids ignored).');
+        }
 
         if (!empty($vectorStoreIds)) {
             $tools[] = [
@@ -649,7 +725,9 @@ Rules:
         }
 
         // === Web Search（可选）===
-        $enableSearch = array_key_exists('enable_search', $opts) ? (bool)$opts['enable_search'] : true;
+        $enableSearch = array_key_exists('enable_search', $opts)
+            ? (bool)$opts['enable_search']
+            : (empty($vectorStoreIds) ? true : (bool)env('XAI_ENABLE_WEB_SEARCH', false));
         if ($enableSearch) {
             $webArgs = [];
             if (!empty($opts['allowed_domains']) && is_array($opts['allowed_domains'])) {
@@ -670,6 +748,13 @@ Rules:
             $payload['tool_choice'] = 'auto';
         }
 
+        $payloadLite = $payload;
+        if (isset($payloadLite['tools'])) {
+            unset($payloadLite['tools'], $payloadLite['tool_choice']);
+        }
+        $payloadLite['max_output_tokens'] = min(512, (int)$payloadLite['max_output_tokens']);
+        $useLitePayload = false;
+
         \Log::info('xAI payload => ' . json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
         $maxAttempts = 2; // 1 retry
@@ -688,6 +773,8 @@ Rules:
             $timeLimitGuard = $timeoutMsToUse > 0 ? max($timeoutToUse, $timeoutMsToUse / 1000) : $timeoutToUse;
             @set_time_limit((int)ceil($timeLimitGuard + 10));
 
+            $payloadToSend = $useLitePayload ? $payloadLite : $payload;
+
             $ch = curl_init();
             $curlOptions = [
                 CURLOPT_URL            => $url,
@@ -697,7 +784,7 @@ Rules:
                     'Content-Type: application/json',
                     'Accept: application/json',
                 ],
-                CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
+                CURLOPT_POSTFIELDS     => json_encode($payloadToSend, JSON_UNESCAPED_UNICODE),
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => $timeoutToUse,
                 CURLOPT_CONNECTTIMEOUT => $connectTimeout,
@@ -720,18 +807,22 @@ Rules:
             $requestId   = $this->extractXaiRequestId($resp);
             $isTimeout   = $curlErrNo === CURLE_OPERATION_TIMEDOUT;
             $isHttp5xx   = $http >= 500 && $http < 600;
+            $isRateLimit = $http === 429;
             $errorType   = null;
 
             if ($curlErrNo) {
                 $errorType = $isTimeout ? 'timeout' : 'curl';
             } elseif ($http < 200 || $http >= 300) {
-                $errorType = $isHttp5xx ? 'http-5xx' : 'http-error';
+                $errorType = $isRateLimit ? 'rate-limit' : ($isHttp5xx ? 'http-5xx' : 'http-error');
             }
 
             if ($errorType !== null) {
                 $this->logUpstreamFailure($errorType, $http, $curlErrNo, $curlErrMsg, $elapsedMs, $requestId, $attempt);
-                $shouldRetry = ($isTimeout || $isHttp5xx) && $attempt < $maxAttempts;
+                $shouldRetry = ($isTimeout || $isHttp5xx || $isRateLimit) && $attempt < $maxAttempts;
                 if ($shouldRetry) {
+                    if ($isRateLimit && !$useLitePayload) {
+                        $useLitePayload = true;
+                    }
                     continue;
                 }
 
@@ -1111,9 +1202,7 @@ Rules:
 
         $apiKey = env('XAI_API_KEY');
         if (!$apiKey) {
-            echo "data: " . json_encode(['error' => 'API key missing']) . "\n\n";
-            flush();
-            return;
+            $this->streamError('API key missing');
         }
 
         // Apply same validations as regular chat()
@@ -1121,11 +1210,14 @@ Rules:
         $guestId = $this->getMyCookie('guest_id');
 
         if (empty($member)) {
-            $guestAskCount = \DB::table('chat_log')
-                ->whereNull('member_id')
-                ->where('guest_id', $guestId)
-                ->where('type', 'ask')
-                ->count();
+            $guestAskCount = 0;
+            if ($this->chatLogHasGuestId()) {
+                $guestAskCount = \DB::table('chat_log')
+                    ->whereNull('member_id')
+                    ->where('guest_id', $guestId)
+                    ->where('type', 'ask')
+                    ->count();
+            }
 
             if ($guestAskCount >= 3) {
                 echo "data: " . json_encode(['content' => 'Looks like you\'ve used up your free questions. Please register or log in.']) . "\n\n";
@@ -1135,58 +1227,96 @@ Rules:
             }
         }
 
-        // Prepare payload for upstream streaming API
-        $systemPrompt = "You are AI-mmi..."; // use the same system prompt as chat()
+        // Use Responses API (RAG-enabled) and stream the final text back to the client
+        $systemPrompt = "
+You are AI-mmi, specialised in immigration and visa queries.
 
-        $payload = [
-            'model' => env('XAI_MODEL', 'grok-4-1-fast-reasoning'),
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $question]
-            ],
-            'stream' => true,
+## Identity & Naming
+- Always refer to yourself as “AI-mmi”.
+- Never mention xAI, Grok, LLM, model, provider names or any tool names in the answer.
+- Do NOT mention things like file_search, collections_search, web_search, vector stores, file IDs or collection IDs.
+- Do NOT output citations, file IDs, collection IDs or any other technical identifiers in user-visible text.
+
+## Language Behaviour (auto follow user language)
+- Detect the language of the user's latest message and reply in that same language.
+- If the user writes in Simplified Chinese, reply in Simplified Chinese.
+- If the user writes in Traditional Chinese, reply in Traditional Chinese.
+- If the user writes in Japanese, reply in Japanese.
+- For any other language (e.g. French, Spanish, etc.), mirror that language naturally.
+- If the user mixes languages, default to the language used in the last sentence that contains the real question.
+
+## Greeting Behaviour (only first reply)
+- Only when this is the FIRST reply in a new conversation thread, start with a short greeting + self-introduction.
+- First reply greeting templates:
+    - English: “Hi this is AI-mmi, your smart education and migration assistant.”
+    - Simplified Chinese: “您好！我是 AI-mmi，您的智能留学和移民助理。”
+    - Traditional Chinese: “您好！我是 AI-mmi，您的智能留學和移民助理。”
+    - Other languages: translate the English sentence naturally into that language.
+- In all later replies in the SAME conversation:
+    - Do NOT introduce yourself again.
+    - Normally do NOT add extra greetings; answer the question directly.
+- If the user only says something like “thank you”, “谢谢”, “多謝”, you may respond with a short friendly closing sentence in the same language, without re-introducing yourself.
+
+### INTERNAL KNOWLEDGE RULES
+- When internal collections are available, you MUST first attempt to retrieve internal policy files.
+- If you used internal collections, you may add one natural-language sentence such as:
+'The above information is based on data retrieved from AI-mmi's internal repository.'
+or equivalent wording in the user's language.
+- If no relevant internal document is found, fall back to public web sources.
+- If public sources are used, you may optionally state in natural language:
+“本次仅使用公开资料（未使用 AI-mmi 内部资料库）。”
+or equivalent wording in the user's language.
+- DO NOT fabricate or guess internal documents or policies.
+
+### CITATION & TECHNICAL INFO
+- Citations, technical IDs, raw metadata are for internal logging only.
+- They MUST NOT appear in user-visible output.
+
+### RESPONSE STYLE
+- Provide precise, structured, factual information.
+- Keep the tone professional, clear and user-friendly.
+";
+
+        $lang = $this->detectLangZhOrEn($question);
+        $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
+        $cacheKey = 'xai_chat_cache:' . md5($lang . '|' . trim($question));
+        if ($cacheTtl > 0 && Cache::has($cacheKey)) {
+            $cachedReply = (string)Cache::get($cacheKey);
+            if (trim($cachedReply) !== '') {
+                $this->streamMessage($cachedReply);
+                return;
+            }
+        }
+
+        $x = $this->callXaiResponses($question, [
             'temperature' => 0.2,
-            'max_tokens' => 2048,
-        ];
-
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => 'https://api.x.ai/v1/chat/completions',
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $apiKey,
-                'Content-Type: application/json',
-                'Accept: text/event-stream',
-            ],
-            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            CURLOPT_WRITEFUNCTION => function($ch, $data) {
-                $lines = preg_split('/\r\n|\n|\r/', $data);
-                foreach ($lines as $line) {
-                    if ($line === '') continue;
-                    if (strpos($line, 'data:') === 0) {
-                        echo $line . "\n";
-                    } else {
-                        echo 'data: ' . $line . "\n";
-                    }
-                }
-                echo "\n";
-                if (function_exists('ob_flush')) @ob_flush();
-                @flush();
-                return strlen($data);
-            },
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_BUFFERSIZE => 4096,
-            CURLOPT_FORBID_REUSE => false,
-            CURLOPT_TCP_KEEPALIVE => 1,
+            'max_output_tokens' => (int)env('XAI_MAX_OUTPUT_TOKENS', 1024),
+            'model' => 'grok-4-1-fast-reasoning',
+            'enable_search'     => (bool)env('XAI_ENABLE_WEB_SEARCH', false),
+            'file_search_max'   => (int)env('XAI_FILE_SEARCH_MAX', 8),
+            'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+            'vector_store_ids' => [],
+            'system' => $systemPrompt,
         ]);
 
-        curl_exec($ch);
-        if (curl_errno($ch)) {
-            echo "data: " . json_encode(['error' => curl_error($ch)]) . "\n\n";
-            flush();
+        $reply = '';
+        if (!is_array($x) || empty($x['text'])) {
+            $reply = is_array($x) ? ($x['text'] ?? '') : (string)$x;
+        } else {
+            $reply = $x['text'];
         }
-        curl_close($ch);
+
+        $reply = $this->processFinalText($reply, false, $lang);
+
+        if (trim($reply) === '') {
+            $this->streamError('Upstream empty response');
+        }
+
+        if ($cacheTtl > 0 && trim($reply) !== '') {
+            Cache::put($cacheKey, $reply, $cacheTtl);
+        }
+
+        $this->streamMessage($reply);
     }, 200, [
         'Content-Type' => 'text/event-stream',
         'Cache-Control' => 'no-cache',
@@ -1209,16 +1339,26 @@ private function streamMessage($message) {
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
     
-    // Stream the message word by word (like AI response)
-    $words = explode(' ', $message);
-    foreach ($words as $word) {
+    $delayMs = (int)env('XAI_STREAM_DELAY_MS', 0);
+    if ($delayMs <= 0) {
         echo "data: " . json_encode([
             'choices' => [[
-                'delta' => ['content' => $word . ' ']
+                'delta' => ['content' => $message]
             ]]
         ]) . "\n\n";
         flush();
-        usleep(50000); // 50ms delay between words
+    } else {
+        // Stream the message word by word (like AI response)
+        $words = explode(' ', $message);
+        foreach ($words as $word) {
+            echo "data: " . json_encode([
+                'choices' => [[
+                    'delta' => ['content' => $word . ' ']
+                ]]
+            ]) . "\n\n";
+            flush();
+            usleep($delayMs * 1000);
+        }
     }
     
     echo "data: [DONE]\n\n";
@@ -1240,11 +1380,45 @@ private function processFinalText($text, $isFromQa, $lang) {
     }
     
     // Truncate if too long (same as chat())
-    if (mb_strlen($processed, 'UTF-8') > 2500) {
-        $processed = mb_substr($processed, 0, 2500, 'UTF-8');
+    if (mb_strlen($processed, 'UTF-8') > 8000) {
+        $processed = $this->truncateAtSentence($processed, 8000);
     }
     
     return trim($processed);
+}
+
+private function truncateAtSentence(string $text, int $maxChars): string
+{
+    $trimmed = trim($text);
+    if ($maxChars <= 0 || mb_strlen($trimmed, 'UTF-8') <= $maxChars) {
+        return $trimmed;
+    }
+
+    $slice = mb_substr($trimmed, 0, $maxChars, 'UTF-8');
+    $punct = ['.', '!', '?', '。', '！', '？'];
+    $lastPos = -1;
+    $len = mb_strlen($slice, 'UTF-8');
+    for ($i = 0; $i < $len; $i++) {
+        $ch = mb_substr($slice, $i, 1, 'UTF-8');
+        if (!in_array($ch, $punct, true)) {
+            continue;
+        }
+        $next = ($i + 1 < $len) ? mb_substr($slice, $i + 1, 1, 'UTF-8') : '';
+        if ($next === '' || preg_match('/\s/u', $next)) {
+            $lastPos = $i;
+        }
+    }
+
+    if ($lastPos >= 0 && $lastPos > (int)($maxChars * 0.6)) {
+        return trim(mb_substr($slice, 0, $lastPos + 1, 'UTF-8'));
+    }
+
+    $spacePos = mb_strrpos($slice, ' ', 0, 'UTF-8');
+    if ($spacePos !== false && $spacePos > 0) {
+        return trim(mb_substr($slice, 0, $spacePos, 'UTF-8'));
+    }
+
+    return trim($slice);
 }
 
 private function saveStreamedReply($fullText, $question, $memberId, $guestId, $sessionId, $logToChatTable, $chatSource) {
@@ -1383,46 +1557,23 @@ Rules:
 
 private function classifyEducationIntent(string $question): string
 {
-    $system = "
-You are an intent classifier for AI-mmi.
+    $q = mb_strtolower(trim($question), 'UTF-8');
+    if ($q === '') {
+        return 'non-education';
+    }
 
-Your ONLY job:
-Determine whether the user question is about *international education / studying / school applications / courses / programs*.
+    $keywords = [
+        'study', 'studying', 'student', 'university', 'college', 'course', 'program',
+        'major', 'degree', 'tuition', 'scholarship', 'admission', 'apply', 'application',
+        'campus', 'intake', 'enrol', 'enroll',
+        // Chinese
+        '留学', '学习', '学校', '大学', '学院', '课程', '专业', '学位', '学费', '奖学金', '申请', '入学'
+    ];
 
-Output ONLY one of the following EXACT JSON formats:
-
-1) If the message is related to studying, universities, courses, school application, international students, academic entry requirements:
-{
-\"category\": \"education\"
-}
-
-2) Otherwise (migration visas, 485, PR, general questions, unrelated topics):
-{
-\"category\": \"non-education\"
-}
-
-RULES:
-- Never explain your answer.
-- Never add other fields.
-- Always reply in JSON format.
-- Language of user's question does not matter.
-- This is NOT the final answer to the user. This is ONLY a classifier.
-";
-
-    $resp = $this->callXaiResponses($question, [
-        'temperature' => 0,
-        'max_output_tokens' => 64,
-        'enable_search' => false,
-        'system' => $system,
-        'model' => 'grok-4-1-fast-reasoning',
-    ]);
-
-    if (!is_array($resp) || empty($resp['text'])) return 'non-education';
-
-    $json = json_decode($resp['text'], true);
-
-    if (!empty($json['category']) && $json['category'] === 'education') {
-        return 'education';
+    foreach ($keywords as $kw) {
+        if (mb_strpos($q, $kw) !== false) {
+            return 'education';
+        }
     }
 
     return 'non-education';

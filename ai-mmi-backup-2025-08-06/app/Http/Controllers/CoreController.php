@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Config;
 
 // set time zone
 date_default_timezone_set('Asia/Hong_Kong');
@@ -52,8 +53,24 @@ class CoreController extends Controller {
         // Full initialization (loading language, page meta, session handling) requires
         // valid mapping data and will be skipped when it's absent.
         if (empty($this->_mapping_data)) {
-            // keep mapping_data as empty array to avoid PHP warnings elsewhere
-            $this->_mapping_data = [];
+            // Provide safe defaults so controllers instantiated without mapping data
+            // (e.g. direct routes) won't raise undefined index errors.
+            $appUrl = \Illuminate\Support\Facades\Config::get('app.url');
+            $this->_mapping_data = [
+                'support_lang' => Config::get('app_portal.support_lang', []),
+                'default_lang_index' => Config::get('app_portal.default_lang_index', 0),
+                'current_lang_index' => Config::get('app_portal.default_lang_index', 0),
+                'current_lang_web' => Config::get('app_portal.default_lang'),
+                'current_lang_admin' => Config::get('app_portal.default_lang_admin'),
+                'app_url' => $appUrl,
+                'base_url' => $appUrl,
+                'current_url' => \Illuminate\Support\Facades\Request::fullUrl(),
+                'multi_url' => [],
+                'module' => 'web',
+                'class' => 'home',
+                'function' => 'index',
+                'parameters' => [],
+            ];
             return;
         }
         
@@ -132,7 +149,7 @@ class CoreController extends Controller {
     // load model
     protected function loadModel($name, $parameters = []) {
         $parameters = array_merge([
-            'is_backend'    =>  ($this->_mapping_data['module']=='admin')?true:false,
+            'is_backend'    =>  (isset($this->_mapping_data['module']) && $this->_mapping_data['module'] == 'admin') ? true : false,
             'current_user'  =>  $this->_current_user
         ], $parameters);
         $model = 'App\\Models\\'.ucwords(ucwords(strtolower($name),'_'),'-');
@@ -588,6 +605,29 @@ class CoreController extends Controller {
             }
 
             // return view
+            $default_page_lang = [
+                'service_provider' => '',
+                'sign_in' => 'Sign In',
+                'sign_out' => 'Sign Out',
+                'countries' => 'Countries',
+                'forum' => 'Forum',
+                'about_us' => 'About Us',
+                'lang_en' => 'English',
+                'lang_zh_hant' => '繁體中文',
+                'lang_zh_hans' => '简体中文',
+            ];
+
+            $merged = array_merge($default_page_lang, (array)$this->_page_lang);
+            $page_lang = new class($merged) implements \ArrayAccess, \JsonSerializable {
+                private $a;
+                public function __construct($arr) { $this->a = $arr; }
+                public function offsetExists($offset) { return isset($this->a[$offset]); }
+                public function offsetGet($offset) { return $this->a[$offset] ?? ''; }
+                public function offsetSet($offset, $value) { $this->a[$offset] = $value; }
+                public function offsetUnset($offset) { unset($this->a[$offset]); }
+                public function jsonSerialize() { return $this->a; }
+            };
+
             return \Illuminate\Support\Facades\View::make($this->_mapping_data['module'].'.'.$view_name,[
                 '_included_header_footer'   =>  $included_header_footer,
                 '_token'                    =>  csrf_token(),
@@ -609,7 +649,7 @@ class CoreController extends Controller {
                 '_page_subindex'            =>  (!empty($this->_page_subindex))?$this->_page_subindex:$this->_mapping_data['function'],
                 '_page_back_url'            =>  $this->_page_back_url,
                 '_page_global_lang'         =>  $this->_page_global_lang,
-                '_page_lang'                =>  $this->_page_lang,
+                '_page_lang'                =>  $page_lang,
                 '_page_setting'             =>  $this->_page_setting,
                 '_page_options'             =>  $this->_page_options,
                 '_page_data'                =>  $this->_page_data,

@@ -126,7 +126,17 @@
                             <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_current_member['avatar']; ?>')"></div>
                             <?php } ?>
                             <?php } else { ?>
+                            <?php
+                                $displayName = (!empty($_current_member['alias_name'])) ? $_current_member['alias_name'] : (!empty($_current_member['full_name']) ? $_current_member['full_name'] : '');
+                                $initial = strtoupper(mb_substr(trim($displayName), 0, 1));
+                            ?>
+                            <?php if(!empty($initial)) { ?>
+                            <div class="avatar" style="background-color:#0b2d6f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;">
+                                <?php echo htmlspecialchars($initial, ENT_QUOTES, 'UTF-8'); ?>
+                            </div>
+                            <?php } else { ?>
                             <img src="asset/image/icon-member1.png" alt="icon-member"/>
+                            <?php } ?>
                             <?php } ?>
                         </a>
                     </div>

@@ -185,6 +185,12 @@ class RouteMapping extends Controller {
         }
 
         $app_url = trim(preg_replace('/([\/]+)$/i', '', Config::get('app.url')));
+        if (app()->environment('local')) {
+            $requestRoot = \Illuminate\Support\Facades\Request::root();
+            if (!empty($requestRoot)) {
+                $app_url = rtrim($requestRoot, '/');
+            }
+        }
         $current_url = implode('/', [$app_url, implode('/', $segments)]).(($other_parameters)?('?'.http_build_query($other_parameters)):'');
         $multi_url = [];
         if($current_module == 'web') {

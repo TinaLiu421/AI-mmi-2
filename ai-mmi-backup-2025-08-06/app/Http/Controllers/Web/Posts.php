@@ -11,9 +11,14 @@ class Posts extends Home {
     protected $_qa_table = 'posts_comments';
     protected $_ai_member_id = 0;
     
-    public function __construct($data) {
+    public function __construct($data = []) {
         parent::__construct($data);
-        
+
+        // If mapping data is missing (container-instantiated), skip full init
+        if (empty($this->_mapping_data) || !isset($this->_mapping_data['module'])) {
+            return;
+        }
+
         // load model
         $this->_posts_model = $this->loadModel('posts');
 
@@ -196,6 +201,9 @@ Rules:
     }
     
     public function details($id = 0) {
+        if (empty($this->_posts_model)) {
+            $this->_posts_model = $this->loadModel('posts');
+        }
         $page_data = $this->_posts_model->getByID($id);
         if(empty($page_data)) {
            // return 404 if not found
@@ -219,11 +227,18 @@ Rules:
         
 
         // set meta
-        $this->pageMeta(
-        [
-            'title'         =>  ((!empty($page_data['title']))?$page_data['title']:''),
-            'description'   =>  substr($this->toPlainText($page_data['content']), 0, 180).'...',
-            'image'         =>  ((!empty($page_data['photo']) && file_exists('upload/member_posts/'.$page_data['photo']))?($this->_mapping_data['app_url'].'/'.('upload/member_posts/'.$page_data['photo'])):(!empty($youtube_id)?'https://img.youtube.com/vi/'.$youtube_id.'/maxresdefault.jpg':''))
+        $baseAppUrl = $this->_mapping_data['app_url'] ?? config('app.url');
+        $imageUrl = '';
+        if (!empty($page_data['photo']) && file_exists('upload/member_posts/'.$page_data['photo'])) {
+            $imageUrl = rtrim($baseAppUrl, '/') . '/' . 'upload/member_posts/'.$page_data['photo'];
+        } elseif (!empty($youtube_id)) {
+            $imageUrl = 'https://img.youtube.com/vi/'.$youtube_id.'/maxresdefault.jpg';
+        }
+
+        $this->pageMeta([
+            'title'       => (!empty($page_data['title'])) ? $page_data['title'] : '',
+            'description' => substr($this->toPlainText($page_data['content']), 0, 180).'...',
+            'image'       => $imageUrl,
         ]);
         
         return $this->pageData(
@@ -289,46 +304,50 @@ Rules:
     private function fetchQaItems(int $postId): array
     {
         $hasParent = $this->qaHasParentColumn();
-
-        $questionsQuery = DB::table($this->_qa_table.' as c')
+        try {
+            $questionsQuery = DB::table($this->_qa_table.' as c')
             ->leftJoin('member as m', 'c.member_id', '=', 'm.id')
             ->where('c.posts_id', $postId)
             ->where('c.status', 1)
             ->whereNull('c.deleted_at');
+            if ($hasParent) {
+                $questionsQuery->where(function ($q) {
+                    $q->whereNull('c.parent_id')->orWhere('c.parent_id', 0);
+                });
+            }
 
-        if ($hasParent) {
-            $questionsQuery->where(function ($q) {
-                $q->whereNull('c.parent_id')->orWhere('c.parent_id', 0);
-            });
-        }
-
-        $questions = $questionsQuery
-            ->orderByDesc('c.created_at')
-            ->select([
-                'c.id',
-                'c.content',
-                'c.created_at',
-                'c.member_id',
-                'm.alias_name',
-                'm.avatar',
-            ])
-            ->get();
-
-        $questionIds = $questions->pluck('id')->all();
-        $answersByParent = [];
-
-        if ($hasParent && !empty($questionIds)) {
-            $answers = DB::table($this->_qa_table.' as c')
-                ->whereIn('c.parent_id', $questionIds)
-                ->where('c.status', 1)
-                ->whereNull('c.deleted_at')
-                ->orderBy('c.created_at')
-                ->select(['c.parent_id', 'c.content', 'c.created_at'])
+            $questions = $questionsQuery
+                ->orderByDesc('c.created_at')
+                ->select([
+                    'c.id',
+                    'c.content',
+                    'c.created_at',
+                    'c.member_id',
+                    'm.alias_name',
+                    'm.avatar',
+                ])
                 ->get();
 
-            foreach ($answers as $answer) {
-                $answersByParent[$answer->parent_id] = $answer;
+            $questionIds = $questions->pluck('id')->all();
+            $answersByParent = [];
+
+            if ($hasParent && !empty($questionIds)) {
+                $answers = DB::table($this->_qa_table.' as c')
+                    ->whereIn('c.parent_id', $questionIds)
+                    ->where('c.status', 1)
+                    ->whereNull('c.deleted_at')
+                    ->orderBy('c.created_at')
+                    ->select(['c.parent_id', 'c.content', 'c.created_at'])
+                    ->get();
+
+                foreach ($answers as $answer) {
+                    $answersByParent[$answer->parent_id] = $answer;
+                }
             }
+        } catch (\Throwable $e) {
+            // If QA tables are missing or any DB error occurs, log and return empty list
+            \Log::warning('fetchQaItems DB error', ['post_id' => $postId, 'error' => $e->getMessage()]);
+            return [];
         }
 
         return $questions->map(function ($row) use ($answersByParent) {
