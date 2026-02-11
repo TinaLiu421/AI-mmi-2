@@ -287,24 +287,43 @@ class Agent_Chat extends WebController
                 'a.registration_num',
                 'a.registration_country',
             ])
+            ->orderBy('d.company_name', 'asc')
             ->orderBy('m.alias_name', 'asc')
             ->get();
 
         return $rows->map(function ($row) {
+            // Clean up phone number
             $phone = trim((string)$row->telephone_num);
-            if (!empty($row->telephone_code)) {
-                $phone = trim($row->telephone_code) . $phone;
+            if (!empty($phone) && !empty($row->telephone_code)) {
+                $phone = trim($row->telephone_code) . ' ' . $phone;
             }
+            
+            // Get best name available
+            $name = trim((string)($row->company_name ?: ($row->alias_name ?: $row->full_name)));
+            
             return [
                 'id' => (int)$row->id,
-                'name' => $row->company_name ?: ($row->alias_name ?: $row->full_name),
-                'website' => $row->company_website,
-                'address' => $row->company_address,
-                'phone' => $phone,
-                'registration_num' => $row->registration_num,
-                'registration_country' => $row->registration_country,
+                'name' => $name,
+                'website' => trim((string)$row->company_website) ?: null,
+                'address' => trim((string)$row->company_address) ?: null,
+                'phone' => $phone ?: null,
+                'registration_num' => trim((string)$row->registration_num) ?: null,
+                'registration_country' => trim((string)$row->registration_country) ?: null,
             ];
-        })->toArray();
+        })->filter(function ($agent) {
+            // Filter out agents without a valid name
+            if (empty($agent['name'])) {
+                return false;
+            }
+            
+            // Filter out agents with no contact information at all
+            $hasContactInfo = !empty($agent['website']) || 
+                            !empty($agent['address']) || 
+                            !empty($agent['phone']) || 
+                            !empty($agent['registration_num']);
+            
+            return $hasContactInfo;
+        })->values()->toArray();
     }
 
     private function getAgentThreads(int $agentId): array
