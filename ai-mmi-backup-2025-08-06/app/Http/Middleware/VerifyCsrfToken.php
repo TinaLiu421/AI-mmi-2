@@ -15,6 +15,7 @@ class VerifyCsrfToken extends Middleware
         'stripe/webhook',
         'api/*',
         'chat/log',
+        'chat/stream',
         //'*/account_article/comment',
         //'*/home/chat',
     ];
