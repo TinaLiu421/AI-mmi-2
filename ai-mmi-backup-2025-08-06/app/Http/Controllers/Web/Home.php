@@ -788,6 +788,8 @@ Rules:
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => $timeoutToUse,
                 CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
             ];
 
             if ($timeoutMsToUse > 0) {
@@ -1059,6 +1061,8 @@ Rules:
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 60,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
         ]);
 
         $resp   = curl_exec($ch);
