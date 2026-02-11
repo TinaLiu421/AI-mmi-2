@@ -48,7 +48,8 @@
 
     function fetchMessages() {
       if (!activeTargetType || !activeTargetId) return;
-      fetch(`/agent_chat/messages/${activeTargetType}/${activeTargetId}`, {
+      const lang = (window.agentChatConfig && window.agentChatConfig.langCode) || 'en';
+      fetch(`/${lang}/agent_chat/messages/${activeTargetType}/${activeTargetId}`, {
         credentials: 'same-origin'
       })
         .then(res => res.json())
@@ -74,7 +75,8 @@
       const itoken = buildItoken();
       if (itoken) formData.append('itoken', itoken);
 
-      fetch('/agent_chat/send', {
+      const lang = (window.agentChatConfig && window.agentChatConfig.langCode) || 'en';
+      fetch(`/${lang}/agent_chat/send`, {
         method: 'POST',
         body: formData,
         credentials: 'same-origin'

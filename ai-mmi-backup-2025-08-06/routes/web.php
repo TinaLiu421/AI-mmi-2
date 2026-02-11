@@ -3,7 +3,7 @@
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\RouteMapping;
 use App\Http\Controllers\Web\Posts as WebPosts;
-use App\Http\Controllers\Web\Agent_chat as AgentChatController;
+use App\Http\Controllers\Web\Agent_Chat as AgentChatController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');

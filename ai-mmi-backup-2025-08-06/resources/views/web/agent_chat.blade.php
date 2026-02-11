@@ -66,7 +66,8 @@
 window.agentChatConfig = {
     isAgent: {{ $_page_data['is_agent'] ? 'true' : 'false' }},
     activeTargetType: {!! json_encode($_page_data['active_target_type']) !!},
-    activeTargetId: {!! json_encode($_page_data['active_target_id']) !!}
+    activeTargetId: {!! json_encode($_page_data['active_target_id']) !!},
+    langCode: '{{ $_current_lang_code }}'
 };
 </script>
 @endsection

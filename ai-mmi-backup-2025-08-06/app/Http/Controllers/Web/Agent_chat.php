@@ -5,7 +5,7 @@ use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-class Agent_chat extends WebController
+class Agent_Chat extends WebController
 {
     public function index($targetId = null)
     {
@@ -165,7 +165,20 @@ class Agent_chat extends WebController
         $targetId = $this->postParamValue('target_id', '');
         $message = trim((string)$this->postParamValue('message', ''));
 
+        \Illuminate\Support\Facades\Log::info('Agent_chat.handleSend', [
+            'targetType' => $targetType,
+            'targetId' => $targetId,
+            'message_length' => strlen($message),
+            'actor_type' => $actor['type'] ?? 'unknown'
+        ]);
+
         if ($message === '' || $targetType === '' || $targetId === '') {
+            \Illuminate\Support\Facades\Log::warning('Agent_chat.send_failed', [
+                'reason' => 'invalid_payload',
+                'targetType' => $targetType,
+                'targetId' => $targetId,
+                'has_message' => !empty($message)
+            ]);
             $this->pageResult(['status' => 422, 'message' => 'Invalid payload'], true);
             return;
         }
