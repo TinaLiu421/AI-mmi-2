@@ -17,6 +17,14 @@ class Agent_chat extends WebController
         $memberId = $member['id'] ?? null;
         $isAgent = $memberId ? ($this->isAgentMember($memberId) || app()->environment('local')) : false;
 
+        // Debug logging
+        \Illuminate\Support\Facades\Log::info('Agent_chat.index', [
+            'memberId' => $memberId,
+            'isAgent' => $isAgent,
+            'member_email' => $member['email'] ?? 'none',
+            'member_type' => $member['type'] ?? 'none'
+        ]);
+
         $agents = [];
         $threads = [];
         $activeTargetType = null;
@@ -24,6 +32,10 @@ class Agent_chat extends WebController
 
         if ($isAgent) {
             $threads = $this->getAgentThreads($memberId);
+            \Illuminate\Support\Facades\Log::info('Agent_chat.threads_loaded', [
+                'thread_count' => count($threads),
+                'threads' => $threads
+            ]);
             if (!empty($targetId)) {
                 $activeTargetType = ($targetId === 'guest') ? 'guest' : 'member';
                 $activeTargetId = is_numeric($targetId) ? (int)$targetId : null;

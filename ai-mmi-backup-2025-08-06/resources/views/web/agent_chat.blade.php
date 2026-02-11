@@ -10,7 +10,7 @@
 <div class="agent-chat-container">
     <div class="agent-chat-sidebar">
         <div class="agent-chat-sidebar-header">
-            {{ $_page_data['is_agent'] ? 'Agent Inbox' : 'Choose an Agent' }}
+            {{ $_page_data['is_agent'] ? 'Agent Inbox (' . count($_page_data['threads']) . ' conversations)' : 'Choose an Agent (' . count($_page_data['agents']) . ' agents)' }}
         </div>
         <div class="agent-chat-list">
             @if($_page_data['is_agent'])
