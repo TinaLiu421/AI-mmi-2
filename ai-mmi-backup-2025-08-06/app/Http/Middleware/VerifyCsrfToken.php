@@ -16,6 +16,7 @@ class VerifyCsrfToken extends Middleware
         'api/*',
         'chat/log',
         'chat/stream',
+        '**/agent_chat/send',
         //'*/account_article/comment',
         //'*/home/chat',
     ];
