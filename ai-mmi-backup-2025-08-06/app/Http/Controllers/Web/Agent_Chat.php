@@ -87,7 +87,7 @@ class Agent_Chat extends WebController
         $targetType = strtolower((string)$targetType);
         $targetId = is_numeric($targetId) ? (int)$targetId : (string)$targetId;
 
-        $query = DB::table('app_agent_chat_messages');
+        $query = DB::table('agent_chat_messages');
         if ($actor['type'] === 'member') {
             $memberId = (int)$actor['id'];
             if ($targetType === 'member') {
@@ -215,7 +215,7 @@ class Agent_Chat extends WebController
         }
 
         try {
-            DB::table('app_agent_chat_messages')->insert($payload);
+            DB::table('agent_chat_messages')->insert($payload);
             \Illuminate\Support\Facades\Log::info('Agent_chat.send_success', [
                 'targetType' => $targetType,
                 'targetId' => $targetId
@@ -309,7 +309,7 @@ class Agent_Chat extends WebController
 
     private function getAgentThreads(int $agentId): array
     {
-        $rows = DB::table('app_agent_chat_messages')
+        $rows = DB::table('agent_chat_messages')
             ->where('sender_member_id', $agentId)
             ->orWhere('receiver_member_id', $agentId)
             ->orderByDesc('created_at')
