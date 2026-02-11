@@ -13,7 +13,9 @@ Route::post('/posts/{postId}/qa-ask', [WebPosts::class, 'qaAsk']);
 use App\Http\Controllers\Web\Home as HomeController;
 Route::post('/chat/stream', [HomeController::class, 'chatStream'])->name('chat.stream');
 
-// Agent chat routes (API endpoints)
+// Agent chat routes
+Route::get('/agent_chat', [AgentChatController::class, 'index']);
+Route::get('/agent_chat/{targetId}', [AgentChatController::class, 'index']);
 Route::get('/agent_chat/messages/{targetType}/{targetId}', [AgentChatController::class, 'messages']);
 Route::get('/agent_chat/threads', [AgentChatController::class, 'threads']);
 Route::post('/agent_chat/send', [AgentChatController::class, 'send']);

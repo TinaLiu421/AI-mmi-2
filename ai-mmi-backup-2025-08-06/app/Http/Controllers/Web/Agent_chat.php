@@ -57,7 +57,7 @@ class Agent_chat extends WebController
     {
         $member = $this->_current_member ?: null;
         $memberId = $member['id'] ?? null;
-        if (!$memberId || !$this->isAgentMember($memberId)) {
+        if (!$memberId || (!$this->isAgentMember($memberId) && !app()->environment('local'))) {
             return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
         }
 
