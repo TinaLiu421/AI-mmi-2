@@ -41,13 +41,6 @@ class Eligibility_Check extends WebController {
     public function assess() {
         $data = Request::all();
         
-        // Check if user is logged in
-        if (empty($this->_current_member)) {
-            // Redirect to login
-            $lang = $this->_mapping_data['lang_code'] ?? 'en';
-            return redirect('/' . $lang . '/account_login')->with('error', 'Please login to save your assessment.');
-        }
-        
         // Build the assessment prompt from the form data
         $prompt = $this->buildAssessmentPrompt($data);
         
@@ -63,9 +56,9 @@ class Eligibility_Check extends WebController {
             $countries = is_array($data['countries']) ? json_encode($data['countries']) : json_encode([$data['countries']]);
         }
         
-        // Insert into database
+        // Insert into database (member_id is optional - null for guests)
         DB::table('study_eligibility_assessments')->insert([
-            'member_id' => $this->_current_member['id'],
+            'member_id' => $this->_current_member['id'] ?? null, // Allow null for guest assessments
             'countries' => $countries,
             'nationality' => $data['nationality'] ?? null,
             'residency' => $data['residency'] ?? null,
@@ -83,7 +76,7 @@ class Eligibility_Check extends WebController {
         
         // Redirect to the study profile comparison page with auto-generate flag
         $lang = $this->_mapping_data['lang_code'] ?? 'en';
-        return redirect('/' . $lang . '/study_profile_comparison')->with('auto_generate', true);
+        return redirect('/' . $lang . '/study_profile_comparison')->with('auto_generate', true)->with('eligibility_assessment', ['prompt' => $prompt]);
     }
     
     private function buildAssessmentPrompt($data)

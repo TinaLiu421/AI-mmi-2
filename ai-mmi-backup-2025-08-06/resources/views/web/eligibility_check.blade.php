@@ -13,7 +13,7 @@
         <p>Complete this eligibility assessment to discover your study abroad opportunities</p>
     </div>
 
-    <form id="eligibility-form" class="eligibility-form" method="POST" action="/{{ $_current_lang_code }}/eligibility_check/assess">
+    <form id="eligibility-form" class="eligibility-form" method="POST" action="/{{ $_current_lang_code }}/eligibility_check/assess" enctype="multipart/form-data">
         @csrf
         
         <!-- Question 1: Destination Countries -->

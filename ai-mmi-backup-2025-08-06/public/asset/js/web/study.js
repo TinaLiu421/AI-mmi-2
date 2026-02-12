@@ -1,35 +1,40 @@
 $(document).ready(function() {
-    // Predefined messages for each study option
-    const studyMessages = {
-        'program-finder': 'Which programs, fields of study, or courses would you recommend as the best match for my academic history, career aspirations, and long-term objectives?',
-        'country-comparison': 'Which countries and institutions would you recommend as the strongest options for someone with my background?',
-        'cost-estimates': 'What are the estimated total costs (tuition, living expenses, visa/application fees, etc.)?',
-        'admission-plan': 'Could you please outline the key admission and visa requirements, along with the step-by-step application process?',
-        'scholarship-search': 'What scholarships, bursaries, grants, or other forms of financial assistance are available for international students / applicants in my situation, and what are the eligibility requirements and application deadlines?',
-        'timeline-actions': 'What are the available intake periods / commencement dates for the recommended programs, and what are the corresponding application submission deadlines? Please make a timeline for me.'
-    };
-
-    // Handle study option button clicks
+    // Handle study option button clicks (open form)
     $('.study-option-button').on('click', function(e) {
-        const action = $(this).data('action');
         const href = $(this).attr('href');
-        
-        // If the button has a valid href (not javascript:void), follow it
         if (href && href !== 'javascript:void(0);') {
-            // Let the browser follow the link naturally
             return true;
         }
-        
-        // Prevent default action
+
         e.preventDefault();
-        
-        // Check if this action has a predefined message
-        if (studyMessages[action]) {
-            // Send message to chatbox
-            sendToChatbox(studyMessages[action]);
-        } else {
-            console.log('Study action:', action, '- No message defined');
+
+        const $card = $(this).closest('.study-option-card');
+        const $form = $card.find('.study-option-form');
+
+        if ($form.length) {
+            $form.toggleClass('is-open');
         }
+    });
+
+    // Handle form submissions
+    $('.study-option-form').on('submit', function(e) {
+        e.preventDefault();
+
+        const $form = $(this);
+        const baseQuestion = $form.data('question') || '';
+        const details = [];
+
+        $form.find('[data-label]').each(function() {
+            const value = ($(this).val() || '').trim();
+            if (value) {
+                details.push(`${$(this).data('label')}: ${value}`);
+            }
+        });
+
+        const detailText = details.length ? `\n\nProfile details:\n- ${details.join('\n- ')}` : '';
+        const fullPrompt = `${baseQuestion}${detailText}`;
+
+        sendToChatbox(fullPrompt);
     });
 
     /**

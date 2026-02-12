@@ -15,20 +15,21 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        
-        $appUrl = config('app.url'); 
+        $requestHost = Request::getHost();
 
-        if (!empty($appUrl)) {
-            URL::forceRootUrl(rtrim($appUrl, '/'));                 
-            $scheme = parse_url($appUrl, PHP_URL_SCHEME);          
-            if ($scheme) {
-                URL::forceScheme($scheme);                          
-            }
-        } else {
-            
+        if (app()->environment('local') || in_array($requestHost, ['127.0.0.1', 'localhost'], true)) {
             URL::forceRootUrl(Request::getSchemeAndHttpHost());
+            URL::forceScheme(Request::getScheme());
+            return;
         }
 
-        
+        $appUrl = config('app.url');
+        if (!empty($appUrl)) {
+            URL::forceRootUrl(rtrim($appUrl, '/'));
+            $scheme = parse_url($appUrl, PHP_URL_SCHEME);
+            if ($scheme) {
+                URL::forceScheme($scheme);
+            }
+        }
     }
 }

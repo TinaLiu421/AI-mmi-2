@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="<?php echo $_current_lang_code; ?>">
     <head>
-        <base href="{{ url('/') }}/">
+        <base href="{{ request()->getSchemeAndHttpHost() }}/">
         <title><?php echo (!empty($_page_meta_data['title']))?$_page_meta_data['title']:''; ?></title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">

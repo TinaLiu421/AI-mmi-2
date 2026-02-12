@@ -13,7 +13,7 @@
         <p>Complete this eligibility assessment to discover your migration opportunities</p>
     </div>
 
-    <form id="eligibility-form" class="eligibility-form" method="POST" action="/{{ $_current_lang_code }}/migration_eligibility/assess">
+    <form id="eligibility-form" class="eligibility-form" method="POST" action="/{{ $_current_lang_code }}/migration_eligibility/assess" enctype="multipart/form-data">
         @csrf
         
         <!-- Question 1: Destination Countries -->

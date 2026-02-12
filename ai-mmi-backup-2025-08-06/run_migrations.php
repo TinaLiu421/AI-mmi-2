@@ -18,9 +18,9 @@ echo "<h1>Running Migrations...</h1>";
 echo "<pre>";
 
 try {
-    // Load Laravel
-    require __DIR__.'/vendor/autoload.php';
-    $app = require_once __DIR__.'/bootstrap/app.php';
+    // Load Laravel (go up one directory from public/)
+    require __DIR__.'/../vendor/autoload.php';
+    $app = require_once __DIR__.'/../bootstrap/app.php';
     
     // Boot the kernel
     $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);

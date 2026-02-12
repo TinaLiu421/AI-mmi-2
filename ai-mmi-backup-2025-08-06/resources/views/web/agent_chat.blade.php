@@ -28,17 +28,17 @@
                     <div class="agent-chat-list-item" data-target-type="member" data-target-id="{{ $agent['id'] }}">
                         <div class="agent-name">{{ $agent['name'] }}</div>
                         <div class="agent-meta">
-                            @if(!empty($agent['website']))
+                            @if(!empty($agent['website']) && $agent['website'] !== 'N/A')
                                 <div>{{ $agent['website'] }}</div>
                             @endif
-                            @if(!empty($agent['address']))
+                            @if(!empty($agent['address']) && $agent['address'] !== 'N/A')
                                 <div>{{ $agent['address'] }}</div>
                             @endif
-                            @if(!empty($agent['phone']))
+                            @if(!empty($agent['phone']) && $agent['phone'] !== 'N/A')
                                 <div>{{ $agent['phone'] }}</div>
                             @endif
-                            @if(!empty($agent['registration_num']))
-                                <div>Registered Migration Agent Number: {{ $agent['registration_num'] }}</div>
+                            @if(!empty($agent['registration_num']) && $agent['registration_num'] !== 'N/A')
+                                <div>Reg #: {{ $agent['registration_num'] }}</div>
                             @endif
                         </div>
                     </div>

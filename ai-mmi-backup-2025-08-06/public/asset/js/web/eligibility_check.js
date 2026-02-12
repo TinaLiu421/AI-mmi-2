@@ -10,9 +10,44 @@ $(document).ready(function() {
         }
     });
 
+    // Handle file upload area - make entire area clickable
+    const fileUploadArea = $('.file-upload-area');
+    const schoolResults = $('#school-results');
+    const fileList = $('#file-list');
+
+    // Make the entire upload area clickable
+    fileUploadArea.on('click', function(e) {
+        if ($(e.target).closest('.file-remove').length || $(e.target).is('input[type="file"]')) {
+            return;
+        }
+        schoolResults.trigger('click');
+    });
+
+    // Handle drag and drop
+    fileUploadArea.on('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).css('background', '#e0f2fe').css('border-color', '#0284c7');
+    });
+
+    fileUploadArea.on('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).css('background', '').css('border-color', '');
+    });
+
+    fileUploadArea.on('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).css('background', '').css('border-color', '');
+        
+        const files = e.originalEvent.dataTransfer.files;
+        schoolResults[0].files = files;
+        schoolResults.trigger('change');
+    });
+
     // Handle file upload display
-    $('#school-results').on('change', function() {
-        const fileList = $('#file-list');
+    schoolResults.on('change', function() {
         fileList.empty();
         
         const files = this.files;
@@ -22,11 +57,12 @@ $(document).ready(function() {
             const fileName = $('<span class="file-name"></span>').text(file.name);
             const fileRemove = $('<span class="file-remove">Remove</span>');
             
-            fileRemove.on('click', function() {
+            fileRemove.on('click', function(e) {
+                e.stopPropagation();
                 fileItem.remove();
                 // Reset file input if no files left
                 if ($('.file-item').length === 0) {
-                    $('#school-results').val('');
+                    schoolResults.val('');
                 }
             });
             
@@ -44,6 +80,46 @@ $(document).ready(function() {
         if (selectedCountries === 0) {
             alert('Please select at least one country you would like to study in.');
             return;
+        }
+        
+        // Validate all required fields
+        const requiredFields = [
+            { name: 'nationality', label: 'Nationality' },
+            { name: 'residency', label: 'Current country of residency' },
+            { name: 'age', label: 'Age' },
+            { name: 'occupation', label: 'Occupation' }
+        ];
+        
+        for (let field of requiredFields) {
+            const value = $('[name="' + field.name + '"]').val();
+            if (!value || value.trim() === '') {
+                alert('Please fill in: ' + field.label);
+                return;
+            }
+        }
+        
+        // Validate education level is selected
+        if (!$('input[name="education_level"]:checked').val()) {
+            alert('Please select your education level.');
+            return;
+        }
+        
+        // Validate English test option is selected
+        if (!$('input[name="english_test_completed"]:checked').val()) {
+            alert('Please indicate if you have completed an English test.');
+            return;
+        }
+        
+        // If English test is Yes, at least one test score should be filled
+        if ($('input[name="english_test_completed"]:checked').val() === 'Yes') {
+            const hasTestScore = $('#test-results-group input').filter(function() {
+                return $(this).val() && $(this).val().trim() !== '';
+            }).length > 0;
+            
+            if (!hasTestScore) {
+                alert('Please enter at least one English test score.');
+                return;
+            }
         }
         
         // Submit form to backend

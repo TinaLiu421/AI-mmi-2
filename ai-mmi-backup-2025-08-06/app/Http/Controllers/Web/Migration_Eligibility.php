@@ -52,13 +52,6 @@ class Migration_Eligibility extends WebController {
     public function assess() {
         $data = Request::all();
         
-        // Check if user is logged in
-        if (empty($this->_current_member)) {
-            // Redirect to login
-            $lang = $this->_mapping_data['lang_code'] ?? 'en';
-            return redirect('/' . $lang . '/account_login')->with('error', 'Please login to save your assessment.');
-        }
-        
         // Handle CV file upload if present
         $cvFilePath = null;
         if (Request::hasFile('cv')) {
@@ -88,9 +81,9 @@ class Migration_Eligibility extends WebController {
             $visaTypes = is_array($data['visa_type']) ? json_encode($data['visa_type']) : json_encode([$data['visa_type']]);
         }
         
-        // Insert into database
+        // Insert into database (member_id is optional - null for guest assessments)
         DB::table('migration_eligibility_assessments')->insert([
-            'member_id' => $this->_current_member['id'],
+            'member_id' => $this->_current_member['id'] ?? null, // Allow null for guest assessments
             'countries' => $countries,
             'visa_types' => $visaTypes,
             'nationality' => $data['nationality'] ?? null,

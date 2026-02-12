@@ -297,10 +297,9 @@ class Agent_Chat extends WebController
             if (!empty($phone) && !empty($row->telephone_code)) {
                 $phone = trim($row->telephone_code) . ' ' . $phone;
             }
-            
             // Get best name available
             $name = trim((string)($row->company_name ?: ($row->alias_name ?: $row->full_name)));
-            
+
             return [
                 'id' => (int)$row->id,
                 'name' => $name,

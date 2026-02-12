@@ -25,35 +25,185 @@
     <div class="quick-actions-section" id="quick-actions" style="display: none;">
         <h3><i class="fa fa-lightbulb-o"></i> Quick Actions</h3>
         <div class="quick-actions-grid">
-            <button class="quick-action-btn" onclick="askChatbot('Which programs, fields of study, or courses would you recommend as the best match for my academic history, career aspirations, and long-term objectives?')">
-                <i class="fa fa-book"></i>
-                <span>Program Finder</span>
-            </button>
-            <button class="quick-action-btn" onclick="askChatbot('Which countries and institutions would you recommend as the strongest options for someone with my background?')">
-                <i class="fa fa-globe"></i>
-                <span>Country Comparison</span>
-            </button>
-            <button class="quick-action-btn" onclick="askChatbot('What are the estimated total costs (tuition, living expenses, visa/application fees, etc.)?')">
-                <i class="fa fa-money"></i>
-                <span>Cost Estimates</span>
-            </button>
-            <button class="quick-action-btn" onclick="askChatbot('Could you please outline the key admission and visa requirements, along with the step-by-step application process?')">
-                <i class="fa fa-list-ol"></i>
-                <span>Admission Plan</span>
-            </button>
-            <button class="quick-action-btn" onclick="askChatbot('What scholarships, bursaries, grants, or other forms of financial assistance are available for international students in my situation?')">
-                <i class="fa fa-graduation-cap"></i>
-                <span>Scholarship Search</span>
-            </button>
-            <button class="quick-action-btn" onclick="askChatbot('What are the available intake periods for the recommended programs, and what are the corresponding application submission deadlines? Please make a timeline for me.')">
-                <i class="fa fa-calendar"></i>
-                <span>Timeline & Actions</span>
-            </button>
+            <div class="quick-action-card">
+                <div class="quick-action-header">
+                    <i class="fa fa-globe"></i>
+                    <div>
+                        <div class="quick-action-title">Country Comparison</div>
+                        <div class="quick-action-subtitle">Where to go?</div>
+                    </div>
+                </div>
+                <form class="quick-form" data-question="Which countries and institutions would you recommend as the strongest options for someone with my background?" onsubmit="submitQuickForm(event)">
+                    <div class="form-row">
+                        <input type="text" data-label="Nationality" placeholder="Nationality">
+                        <input type="text" data-label="Current country" placeholder="Current country">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Preferred countries" placeholder="Preferred countries (optional)">
+                        <input type="text" data-label="Study level" placeholder="Study level (e.g. Bachelor, Master)">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Field of study" placeholder="Field of study">
+                        <input type="text" data-label="Budget range" placeholder="Budget range">
+                    </div>
+                    <textarea data-label="Academic background" placeholder="Academic background (school, GPA, major)"></textarea>
+                    <button type="submit" class="quick-action-submit">Ask AI</button>
+                </form>
+            </div>
+
+            <div class="quick-action-card">
+                <div class="quick-action-header">
+                    <i class="fa fa-book"></i>
+                    <div>
+                        <div class="quick-action-title">Program Finder</div>
+                        <div class="quick-action-subtitle">What to study?</div>
+                    </div>
+                </div>
+                <form class="quick-form" data-question="Which programs, fields of study, or courses would you recommend as the best match for my academic history, career aspirations, and long-term objectives?" onsubmit="submitQuickForm(event)">
+                    <div class="form-row">
+                        <input type="text" data-label="Academic background" placeholder="Academic background">
+                        <input type="text" data-label="Career goal" placeholder="Career goal">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Interests" placeholder="Interests">
+                        <input type="text" data-label="Study level" placeholder="Study level">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Preferred countries" placeholder="Preferred countries">
+                        <input type="text" data-label="Budget range" placeholder="Budget range">
+                    </div>
+                    <textarea data-label="Long-term objectives" placeholder="Long-term objectives"></textarea>
+                    <button type="submit" class="quick-action-submit">Ask AI</button>
+                </form>
+            </div>
+
+            <div class="quick-action-card">
+                <div class="quick-action-header">
+                    <i class="fa fa-money"></i>
+                    <div>
+                        <div class="quick-action-title">Cost Estimates</div>
+                        <div class="quick-action-subtitle">How much?</div>
+                    </div>
+                </div>
+                <form class="quick-form" data-question="What are the estimated total costs (tuition, living expenses, visa/application fees, etc.)?" onsubmit="submitQuickForm(event)">
+                    <div class="form-row">
+                        <input type="text" data-label="Destination countries" placeholder="Destination countries">
+                        <input type="text" data-label="Study level" placeholder="Study level">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Program length" placeholder="Program length (e.g. 2 years)">
+                        <input type="text" data-label="Accommodation preference" placeholder="Accommodation preference">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Budget range" placeholder="Budget range">
+                        <input type="text" data-label="Dependents" placeholder="Dependents (if any)">
+                    </div>
+                    <textarea data-label="Additional notes" placeholder="Additional notes"></textarea>
+                    <button type="submit" class="quick-action-submit">Ask AI</button>
+                </form>
+            </div>
+
+            <div class="quick-action-card">
+                <div class="quick-action-header">
+                    <i class="fa fa-list-ol"></i>
+                    <div>
+                        <div class="quick-action-title">Admission Plan</div>
+                        <div class="quick-action-subtitle">How to get in?</div>
+                    </div>
+                </div>
+                <form class="quick-form" data-question="Could you please outline the key admission and visa requirements, along with the step-by-step application process?" onsubmit="submitQuickForm(event)">
+                    <div class="form-row">
+                        <input type="text" data-label="Target country" placeholder="Target country">
+                        <input type="text" data-label="Study level" placeholder="Study level">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="English test status" placeholder="English test status (IELTS/TOEFL etc.)">
+                        <input type="text" data-label="GPA/Grades" placeholder="GPA/Grades">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Intake" placeholder="Intake (e.g. Feb/Jul)">
+                        <input type="text" data-label="Timeline" placeholder="Target application timeline">
+                    </div>
+                    <textarea data-label="Academic background" placeholder="Academic background"></textarea>
+                    <button type="submit" class="quick-action-submit">Ask AI</button>
+                </form>
+            </div>
+
+            <div class="quick-action-card">
+                <div class="quick-action-header">
+                    <i class="fa fa-graduation-cap"></i>
+                    <div>
+                        <div class="quick-action-title">Scholarship Search</div>
+                        <div class="quick-action-subtitle">Scholarship?</div>
+                    </div>
+                </div>
+                <form class="quick-form" data-question="What scholarships, bursaries, grants, or other forms of financial assistance are available for international students in my situation, and what are the eligibility requirements and application deadlines?" onsubmit="submitQuickForm(event)">
+                    <div class="form-row">
+                        <input type="text" data-label="Nationality" placeholder="Nationality">
+                        <input type="text" data-label="Target country" placeholder="Target country">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Study level" placeholder="Study level">
+                        <input type="text" data-label="GPA/Grades" placeholder="GPA/Grades">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Field of study" placeholder="Field of study">
+                        <input type="text" data-label="Financial need" placeholder="Financial need (yes/no)">
+                    </div>
+                    <textarea data-label="Achievements" placeholder="Achievements / awards / extracurricular"></textarea>
+                    <button type="submit" class="quick-action-submit">Ask AI</button>
+                </form>
+            </div>
+
+            <div class="quick-action-card">
+                <div class="quick-action-header">
+                    <i class="fa fa-calendar"></i>
+                    <div>
+                        <div class="quick-action-title">Timeline & Actions</div>
+                        <div class="quick-action-subtitle">When to start?</div>
+                    </div>
+                </div>
+                <form class="quick-form" data-question="What are the available intake periods / commencement dates for the recommended programs, and what are the corresponding application submission deadlines? Please make a timeline for me." onsubmit="submitQuickForm(event)">
+                    <div class="form-row">
+                        <input type="text" data-label="Target country" placeholder="Target country">
+                        <input type="text" data-label="Preferred intake" placeholder="Preferred intake">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="Study level" placeholder="Study level">
+                        <input type="text" data-label="Program length" placeholder="Program length">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" data-label="English test date" placeholder="English test date (if any)">
+                        <input type="text" data-label="Current stage" placeholder="Current stage (researching, applied, etc.)">
+                    </div>
+                    <textarea data-label="Notes" placeholder="Notes / constraints"></textarea>
+                    <button type="submit" class="quick-action-submit">Ask AI</button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+function submitQuickForm(event) {
+    event.preventDefault();
+    const form = event.target;
+    const baseQuestion = form.getAttribute('data-question') || '';
+    const fields = form.querySelectorAll('[data-label]');
+    const details = [];
+
+    fields.forEach((field) => {
+        const value = (field.value || '').trim();
+        if (value) {
+            details.push(`${field.getAttribute('data-label')}: ${value}`);
+        }
+    });
+
+    const detailText = details.length ? `\n\nProfile details:\n- ${details.join('\n- ')}` : '';
+    const fullPrompt = `${baseQuestion}${detailText}`;
+    askChatbot(fullPrompt);
+}
+
 function askChatbot(message) {
     const $chatInput = $('#ask_question');
     if ($chatInput.length) {
@@ -181,6 +331,83 @@ window.addEventListener('load', function() {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1rem;
+}
+
+.quick-action-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.quick-action-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #1a237e;
+}
+
+.quick-action-header i {
+    font-size: 1.6rem;
+}
+
+.quick-action-title {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.quick-action-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.quick-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.quick-form .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+}
+
+.quick-form input,
+.quick-form textarea {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: #f8fafc;
+}
+
+.quick-form textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+.quick-action-submit {
+    align-self: flex-start;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-action-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(102, 126, 234, 0.25);
 }
 
 .quick-action-btn {

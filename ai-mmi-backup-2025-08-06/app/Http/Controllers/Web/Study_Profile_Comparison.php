@@ -8,19 +8,16 @@ class Study_Profile_Comparison extends WebController
 {
     public function index()
     {
-        if (empty($this->_current_member)) {
-            $this->doRedirect($this->toURL('account_login'));
-            return;
-        }
-
-        // Check if user's latest assessment needs AI analysis
+        // Get the latest assessment - works for both logged-in users and guests
+        $memberId = $this->_current_member['id'] ?? null;
+        
         $latestAssessment = DB::table('study_eligibility_assessments')
-            ->where('member_id', $this->_current_member['id'])
+            ->where('member_id', $memberId)
             ->orderBy('created_at', 'desc')
             ->first();
 
         \Log::info('Study Profile Comparison - Latest Assessment:', [
-            'member_id' => $this->_current_member['id'],
+            'member_id' => $memberId,
             'has_assessment' => !empty($latestAssessment),
             'ai_assessment' => $latestAssessment ? $latestAssessment->ai_assessment : 'N/A',
             'ai_is_empty' => $latestAssessment ? empty($latestAssessment->ai_assessment) : 'N/A'
@@ -37,14 +34,11 @@ class Study_Profile_Comparison extends WebController
 
     public function get_ai_comparison()
     {
-        if (empty($this->_current_member)) {
-            $this->pageResult(['status' => 403, 'message' => 'Please login first']);
-            return;
-        }
+        $memberId = $this->_current_member['id'] ?? null;
 
         // Get the latest study eligibility assessment from database
         $assessment = DB::table('study_eligibility_assessments')
-            ->where('member_id', $this->_current_member['id'])
+            ->where('member_id', $memberId)
             ->orderBy('created_at', 'desc')
             ->first();
 
@@ -77,7 +71,7 @@ class Study_Profile_Comparison extends WebController
         } catch (\Exception $e) {
             \Log::error('Gemini comparison failed', [
                 'error' => $e->getMessage(),
-                'member_id' => $this->_current_member['id']
+                'member_id' => $memberId
             ]);
 
             $this->pageResult([
