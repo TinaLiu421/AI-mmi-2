@@ -28,28 +28,43 @@ try {
     
     echo "✓ Laravel loaded successfully\n\n";
     
-    // Run specific migration
-    echo "Running: database/migrations/2026_02_11_000001_create_agent_chat_messages_table.php\n";
-    $exitCode = $kernel->call('migrate', [
-        '--path' => 'database/migrations/2026_02_11_000001_create_agent_chat_messages_table.php',
-        '--force' => true
-    ]);
-    
-    if ($exitCode === 0) {
-        echo "\n✓ Migration completed successfully!\n";
-        
-        // Verify table was created
-        $pdo = DB::connection()->getPdo();
-        $result = $pdo->query("SHOW TABLES LIKE 'app_agent_chat_messages'")->fetch();
-        
-        if ($result) {
-            echo "✓ Table 'app_agent_chat_messages' confirmed in database\n";
+    // Run required migrations
+    $migrations = [
+        'database/migrations/2026_01_28_000001_create_study_eligibility_assessments_table.php',
+        'database/migrations/2026_01_28_000002_create_migration_eligibility_assessments_table.php',
+        'database/migrations/2026_02_11_000001_create_agent_chat_messages_table.php'
+    ];
+
+    foreach ($migrations as $migration) {
+        echo "Running: {$migration}\n";
+        $exitCode = $kernel->call('migrate', [
+            '--path' => $migration,
+            '--force' => true
+        ]);
+
+        if ($exitCode === 0) {
+            echo "✓ Migration completed successfully!\n\n";
+        } else {
+            echo "✗ Migration failed with exit code: {$exitCode}\n\n";
         }
-        
-        echo "\n<strong style='color: green;'>SUCCESS! Agent chat is now ready to use.</strong>\n";
-    } else {
-        echo "\n✗ Migration failed with exit code: $exitCode\n";
     }
+
+    // Verify tables were created
+    $pdo = DB::connection()->getPdo();
+    $tablesToCheck = [
+        'app_study_eligibility_assessments',
+        'app_migration_eligibility_assessments',
+        'app_agent_chat_messages'
+    ];
+
+    foreach ($tablesToCheck as $table) {
+        $result = $pdo->query("SHOW TABLES LIKE '{$table}'")->fetch();
+        if ($result) {
+            echo "✓ Table '{$table}' confirmed in database\n";
+        }
+    }
+
+    echo "\n<strong style='color: green;'>SUCCESS! Migrations completed.</strong>\n";
     
 } catch (Exception $e) {
     echo "\n✗ ERROR: " . $e->getMessage() . "\n";
