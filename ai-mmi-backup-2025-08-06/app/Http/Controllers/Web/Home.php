@@ -1310,7 +1310,7 @@ or equivalent wording in the user's language.
             'temperature' => 0.2,
             'max_output_tokens' => (int)env('XAI_MAX_OUTPUT_TOKENS', 1024),
             'model' => 'grok-4-1-fast-reasoning',
-            'enable_search'     => (bool)env('XAI_ENABLE_WEB_SEARCH', false),
+            'enable_search'     => filter_var(env('XAI_ENABLE_WEB_SEARCH', true), FILTER_VALIDATE_BOOLEAN),
             'file_search_max'   => (int)env('XAI_FILE_SEARCH_MAX', 8),
             'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
             'vector_store_ids' => [],
