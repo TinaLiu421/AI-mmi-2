@@ -221,8 +221,52 @@ function streamResponse(question, bubbleId) {
     const $bubble = $('#' + bubbleId);
     const $text = $bubble.find('.txt');
     let fullText = '';
+    let streamMeta = {};
     let renderMode = 'plain';
     let renderScheduled = false;
+    let upgradePopupOpened = false;
+
+    function openUpgradePopup() {
+        if (!(streamMeta && streamMeta.show_upgrade)) return false;
+        if (upgradePopupOpened) return true;
+
+        const upgradeUrl = streamMeta.upgrade_url || (_page_base_url + '/upgrade');
+        const popup = window.open(
+            upgradeUrl,
+            'aimmi_upgrade_plans',
+            'width=980,height=760,menubar=no,toolbar=no,status=no,scrollbars=yes,resizable=yes'
+        );
+        upgradePopupOpened = true;
+
+        if (!popup) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function renderUpgradeButton() {
+        if (!(streamMeta && streamMeta.show_upgrade)) return;
+
+        const upgradeUrl = streamMeta.upgrade_url || (_page_base_url + '/upgrade');
+        const btnHtml = '<div class="chat-upgrade-wrap" style="margin-top:10px;">'
+            + '<button type="button" class="chat-upgrade-btn" '
+            + 'style="padding:8px 14px;border:none;border-radius:8px;background:#0f766e;color:#fff;cursor:pointer;font-weight:600;">'
+            + 'Upgrade</button></div>';
+
+        $text.append(btnHtml);
+        $text.find('.chat-upgrade-btn').off('click').on('click', function () {
+            const popup = window.open(
+                upgradeUrl,
+                'aimmi_upgrade_plans',
+                'width=980,height=760,menubar=no,toolbar=no,status=no,scrollbars=yes,resizable=yes'
+            );
+
+            if (!popup) {
+                window.location.href = upgradeUrl;
+            }
+        });
+    }
 
     function renderPlain() {
         const safe = escapeHtml(fullText || '').replace(/\n/g, '<br>');
@@ -266,6 +310,36 @@ function streamResponse(question, bubbleId) {
         credentials: 'same-origin'
     })
     .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                let payload = null;
+                try {
+                    payload = JSON.parse(text);
+                } catch (e) {
+                    payload = null;
+                }
+
+                const message = (payload && (payload.message || payload.error))
+                    ? (payload.message || payload.error)
+                    : 'Request failed. Please try again.';
+
+                throw {
+                    isHttpError: true,
+                    status: response.status,
+                    message: message,
+                    redirect: payload && payload.redirect ? payload.redirect : null,
+                };
+            });
+        }
+
+        if (!response.body) {
+            throw {
+                isHttpError: true,
+                status: response.status,
+                message: 'No stream body returned from server.',
+            };
+        }
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -274,6 +348,21 @@ function streamResponse(question, bubbleId) {
             reader.read().then(({done, value}) => {
                 if (done) {
                     $bubble.removeClass('streaming');
+                    if (!fullText.trim()) {
+                        let fallback = 'No response received. Please try again.';
+                        const maybeJson = (buffer || '').trim();
+                        if (maybeJson) {
+                            try {
+                                const data = JSON.parse(maybeJson);
+                                if (data && (data.message || data.error)) {
+                                    fallback = data.message || data.error;
+                                }
+                            } catch (e) {
+                                // keep fallback
+                            }
+                        }
+                        $text.html(`<span style="color: orange;">${escapeHtml(fallback)}</span>`);
+                    }
                     return;
                 }
                 
@@ -293,6 +382,7 @@ function streamResponse(question, bubbleId) {
                         if (line === 'data: [DONE]') {
                             renderMode = 'markdown';
                             renderMarkdown();
+                            renderUpgradeButton();
                             $bubble.removeClass('streaming');
                             return;
                         }
@@ -305,6 +395,12 @@ function streamResponse(question, bubbleId) {
                                 // Handle error from PHP
                                 if (data.error) {
                                     $text.html(`<span style="color: red;">${data.error}</span>`);
+                                    return;
+                                }
+
+                                if (data.meta && typeof data.meta === 'object') {
+                                    streamMeta = data.meta;
+                                    openUpgradePopup();
                                     return;
                                 }
                                 
@@ -338,6 +434,18 @@ function streamResponse(question, bubbleId) {
     })
     .catch(error => {
         console.error('Fetch error:', error);
+        $bubble.removeClass('streaming');
+
+        if (error && error.isHttpError) {
+            $text.html(`<span style="color: orange;">${escapeHtml(error.message || 'Request failed.')}</span>`);
+            if (error.status === 401 && error.redirect) {
+                setTimeout(() => {
+                    window.location.href = error.redirect;
+                }, 800);
+            }
+            return;
+        }
+
         $text.html('<span style="color: orange;">Connection failed. Please try again.</span>');
     });
 }

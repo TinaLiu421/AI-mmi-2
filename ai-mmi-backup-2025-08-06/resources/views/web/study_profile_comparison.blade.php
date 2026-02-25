@@ -7,6 +7,11 @@
         <p>Comprehensive analysis of your study abroad eligibility based on your submitted information</p>
     </div>
 
+    <div class="chat-notice" role="status" aria-live="polite">
+        <div class="chat-notice-title">IMPORTANT: AI answers appear in the RIGHT CHAT PANEL</div>
+        <div class="chat-notice-body">Look to the right panel now. On mobile, tap the Chat button to view answers.</div>
+    </div>
+
     <div class="analysis-section">
         <button onclick="generateComparison()" id="generate-btn" class="generate-btn">
             <i class="fa fa-magic"></i> Generate Analysis
@@ -24,6 +29,9 @@
     <!-- Additional Quick Actions -->
     <div class="quick-actions-section" id="quick-actions" style="display: none;">
         <h3><i class="fa fa-lightbulb-o"></i> Quick Actions</h3>
+        <div id="chat-guidance" class="chat-guidance" role="status" aria-live="polite">
+            Answers will appear in the right chat panel ->
+        </div>
         <div class="quick-actions-grid">
             <div class="quick-action-card">
                 <div class="quick-action-header">
@@ -31,6 +39,7 @@
                     <div>
                         <div class="quick-action-title">Country Comparison</div>
                         <div class="quick-action-subtitle">Where to go?</div>
+                        <div class="quick-action-note">Answer appears in chat -></div>
                     </div>
                 </div>
                 <form class="quick-form" data-question="Which countries and institutions would you recommend as the strongest options for someone with my background?" onsubmit="submitQuickForm(event)">
@@ -57,6 +66,7 @@
                     <div>
                         <div class="quick-action-title">Program Finder</div>
                         <div class="quick-action-subtitle">What to study?</div>
+                        <div class="quick-action-note">Answer appears in chat -></div>
                     </div>
                 </div>
                 <form class="quick-form" data-question="Which programs, fields of study, or courses would you recommend as the best match for my academic history, career aspirations, and long-term objectives?" onsubmit="submitQuickForm(event)">
@@ -83,6 +93,7 @@
                     <div>
                         <div class="quick-action-title">Cost Estimates</div>
                         <div class="quick-action-subtitle">How much?</div>
+                        <div class="quick-action-note">Answer appears in chat -></div>
                     </div>
                 </div>
                 <form class="quick-form" data-question="What are the estimated total costs (tuition, living expenses, visa/application fees, etc.)?" onsubmit="submitQuickForm(event)">
@@ -109,6 +120,7 @@
                     <div>
                         <div class="quick-action-title">Admission Plan</div>
                         <div class="quick-action-subtitle">How to get in?</div>
+                        <div class="quick-action-note">Answer appears in chat -></div>
                     </div>
                 </div>
                 <form class="quick-form" data-question="Could you please outline the key admission and visa requirements, along with the step-by-step application process?" onsubmit="submitQuickForm(event)">
@@ -135,6 +147,7 @@
                     <div>
                         <div class="quick-action-title">Scholarship Search</div>
                         <div class="quick-action-subtitle">Scholarship?</div>
+                        <div class="quick-action-note">Answer appears in chat -></div>
                     </div>
                 </div>
                 <form class="quick-form" data-question="What scholarships, bursaries, grants, or other forms of financial assistance are available for international students in my situation, and what are the eligibility requirements and application deadlines?" onsubmit="submitQuickForm(event)">
@@ -161,6 +174,7 @@
                     <div>
                         <div class="quick-action-title">Timeline & Actions</div>
                         <div class="quick-action-subtitle">When to start?</div>
+                        <div class="quick-action-note">Answer appears in chat -></div>
                     </div>
                 </div>
                 <form class="quick-form" data-question="What are the available intake periods / commencement dates for the recommended programs, and what are the corresponding application submission deadlines? Please make a timeline for me." onsubmit="submitQuickForm(event)">
@@ -204,9 +218,24 @@ function submitQuickForm(event) {
     askChatbot(fullPrompt);
 }
 
+function showChatGuidance() {
+    const guidance = document.getElementById('chat-guidance');
+    if (guidance) {
+        guidance.classList.add('show');
+        setTimeout(() => guidance.classList.remove('show'), 5000);
+    }
+
+    const chatArea = document.querySelector('.chat-area');
+    if (chatArea) {
+        chatArea.classList.add('chat-attention');
+        setTimeout(() => chatArea.classList.remove('chat-attention'), 5000);
+    }
+}
+
 function askChatbot(message) {
     const $chatInput = $('#ask_question');
     if ($chatInput.length) {
+        showChatGuidance();
         // Set the message
         $chatInput.val(message);
         
@@ -272,6 +301,87 @@ window.addEventListener('load', function() {
 
 .page-header p {
     color: #666;
+}
+
+.chat-notice {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 auto 2rem;
+    max-width: 980px;
+    padding: 16px 20px;
+    border: 2px solid #0f766e;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%);
+    color: #0f172a;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(15, 118, 110, 0.15);
+    animation: chatNoticePulse 2.2s ease-in-out infinite;
+}
+
+.chat-notice-title {
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #0f766e;
+}
+
+.chat-notice-body {
+    font-size: 0.98rem;
+}
+
+.chat-guidance {
+    margin: 0 auto 1.5rem;
+    max-width: 720px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 2px solid #f59e0b;
+    background: #fffbeb;
+    color: #92400e;
+    font-weight: 700;
+    text-align: center;
+    opacity: 0.65;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.chat-guidance.show {
+    opacity: 1;
+    transform: scale(1.02);
+}
+
+.chat-area.chat-attention {
+    outline: 3px solid #f59e0b;
+    outline-offset: -6px;
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
+    animation: chatPanelPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes chatNoticePulse {
+    0% {
+        box-shadow: 0 8px 20px rgba(15, 118, 110, 0.15);
+        transform: translateY(0);
+    }
+    50% {
+        box-shadow: 0 12px 28px rgba(15, 118, 110, 0.28);
+        transform: translateY(-1px);
+    }
+    100% {
+        box-shadow: 0 8px 20px rgba(15, 118, 110, 0.15);
+        transform: translateY(0);
+    }
+}
+
+@keyframes chatPanelPulse {
+    0% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(245, 158, 11, 0.35);
+    }
+    100% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
+    }
 }
 
 .analysis-section {
@@ -363,6 +473,15 @@ window.addEventListener('load', function() {
 .quick-action-subtitle {
     font-size: 0.85rem;
     color: #64748b;
+}
+
+.quick-action-note {
+    margin-top: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #b45309;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .quick-form {

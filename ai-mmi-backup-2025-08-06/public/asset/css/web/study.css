@@ -21,6 +21,12 @@
     color: #666;
 }
 
+.study-chat-notice {
+    margin-top: 8px;
+    font-weight: 800;
+    color: #15803d;
+}
+
 .study-options {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

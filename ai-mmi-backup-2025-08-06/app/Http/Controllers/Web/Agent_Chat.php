@@ -3,12 +3,29 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class Agent_Chat extends WebController
 {
+    private function requireMemberAuth(string $responseMode = 'json')
+    {
+        if (!empty($this->_current_member['id'])) {
+            return null;
+        }
+
+        if ($responseMode === 'redirect') {
+            return $this->doRedirect($this->toURL('account_login'));
+        }
+
+        return response()->json(['ok' => false, 'message' => 'Please register or log in before using AI chat.'], 401);
+    }
+
     public function index($targetId = null)
     {
+        $authResponse = $this->requireMemberAuth('redirect');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
         $this->pageCss('agent_chat');
         $this->pageScript('agent_chat');
 
@@ -67,6 +84,11 @@ class Agent_Chat extends WebController
 
     public function threads()
     {
+        $authResponse = $this->requireMemberAuth('json');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
         $member = $this->_current_member ?: null;
         $memberId = $member['id'] ?? null;
         if (!$memberId || (!$this->isAgentMember($memberId) && !app()->environment('local'))) {
@@ -79,6 +101,11 @@ class Agent_Chat extends WebController
 
     public function messages($targetType = null, $targetId = null)
     {
+        $authResponse = $this->requireMemberAuth('json');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
         $actor = $this->resolveActor();
         if (empty($targetType) || empty($targetId)) {
             return response()->json(['ok' => false, 'message' => 'Invalid target'], 422);
@@ -142,6 +169,11 @@ class Agent_Chat extends WebController
 
     public function send()
     {
+        $authResponse = $this->requireMemberAuth('json');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
         if (app()->environment('local')) {
             $this->handleSend();
             return;
@@ -238,13 +270,7 @@ class Agent_Chat extends WebController
             return ['type' => 'member', 'id' => (int)$member['id']];
         }
 
-        $guestId = (string)$this->getMyCookie('guest_id');
-        if ($guestId === '') {
-            $guestId = 'guest_' . Str::random(20);
-            $this->setMyCookie('guest_id', $guestId);
-        }
-
-        return ['type' => 'guest', 'id' => $guestId];
+        return ['type' => 'guest', 'id' => ''];
     }
 
     private function isAgentMember(int $memberId): bool

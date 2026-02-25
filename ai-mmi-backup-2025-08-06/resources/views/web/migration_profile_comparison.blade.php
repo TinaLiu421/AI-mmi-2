@@ -7,6 +7,11 @@
         <p>Comprehensive analysis of your migration eligibility based on your submitted information</p>
     </div>
 
+    <div class="chat-notice" role="status" aria-live="polite">
+        <div class="chat-notice-title">IMPORTANT: AI answers appear in the RIGHT CHAT PANEL</div>
+        <div class="chat-notice-body">Look to the right panel now. On mobile, tap the Chat button to view answers.</div>
+    </div>
+
     <div class="analysis-section">
         <button onclick="generateComparison()" id="generate-btn" class="generate-btn">
             <i class="fa fa-magic"></i> Generate Analysis
@@ -24,39 +29,63 @@
     <!-- Additional Quick Actions -->
     <div class="quick-actions-section" id="quick-actions" style="display: none;">
         <h3><i class="fa fa-lightbulb-o"></i> Quick Actions</h3>
+        <div id="chat-guidance" class="chat-guidance" role="status" aria-live="polite">
+            Answers will appear in the right chat panel ->
+        </div>
         <div class="quick-actions-grid">
             <button class="quick-action-btn" onclick="askChatbot('Which migration pathways would you recommend as the best match for my work experience, qualifications, and long-term settlement goals?')">
                 <i class="fa fa-road"></i>
                 <span>Pathway Finder</span>
+                <span class="quick-action-note">Answer appears in chat -></span>
             </button>
             <button class="quick-action-btn" onclick="askChatbot('Which countries and institutions would you recommend as the strongest options for someone with my background?')">
                 <i class="fa fa-globe"></i>
                 <span>Country Comparison</span>
+                <span class="quick-action-note">Answer appears in chat -></span>
             </button>
             <button class="quick-action-btn" onclick="askChatbot('What are the estimated total costs (visa fees, medical exams, skills assessment, documentation, relocation expenses, etc.)?')">
                 <i class="fa fa-money"></i>
                 <span>Cost Estimates</span>
+                <span class="quick-action-note">Answer appears in chat -></span>
             </button>
             <button class="quick-action-btn" onclick="askChatbot('Could you please outline the key eligibility requirements and the step-by-step application process for each recommended pathway?')">
                 <i class="fa fa-list-ol"></i>
                 <span>Application Plan</span>
+                <span class="quick-action-note">Answer appears in chat -></span>
             </button>
             <button class="quick-action-btn" onclick="askChatbot('What skills assessment, language tests, or other certifications do I need to complete for my recommended pathways?')">
                 <i class="fa fa-certificate"></i>
                 <span>Requirements</span>
+                <span class="quick-action-note">Answer appears in chat -></span>
             </button>
             <button class="quick-action-btn" onclick="askChatbot('What is the expected timeline from application to decision, and what are the key deadlines I need to be aware of? Please make a timeline for me.')">
                 <i class="fa fa-calendar"></i>
                 <span>Timeline & Actions</span>
+                <span class="quick-action-note">Answer appears in chat -></span>
             </button>
         </div>
     </div>
 </div>
 
 <script>
+function showChatGuidance() {
+    const guidance = document.getElementById('chat-guidance');
+    if (guidance) {
+        guidance.classList.add('show');
+        setTimeout(() => guidance.classList.remove('show'), 5000);
+    }
+
+    const chatArea = document.querySelector('.chat-area');
+    if (chatArea) {
+        chatArea.classList.add('chat-attention');
+        setTimeout(() => chatArea.classList.remove('chat-attention'), 5000);
+    }
+}
+
 function askChatbot(message) {
     const $chatInput = $('#ask_question');
     if ($chatInput.length) {
+        showChatGuidance();
         // Set the message
         $chatInput.val(message);
         
@@ -121,6 +150,49 @@ window.addEventListener('load', function() {
     color: #666;
 }
 
+.chat-notice {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 auto 2rem;
+    max-width: 980px;
+    padding: 16px 20px;
+    border: 2px solid #0f766e;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%);
+    color: #0f172a;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(15, 118, 110, 0.15);
+    animation: chatNoticePulse 2.2s ease-in-out infinite;
+}
+
+.chat-notice-title {
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #0f766e;
+}
+
+.chat-notice-body {
+    font-size: 0.98rem;
+}
+
+@keyframes chatNoticePulse {
+    0% {
+        box-shadow: 0 8px 20px rgba(15, 118, 110, 0.15);
+        transform: translateY(0);
+    }
+    50% {
+        box-shadow: 0 12px 28px rgba(15, 118, 110, 0.28);
+        transform: translateY(-1px);
+    }
+    100% {
+        box-shadow: 0 8px 20px rgba(15, 118, 110, 0.15);
+        transform: translateY(0);
+    }
+}
+
 .analysis-section {
     background: white;
     padding: 2rem;
@@ -174,6 +246,25 @@ window.addEventListener('load', function() {
     text-align: center;
 }
 
+.chat-guidance {
+    margin: 0 auto 1.5rem;
+    max-width: 720px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 2px solid #f59e0b;
+    background: #fffbeb;
+    color: #92400e;
+    font-weight: 700;
+    text-align: center;
+    opacity: 0.65;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.chat-guidance.show {
+    opacity: 1;
+    transform: scale(1.02);
+}
+
 .quick-actions-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -207,6 +298,21 @@ window.addEventListener('load', function() {
 
 .quick-action-btn span {
     font-size: 0.95rem;
+}
+
+.quick-action-note {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fef3c7;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.chat-area.chat-attention {
+    outline: 3px solid #f59e0b;
+    outline-offset: -6px;
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
+    animation: chatPanelPulse 1.4s ease-in-out infinite;
 }
 
 @media (max-width: 768px) {
@@ -244,6 +350,18 @@ window.addEventListener('load', function() {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+@keyframes chatPanelPulse {
+    0% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(245, 158, 11, 0.35);
+    }
+    100% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
+    }
 }
 
 .results-content {

@@ -166,6 +166,15 @@ class Home extends WebController {
             $rawQuestion = trim((string)$question);
             $qaLang      = $isFromQa ? $this->detectLangZhOrEn($rawQuestion) : 'en';
 
+            if (empty($this->_current_member)) {
+                $this->pageResult([
+                    'status' => 401,
+                    'message' => 'Please register or log in before using AI chat.',
+                    'redirect' => $this->toURL('account_login'),
+                ]);
+                return;
+            }
+
             $useRag   = 0;
             $override = '';
 
@@ -190,23 +199,13 @@ class Home extends WebController {
             if (!empty($member)) {
 
                 // ① 判断是否付费用户
-                $isPaidUser = DB::table('subscriptions')
-                    ->where('member_id', $memberId)
-                    ->where('status', 'active')
-                    ->where(function ($q) {
-                        $q->whereNull('ends_at')
-                        ->orWhere('ends_at', '>', now());
-                    })
-                    ->exists();
+                $isPaidUser = $this->hasActivePaidSubscription((int)$memberId);
 
                 // 如果不是付费用户，则 Free Plan 限制生效
                 if (!$isPaidUser && !$isEdu) {
 
                     // ② 统计用户提问次数（只数 type='ask'）
-                    $memberAskCount = DB::table('chat_log')
-                        ->where('member_id', $memberId)
-                        ->where('type', 'ask')
-                        ->count();
+                    $memberAskCount = $this->countNonEducationAskQuestions((int)$memberId);
 
                     // ③ 超过 5 次 → 返回简短回答 + 升级提示
                     if ($memberAskCount >= 5) {
@@ -1187,6 +1186,14 @@ Rules:
 {
     $question = request()->input('question', '');
 
+    if (empty($this->_current_member)) {
+        return response()->json([
+            'status' => 401,
+            'message' => 'Please register or log in before using AI chat.',
+            'redirect' => $this->toURL('account_login'),
+        ], 401);
+    }
+
     // Use a StreamedResponse so Laravel can handle streaming properly.
     return response()->stream(function() use ($question) {
         // Disable buffers and ensure immediate flush inside the stream.
@@ -1204,31 +1211,38 @@ Rules:
             return;
         }
 
+        $member = $this->_current_member ?: null;
+        $memberId = (int)($member['id'] ?? 0);
+        $guestId = $this->getMyCookie('guest_id');
+        $sessionId = session()->getId();
+        $isEdu = $this->classifyEducationIntent((string)$question) === 'education';
+        $isPaidUser = $this->hasActivePaidSubscription($memberId);
+
+        if (!$isPaidUser && !$isEdu) {
+            $memberAskCount = $this->countNonEducationAskQuestions($memberId);
+            if ($memberAskCount >= 5) {
+                $limitMsg = $this->buildPaidPlanLimitReply((string)$question);
+                $this->storeChat(
+                    $memberId,
+                    $guestId,
+                    $sessionId,
+                    (string)$question,
+                    $limitMsg,
+                    'free-plan-limit',
+                    'AI-mmi',
+                    ['log_to_chat_table' => true, 'source' => 'chat']
+                );
+                $this->streamMessage($limitMsg, [
+                    'reply_source' => 'free-plan-limit',
+                    'show_upgrade' => true,
+                    'upgrade_url'  => $this->toURL('upgrade'),
+                ]);
+            }
+        }
+
         $apiKey = env('XAI_API_KEY');
         if (!$apiKey) {
             $this->streamError('API key missing');
-        }
-
-        // Apply same validations as regular chat()
-        $member = $this->_current_member;
-        $guestId = $this->getMyCookie('guest_id');
-
-        if (empty($member)) {
-            $guestAskCount = 0;
-            if ($this->chatLogHasGuestId()) {
-                $guestAskCount = \DB::table('chat_log')
-                    ->whereNull('member_id')
-                    ->where('guest_id', $guestId)
-                    ->where('type', 'ask')
-                    ->count();
-            }
-
-            if ($guestAskCount >= 3) {
-                echo "data: " . json_encode(['content' => 'Looks like you\'ve used up your free questions. Please register or log in.']) . "\n\n";
-                echo "data: [DONE]\n\n";
-                flush();
-                return;
-            }
         }
 
         // Use Responses API (RAG-enabled) and stream the final text back to the client
@@ -1287,7 +1301,7 @@ or equivalent wording in the user's language.
         if ($cacheTtl > 0 && Cache::has($cacheKey)) {
             $cachedReply = (string)Cache::get($cacheKey);
             if (trim($cachedReply) !== '') {
-                $this->streamMessage($cachedReply);
+                $this->streamMessage($cachedReply, ['reply_source' => 'model']);
                 return;
             }
         }
@@ -1320,7 +1334,7 @@ or equivalent wording in the user's language.
             Cache::put($cacheKey, $reply, $cacheTtl);
         }
 
-        $this->streamMessage($reply);
+        $this->streamMessage($reply, ['reply_source' => 'model']);
     }, 200, [
         'Content-Type' => 'text/event-stream',
         'Cache-Control' => 'no-cache',
@@ -1339,7 +1353,7 @@ private function streamError($message) {
     exit();
 }
 
-private function streamMessage($message) {
+private function streamMessage($message, array $meta = []) {
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
     
@@ -1365,9 +1379,57 @@ private function streamMessage($message) {
         }
     }
     
+    if (!empty($meta)) {
+        echo "data: " . json_encode(['meta' => $meta]) . "\n\n";
+        flush();
+    }
+
     echo "data: [DONE]\n\n";
     flush();
     exit();
+}
+
+private function hasActivePaidSubscription(int $memberId): bool
+{
+    if ($memberId <= 0) {
+        return false;
+    }
+
+    return DB::table('subscriptions')
+        ->where('member_id', $memberId)
+        ->where('status', 'active')
+        ->where(function ($q) {
+            $q->whereNull('ends_at')
+            ->orWhere('ends_at', '>', now());
+        })
+        ->exists();
+}
+
+private function countNonEducationAskQuestions(int $memberId): int
+{
+    if ($memberId <= 0) {
+        return 0;
+    }
+
+    $askRows = DB::table('chat_log')
+        ->where('member_id', $memberId)
+        ->where('type', 'ask')
+        ->orderBy('id', 'asc')
+        ->pluck('content');
+
+    $count = 0;
+    foreach ($askRows as $content) {
+        $text = trim((string)$content);
+        if ($text === '') {
+            continue;
+        }
+
+        if ($this->classifyEducationIntent($text) !== 'education') {
+            $count++;
+        }
+    }
+
+    return $count;
 }
 
 private function processFinalText($text, $isFromQa, $lang) {
@@ -1568,7 +1630,7 @@ private function classifyEducationIntent(string $question): string
 
     $keywords = [
         'study', 'studying', 'student', 'university', 'college', 'course', 'program',
-        'major', 'degree', 'tuition', 'scholarship', 'admission', 'apply', 'application',
+        'major', 'degree', 'tuition', 'scholarship', 'admission',
         'campus', 'intake', 'enrol', 'enroll',
         // Chinese
         '留学', '学习', '学校', '大学', '学院', '课程', '专业', '学位', '学费', '奖学金', '申请', '入学'

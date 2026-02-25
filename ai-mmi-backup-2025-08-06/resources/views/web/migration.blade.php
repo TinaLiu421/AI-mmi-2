@@ -11,6 +11,7 @@
     <div class="migration-header">
         <h1>Migration Services</h1>
         <p>Choose a topic to get personalized assistance with your migration journey</p>
+        <p class="migration-chat-notice">Answers will appear in the chatbox on the right.</p>
     </div>
 
     <div class="migration-options">
