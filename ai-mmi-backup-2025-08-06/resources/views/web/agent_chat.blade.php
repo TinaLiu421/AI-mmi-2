@@ -7,6 +7,9 @@
 @endpush
 
 @section('content')
+@php
+    $selectedAgent = null;
+@endphp
 <div class="agent-chat-container">
     <div class="agent-chat-sidebar">
         <div class="agent-chat-sidebar-header">
@@ -25,7 +28,6 @@
                 @endif
             @else
                 @php
-                    $selectedAgent = null;
                     foreach(($_page_data['agents'] ?? []) as $candidate) {
                         $candidateName = strtolower(trim((string)($candidate['name'] ?? '')));
                         $candidateWebsite = strtolower(trim((string)($candidate['website'] ?? '')));
@@ -91,8 +93,8 @@
 <script>
 window.agentChatConfig = {
     isAgent: {{ $_page_data['is_agent'] ? 'true' : 'false' }},
-    activeTargetType: {!! json_encode($_page_data['active_target_type']) !!},
-    activeTargetId: {!! json_encode($_page_data['active_target_id']) !!},
+    activeTargetType: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? 'member' : $_page_data['active_target_type']) !!},
+    activeTargetId: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? (int)$selectedAgent['id'] : $_page_data['active_target_id']) !!},
     langCode: '{{ $_current_lang_code }}'
 };
 </script>
