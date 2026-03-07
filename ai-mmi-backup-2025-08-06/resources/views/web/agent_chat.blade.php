@@ -24,36 +24,47 @@
                     <div class="agent-chat-empty">No conversations yet.</div>
                 @endif
             @else
-                @foreach($_page_data['agents'] as $agent)
-                    <div class="agent-chat-list-item" data-target-type="member" data-target-id="{{ $agent['id'] }}">
-                        <div class="agent-name">{{ $agent['name'] }}</div>
+                @php
+                    $selectedAgent = null;
+                    foreach(($_page_data['agents'] ?? []) as $candidate) {
+                        $candidateName = strtolower(trim((string)($candidate['name'] ?? '')));
+                        $candidateWebsite = strtolower(trim((string)($candidate['website'] ?? '')));
+                        $candidateReg = trim((string)($candidate['registration_num'] ?? ''));
+
+                        $isTargetAgent = (strpos($candidateName, 'wealthskey migration') !== false)
+                            || (strpos($candidateWebsite, 'wealthskey.com') !== false)
+                            || ($candidateReg === '2418441');
+
+                        if ($isTargetAgent) {
+                            $selectedAgent = $candidate;
+                            break;
+                        }
+                    }
+
+                    if ($selectedAgent === null && !empty($_page_data['agents'])) {
+                        $selectedAgent = $_page_data['agents'][0];
+                    }
+                @endphp
+
+                @if(!empty($selectedAgent))
+                    <div class="agent-chat-list-item" data-target-type="member" data-target-id="{{ $selectedAgent['id'] }}">
+                        <div class="agent-name">Wealthskey Migration</div>
                         <div class="agent-meta">
-                            @if(!empty($agent['website']) && $agent['website'] !== 'N/A')
-                                <div>{{ $agent['website'] }}</div>
-                            @endif
-                            @if(!empty($agent['address']) && $agent['address'] !== 'N/A')
-                                <div>{{ $agent['address'] }}</div>
-                            @endif
-                            @if(!empty($agent['phone']) && $agent['phone'] !== 'N/A')
-                                <div>{{ $agent['phone'] }}</div>
-                            @endif
-                            @if(!empty($agent['registration_num']) && $agent['registration_num'] !== 'N/A')
-                                <div>Reg #: {{ $agent['registration_num'] }}</div>
-                            @endif
-                            @if(stripos($agent['name'] ?? '', 'wealthskey') !== false)
-                                <a
-                                    class="agent-chat-schedule-link"
-                                    href="https://calendly.com/poonkenith/30min"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    Schedule online meeting with agent
-                                </a>
-                            @endif
+                            <div>https://wealthskey.com</div>
+                            <div>Brisbane, Australia</div>
+                            <div>852 54867893</div>
+                            <div>Reg #: 2418441</div>
+                            <a
+                                class="agent-chat-schedule-link"
+                                href="https://calendly.com/poonkenith/30min"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Schedule online meeting with agent
+                            </a>
                         </div>
                     </div>
-                @endforeach
-                @if(empty($_page_data['agents']))
+                @else
                     <div class="agent-chat-empty">No agents available.</div>
                 @endif
             @endif
