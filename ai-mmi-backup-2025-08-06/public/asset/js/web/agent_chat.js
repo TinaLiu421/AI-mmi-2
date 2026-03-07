@@ -164,7 +164,10 @@
     }
 
     if (fileBtnEl && fileInputEl) {
-      fileBtnEl.addEventListener('click', () => fileInputEl.click());
+      const fileBtnTag = (fileBtnEl.tagName || '').toLowerCase();
+      if (fileBtnTag === 'button') {
+        fileBtnEl.addEventListener('click', () => fileInputEl.click());
+      }
       fileInputEl.addEventListener('change', () => {
         const file = fileInputEl.files && fileInputEl.files[0] ? fileInputEl.files[0] : null;
         if (fileNameEl) {
