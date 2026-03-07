@@ -31,6 +31,22 @@
       if (targetIdInputEl) targetIdInputEl.value = activeTargetId || '';
     }
 
+    function ensureActiveTargetFromDom() {
+      if (activeTargetType && activeTargetId) {
+        return;
+      }
+
+      const activeItem = document.querySelector('.agent-chat-list-item.active');
+      const fallbackItem = activeItem || (listItems.length > 0 ? listItems[0] : null);
+      if (!fallbackItem) {
+        return;
+      }
+
+      activeTargetType = fallbackItem.getAttribute('data-target-type') || activeTargetType;
+      activeTargetId = fallbackItem.getAttribute('data-target-id') || activeTargetId;
+      setActiveItem();
+    }
+
     function buildItoken() {
       if (!window.iweb || !window.md5 || !window.iweb.csrf_token) return '';
       const localTime = window.iweb.getDateTime(null, 'time');
@@ -82,6 +98,7 @@
     }
 
     function sendMessage(message, attachmentFile) {
+      ensureActiveTargetFromDom();
       if ((!message && !attachmentFile) || !activeTargetType || !activeTargetId) {
         if (window.iweb && typeof window.iweb.alert === 'function') {
           window.iweb.alert('Please select a conversation first.');
@@ -156,6 +173,7 @@
     if (formEl) {
       formEl.addEventListener('submit', (e) => {
         e.preventDefault();
+        ensureActiveTargetFromDom();
         const value = (inputEl && inputEl.value || '').trim();
         const file = fileInputEl && fileInputEl.files && fileInputEl.files[0] ? fileInputEl.files[0] : null;
         if (!value && !file) return;
