@@ -81,7 +81,7 @@
             <div class="agent-chat-hint">Select a conversation on the left to start chatting.</div>
         </div>
         <form id="agent-chat-form" class="agent-chat-form">
-            <button id="agent-chat-file-btn" class="agent-chat-file-btn" type="button">Attach File</button>
+            <label id="agent-chat-file-btn" class="agent-chat-file-btn" for="agent-chat-file">Attach File</label>
             <input id="agent-chat-file" type="file" class="agent-chat-file-input" />
             <div id="agent-chat-file-name" class="agent-chat-file-name"></div>
             <input id="agent-chat-input" type="text" placeholder="Type your message here..." autocomplete="off">
