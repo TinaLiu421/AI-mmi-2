@@ -184,7 +184,7 @@ class Agent_Chat extends WebController
                     'id' => (int)$attachment->id,
                     'file_name' => (string)$attachment->original_name,
                     'file_size' => (int)$attachment->file_size,
-                    'download_url' => url('/agent_chat/attachment/' . (int)$attachment->id),
+                    'download_url' => $this->toURL('agent_chat/attachment/' . (int)$attachment->id),
                 ];
             }
         }
