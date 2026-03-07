@@ -1,11 +1,11 @@
 .agent-chat-container {
   display: flex;
-  gap: 20px;
-  padding: 24px;
+  gap: 24px;
+  padding: 28px;
 }
 
 .agent-chat-sidebar {
-  width: 320px;
+  width: 360px;
   border: 1px solid #e6e6e6;
   border-radius: 12px;
   background: #fff;
@@ -13,18 +13,19 @@
 }
 
 .agent-chat-sidebar-header {
-  padding: 16px 18px;
+  padding: 18px 20px;
   font-weight: 600;
+  font-size: 16px;
   border-bottom: 1px solid #f0f0f0;
 }
 
 .agent-chat-list {
-  max-height: 640px;
+  max-height: 700px;
   overflow-y: auto;
 }
 
 .agent-chat-list-item {
-  padding: 14px 18px;
+  padding: 16px 20px;
   border-bottom: 1px solid #f5f5f5;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -37,24 +38,25 @@
 
 .agent-chat-list-item .agent-name {
   font-weight: 600;
-  margin-bottom: 6px;
+  font-size: 16px;
+  margin-bottom: 8px;
 }
 
 .agent-chat-list-item .agent-meta {
-  font-size: 12px;
+  font-size: 13px;
   color: #666;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .agent-chat-empty {
-  padding: 24px 18px;
+  padding: 28px 20px;
   color: #888;
   text-align: center;
 }
 
 .agent-chat-panel {
   flex: 1;
-  min-height: 520px;
+  min-height: 620px;
   border: 1px solid #e6e6e6;
   border-radius: 12px;
   display: flex;
@@ -63,35 +65,67 @@
 }
 
 .agent-chat-header {
-  padding: 16px 20px;
+  padding: 18px 24px;
   border-bottom: 1px solid #f0f0f0;
 }
 
 .agent-chat-title {
   font-weight: 600;
-  font-size: 18px;
+  font-size: 22px;
 }
 
 .agent-chat-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: 14px;
   color: #777;
+}
+
+.agent-chat-schedule-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  border: 1px solid #1f5cff;
+  background: #1f5cff;
+  color: #fff;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.agent-chat-schedule-link:hover {
+  opacity: 0.92;
+  color: #fff;
 }
 
 .agent-chat-messages {
   flex: 1;
-  padding: 18px 20px;
+  padding: 24px;
   overflow-y: auto;
   background: #fafafa;
 }
 
-.agent-chat-bubble {
-  max-width: 70%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  margin-bottom: 10px;
+.agent-chat-hint {
+  padding: 16px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #ececec;
+  color: #666;
   font-size: 14px;
-  line-height: 1.5;
+}
+
+.agent-chat-bubble {
+  max-width: 78%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  line-height: 1.6;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
@@ -108,34 +142,118 @@
 
 .agent-chat-form {
   display: flex;
-  gap: 12px;
-  padding: 16px 20px;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 24px;
   border-top: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+}
+
+.agent-chat-file-btn {
+  border: 1px solid #d7dbe6;
+  background: #fff;
+  color: #334155;
+  min-height: 38px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 102px;
+  line-height: 1;
+}
+
+.agent-chat-file-btn:hover {
+  background: #f7f8fb;
+}
+
+.agent-chat-file-input {
+  display: none;
+}
+
+.agent-chat-file-name {
+  display: none;
+  min-width: 140px;
+  max-width: 220px;
+  color: #666;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-chat-file-name.has-file {
+  display: block;
 }
 
 .agent-chat-form input {
   flex: 1;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 14px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-height: 46px;
+  font-size: 15px;
 }
 
-.agent-chat-form button {
+.agent-chat-form button:not(.agent-chat-file-btn) {
   border: none;
   background: #1f5cff;
   color: #fff;
-  padding: 10px 18px;
-  border-radius: 8px;
+  min-width: 132px;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.agent-chat-form button:not(.agent-chat-file-btn):hover {
+  opacity: 0.92;
+}
+
+.agent-chat-attachments {
+  margin-top: 8px;
+}
+
+.agent-chat-attachment {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  line-height: 1.4;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.agent-chat-bubble.mine .agent-chat-attachment {
+  color: #fff;
+}
+
+.agent-chat-bubble.theirs .agent-chat-attachment {
+  color: #1f5cff;
 }
 
 @media (max-width: 960px) {
   .agent-chat-container {
     flex-direction: column;
+    padding: 16px;
   }
 
   .agent-chat-sidebar {
+    width: 100%;
+  }
+
+  .agent-chat-panel {
+    min-height: 560px;
+  }
+
+  .agent-chat-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agent-chat-form button {
     width: 100%;
   }
 }

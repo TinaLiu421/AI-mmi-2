@@ -40,6 +40,16 @@
                             @if(!empty($agent['registration_num']) && $agent['registration_num'] !== 'N/A')
                                 <div>Reg #: {{ $agent['registration_num'] }}</div>
                             @endif
+                            @if(stripos($agent['name'] ?? '', 'wealthskey') !== false)
+                                <a
+                                    class="agent-chat-schedule-link"
+                                    href="https://calendly.com/poonkenith/30min"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Schedule online meeting with agent
+                                </a>
+                            @endif
                         </div>
                     </div>
                 @endforeach
@@ -54,10 +64,15 @@
             <div class="agent-chat-title">{{ $_page_data['is_agent'] ? 'Conversation' : 'Contact an Agent' }}</div>
             <div class="agent-chat-subtitle">Messages stay in this portal — no external apps required.</div>
         </div>
-        <div id="agent-chat-messages" class="agent-chat-messages"></div>
+        <div id="agent-chat-messages" class="agent-chat-messages">
+            <div class="agent-chat-hint">Select a conversation on the left to start chatting.</div>
+        </div>
         <form id="agent-chat-form" class="agent-chat-form">
-            <input id="agent-chat-input" type="text" placeholder="Type your message..." autocomplete="off">
-            <button type="submit">Send</button>
+            <button id="agent-chat-file-btn" class="agent-chat-file-btn" type="button">Attach File</button>
+            <input id="agent-chat-file" type="file" class="agent-chat-file-input" />
+            <div id="agent-chat-file-name" class="agent-chat-file-name"></div>
+            <input id="agent-chat-input" type="text" placeholder="Type your message here..." autocomplete="off">
+            <button type="submit">Send Message</button>
         </form>
     </div>
 </div>

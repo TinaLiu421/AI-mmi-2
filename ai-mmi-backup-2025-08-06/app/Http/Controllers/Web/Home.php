@@ -288,7 +288,7 @@ Rules:
 - Keep answers concise and factual.
 - Detect whether the user's message is Chinese; if yes, reply in Chinese; otherwise reply in English.
 - Do not mention xAI, Grok, LLMs, tools, citations, collection IDs, or technical details in the user-visible answer.
-";
+" . $this->buildStrictLanguageInstruction($qaLang);
 
                     $x = $this->callXaiResponses($rawQuestion, [
                         'temperature'        => 0.2,
@@ -325,6 +325,7 @@ Rules:
 
             // ❸ 纯模型 Pure model
             if ($reply === '' && !$isFromQa) {
+                $nonQaLang = $this->detectLangZhOrEn($rawQuestion);
                 $x = $this->callXaiResponses($rawQuestion, [
                     'temperature' => 0.2,
                     'max_output_tokens' => 2048,
@@ -378,7 +379,8 @@ Rules:
 
                     ### RESPONSE STYLE
                     - Provide precise, structured, factual information.
-                    - Keep the tone professional, clear and user-friendly.",
+                    - Keep the tone professional, clear and user-friendly.
+                                        " . $this->buildStrictLanguageInstruction($nonQaLang),
 
                 ]);
 
@@ -1245,6 +1247,8 @@ Rules:
             $this->streamError('API key missing');
         }
 
+        $lang = $this->detectLangZhOrEn($question);
+
         // Use Responses API (RAG-enabled) and stream the final text back to the client
         $systemPrompt = "
 You are AI-mmi, specialised in immigration and visa queries.
@@ -1293,16 +1297,20 @@ or equivalent wording in the user's language.
 ### RESPONSE STYLE
 - Provide precise, structured, factual information.
 - Keep the tone professional, clear and user-friendly.
-";
+" . $this->buildStrictLanguageInstruction($lang);
 
-        $lang = $this->detectLangZhOrEn($question);
         $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
         $cacheKey = 'xai_chat_cache:' . md5($lang . '|' . trim($question));
         if ($cacheTtl > 0 && Cache::has($cacheKey)) {
             $cachedReply = (string)Cache::get($cacheKey);
+            if ($lang === 'en' && $this->containsCjk($cachedReply)) {
+                Cache::forget($cacheKey);
+            }
             if (trim($cachedReply) !== '') {
-                $this->streamMessage($cachedReply, ['reply_source' => 'model']);
-                return;
+                if (!($lang === 'en' && $this->containsCjk($cachedReply))) {
+                    $this->streamMessage($cachedReply, ['reply_source' => 'model']);
+                    return;
+                }
             }
         }
 
@@ -1648,6 +1656,35 @@ private function classifyEducationIntent(string $question): string
 private function detectLangZhOrEn(string $q): string
 {
     return preg_match('/[\x{4e00}-\x{9fff}]/u', $q) ? 'zh' : 'en';
+}
+
+private function buildStrictLanguageInstruction(string $lang): string
+{
+    if ($lang === 'zh') {
+        return "
+
+## STRICT LANGUAGE LOCK
+- You MUST reply ONLY in Chinese for this turn.
+- Do NOT switch to English unless the user explicitly asks in English.
+";
+    }
+
+    return "
+
+## STRICT LANGUAGE LOCK
+- You MUST reply ONLY in English for this turn.
+- Do NOT include Chinese sentences unless the user explicitly asks for Chinese.
+- If source material contains Chinese text, translate it to English before replying.
+";
+}
+
+private function containsCjk(string $text): bool
+{
+    if (trim($text) === '') {
+        return false;
+    }
+
+    return (bool)preg_match('/[\x{3400}-\x{9FFF}]/u', $text);
 }
 
 private function isScholarshipOrPartnerSchoolQuestion(string $q): bool
