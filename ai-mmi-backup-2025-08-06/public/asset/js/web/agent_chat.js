@@ -5,6 +5,11 @@
     const messagesEl = document.getElementById('agent-chat-messages');
     const formEl = document.getElementById('agent-chat-form');
     const inputEl = document.getElementById('agent-chat-input');
+    const fileBtnEl = document.getElementById('agent-chat-file-btn');
+    const fileInputEl = document.getElementById('agent-chat-file');
+    const fileNameEl = document.getElementById('agent-chat-file-name');
+    const targetTypeInputEl = document.getElementById('agent-chat-target-type');
+    const targetIdInputEl = document.getElementById('agent-chat-target-id');
 
     let activeTargetType = config.activeTargetType;
     let activeTargetId = config.activeTargetId;
@@ -21,6 +26,9 @@
           item.classList.remove('active');
         }
       });
+
+      if (targetTypeInputEl) targetTypeInputEl.value = activeTargetType || '';
+      if (targetIdInputEl) targetIdInputEl.value = activeTargetId || '';
     }
 
     function buildItoken() {
@@ -39,7 +47,20 @@
       messages.forEach(msg => {
         const bubble = document.createElement('div');
         bubble.className = 'agent-chat-bubble ' + (msg.is_mine ? 'mine' : 'theirs');
-        bubble.innerHTML = `<div class="agent-chat-text">${escapeHtml(msg.message)}</div>`;
+        const msgText = escapeHtml(msg.message || '');
+        let attachmentHtml = '';
+        const attachments = Array.isArray(msg.attachments) ? msg.attachments : [];
+        if (attachments.length > 0) {
+          const items = attachments.map(att => {
+            const name = escapeHtml(att.file_name || 'Attachment');
+            const size = Number(att.file_size || 0);
+            const sizeLabel = size > 0 ? ` (${formatFileSize(size)})` : '';
+            const url = escapeHtml(att.download_url || '#');
+            return `<div><a class="agent-chat-attachment" href="${url}" target="_blank" rel="noopener">📎 ${name}${sizeLabel}</a></div>`;
+          }).join('');
+          attachmentHtml = `<div class="agent-chat-attachments">${items}</div>`;
+        }
+        bubble.innerHTML = `<div class="agent-chat-text">${msgText}</div>${attachmentHtml}`;
         messagesEl.appendChild(bubble);
         lastMessageId = msg.id;
       });
@@ -60,8 +81,8 @@
         .catch(() => {});
     }
 
-    function sendMessage(message) {
-      if (!message || !activeTargetType || !activeTargetId) {
+    function sendMessage(message, attachmentFile) {
+      if ((!message && !attachmentFile) || !activeTargetType || !activeTargetId) {
         if (window.iweb && typeof window.iweb.alert === 'function') {
           window.iweb.alert('Please select a conversation first.');
         }
@@ -72,6 +93,7 @@
       formData.append('target_type', activeTargetType);
       formData.append('target_id', activeTargetId);
       formData.append('_token', getCsrfToken());
+      if (attachmentFile) formData.append('attachment', attachmentFile);
       const itoken = buildItoken();
       if (itoken) formData.append('itoken', itoken);
 
@@ -85,6 +107,16 @@
         .then(data => {
           if (data && (data.status === 200 || data.ok === true)) {
             if (inputEl) inputEl.value = '';
+            if (fileInputEl) fileInputEl.value = '';
+            if (fileNameEl) {
+              fileNameEl.textContent = '';
+              fileNameEl.classList.remove('has-file');
+            }
+            if (inputEl) {
+              inputEl.removeAttribute('readonly');
+              inputEl.removeAttribute('disabled');
+              inputEl.focus();
+            }
             fetchMessages();
             return;
           }
@@ -104,6 +136,14 @@
         .replace(/'/g, '&#039;');
     }
 
+    function formatFileSize(bytes) {
+      const num = Number(bytes || 0);
+      if (num <= 0) return '0 B';
+      if (num < 1024) return num + ' B';
+      if (num < 1024 * 1024) return (num / 1024).toFixed(1) + ' KB';
+      return (num / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
     listItems.forEach(item => {
       item.addEventListener('click', () => {
         activeTargetType = item.getAttribute('data-target-type');
@@ -117,8 +157,26 @@
       formEl.addEventListener('submit', (e) => {
         e.preventDefault();
         const value = (inputEl && inputEl.value || '').trim();
-        if (!value) return;
-        sendMessage(value);
+        const file = fileInputEl && fileInputEl.files && fileInputEl.files[0] ? fileInputEl.files[0] : null;
+        if (!value && !file) return;
+        sendMessage(value, file);
+      });
+    }
+
+    if (fileBtnEl && fileInputEl) {
+      fileBtnEl.addEventListener('click', () => fileInputEl.click());
+      fileInputEl.addEventListener('change', () => {
+        const file = fileInputEl.files && fileInputEl.files[0] ? fileInputEl.files[0] : null;
+        if (fileNameEl) {
+          if (file) {
+            fileNameEl.textContent = `${file.name} (${formatFileSize(file.size)})`;
+            fileNameEl.classList.add('has-file');
+          } else {
+            fileNameEl.textContent = '';
+            fileNameEl.classList.remove('has-file');
+          }
+        }
+        if (inputEl) inputEl.focus();
       });
     }
 

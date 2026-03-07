@@ -3,7 +3,7 @@
 @section('title', 'Talk to Agent')
 
 @push('css')
-<link rel="stylesheet" href="/asset/css/web/agent_chat.css?v={{ date('Ymd') }}">
+<link rel="stylesheet" href="/asset/css/web/agent_chat.css?v={{ @filemtime(public_path('asset/css/web/agent_chat.css')) ?: date('YmdHis') }}">
 @endpush
 
 @section('content')
@@ -80,11 +80,14 @@
         <div id="agent-chat-messages" class="agent-chat-messages">
             <div class="agent-chat-hint">Select a conversation on the left to start chatting.</div>
         </div>
-        <form id="agent-chat-form" class="agent-chat-form">
+        <form id="agent-chat-form" class="agent-chat-form" method="post" action="/{{ $_current_lang_code }}/agent_chat/send" enctype="multipart/form-data">
+            @csrf
             <label id="agent-chat-file-btn" class="agent-chat-file-btn" for="agent-chat-file">Attach File</label>
-            <input id="agent-chat-file" type="file" class="agent-chat-file-input" />
+            <input id="agent-chat-file" type="file" name="attachment" class="agent-chat-file-input" />
             <div id="agent-chat-file-name" class="agent-chat-file-name"></div>
-            <input id="agent-chat-input" type="text" placeholder="Type your message here..." autocomplete="off">
+            <input id="agent-chat-input" name="message" type="text" placeholder="Type your message here..." autocomplete="off">
+            <input id="agent-chat-target-type" name="target_type" type="hidden" value="">
+            <input id="agent-chat-target-id" name="target_id" type="hidden" value="">
             <button type="submit">Send Message</button>
         </form>
     </div>
@@ -101,5 +104,5 @@ window.agentChatConfig = {
 @endsection
 
 @push('js')
-<script src="/asset/js/web/agent_chat.js?v={{ date('Ymd') }}"></script>
+<script src="/asset/js/web/agent_chat.js?v={{ @filemtime(public_path('asset/js/web/agent_chat.js')) ?: date('YmdHis') }}"></script>
 @endpush
