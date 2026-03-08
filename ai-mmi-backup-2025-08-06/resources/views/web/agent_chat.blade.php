@@ -66,6 +66,34 @@
                             </a>
                         </div>
                     </div>
+
+                    <div class="agent-chat-promo-section">
+                        <div class="agent-chat-promo-item">
+                            <div class="agent-name">Rosehill College</div>
+                            <div class="agent-meta">
+                                <div>https://rosehillcollege.edu.au</div>
+                                <div>+61 0272280008</div>
+                            </div>
+                        </div>
+
+                        <div class="agent-chat-promo-item">
+                            <div class="agent-name">Shamrock Migration Services</div>
+                            <div class="agent-meta">
+                                <div>www.shamrockmigrationservices.com</div>
+                                <div>47 watson road beeliar wa 6164</div>
+                                <div>0415422254</div>
+                            </div>
+                        </div>
+
+                        <div class="agent-chat-promo-item">
+                            <div class="agent-name">SW Consulting (Asia) Co Ltd</div>
+                            <div class="agent-meta">
+                                <div>AustralianVisas-Thailand.com</div>
+                                <div>5/4 Moo 4, Soi Pasak 8 Cherngtalay, Thalang, phuket, Thailand 83110</div>
+                                <div>+66 95 085 3355</div>
+                            </div>
+                        </div>
+                    </div>
                 @else
                     <div class="agent-chat-empty">No agents available.</div>
                 @endif

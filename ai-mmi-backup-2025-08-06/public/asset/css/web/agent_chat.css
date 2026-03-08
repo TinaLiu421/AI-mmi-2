@@ -48,6 +48,32 @@
   line-height: 1.5;
 }
 
+.agent-chat-promo-section {
+  margin-top: 18px;
+  padding: 0 12px 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.agent-chat-promo-item {
+  padding: 14px 12px;
+  margin-top: 12px;
+  border: 1px solid #eceff4;
+  border-radius: 10px;
+  background: #fafbff;
+}
+
+.agent-chat-promo-item .agent-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.agent-chat-promo-item .agent-meta {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
 .agent-chat-empty {
   padding: 28px 20px;
   color: #888;
