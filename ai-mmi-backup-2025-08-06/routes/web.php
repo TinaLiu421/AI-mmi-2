@@ -15,7 +15,9 @@ Route::post('/chat/stream', [HomeController::class, 'chatStream'])->name('chat.s
 
 // Agent chat routes
 Route::get('/agent_chat', [AgentChatController::class, 'index']);
-Route::get('/agent_chat/{targetId}', [AgentChatController::class, 'index']);
+Route::get('/agent_chat/attachment/{attachmentId}', [AgentChatController::class, 'downloadAttachment']);
+Route::get('/{lang}/agent_chat/attachment/{attachmentId}', [AgentChatController::class, 'downloadAttachment']);
+Route::get('/agent_chat/{targetId}', [AgentChatController::class, 'index'])->whereNumber('targetId');
 Route::get('/agent_chat/messages/{targetType}/{targetId}', [AgentChatController::class, 'messages']);
 Route::get('/agent_chat/threads', [AgentChatController::class, 'threads']);
 Route::post('/agent_chat/send', [AgentChatController::class, 'send']);
