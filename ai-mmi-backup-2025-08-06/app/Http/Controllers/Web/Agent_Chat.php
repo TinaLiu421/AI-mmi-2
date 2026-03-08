@@ -241,11 +241,15 @@ class Agent_Chat extends WebController
         return abort(405);
     }
 
-    public function downloadAttachment($attachmentId)
+    public function downloadAttachment($attachmentId, $maybeAttachmentId = null)
     {
         $authResponse = $this->requireMemberAuth('json');
         if ($authResponse !== null) {
             return $authResponse;
+        }
+
+        if ($maybeAttachmentId !== null) {
+            $attachmentId = $maybeAttachmentId;
         }
 
         $attachmentId = is_numeric($attachmentId) ? (int)$attachmentId : 0;
