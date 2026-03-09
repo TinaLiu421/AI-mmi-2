@@ -58,7 +58,7 @@
                             <div>Reg #: 2418441</div>
                             <a
                                 class="agent-chat-schedule-link"
-                                href="https://calendly.com/poonkenith/30min"
+                                href="https://calendly.com/admin-wealthskey/30min"
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
