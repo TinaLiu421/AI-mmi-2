@@ -57,6 +57,274 @@
         <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
         <script src="asset/js/web/common.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
 
+        <?php
+            $googleTranslatePageLang = 'en';
+            if ($_current_lang_code == 'zh-hant') {
+                $googleTranslatePageLang = 'zh-TW';
+            }
+            else if ($_current_lang_code == 'zh-hans') {
+                $googleTranslatePageLang = 'zh-CN';
+            }
+        ?>
+        <script type="text/javascript">
+        window.__pageTranslateSourceLang = '<?php echo $googleTranslatePageLang; ?>';
+        window.__autoTranslateDispatched = false;
+
+        window.getUrlAutoTranslateLang = function () {
+            try {
+                var currentUrl = new URL(window.location.href);
+                return currentUrl.searchParams.get('autolang') || '';
+            } catch (e) {
+                return '';
+            }
+        };
+
+        window.buildAutoTranslateUrl = function (urlValue, targetLang) {
+            try {
+                var url = new URL(urlValue, window.location.href);
+                if (url.origin !== window.location.origin) {
+                    return url.toString();
+                }
+
+                if (!targetLang || targetLang === '__reset__') {
+                    url.searchParams.delete('autolang');
+                } else {
+                    url.searchParams.set('autolang', targetLang);
+                }
+
+                return url.toString();
+            } catch (e) {
+                return urlValue;
+            }
+        };
+
+        window.setAutoTranslateCookie = function (targetLang) {
+            if (!targetLang || targetLang === '__reset__') {
+                document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+                document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;domain=' + window.location.hostname;
+                return;
+            }
+
+            var sourceLang = window.__pageTranslateSourceLang || 'en';
+            var googtransValue = '/' + sourceLang + '/' + targetLang;
+            document.cookie = 'googtrans=' + googtransValue + ';path=/';
+            document.cookie = 'googtrans=' + googtransValue + ';path=/;domain=' + window.location.hostname;
+        };
+
+        window.getStoredAutoTranslateLang = function () {
+            var urlLang = window.getUrlAutoTranslateLang();
+            if (urlLang) {
+                return urlLang;
+            }
+
+            try {
+                var storedLang = window.localStorage.getItem('autoTranslateLang');
+                if (storedLang) {
+                    return storedLang;
+                }
+            } catch (e) {}
+
+            var cookieMatch = document.cookie.match(/(?:^|; )googtrans=([^;]+)/);
+            if (!cookieMatch || !cookieMatch[1]) {
+                return '';
+            }
+
+            var cookieValue = decodeURIComponent(cookieMatch[1]);
+            var parts = cookieValue.split('/');
+            return parts.length >= 3 ? parts[2] : '';
+        };
+
+        window.persistAutoTranslateLang = function (targetLang) {
+            try {
+                if (targetLang === '__reset__') {
+                    window.localStorage.removeItem('autoTranslateLang');
+                } else {
+                    window.localStorage.setItem('autoTranslateLang', targetLang);
+                }
+            } catch (e) {}
+        };
+
+        window.decorateInternalLinksForAutoTranslate = function () {
+            var targetLang = window.getStoredAutoTranslateLang();
+            var links = document.querySelectorAll('a[href]');
+
+            for (var i = 0; i < links.length; i++) {
+                var link = links[i];
+                var rawHref = link.getAttribute('href') || '';
+                if (!rawHref || rawHref.indexOf('javascript:') === 0 || rawHref.indexOf('#') === 0 || rawHref.indexOf('mailto:') === 0 || rawHref.indexOf('tel:') === 0) {
+                    continue;
+                }
+
+                link.setAttribute('href', window.buildAutoTranslateUrl(link.href, targetLang));
+            }
+        };
+
+        window.syncCurrentAutoTranslateUrl = function (targetLang) {
+            try {
+                var nextUrl = window.buildAutoTranslateUrl(window.location.href, targetLang);
+                window.history.replaceState({}, '', nextUrl);
+            } catch (e) {}
+        };
+
+        window.bootstrapStoredAutoTranslate = function () {
+            var targetLang = window.getStoredAutoTranslateLang();
+            if (!targetLang || targetLang === '__reset__') {
+                return '';
+            }
+
+            window.setAutoTranslateCookie(targetLang);
+            return targetLang;
+        };
+
+        window.syncAutoTranslateCombo = function () {
+            var targetLang = window.getStoredAutoTranslateLang();
+            if (!targetLang || targetLang === '__reset__') {
+                return;
+            }
+
+            var combo = document.querySelector('.goog-te-combo');
+            if (!combo || !combo.options || combo.options.length <= 1) {
+                return;
+            }
+
+            if (combo.value !== targetLang || window.__autoTranslateDispatched === false) {
+                combo.value = targetLang;
+                combo.dispatchEvent(new Event('change'));
+                window.__autoTranslateDispatched = true;
+            }
+        };
+
+        window.reapplyStoredAutoTranslate = function () {
+            var attempts = 0;
+            var maxAttempts = 80;
+            var timer = window.setInterval(function () {
+                attempts++;
+                var combo = document.querySelector('.goog-te-combo');
+                if (combo && combo.options && combo.options.length > 1) {
+                    window.syncAutoTranslateCombo();
+                    if (combo.value === window.getStoredAutoTranslateLang()) {
+                        window.clearInterval(timer);
+                    }
+                } else if (attempts >= maxAttempts) {
+                    window.clearInterval(timer);
+                }
+            }, 300);
+        };
+
+        window.__pendingAutoTranslateLang = window.bootstrapStoredAutoTranslate();
+
+        window.ensureGoogleTranslateContainer = function () {
+            var container = document.getElementById('google_translate_element_hidden');
+            if (container) {
+                return container;
+            }
+
+            if (!document.body) {
+                return null;
+            }
+
+            container = document.createElement('div');
+            container.id = 'google_translate_element_hidden';
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
+            container.style.top = '-9999px';
+            container.style.opacity = '0';
+            container.style.pointerEvents = 'none';
+            document.body.appendChild(container);
+
+            return container;
+        };
+
+        window.googleTranslateElementInit = function () {
+            if (typeof google === 'undefined' || !google.translate || !google.translate.TranslateElement) {
+                return;
+            }
+
+            var container = window.ensureGoogleTranslateContainer();
+            if (!container) {
+                window.setTimeout(window.googleTranslateElementInit, 200);
+                return;
+            }
+
+            new google.translate.TranslateElement({
+                pageLanguage: '<?php echo $googleTranslatePageLang; ?>',
+                autoDisplay: false,
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element_hidden');
+
+            window.reapplyStoredAutoTranslate();
+        };
+
+        window.applyAutoTranslate = function (targetLang) {
+            if (!targetLang) {
+                return;
+            }
+
+            window.persistAutoTranslateLang(targetLang);
+            window.setAutoTranslateCookie(targetLang);
+            window.syncCurrentAutoTranslateUrl(targetLang);
+
+            if (targetLang === '__reset__') {
+                window.location.href = window.buildAutoTranslateUrl(window.location.href, '__reset__');
+                return;
+            }
+
+            var combo = document.querySelector('.goog-te-combo');
+            if (combo && combo.options && combo.options.length > 1) {
+                combo.value = targetLang;
+                combo.dispatchEvent(new Event('change'));
+                window.decorateInternalLinksForAutoTranslate();
+            } else {
+                window.reapplyStoredAutoTranslate();
+                var nextUrl = window.buildAutoTranslateUrl(window.location.href, targetLang);
+                if (nextUrl === window.location.href) {
+                    window.location.reload();
+                } else {
+                    window.location.href = nextUrl;
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            window.syncCurrentAutoTranslateUrl(window.getStoredAutoTranslateLang());
+            window.decorateInternalLinksForAutoTranslate();
+            window.reapplyStoredAutoTranslate();
+
+            document.addEventListener('click', function (event) {
+                var link = event.target.closest('a[href]');
+                if (!link) {
+                    return;
+                }
+
+                var href = link.getAttribute('href') || '';
+                if (!href || href.indexOf('javascript:') === 0 || href.indexOf('#') === 0) {
+                    return;
+                }
+
+                try {
+                    var url = new URL(link.href, window.location.href);
+                    if (url.origin === window.location.origin) {
+                        var targetLang = window.getStoredAutoTranslateLang();
+                        window.setAutoTranslateCookie(targetLang);
+                        link.href = window.buildAutoTranslateUrl(link.href, targetLang);
+                    }
+                } catch (e) {}
+            });
+
+            document.addEventListener('submit', function () {
+                var targetLang = window.getStoredAutoTranslateLang();
+                if (targetLang && targetLang !== '__reset__') {
+                    window.setAutoTranslateCookie(targetLang);
+                }
+            });
+        });
+
+        window.addEventListener('load', function () {
+            window.reapplyStoredAutoTranslate();
+        });
+        </script>
+        <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
         <!-- Google tag (gtag.js) -->
         <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16657487633"></script>
         <script>
@@ -67,10 +335,20 @@
         </script>
     </head>
     <body>
+        <?php
+            $autoLang = !empty($_page_get_data['autolang']) ? $_page_get_data['autolang'] : session('autolang', '');
+            $appendAutoLang = function ($url) use ($autoLang) {
+                if(empty($autoLang)) {
+                    return $url;
+                }
+
+                return $url.((strpos($url, '?') !== false) ? '&' : '?').'autolang='.urlencode($autoLang);
+            };
+        ?>
         <?php if(!empty($_included_header_footer)) { ?>
         <header class="page-header">
             <div>
-                <a class="logo" href="<?php echo ($_page_base_url); ?>">
+                <a class="logo" href="<?php echo $appendAutoLang($_page_base_url); ?>">
                     <img src="asset/image/logo.png" alt="logo">
                 </a>
 
@@ -82,43 +360,57 @@
                         </a>
                     </div>
                      <div class="service_provider_info">
-                        <a href="<?php echo $_page_base_url.'/service_provider_info'; ?>">
+                        <a href="<?php echo $appendAutoLang($_page_base_url.'/service_provider_info'); ?>">
                             <img src="asset/image/service_provider.png" alt="icon-service-provider"/>
                             <span><?php echo $_page_lang['service_provider']; ?></span>
                         </a>
                     </div>
+                    <?php if(!empty($_mapping_data['support_lang']) && count($_mapping_data['support_lang']) > 1) { ?>
+                    <?php
+                        $currentLangLabel = strtoupper($_current_lang_code);
+                        foreach ($_mapping_data['support_lang'] as $lang) {
+                            if (!empty($lang['code']) && $lang['code'] == $_current_lang_code) {
+                                $currentLangLabel = !empty($lang['name']) ? $lang['name'] : strtoupper($lang['code']);
+                                break;
+                            }
+                        }
+                    ?>
                     <div class="lang">
-                        <a>
+                        <a href="javascript:void(0);" title="Switch language">
                             <img src="asset/image/icon-lang.png" alt="icon-lang"/>
-                            <span><?php echo $_page_lang['lang_'.str_replace('-', '_', $_current_lang_code)]; ?></span>
+                            <span><?php echo $currentLangLabel; ?></span>
                         </a>
                         <div class="options header-dropdown">
-                            <?php if(!empty($_mapping_data['multi_url']['en'])) { ?>
-                            <a href="<?php echo $_mapping_data['multi_url']['en']; ?>">
-                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAt1BMVEWSmb66z+18msdig8La3u+tYX9IaLc7W7BagbmcUW+kqMr/q6n+//+hsNv/lIr/jIGMnNLJyOP9/fyQttT/wb3/////aWn+YWF5kNT0oqz0i4ueqtIZNJjhvt/8gn//WVr/6+rN1+o9RKZwgcMPJpX/VFT9UEn+RUX8Ozv2Ly+FGzdYZrfU1e/8LS/lQkG/mbVUX60AE231hHtcdMb0mp3qYFTFwNu3w9prcqSURGNDaaIUMX5FNW5wYt7AAAAAjklEQVR4AR3HNUJEMQCGwf+L8RR36ajR+1+CEuvRdd8kK9MNAiRQNgJmVDAt1yM6kSzYVJUsPNssAk5N7ZFKjVNFAY4co6TAOI+kyQm+LFUEBEKKzuWUNB7rSH/rSnvOulOGk+QlXTBqMIrfYX4tSe2nP3iRa/KNK7uTmWJ5a9+erZ3d+18od4ytiZdvZyuKWy8o3UpTVAAAAABJRU5ErkJggg==" alt="English" width="16" height="11" style="width: 16px; height: 11px;">
-                                <span>English</span>
+                            <div class="lang-group-title">Website language</div>
+                            <?php foreach ($_mapping_data['support_lang'] as $lang) { ?>
+                            <?php if(!empty($lang['code']) && !empty($_mapping_data['multi_url'][$lang['code']])) { ?>
+                            <a href="<?php echo $appendAutoLang($_mapping_data['multi_url'][$lang['code']]); ?>">
+                                <span><?php echo !empty($lang['name']) ? $lang['name'] : strtoupper($lang['code']); ?></span>
                             </a>
                             <?php } ?>
-                            
-                            <?php if(!empty($_mapping_data['multi_url']['zh-hant'])) { ?>
-                            <a href="<?php echo $_mapping_data['multi_url']['zh-hant']; ?>">
-                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAS1BMVEXqAADjAADZAAD2e3v0dXXzbGzyYWHxWFjyUlLuSkrQAAD5jY76m5zsPz/qNTXnKir56en6w8PmGxvKAAD5z9D6qqvjDw/32dnCAADqlhvuAAAAYElEQVR4AQXBUU6DUBRAwTm8SwqJ+9+m8cva0uBMgBBkkUiqYSWrkpeNxL6/76w5R/L1WZ9jXoONqvs5fWeyrGWux9i3Na5ji3Ftfv/uIZtG+8/78TxA7Skj4qxwcNrBPxiAEpMq30QZAAAAAElFTkSuQmCC" alt="繁體中文" width="16" height="11" style="width: 16px; height: 11px;">
-                                <span>繁體中文</span>
-                            </a>
                             <?php } ?>
-
-                            <?php if(!empty($_mapping_data['multi_url']['zh-hans'])) { ?>
-                            <a href="<?php echo $_mapping_data['multi_url']['zh-hans']; ?>">
-                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAXVBMVEXUAADlQgDLAADBAADtgXn63Xjypnf1wHHpcG/oZmbmXVzlU1PjS0q1AAD981775VvwnVD2zkvhPz/fNzfdMjHcKyvaJyfsi0baISHYGhqqAADWExPTDQ2jAACfAAApGpDBAAAAWklEQVR4ATXIhQHDQBTDUMll2n/RMiU5/vQsAE4EsPbaKVOU+pXNwc/WKQXeDZMKu+psCXw/Z7efarmENd6GIwGpXhUvM4spxoiEbouRNT7Fmtaq+RG4wAqZZvceD8DeIelqAAAAAElFTkSuQmCC" alt="简体中文" width="16" height="11" style="width: 16px; height: 11px;">
-                                <span>简体中文</span>
-                            </a>
-                            <?php } ?>
+                            <div class="lang-group-title">Auto translate</div>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="__reset__"><span>Original language</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ms"><span>Bahasa Melayu</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="id"><span>Bahasa Indonesia</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ja"><span>日本語</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ko"><span>한국어</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="th"><span>ไทย</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="vi"><span>Tiếng Việt</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="hi"><span>हिन्दी</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ar"><span>العربية</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="fr"><span>Français</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="de"><span>Deutsch</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="it"><span>Italiano</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="es"><span>Español</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="pt"><span>Português</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ru"><span>Русский</span></a>
                         </div>
                     </div>
-                    
+                    <?php } ?>
                     <?php if(!empty($_current_member)) { ?>
                     <div class="member large">
-                        <a href="<?php echo ($_current_member['type'] == 1)?($_page_base_url.'/account/profile'):($_page_base_url.'/account/posts') ;?>">
+                        <a href="<?php echo $appendAutoLang(($_current_member['type'] == 1)?($_page_base_url.'/account/profile'):($_page_base_url.'/account/posts')); ?>">
                             <?php if(!empty($_current_member['avatar'])) { ?>
                             <?php if(file_exists('upload/member_avatar/'.$_current_member['avatar'])) { ?>
                             <div class="avatar" style="background-image:url('<?php echo 'upload/member_avatar/'.$_current_member['avatar']; ?>')"></div>
@@ -142,7 +434,7 @@
                     </div>
                     <?php } else { ?>
                     <div class="member">
-                        <a href="<?php echo $_page_base_url.'/account_login' ;?>">
+                        <a href="<?php echo $appendAutoLang($_page_base_url.'/account_login'); ?>">
                             <img src="asset/image/icon-member1.png" alt="icon-member"/>
                             <span><?php echo $_page_lang['sign_in']; ?></span>
                         </a>
@@ -168,18 +460,18 @@
                             </li>
                             <?php } ?>
                             <li>
-                                <a href="<?php echo ($_page_base_url.'/forum'); ?>"><?php echo $_page_lang['forum']; ?></a>
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/forum'); ?>"><?php echo $_page_lang['forum']; ?></a>
                             </li>
                             <li>
-                                <a href="<?php echo ($_page_base_url.'/about_us'); ?>"><?php echo $_page_lang['about_us']; ?></a>
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/about_us'); ?>"><?php echo $_page_lang['about_us']; ?></a>
                             </li>
                             <?php if(!empty($_current_member)) { ?>
                             <li>
-                                <a href="<?php echo $_page_base_url.'/account_logout' ;?>"><?php echo $_page_lang['sign_out']; ?></a>
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/account_logout'); ?>"><?php echo $_page_lang['sign_out']; ?></a>
                             </li>
                             <?php } else { ?>
                             <li>
-                                <a href="<?php echo $_page_base_url.'/account_login' ;?>"><?php echo $_page_lang['sign_in']; ?></a>
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/account_login'); ?>"><?php echo $_page_lang['sign_in']; ?></a>
                             </li>
                             <?php } ?>
                         </ul>
@@ -204,10 +496,10 @@
 
                             <!-- Chat Action Buttons -->
                             <div class="chat-action-buttons" style="display: none">
-                                <a href="<?php echo $_page_base_url.'/study'; ?>" class="chat-action-btn chat-action-btn--study" title="Study">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/study'); ?>" class="chat-action-btn chat-action-btn--study" title="Study">
                                     <span class="chat-action-btn-text">Study</span>
                                 </a>
-                                <a href="<?php echo $_page_base_url.'/migration'; ?>" class="chat-action-btn chat-action-btn--migration" title="Migration">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/migration'); ?>" class="chat-action-btn chat-action-btn--migration" title="Migration">
                                     <span class="chat-action-btn-text">Migration</span>
                                 </a>
                             </div>
@@ -217,8 +509,11 @@
                                 @include('components.welcome-message')
                             </div>
 
-                            <form id="ask-form" method="post" action="<?php echo $_page_base_url.'/home/chat'; ?>" data-showProcessing="0">
+                            <form id="ask-form" method="post" action="<?php echo $appendAutoLang($_page_base_url.'/home/chat'); ?>" data-showProcessing="0">
                                 <div>@csrf</div>
+                                <?php if(!empty($autoLang)) { ?>
+                                <input type="hidden" name="autolang" value="<?php echo htmlspecialchars($autoLang, ENT_QUOTES, 'UTF-8'); ?>">
+                                <?php } ?>
                                 <input type="hidden" id="question_number" name="question_number" value="1">
                                 <div class="input-question show">
                                     <div class="robot-container">
@@ -255,11 +550,11 @@
         <?php if(!empty($_included_header_footer)) { ?>
         <footer class="page-footer">
             <div>
-                <a href="<?php echo $_page_base_url.'/privacy_statement'; ?>">
+                <a href="<?php echo $appendAutoLang($_page_base_url.'/privacy_statement'); ?>">
                     <?php echo $_page_lang['privacy_statement'];?>
                 </a>
                  |
-                <a href="<?php echo $_page_base_url.'/data_deletion'; ?>">
+                <a href="<?php echo $appendAutoLang($_page_base_url.'/data_deletion'); ?>">
                     <?php echo $_page_lang['data_deletion'];?>
                 </a>
             </div>
@@ -269,6 +564,7 @@
 
         <!-- Mobile Chat Button -->
         <button class="mobile-chat-button">Chat with AI-mmi</button>
+        <div id="google_translate_element_hidden" style="position:absolute;left:-9999px;top:-9999px;opacity:0;pointer-events:none;"></div>
         <div id="bottom-white-space" style="height:0px;"></div>
         <!-- {{-- Stripe Pricing Table script --}} -->
     <script async src="https://js.stripe.com/v3/pricing-table.js"></script>

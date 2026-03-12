@@ -5,8 +5,8 @@
 
 
 <stripe-pricing-table
-  pricing-table-id="{{ env('STRIPE_PRICING_TABLE_ID_1') }}"
-  publishable-key="{{ env('STRIPE_KEY') }}"
+  pricing-table-id="{{ $pricing_table_id ?? env('STRIPE_PRICING_TABLE_ID_1') }}"
+  publishable-key="{{ $stripe_pk ?? env('STRIPE_KEY') }}"
   
   client-reference-id="{{ $_current_member['id'] ?? '' }}"
   customer-email="{{ $_current_member['email'] ?? '' }}"

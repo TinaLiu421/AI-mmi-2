@@ -38,7 +38,7 @@ class ConversationFlowService
 
         // Check subscription tier
         // DB codes: free, all_ai, hybrid, premium, vip
-        // Display names: Free, AI Smart Plan, Hybrid Expert Plan, Premium Confidence Plan, VIP Global Partner Plan
+        // Display names: Free, AI Smart Plan, AI+Agent Plan, DIY Plan, VIP Agent Plan
         $subscriptionTier = $userProfile['subscription_tier'] ?? 'free';
 
         // Get conversation statistics
@@ -327,55 +327,55 @@ class ConversationFlowService
 
             $nextTier = 'AI Smart Plan';
             $actions = [
-                ['label' => 'Upgrade to AI Smart Plan ($79)', 'url' => '/upgrade', 'style' => 'primary'],
+                ['label' => 'Upgrade to AI Smart Plan ($12 / 3 months)', 'url' => '/upgrade', 'style' => 'primary'],
             ];
             break;
 
             case 'all_ai':
                 $promoMessages = [
-                    "Great question! With the Hybrid Plan, you can get a 2-hour consultation with a licensed migration agent who'll provide personalized guidance.",
-                    "I'm glad you're interested! The Hybrid Plan combines AI support with real expert consultation — perfect for getting professional validation.",
-                    "Absolutely! The Hybrid Plan gives you everything you have now, plus 2 hours with a registered migration professional for personalized advice."
+                    "Great question! With the AI+Agent Plan, you can get a 2-hour consultation with a licensed migration agent who'll provide personalized guidance.",
+                    "I'm glad you're interested! The AI+Agent Plan combines AI support with real expert consultation — perfect for getting professional validation.",
+                    "Absolutely! The AI+Agent Plan gives you everything you have now, plus 2 hours with a registered migration professional for personalized advice."
                 ];
                 $index = $messageCount % count($promoMessages);
                 $message = $promoMessages[$index];
-                $nextTier = 'Hybrid Expert Plan';
+                $nextTier = 'AI+Agent Plan';
                 $actions = [
-                    ['label' => 'Get Expert Consultation ($199)', 'url' => '/upgrade', 'style' => 'primary'],
+                    ['label' => 'Get AI+Agent Plan ($99)', 'url' => '/upgrade', 'style' => 'primary'],
                 ];
                 break;
 
             case 'hybrid':
                 $promoMessages = [
-                    "Great to hear you're interested! The Premium Plan includes a final expert review before submission — so you can be 100% confident.",
-                    "Perfect timing! The Premium Plan gives you everything in Hybrid, plus a comprehensive pre-submission validation by a licensed expert.",
-                    "I'm glad you asked! The Premium Plan ensures your application is flawless with a detailed final check before you submit."
+                    "Great to hear you're interested! The DIY Plan includes a final expert review before submission — so you can be 100% confident.",
+                    "Perfect timing! The DIY Plan gives you everything in AI+Agent, plus a comprehensive pre-submission validation by a licensed expert.",
+                    "I'm glad you asked! The DIY Plan ensures your application is flawless with a detailed final check before you submit."
                 ];
                 $index = $messageCount % count($promoMessages);
                 $message = $promoMessages[$index];
-                $nextTier = 'Premium Confidence Plan';
+                $nextTier = 'DIY Plan';
                 $actions = [
-                    ['label' => 'Get Final Expert Review ($699)', 'url' => '/upgrade', 'style' => 'primary'],
+                    ['label' => 'Get DIY Plan ($699)', 'url' => '/upgrade', 'style' => 'primary'],
                 ];
                 break;
 
             case 'premium':
                 $promoMessages = [
-                    "Excellent! The VIP Plan provides full hands-on support — a licensed agent handles your entire application from start to finish.",
-                    "Great choice! The VIP Plan gives you complete professional management with ongoing support throughout your entire journey.",
-                    "Perfect! The VIP Plan means you can relax — a dedicated migration professional manages everything for you."
+                    "Excellent! The VIP Agent Plan provides full hands-on support — a licensed agent handles your entire application from start to finish.",
+                    "Great choice! The VIP Agent Plan gives you complete professional management with ongoing support throughout your entire journey.",
+                    "Perfect! The VIP Agent Plan means you can relax — a dedicated migration professional manages everything for you."
                 ];
                 $index = $messageCount % count($promoMessages);
                 $message = $promoMessages[$index];
-                $nextTier = 'VIP Global Partner Plan';
+                $nextTier = 'VIP Agent Plan';
                 $actions = [
-                    ['label' => 'Get Full VIP Support ($999)', 'url' => '/upgrade', 'style' => 'primary'],
+                    ['label' => 'Get VIP Agent Plan ($999)', 'url' => '/upgrade', 'style' => 'primary'],
                 ];
                 break;
 
             case 'vip':
                 // VIP users are already at top tier - show appreciation message
-                $message = "You're already on our VIP Plan — you have access to all our premium features! How can I help you today?";
+                $message = "You're already on our VIP Agent Plan — you have access to all our premium features! How can I help you today?";
                 $nextTier = 'VIP (Current)';
                 $actions = []; // No upgrade button for VIP
                 break;
@@ -571,7 +571,7 @@ class ConversationFlowService
         $message = $promoMessages[$index];
 
         $actions = [
-            ['label' => 'Get Expert Consultation ($199)', 'url' => '/upgrade', 'style' => 'primary'],
+            ['label' => 'Get AI+Agent Plan ($99)', 'url' => '/upgrade', 'style' => 'primary'],
         ];
 
         return [
@@ -767,7 +767,7 @@ class ConversationFlowService
         $message = $promoMessages[$index];
 
         $actions = [
-            ['label' => 'Get Final Expert Review ($699)', 'url' => '/upgrade', 'style' => 'primary'],
+            ['label' => 'Get DIY Plan ($699)', 'url' => '/upgrade', 'style' => 'primary'],
         ];
 
         return [
@@ -984,7 +984,7 @@ class ConversationFlowService
         $message = $promoMessages[$index];
 
         $actions = [
-            ['label' => 'Get Full VIP Support ($999)', 'url' => '/upgrade', 'style' => 'primary'],
+            ['label' => 'Get VIP Agent Plan ($999)', 'url' => '/upgrade', 'style' => 'primary'],
         ];
 
         return [

@@ -152,6 +152,10 @@ header.page-header .controls {
     top: calc(100% + var(--space-2));
     right: 0;
     min-width: 140px;
+    max-height: min(70vh, 420px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
     background: var(--white);
     border: 1px solid var(--neutral-200);
     border-radius: var(--radius-md);
@@ -188,6 +192,34 @@ header.page-header .controls {
     color: var(--primary-blue);
 }
 
+.lang-group-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--neutral-500);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 8px 10px 4px;
+}
+
+iframe.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+body > .skiptranslate,
+#goog-gt-tt,
+.goog-te-balloon-frame {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+}
+
+body {
+    top: 0 !important;
+}
+
+.goog-text-highlight {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
 /* Countries submenu styles */
 .header-dropdown ol {
     list-style: none;
@@ -222,6 +254,7 @@ header.page-header .controls .upgrade_link,
 header.page-header .controls .menu {
     position: relative;
     flex-shrink: 0;
+    overflow: visible;
 }
 
 /* Shared control appearance for controls */

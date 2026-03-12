@@ -4,17 +4,20 @@ $config['support_lang'] = [
     1 => [
         'code'          =>  'en', 
         'name'          =>  'English', 
-        'short_name'    =>  'EN'
+        'short_name'    =>  'EN',
+        'content_lang_index' => 1
     ],
     2 => [
         'code'          =>  'zh-hant', 
         'name'          =>  '繁體中文', 
-        'short_name'    =>  '繁'
+        'short_name'    =>  '繁',
+        'content_lang_index' => 2
     ],
     3 => [
         'code'          =>  'zh-hans', 
         'name'          =>  '简体中文', 
-        'short_name'    =>  '简'
+        'short_name'    =>  '简',
+        'content_lang_index' => 3
     ],
 ];
 $config['default_lang_index'] = 1;

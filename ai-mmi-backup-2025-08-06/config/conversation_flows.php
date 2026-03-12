@@ -425,7 +425,9 @@ return [
                 'ai smart', 'ai smart plan', 'hybrid', 'hybrid expert',
                 'hybrid expert plan', 'confidence', 'premium confidence',
                 'premium confidence plan', 'vip', 'vip global',
-                'vip global partner', 'subscription', 'plan'
+                'vip global partner', 'ai+agent', 'ai+agent plan',
+                'diy', 'diy plan', 'vip agent', 'vip agent plan',
+                'subscription', 'plan'
             ]
         ]
     ]

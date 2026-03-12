@@ -7,6 +7,15 @@
 @endpush
 
 @section('content')
+<?php
+    $autoLang = !empty($_page_get_data['autolang']) ? $_page_get_data['autolang'] : session('autolang', '');
+    $appendAutoLang = function ($url) use ($autoLang) {
+        if(empty($autoLang)) {
+            return $url;
+        }
+        return $url.((strpos($url, '?') !== false) ? '&' : '?').'autolang='.urlencode($autoLang);
+    };
+?>
 <div class="migration-container">
     <div class="migration-header">
         <h1>Migration Services</h1>
@@ -20,7 +29,7 @@
             <div class="migration-option-question">
                 Am I eligible to migrate based on my current qualifications and profile?
             </div>
-            <a href="<?php echo $_page_base_url.'/migration_eligibility'; ?>" class="migration-option-button" data-action="eligibility-check">
+            <a href="<?php echo $appendAutoLang($_page_base_url.'/migration_eligibility'); ?>" class="migration-option-button" data-action="eligibility-check">
                 Eligibility Assessment
             </a>
         </div>
@@ -60,7 +69,7 @@
             <div class="migration-option-question">
                 Contact our migration advisors for personalized assistance and support throughout your application process.
             </div>
-            <a href="<?php echo $_page_base_url.'/agent_chat'; ?>" class="migration-option-button">
+            <a href="<?php echo $appendAutoLang($_page_base_url.'/agent_chat'); ?>" class="migration-option-button">
                 Contact An Agent
             </a>
         </div>

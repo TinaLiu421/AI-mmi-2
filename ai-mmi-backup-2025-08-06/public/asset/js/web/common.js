@@ -562,22 +562,37 @@ function iweb_global_func() {
     $(document).on(
         "click",
         "header.page-header div.controls > div.lang > a",
-        function () {
-            if (
-                $(
-                    "header.page-header div.controls > div.lang > div.options"
-                ).hasClass("show")
-            ) {
-                $(
-                    "header.page-header div.controls > div.lang > div.options"
-                ).removeClass("show");
-            } else {
-                $(
-                    "header.page-header div.controls > div.lang > div.options"
-                ).addClass("show");
-            }
+        function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const $options = $(this)
+                .closest("div.lang")
+                .find("div.options");
+
+            $("header.page-header div.controls > div.lang > div.options")
+                .not($options)
+                .removeClass("show");
+
+            $options.toggleClass("show");
         }
     );
+
+    $(document).on("click", "a.auto-translate-option", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const targetLang = $(this).data("translateLang");
+        if (typeof window.applyAutoTranslate === "function") {
+            window.applyAutoTranslate(targetLang);
+        }
+    });
+
+    $(document).on("click", function (e) {
+        if ($(e.target).closest("header.page-header div.controls > div.lang").length === 0) {
+            $("header.page-header div.controls > div.lang > div.options").removeClass("show");
+        }
+    });
 
     $(document).on(
         "click",

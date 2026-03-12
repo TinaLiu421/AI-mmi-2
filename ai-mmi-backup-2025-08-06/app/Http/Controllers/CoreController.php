@@ -83,38 +83,58 @@ class CoreController extends Controller {
         $this->_current_lang_code = ($data['module'] == 'admin')?$data['current_lang_admin']:$data['current_lang_web'];
         \Illuminate\Support\Facades\App::setLocale($this->_current_lang_code);
        
+        $fallback_lang_code = Config::get('app_portal.default_lang', 'en');
+        $lang_codes_to_load = [$this->_current_lang_code];
+        if($fallback_lang_code != $this->_current_lang_code) {
+            $lang_codes_to_load[] = $fallback_lang_code;
+        }
+
         foreach ([$data['module'], 'global'] as $value) {
-            if(file_exists(resource_path('lang/'.$this->_current_lang_code.'/_'.$value.'.php'))) {
-                $lang_file = trans('_'.$value);
-                // max two level
-                if(!empty($lang_file) && is_array($lang_file)) {
-                    foreach ($lang_file as $lang_file_key => $lang_file_value) {
-                        if(is_array($lang_file_value)) {
-                            foreach ($lang_file_value as $lang_file_sub_key => $lang_file_sub_value) {
-                                if(is_int($lang_file_sub_key)) {
-                                    if($value == 'global') {
-                                        $this->_page_global_lang[$lang_file_key][$lang_file_sub_key] = $lang_file_sub_value;
+            foreach ($lang_codes_to_load as $lang_code_to_load) {
+                if(file_exists(resource_path('lang/'.$lang_code_to_load.'/_'.$value.'.php'))) {
+                    $lang_file = trans('_'.$value, [], $lang_code_to_load);
+                    if(!empty($lang_file) && is_array($lang_file)) {
+                        foreach ($lang_file as $lang_file_key => $lang_file_value) {
+                            if(is_array($lang_file_value)) {
+                                foreach ($lang_file_value as $lang_file_sub_key => $lang_file_sub_value) {
+                                    if(is_int($lang_file_sub_key)) {
+                                        if($value == 'global') {
+                                            if(!isset($this->_page_global_lang[$lang_file_key][$lang_file_sub_key])) {
+                                                $this->_page_global_lang[$lang_file_key][$lang_file_sub_key] = $lang_file_sub_value;
+                                            }
+                                        }
+                                        else {
+                                            if(!isset($this->_page_lang[$lang_file_key][$lang_file_sub_key])) {
+                                                $this->_page_lang[$lang_file_key][$lang_file_sub_key] = $lang_file_sub_value;
+                                            }
+                                        }
                                     }
                                     else {
-                                        $this->_page_lang[$lang_file_key][$lang_file_sub_key] = $lang_file_sub_value;
+                                        $lang_key = $lang_file_key.'.'.$lang_file_sub_key;
+                                        if($value == 'global') {
+                                            if(!isset($this->_page_global_lang[$lang_key])) {
+                                                $this->_page_global_lang[$lang_key] = $lang_file_sub_value;
+                                            }
+                                        }
+                                        else {
+                                            if(!isset($this->_page_lang[$lang_key])) {
+                                                $this->_page_lang[$lang_key] = $lang_file_sub_value;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else {
+                                if($value == 'global') {
+                                    if(!isset($this->_page_global_lang[$lang_file_key])) {
+                                        $this->_page_global_lang[$lang_file_key] = $lang_file_value;
                                     }
                                 }
                                 else {
-                                    if($value == 'global') {
-                                        $this->_page_global_lang[$lang_file_key.'.'.$lang_file_sub_key] = $lang_file_sub_value;
-                                    }
-                                    else {
-                                        $this->_page_lang[$lang_file_key.'.'.$lang_file_sub_key] = $lang_file_sub_value;
+                                    if(!isset($this->_page_lang[$lang_file_key])) {
+                                        $this->_page_lang[$lang_file_key] = $lang_file_value;
                                     }
                                 }
-                            }
-                        }
-                        else {
-                            if($value == 'global') {
-                                $this->_page_global_lang[$lang_file_key] = $lang_file_value;
-                            }
-                            else {
-                                $this->_page_lang[$lang_file_key] = $lang_file_value;
                             }
                         }
                     }
@@ -125,6 +145,18 @@ class CoreController extends Controller {
         /* <script>const _page_global_lang = JSON.parse('<?php echo json_encode($_page_global_lang); ?>');</script> */
 
         $this->_page_get_data = Request::input();
+
+        $requestAutoLang = Request::input('autolang', '');
+        if($requestAutoLang === '__reset__') {
+            Session::forget('autolang');
+        }
+        else if(!empty($requestAutoLang)) {
+            Session::put('autolang', $requestAutoLang);
+        }
+        else if(Session::has('autolang')) {
+            $this->_page_get_data['autolang'] = Session::get('autolang');
+        }
+
         if((strtolower(Request::method()) == 'post')) {
             $this->_page_post_data = Request::post();
         }

@@ -206,7 +206,9 @@ class RouteMapping extends Controller {
             
             foreach ($config_support_lang as $support_lang_key => $support_lang) {
                 if($support_lang['code'] == $current_lang_web) {
-                    $current_lang_index = $support_lang_key;
+                    $current_lang_index = !empty($support_lang['content_lang_index'])
+                        ? (int)$support_lang['content_lang_index']
+                        : $support_lang_key;
                     break;
                 }
             }

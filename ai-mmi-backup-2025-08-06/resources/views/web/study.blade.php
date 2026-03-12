@@ -7,6 +7,15 @@
 @endpush
 
 @section('content')
+<?php
+    $autoLang = !empty($_page_get_data['autolang']) ? $_page_get_data['autolang'] : session('autolang', '');
+    $appendAutoLang = function ($url) use ($autoLang) {
+        if(empty($autoLang)) {
+            return $url;
+        }
+        return $url.((strpos($url, '?') !== false) ? '&' : '?').'autolang='.urlencode($autoLang);
+    };
+?>
 <div class="study-container">
     <div class="study-header">
         <h1>Study Abroad Guidance</h1>
@@ -20,7 +29,7 @@
             <div class="study-option-question">
                 Am I eligible to apply based on my current qualifications and profile?
             </div>
-            <a href="<?php echo $_page_base_url.'/eligibility_check'; ?>" class="study-option-button" data-action="eligibility-check">
+            <a href="<?php echo $appendAutoLang($_page_base_url.'/eligibility_check'); ?>" class="study-option-button" data-action="eligibility-check">
                 Eligibility Check
             </a>
         </div>
@@ -186,7 +195,7 @@
             <div class="study-option-question">
                 Contact our study abroad advisors for personalized assistance and support throughout your application process.
             </div>
-            <a href="<?php echo $_page_base_url.'/agent_chat'; ?>" class="study-option-button">
+            <a href="<?php echo $appendAutoLang($_page_base_url.'/agent_chat'); ?>" class="study-option-button">
                 Contact An Agent
             </a>
         </div>
