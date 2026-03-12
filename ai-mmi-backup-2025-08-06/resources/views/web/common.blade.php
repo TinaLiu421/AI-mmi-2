@@ -391,6 +391,9 @@
                             <?php } ?>
                             <div class="lang-group-title">Auto translate</div>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="__reset__"><span>Original language</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="en"><span>English</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="zh-CN"><span>中文（简体）</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="zh-TW"><span>中文（繁體）</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ms"><span>Bahasa Melayu</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="id"><span>Bahasa Indonesia</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ja"><span>日本語</span></a>
@@ -399,11 +402,20 @@
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="vi"><span>Tiếng Việt</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="hi"><span>हिन्दी</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ar"><span>العربية</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="bn"><span>বাংলা</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ur"><span>اردو</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ta"><span>தமிழ்</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="tl"><span>Filipino</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="fa"><span>فارسی</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="fr"><span>Français</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="de"><span>Deutsch</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="it"><span>Italiano</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="es"><span>Español</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="pt"><span>Português</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="tr"><span>Türkçe</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="nl"><span>Nederlands</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="pl"><span>Polski</span></a>
+                            <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="uk"><span>Українська</span></a>
                             <a href="javascript:void(0);" class="auto-translate-option" data-translate-lang="ru"><span>Русский</span></a>
                         </div>
                     </div>
