@@ -158,13 +158,6 @@
                 return window.normalizeAutoTranslateLang(urlLang);
             }
 
-            try {
-                var storedLang = window.localStorage.getItem('autoTranslateLang');
-                if (storedLang) {
-                    return window.normalizeAutoTranslateLang(storedLang);
-                }
-            } catch (e) {}
-
             var cookieMatch = document.cookie.match(/(?:^|; )googtrans=([^;]+)/);
             if (!cookieMatch || !cookieMatch[1]) {
                 return '';
