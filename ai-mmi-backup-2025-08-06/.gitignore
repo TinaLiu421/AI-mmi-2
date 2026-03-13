@@ -95,5 +95,6 @@ yarn-error.log
 # User uploads
 /public/upload/member_avatar/*
 /public/upload/member_logo/*
+/public/upload/agent_chat/*
 !/public/upload/member_avatar/.gitkeep
 !/public/upload/member_logo/.gitkeep
