@@ -433,7 +433,7 @@
         <?php if(!empty($_included_header_footer)) { ?>
         <header class="page-header">
             <div>
-                <a class="logo" href="<?php echo $appendAutoLang($_page_base_url); ?>">
+                <a class="logo" href="<?php echo $appendAutoLang($_page_base_url); ?>" onclick="window.applyAutoTranslate('en'); return false;">
                     <img src="asset/image/logo.png" alt="logo">
                 </a>
 
