@@ -468,7 +468,7 @@
                         <div class="options header-dropdown notranslate" translate="no">
                             <div class="lang-group-title">Website language</div>
                             <?php foreach ($_mapping_data['support_lang'] as $lang) { ?>
-                            <?php if(!empty($lang['code']) && !empty($_mapping_data['multi_url'][$lang['code']])) { ?>
+                            <?php if(!empty($lang['code']) && !empty($_mapping_data['multi_url'][$lang['code']]) && !in_array($lang['code'], ['en', 'zh-hant', 'zh-hans'])) { ?>
                             <a href="<?php echo $appendAutoLang($_mapping_data['multi_url'][$lang['code']]); ?>">
                                 <span><?php echo !empty($lang['name']) ? $lang['name'] : strtoupper($lang['code']); ?></span>
                             </a>
