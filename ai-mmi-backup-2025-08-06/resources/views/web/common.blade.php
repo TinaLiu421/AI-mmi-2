@@ -332,19 +332,41 @@
 
             var normalizedTargetLang = window.normalizeAutoTranslateLang(targetLang);
 
-            // Persist state so the next page load picks it up immediately.
+            // Always persist and sync cookie/URL state first so any subsequent
+            // page load (navigation or reload) immediately picks up the right language.
             window.persistAutoTranslateLang(normalizedTargetLang);
             window.setAutoTranslateCookie(normalizedTargetLang);
+            window.syncCurrentAutoTranslateUrl(normalizedTargetLang);
             window.updateLanguageTriggerLabel(normalizedTargetLang);
 
-            // Always navigate to a clean page load.
-            // Directly manipulating the Google Translate combo is unreliable:
-            // - direct language-to-language switches (e.g. ja → id) silently fail
-            // - not all codes are present in the combo options at click time
-            // - switching back to the source language via combo does not reset properly
-            // Navigating with the autolang param is always consistent across all browsers.
-            var nextUrl = window.buildAutoTranslateUrl(window.location.href, normalizedTargetLang || '__reset__');
-            window.location.href = nextUrl;
+            // === RESET path ===
+            // Must navigate: we need a fresh page load so GT starts without
+            // any previously translated DOM or stale widget state.
+            if (!normalizedTargetLang) {
+                window.location.href = window.buildAutoTranslateUrl(window.location.href, '__reset__');
+                return;
+            }
+
+            // === TRANSLATE path ===
+            // Prefer the already-loaded Google Translate combo when available.
+            // This reuses the existing GT widget, avoids an extra network request
+            // to translate.google.com, and is the fastest / most reliable path.
+            var combo = document.querySelector('.goog-te-combo');
+            if (combo && combo.options && combo.options.length > 1) {
+                combo.value = normalizedTargetLang;
+                combo.dispatchEvent(new Event('change'));
+                window.decorateInternalLinksForAutoTranslate();
+                return;
+            }
+
+            // Combo not ready yet (GT still loading). Navigate so the fresh page
+            // load picks up the cookie we just set and GT translates on init.
+            var nextUrl = window.buildAutoTranslateUrl(window.location.href, normalizedTargetLang);
+            if (nextUrl !== window.location.href) {
+                window.location.href = nextUrl;
+            } else {
+                window.location.reload();
+            }
         };
 
         document.addEventListener('DOMContentLoaded', function () {
