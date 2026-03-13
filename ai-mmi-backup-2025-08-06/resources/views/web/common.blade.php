@@ -369,6 +369,14 @@
             }
         };
 
+        window.resetAutoTranslateAndGoTo = function (targetUrl) {
+            var destination = targetUrl || window.location.href;
+            window.persistAutoTranslateLang('');
+            window.setAutoTranslateCookie('');
+            window.updateLanguageTriggerLabel('');
+            window.location.href = window.buildAutoTranslateUrl(destination, '__reset__');
+        };
+
         document.addEventListener('DOMContentLoaded', function () {
             window.updateLanguageTriggerLabel(window.getStoredAutoTranslateLang());
             window.syncCurrentAutoTranslateUrl(window.getStoredAutoTranslateLang());
@@ -433,7 +441,7 @@
         <?php if(!empty($_included_header_footer)) { ?>
         <header class="page-header">
             <div>
-                <a class="logo" href="<?php echo $appendAutoLang($_page_base_url); ?>" onclick="window.applyAutoTranslate('en'); return false;">
+                <a class="logo" href="<?php echo $appendAutoLang($_page_base_url); ?>" onclick="window.resetAutoTranslateAndGoTo('<?php echo $_page_base_url; ?>'); return false;">
                     <img src="asset/image/logo.png" alt="logo">
                 </a>
 
