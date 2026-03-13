@@ -367,10 +367,21 @@
             window.persistAutoTranslateLang('');
             window.setAutoTranslateCookie('');
             window.updateLanguageTriggerLabel('');
+            try {
+                window.sessionStorage.setItem('forceAutoTranslateReset', '1');
+            } catch (e) {}
             window.location.href = window.buildAutoTranslateUrl(destination, '__reset__');
         };
 
         document.addEventListener('DOMContentLoaded', function () {
+            try {
+                if (window.sessionStorage.getItem('forceAutoTranslateReset') === '1') {
+                    window.sessionStorage.removeItem('forceAutoTranslateReset');
+                    window.persistAutoTranslateLang('');
+                    window.setAutoTranslateCookie('');
+                }
+            } catch (e) {}
+
             window.updateLanguageTriggerLabel(window.getStoredAutoTranslateLang());
             window.syncCurrentAutoTranslateUrl(window.getStoredAutoTranslateLang());
             window.decorateInternalLinksForAutoTranslate();
@@ -423,6 +434,7 @@
     <body>
         <?php
             $autoLang = !empty($_page_get_data['autolang']) ? $_page_get_data['autolang'] : session('autolang', '');
+            $logoHomeUrl = url('/en');
             $appendAutoLang = function ($url) use ($autoLang) {
                 if(empty($autoLang)) {
                     return $url;
@@ -434,7 +446,7 @@
         <?php if(!empty($_included_header_footer)) { ?>
         <header class="page-header">
             <div>
-                <a class="logo" href="<?php echo $appendAutoLang($_page_base_url); ?>" onclick="window.resetAutoTranslateAndGoTo('<?php echo $_page_base_url; ?>'); return false;">
+                <a class="logo" href="<?php echo $appendAutoLang($logoHomeUrl); ?>" onclick="window.resetAutoTranslateAndGoTo('<?php echo $logoHomeUrl; ?>'); return false;">
                     <img src="asset/image/logo.png" alt="logo">
                 </a>
 
