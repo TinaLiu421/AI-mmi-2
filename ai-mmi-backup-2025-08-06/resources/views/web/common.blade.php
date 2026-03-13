@@ -70,6 +70,15 @@
         window.__pageTranslateSourceLang = '<?php echo $googleTranslatePageLang; ?>';
         window.__autoTranslateDispatched = false;
 
+        window.normalizeAutoTranslateLang = function (targetLang) {
+            var sourceLang = window.__pageTranslateSourceLang || 'en';
+            if (!targetLang || targetLang === '__reset__' || targetLang === sourceLang) {
+                return '';
+            }
+
+            return targetLang;
+        };
+
         window.getUrlAutoTranslateLang = function () {
             try {
                 var currentUrl = new URL(window.location.href);
@@ -98,29 +107,61 @@
             }
         };
 
-        window.setAutoTranslateCookie = function (targetLang) {
-            if (!targetLang || targetLang === '__reset__') {
+        window.clearAutoTranslateCookie = function () {
+            var hostname = window.location.hostname || '';
+            var domains = ['', hostname];
+
+            if (hostname) {
+                domains.push('.' + hostname);
+
+                var hostParts = hostname.split('.');
+                if (hostParts.length > 2) {
+                    for (var i = 1; i < hostParts.length - 1; i++) {
+                        domains.push('.' + hostParts.slice(i).join('.'));
+                    }
+                }
+            }
+
+            var seen = {};
+            for (var j = 0; j < domains.length; j++) {
+                var domain = domains[j];
+                if (seen[domain]) {
+                    continue;
+                }
+
+                seen[domain] = true;
                 document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-                document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;domain=' + window.location.hostname;
+                if (domain) {
+                    document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;domain=' + domain;
+                }
+            }
+        };
+
+        window.setAutoTranslateCookie = function (targetLang) {
+            var normalizedTargetLang = window.normalizeAutoTranslateLang(targetLang);
+            window.clearAutoTranslateCookie();
+
+            if (!normalizedTargetLang) {
                 return;
             }
 
             var sourceLang = window.__pageTranslateSourceLang || 'en';
-            var googtransValue = '/' + sourceLang + '/' + targetLang;
+            var googtransValue = '/' + sourceLang + '/' + normalizedTargetLang;
             document.cookie = 'googtrans=' + googtransValue + ';path=/';
             document.cookie = 'googtrans=' + googtransValue + ';path=/;domain=' + window.location.hostname;
+            document.cookie = 'googtrans=' + googtransValue + ';path=/;domain=.' + window.location.hostname;
         };
 
         window.getStoredAutoTranslateLang = function () {
             var urlLang = window.getUrlAutoTranslateLang();
             if (urlLang) {
-                return urlLang;
+                return window.normalizeAutoTranslateLang(urlLang);
             }
 
             try {
                 var storedLang = window.localStorage.getItem('autoTranslateLang');
                 if (storedLang) {
-                    return storedLang;
+                    return window.normalizeAutoTranslateLang(storedLang);
                 }
             } catch (e) {}
 
@@ -131,17 +172,44 @@
 
             var cookieValue = decodeURIComponent(cookieMatch[1]);
             var parts = cookieValue.split('/');
-            return parts.length >= 3 ? parts[2] : '';
+            return parts.length >= 3 ? window.normalizeAutoTranslateLang(parts[2]) : '';
         };
 
         window.persistAutoTranslateLang = function (targetLang) {
+            var normalizedTargetLang = window.normalizeAutoTranslateLang(targetLang);
             try {
-                if (targetLang === '__reset__') {
+                if (!normalizedTargetLang) {
                     window.localStorage.removeItem('autoTranslateLang');
                 } else {
-                    window.localStorage.setItem('autoTranslateLang', targetLang);
+                    window.localStorage.setItem('autoTranslateLang', normalizedTargetLang);
                 }
             } catch (e) {}
+        };
+
+        window.getAutoTranslateTriggerLabel = function (targetLang) {
+            var normalizedTargetLang = window.normalizeAutoTranslateLang(targetLang);
+            if (!normalizedTargetLang) {
+                return '';
+            }
+
+            var option = document.querySelector('.auto-translate-option[data-translate-lang="' + normalizedTargetLang.replace(/"/g, '\\"') + '"] span');
+            if (!option) {
+                return normalizedTargetLang.toUpperCase();
+            }
+
+            return (option.textContent || '').trim();
+        };
+
+        window.updateLanguageTriggerLabel = function (targetLang) {
+            var triggerLabel = document.querySelector('.page-header .lang > a .current-lang-label');
+            if (!triggerLabel) {
+                return;
+            }
+
+            var defaultLabel = triggerLabel.getAttribute('data-default-label') || triggerLabel.textContent || '';
+            var autoTranslateLabel = window.getAutoTranslateTriggerLabel(targetLang);
+
+            triggerLabel.textContent = autoTranslateLabel || defaultLabel;
         };
 
         window.decorateInternalLinksForAutoTranslate = function () {
@@ -168,11 +236,13 @@
 
         window.bootstrapStoredAutoTranslate = function () {
             var targetLang = window.getStoredAutoTranslateLang();
-            if (!targetLang || targetLang === '__reset__') {
+            if (!targetLang) {
+                window.updateLanguageTriggerLabel('');
                 return '';
             }
 
             window.setAutoTranslateCookie(targetLang);
+            window.updateLanguageTriggerLabel(targetLang);
             return targetLang;
         };
 
@@ -260,32 +330,25 @@
                 return;
             }
 
-            window.persistAutoTranslateLang(targetLang);
-            window.setAutoTranslateCookie(targetLang);
-            window.syncCurrentAutoTranslateUrl(targetLang);
+            var normalizedTargetLang = window.normalizeAutoTranslateLang(targetLang);
 
-            if (targetLang === '__reset__') {
-                window.location.href = window.buildAutoTranslateUrl(window.location.href, '__reset__');
-                return;
-            }
+            // Persist state so the next page load picks it up immediately.
+            window.persistAutoTranslateLang(normalizedTargetLang);
+            window.setAutoTranslateCookie(normalizedTargetLang);
+            window.updateLanguageTriggerLabel(normalizedTargetLang);
 
-            var combo = document.querySelector('.goog-te-combo');
-            if (combo && combo.options && combo.options.length > 1) {
-                combo.value = targetLang;
-                combo.dispatchEvent(new Event('change'));
-                window.decorateInternalLinksForAutoTranslate();
-            } else {
-                window.reapplyStoredAutoTranslate();
-                var nextUrl = window.buildAutoTranslateUrl(window.location.href, targetLang);
-                if (nextUrl === window.location.href) {
-                    window.location.reload();
-                } else {
-                    window.location.href = nextUrl;
-                }
-            }
+            // Always navigate to a clean page load.
+            // Directly manipulating the Google Translate combo is unreliable:
+            // - direct language-to-language switches (e.g. ja → id) silently fail
+            // - not all codes are present in the combo options at click time
+            // - switching back to the source language via combo does not reset properly
+            // Navigating with the autolang param is always consistent across all browsers.
+            var nextUrl = window.buildAutoTranslateUrl(window.location.href, normalizedTargetLang || '__reset__');
+            window.location.href = nextUrl;
         };
 
         document.addEventListener('DOMContentLoaded', function () {
+            window.updateLanguageTriggerLabel(window.getStoredAutoTranslateLang());
             window.syncCurrentAutoTranslateUrl(window.getStoredAutoTranslateLang());
             window.decorateInternalLinksForAutoTranslate();
             window.reapplyStoredAutoTranslate();
@@ -375,12 +438,12 @@
                             }
                         }
                     ?>
-                    <div class="lang">
+                    <div class="lang notranslate" translate="no">
                         <a href="javascript:void(0);" title="Switch language">
                             <img src="asset/image/icon-lang.png" alt="icon-lang"/>
-                            <span><?php echo $currentLangLabel; ?></span>
+                            <span class="current-lang-label" data-default-label="<?php echo htmlspecialchars($currentLangLabel, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $currentLangLabel; ?></span>
                         </a>
-                        <div class="options header-dropdown">
+                        <div class="options header-dropdown notranslate" translate="no">
                             <div class="lang-group-title">Website language</div>
                             <?php foreach ($_mapping_data['support_lang'] as $lang) { ?>
                             <?php if(!empty($lang['code']) && !empty($_mapping_data['multi_url'][$lang['code']])) { ?>
