@@ -1547,13 +1547,15 @@ private function shouldRedirectToAgentChat(string $question): bool
     }
 
     $patterns = [
-        '/\b(talk|speak|chat|connect|contact)\b.{0,40}\b(agent|consultant|advisor|migration agent|immigration agent)\b/u',
-        '/\b(migration agent|immigration agent|visa agent|education agent|study agent)\b/u',
-        '/\b(agent)\b.{0,20}\b(help|support|consult|advice)\b/u',
+        '/\b(talk|speak|chat|connect|contact|reach)\b.{0,60}\b(agent|agents|consultant|consultants|advisor|advisors|migration agent|migration agents|immigration agent|immigration agents)\b/u',
+        '/\b(migration agent|migration agents|immigration agent|immigration agents|visa agent|visa agents|education agent|education agents|study agent|study agents)\b/u',
+        '/\b(agent|agents|consultant|consultants|advisor|advisors)\b.{0,30}\b(help|support|consult|consultation|advice)\b/u',
+        '/\b(professional|licensed|registered)\b.{0,30}\b(agent|agents|consultant|consultants)\b/u',
+        '/\b(can i|could i|i want to|i need to|help me)\b.{0,60}\b(agent|agents|consultant|consultants)\b/u',
         '/(agen\s*(imigrasi|migrasi|visa|pendidikan)|konsultan\s*(migrasi|imigrasi)|hubungi\s*agen|bicara\s*dengan\s*agen)/u',
         '/(移民顾问|移民中介|留学顾问|联系顾问|联系中介|找顾问|找中介|人工顾问|真人顾问)/u',
         '/(移民顧問|移民中介|留學顧問|聯絡顧問|聯絡中介|找顧問|找中介|真人顧問)/u',
-        '/(migration\s*agent|immigration\s*consultant|book\s*a\s*consultation)/u',
+        '/(migration\s*agent|immigration\s*consultant|book\s*a\s*consultation|talk\s*to\s*(a\s*)?professional\s*agent|speak\s*to\s*(a\s*)?professional\s*agent)/u',
     ];
 
     foreach ($patterns as $pattern) {
