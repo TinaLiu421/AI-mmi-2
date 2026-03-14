@@ -1217,6 +1217,29 @@ Rules:
         $memberId = (int)($member['id'] ?? 0);
         $guestId = $this->getMyCookie('guest_id');
         $sessionId = session()->getId();
+        $lang = $this->detectLangZhOrEn($question);
+
+        if ($this->shouldRedirectToAgentChat((string)$question)) {
+            $redirectMsg = $this->buildAgentRedirectMessage($lang);
+            $this->storeChat(
+                $memberId,
+                $guestId,
+                $sessionId,
+                (string)$question,
+                $redirectMsg,
+                'agent-redirect',
+                'AI-mmi',
+                ['log_to_chat_table' => true, 'source' => 'chat']
+            );
+
+            $this->streamMessage($redirectMsg, [
+                'reply_source' => 'agent-redirect',
+                'action'       => 'redirect',
+                'redirect_url' => '/agent_chat',
+                'reason'       => 'migration-agent-intent',
+            ]);
+        }
+
         $isEdu = $this->classifyEducationIntent((string)$question) === 'education';
         $isPaidUser = $this->hasActivePaidSubscription($memberId);
 
@@ -1246,8 +1269,7 @@ Rules:
         if (!$apiKey) {
             $this->streamError('API key missing');
         }
-
-        $lang = $this->detectLangZhOrEn($question);
+        $allowedDomains = array_values(array_filter(array_map('trim', explode(',', (string)env('XAI_WEB_SEARCH_ALLOWED_DOMAINS', '')))));
 
         // Use Responses API (RAG-enabled) and stream the final text back to the client
         $systemPrompt = "
@@ -1300,7 +1322,8 @@ or equivalent wording in the user's language.
 " . $this->buildStrictLanguageInstruction($lang);
 
         $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
-        $cacheKey = 'xai_chat_cache:' . md5($lang . '|' . trim($question));
+            $cacheQuestion = $this->normalizeQuestionForCache((string)$question);
+            $cacheKey = 'xai_chat_cache:' . md5($lang . '|' . $cacheQuestion);
         if ($cacheTtl > 0 && Cache::has($cacheKey)) {
             $cachedReply = (string)Cache::get($cacheKey);
             if ($lang === 'en' && $this->containsCjk($cachedReply)) {
@@ -1314,15 +1337,27 @@ or equivalent wording in the user's language.
             }
         }
 
+        $twoStageEnabled = filter_var(env('XAI_TWO_STAGE_STREAM', false), FILTER_VALIDATE_BOOLEAN);
+        if ($twoStageEnabled) {
+            $this->streamDeltaChunk($this->buildVerificationLeadMessage($lang));
+            $this->streamMetaChunk(['stage' => 'draft']);
+        }
+
+        $finalSystemPrompt = $systemPrompt;
+        if ($twoStageEnabled) {
+            $finalSystemPrompt .= "\n\n- Do NOT add greeting or self-introduction in this response.\n- Provide only verified facts from available sources.\n- If a specific number/date cannot be verified, explicitly say it may vary and ask user to confirm the official page.";
+        }
+
         $x = $this->callXaiResponses($question, [
             'temperature' => 0.2,
             'max_output_tokens' => (int)env('XAI_MAX_OUTPUT_TOKENS', 1024),
             'model' => 'grok-4-1-fast-reasoning',
             'enable_search'     => filter_var(env('XAI_ENABLE_WEB_SEARCH', true), FILTER_VALIDATE_BOOLEAN),
+            'allowed_domains'   => $allowedDomains,
             'file_search_max'   => (int)env('XAI_FILE_SEARCH_MAX', 8),
             'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
             'vector_store_ids' => [],
-            'system' => $systemPrompt,
+            'system' => $finalSystemPrompt,
         ]);
 
         $reply = '';
@@ -1353,17 +1388,43 @@ or equivalent wording in the user's language.
 
 // === STREAMING HELPER METHODS ===
 private function streamError($message) {
-    header('Content-Type: text/event-stream');
-    header('Cache-Control: no-cache');
+    if (!headers_sent()) {
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+    }
     echo "data: " . json_encode(['error' => $message]) . "\n\n";
     echo "data: [DONE]\n\n";
     flush();
     exit();
 }
 
+private function streamDeltaChunk($message) {
+    if (trim((string)$message) === '') {
+        return;
+    }
+
+    echo "data: " . json_encode([
+        'choices' => [[
+            'delta' => ['content' => (string)$message]
+        ]]
+    ]) . "\n\n";
+    flush();
+}
+
+private function streamMetaChunk(array $meta) {
+    if (empty($meta)) {
+        return;
+    }
+
+    echo "data: " . json_encode(['meta' => $meta]) . "\n\n";
+    flush();
+}
+
 private function streamMessage($message, array $meta = []) {
-    header('Content-Type: text/event-stream');
-    header('Cache-Control: no-cache');
+    if (!headers_sent()) {
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+    }
     
     $delayMs = (int)env('XAI_STREAM_DELAY_MS', 0);
     if ($delayMs <= 0) {
@@ -1459,6 +1520,58 @@ private function processFinalText($text, $isFromQa, $lang) {
     }
     
     return trim($processed);
+}
+
+private function normalizeQuestionForCache(string $question): string
+{
+    $q = trim(mb_strtolower($question, 'UTF-8'));
+    $q = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $q);
+    $q = preg_replace('/\s+/u', ' ', (string)$q);
+    return trim((string)$q);
+}
+
+private function buildVerificationLeadMessage(string $lang): string
+{
+    if ($lang === 'zh') {
+        return "⚡ 快速响应：我正在核对最新政策与实时网页信息。\n🔎 校验完成后，我会给你清晰、完整的最终答案。\n\n";
+    }
+
+    return "⚡ Quick response: I’m verifying the latest policy details with live web sources now.\n🔎 I’ll provide a clear and complete final answer once verification finishes.\n\n";
+}
+
+private function shouldRedirectToAgentChat(string $question): bool
+{
+    $text = trim(mb_strtolower($question, 'UTF-8'));
+    if ($text === '') {
+        return false;
+    }
+
+    $patterns = [
+        '/\b(talk|speak|chat|connect|contact)\b.{0,40}\b(agent|consultant|advisor|migration agent|immigration agent)\b/u',
+        '/\b(migration agent|immigration agent|visa agent|education agent|study agent)\b/u',
+        '/\b(agent)\b.{0,20}\b(help|support|consult|advice)\b/u',
+        '/(agen\s*(imigrasi|migrasi|visa|pendidikan)|konsultan\s*(migrasi|imigrasi)|hubungi\s*agen|bicara\s*dengan\s*agen)/u',
+        '/(移民顾问|移民中介|留学顾问|联系顾问|联系中介|找顾问|找中介|人工顾问|真人顾问)/u',
+        '/(移民顧問|移民中介|留學顧問|聯絡顧問|聯絡中介|找顧問|找中介|真人顧問)/u',
+        '/(migration\s*agent|immigration\s*consultant|book\s*a\s*consultation)/u',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $text)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+private function buildAgentRedirectMessage(string $lang): string
+{
+    if ($lang === 'zh') {
+        return '好的，我来帮您对接顾问。正在为您跳转到顾问咨询页面。';
+    }
+
+    return 'Sure — I will connect you with an agent now. Redirecting you to the agent chat page.';
 }
 
 private function truncateAtSentence(string $text, int $maxChars): string

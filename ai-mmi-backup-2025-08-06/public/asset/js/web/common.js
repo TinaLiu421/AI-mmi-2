@@ -268,6 +268,18 @@ function streamResponse(question, bubbleId) {
         });
     }
 
+    function handleActionMeta(meta) {
+        if (!(meta && typeof meta === 'object')) return false;
+        if (meta.action !== 'redirect') return false;
+
+        const redirectUrl = meta.redirect_url || (_page_base_url + '/agent_chat');
+        setTimeout(() => {
+            window.location.href = redirectUrl;
+        }, 700);
+
+        return true;
+    }
+
     function renderPlain() {
         const safe = escapeHtml(fullText || '').replace(/\n/g, '<br>');
         $text.html(safe);
@@ -400,6 +412,9 @@ function streamResponse(question, bubbleId) {
 
                                 if (data.meta && typeof data.meta === 'object') {
                                     streamMeta = data.meta;
+                                    if (handleActionMeta(streamMeta)) {
+                                        return;
+                                    }
                                     openUpgradePopup();
                                     return;
                                 }
