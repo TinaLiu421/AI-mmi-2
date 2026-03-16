@@ -199,8 +199,8 @@ class Home extends WebController {
 
             if (!empty($member)) {
 
-                // ① 判断是否付费用户
-                $isPaidUser = $this->hasActivePaidSubscription((int)$memberId)
+                // ① 判断是否 AI freeflow 用户（all_ai / hybrid / vip 才不受5次限制；premium仍受限）
+                $isPaidUser = $this->isAiFreeFlowPlan((int)$memberId)
                     || $this->isWealthskeyFreeFlowMember($member);
 
                 // 仅对“移民/签证类问题”执行 Free Plan 5 次限制
@@ -1256,7 +1256,7 @@ Rules:
         $domain = $this->classifyQuestionDomain((string)$question);
         $isEdu = $domain === 'education';
         $isMigrationVisa = $domain === 'migration';
-        $isPaidUser = $this->hasActivePaidSubscription($memberId)
+        $isPaidUser = $this->isAiFreeFlowPlan($memberId)
             || $this->isWealthskeyFreeFlowMember($member);
 
         if (!$isPaidUser && $isMigrationVisa) {
@@ -1512,6 +1512,29 @@ private function hasActivePaidSubscription(int $memberId): bool
         ->where(function ($q) {
             $q->whereNull('subscriptions.ends_at')
             ->orWhere('subscriptions.ends_at', '>', now());
+        })
+        ->exists();
+}
+
+/**
+ * AI freeflow: only all_ai, hybrid, vip bypass the 5-question limit.
+ * premium users keep the 5-chat restriction.
+ */
+private function isAiFreeFlowPlan(int $memberId): bool
+{
+    if ($memberId <= 0) {
+        return false;
+    }
+
+    return DB::table('subscriptions')
+        ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+        ->where('subscriptions.member_id', $memberId)
+        ->where('subscriptions.status', 'active')
+        ->where('plans.is_active', 1)
+        ->whereIn('plans.code', ['all_ai', 'hybrid', 'vip'])
+        ->where(function ($q) {
+            $q->whereNull('subscriptions.ends_at')
+              ->orWhere('subscriptions.ends_at', '>', now());
         })
         ->exists();
 }

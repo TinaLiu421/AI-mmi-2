@@ -92,8 +92,11 @@ class Agent_Chat extends WebController
         $memberId = $member['id'] ?? null;
         $isAgent = $memberId ? $this->isAgentMember($memberId) : false;
 
-        if (!$isAgent && $memberId && !$this->hasUnlockedAgentChat((int)$memberId)) {
-            return $this->doRedirect($this->toURL('agent_chat'));
+        if (!$isAgent && $memberId) {
+            $planCode = $this->getMemberActivePlanCode((int)$memberId);
+            if (!in_array($planCode, ['premium', 'vip'], true)) {
+                return $this->doRedirect($this->toURL('agent_chat'));
+            }
         }
 
         return $this->renderChatPage($targetId);
@@ -1025,6 +1028,40 @@ class Agent_Chat extends WebController
             return strtotime((string)($b['last_at'] ?? '')) <=> strtotime((string)($a['last_at'] ?? ''));
         });
 
+        // Bulk-load plan names for member threads (shown in agent sidebar)
+        $memberIds = array_values(array_unique(
+            array_map(fn($t) => (int)$t['target_id'],
+                array_filter($threadList, fn($t) => $t['target_type'] === 'member')
+            )
+        ));
+        $planNames = [];
+        if (!empty($memberIds)) {
+            $planRows = DB::table('subscriptions')
+                ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+                ->whereIn('subscriptions.member_id', $memberIds)
+                ->where('subscriptions.status', 'active')
+                ->where('plans.is_active', 1)
+                ->where(function ($q) {
+                    $q->whereNull('subscriptions.ends_at')
+                      ->orWhere('subscriptions.ends_at', '>', now());
+                })
+                ->orderByRaw("FIELD(plans.code, 'vip', 'premium', 'hybrid', 'all_ai', 'free')")
+                ->select('subscriptions.member_id', 'plans.name')
+                ->get();
+            foreach ($planRows as $pr) {
+                $mid = (int)$pr->member_id;
+                if (!isset($planNames[$mid])) {
+                    $planNames[$mid] = $pr->name;
+                }
+            }
+        }
+        foreach ($threadList as &$thread) {
+            $thread['plan_name'] = ($thread['target_type'] === 'member')
+                ? ($planNames[(int)$thread['target_id']] ?? null)
+                : null;
+        }
+        unset($thread);
+
         return $threadList;
     }
 
@@ -1304,5 +1341,31 @@ class Agent_Chat extends WebController
             ->where('member_id', $memberId)
             ->where('status', 'booked')
             ->exists();
+    }
+
+    /**
+     * Return the highest-priority active plan code for a member.
+     * Priority: vip > premium > hybrid > all_ai > free
+     */
+    private function getMemberActivePlanCode(int $memberId): ?string
+    {
+        if ($memberId <= 0) {
+            return null;
+        }
+
+        $plan = DB::table('subscriptions')
+            ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+            ->where('subscriptions.member_id', $memberId)
+            ->where('subscriptions.status', 'active')
+            ->where('plans.is_active', 1)
+            ->where(function ($q) {
+                $q->whereNull('subscriptions.ends_at')
+                  ->orWhere('subscriptions.ends_at', '>', now());
+            })
+            ->orderByRaw("FIELD(plans.code, 'vip', 'premium', 'hybrid', 'all_ai', 'free')")
+            ->select('plans.code')
+            ->first();
+
+        return $plan ? $plan->code : null;
     }
 }

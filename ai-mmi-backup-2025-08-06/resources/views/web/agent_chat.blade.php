@@ -21,6 +21,9 @@
                     <div class="agent-chat-list-item" data-target-type="{{ $thread['target_type'] }}" data-target-id="{{ $thread['target_id'] }}">
                         <div class="agent-chat-list-head">
                             <div class="agent-name">{{ $thread['label'] }}</div>
+                            @if(!empty($thread['plan_name']))
+                                <span class="agent-plan-badge">{{ $thread['plan_name'] }}</span>
+                            @endif
                             @if(!empty($thread['unread_count']))
                                 <span class="agent-chat-unread-badge">{{ $thread['unread_count'] > 99 ? '99+' : $thread['unread_count'] }}</span>
                             @endif

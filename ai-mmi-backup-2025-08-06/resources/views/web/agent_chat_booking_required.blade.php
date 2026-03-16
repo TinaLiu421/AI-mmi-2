@@ -1,18 +1,23 @@
 @extends('web.common')
 
-@section('title', 'Talk to Agent - Meeting Required')
+@section('title', 'Talk to Agent - Book Your Meeting')
 
 @section('content')
     @php
+        $pageMode = $_page_data['mode'] ?? 'calendly_only';
         $agentChatContinueUrl = '/' . trim((string)($_current_lang_code ?? ''), '/') . '/agent_chat/chat';
         $agentChatContinueUrl = preg_replace('#/+#', '/', $agentChatContinueUrl);
     @endphp
     <section class="agent-booking-page">
         <div class="agent-booking-card">
-            <div class="agent-booking-title">Talk to Agent</div>
+            <div class="agent-booking-title">Book Your Agent Meeting</div>
             <div class="agent-booking-desc">
-                Please schedule an online meeting with <strong>Wealthskey Migration</strong> first.
-                After your Calendly booking is successfully completed, Talk to Agent chat will be unlocked automatically.
+                @if($pageMode === 'calendly_only')
+                    Your <strong>AI + Agent Plan</strong> includes a one-time consultation with a qualified migration agent.<br>
+                    Click below to schedule your meeting via Calendly.
+                @else
+                    Please schedule an online meeting with <strong>Wealthskey Migration</strong> to unlock agent chat.
+                @endif
             </div>
 
             <div class="agent-booking-details">
@@ -43,21 +48,26 @@
                 >
                     Schedule meeting with agent
                 </a>
+                @if($pageMode !== 'calendly_only')
                 <a
                     class="agent-booking-btn secondary"
                     href="{{ $agentChatContinueUrl }}"
                 >
                     I already booked, continue to chat
                 </a>
+                @endif
             </div>
 
+            @if($pageMode !== 'calendly_only')
             <div class="agent-booking-status" id="agent-booking-status">
                 Waiting for booking confirmation...
             </div>
+            @endif
         </div>
     </section>
     <script>
         window.agentBookingConfig = {
+            mode: @json($pageMode),
             calendlyUrl: @json($calendly_url ?? 'https://calendly.com/admin-wealthskey/30min'),
             unlockApiUrl: @json($unlock_api_url ?? '/agent_chat/booking/confirm'),
             continueUrl: @json($agentChatContinueUrl)

@@ -351,3 +351,19 @@
     width: 100%;
   }
 }
+
+/* Plan badge shown next to user name in agent thread list */
+.agent-plan-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e8f4fd;
+  color: #1a6fa8;
+  border: 1px solid #b3d7f0;
+  white-space: nowrap;
+  margin-left: 4px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
