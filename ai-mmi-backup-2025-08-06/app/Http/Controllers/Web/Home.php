@@ -184,9 +184,10 @@ class Home extends WebController {
             $guestId   = $this->getMyCookie('guest_id');
             $sessionId = session()->getId();
 
-            // === ②.5 留学类问题（education）→ 永远免费，且可触发升学引导 ===
-            $category    = $this->classifyEducationIntent($rawQuestion);
-            $isEdu       = ($category === 'education');
+            // === ②.5 问题分类：教育免费；移民/签证计入免费额度 ===
+            $domain           = $this->classifyQuestionDomain($rawQuestion);
+            $isEdu            = ($domain === 'education');
+            $isMigrationVisa  = ($domain === 'migration');
             $applyIntent = false;
 
             // 只有在确定是“教育类”时，才去额外判断是否有“申请意图”
@@ -201,11 +202,11 @@ class Home extends WebController {
                 // ① 判断是否付费用户
                 $isPaidUser = $this->hasActivePaidSubscription((int)$memberId);
 
-                // 如果不是付费用户，则 Free Plan 限制生效
-                if (!$isPaidUser && !$isEdu) {
+                // 仅对“移民/签证类问题”执行 Free Plan 5 次限制
+                if (!$isPaidUser && $isMigrationVisa) {
 
                     // ② 统计用户提问次数（只数 type='ask'）
-                    $memberAskCount = $this->countNonEducationAskQuestions((int)$memberId);
+                    $memberAskCount = $this->countMigrationVisaAskQuestions((int)$memberId);
 
                     // ③ 超过 5 次 → 返回简短回答 + 升级提示
                     if ($memberAskCount >= 5) {
@@ -216,7 +217,12 @@ class Home extends WebController {
                         $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi', $storeChatConfig);
 
                         // 返回用户
-                        $this->jsonReply($rawQuestion, $limitMsg, 'free-plan-limit', $member);
+                        $this->jsonReply($rawQuestion, $limitMsg, 'free-plan-limit', $member, [
+                            'show_upgrade' => true,
+                            'upgrade_url'  => '/upgrade',
+                            'action'       => 'redirect',
+                            'redirect_url' => '/upgrade',
+                        ]);
                         return;
                     }
                 }
@@ -592,11 +598,11 @@ Rules:
     }
 
     // ✅ 输出统一处理
-    private function jsonReply($question, $reply, $source, $member)
+    private function jsonReply($question, $reply, $source, $member, array $extra = [])
     {
         [$member_owner_name, $member_owner_avatar] = $this->ownerVisual($member);
         $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
-        $this->pageResult([
+        $payload = [
             'status'               => 200,
             'content'              => (string)$question,
             'content_raw'          => (string)$question,
@@ -613,7 +619,13 @@ Rules:
             'ai_owner_avatar'      => 'asset/image/logo-mmi.png',
             'reply_source'         => $source,
             'flow_prompt'          => null,
-        ]);
+        ];
+
+        if (!empty($extra)) {
+            $payload = array_merge($payload, $extra);
+        }
+
+        $this->pageResult($payload);
     }
 
     public function resetGrokConversation()
@@ -1240,11 +1252,13 @@ Rules:
             ]);
         }
 
-        $isEdu = $this->classifyEducationIntent((string)$question) === 'education';
+        $domain = $this->classifyQuestionDomain((string)$question);
+        $isEdu = $domain === 'education';
+        $isMigrationVisa = $domain === 'migration';
         $isPaidUser = $this->hasActivePaidSubscription($memberId);
 
-        if (!$isPaidUser && !$isEdu) {
-            $memberAskCount = $this->countNonEducationAskQuestions($memberId);
+        if (!$isPaidUser && $isMigrationVisa) {
+            $memberAskCount = $this->countMigrationVisaAskQuestions($memberId);
             if ($memberAskCount >= 5) {
                 $limitMsg = $this->buildPaidPlanLimitReply((string)$question);
                 $this->storeChat(
@@ -1260,7 +1274,9 @@ Rules:
                 $this->streamMessage($limitMsg, [
                     'reply_source' => 'free-plan-limit',
                     'show_upgrade' => true,
-                    'upgrade_url'  => $this->toURL('upgrade'),
+                    'upgrade_url'  => '/upgrade',
+                    'action'       => 'redirect',
+                    'redirect_url' => '/upgrade',
                 ]);
             }
         }
@@ -1331,6 +1347,16 @@ or equivalent wording in the user's language.
             }
             if (trim($cachedReply) !== '') {
                 if (!($lang === 'en' && $this->containsCjk($cachedReply))) {
+                    $this->storeChat(
+                        $memberId,
+                        $guestId,
+                        $sessionId,
+                        (string)$question,
+                        $cachedReply,
+                        'model-cache',
+                        'AI-mmi',
+                        ['log_to_chat_table' => true, 'source' => 'chat']
+                    );
                     $this->streamMessage($cachedReply, ['reply_source' => 'model']);
                     return;
                 }
@@ -1376,6 +1402,17 @@ or equivalent wording in the user's language.
         if ($cacheTtl > 0 && trim($reply) !== '') {
             Cache::put($cacheKey, $reply, $cacheTtl);
         }
+
+        $this->storeChat(
+            $memberId,
+            $guestId,
+            $sessionId,
+            (string)$question,
+            $reply,
+            'model',
+            'AI-mmi',
+            ['log_to_chat_table' => true, 'source' => 'chat']
+        );
 
         $this->streamMessage($reply, ['reply_source' => 'model']);
     }, 200, [
@@ -1474,7 +1511,7 @@ private function hasActivePaidSubscription(int $memberId): bool
         ->exists();
 }
 
-private function countNonEducationAskQuestions(int $memberId): int
+private function countMigrationVisaAskQuestions(int $memberId): int
 {
     if ($memberId <= 0) {
         return 0;
@@ -1493,7 +1530,7 @@ private function countNonEducationAskQuestions(int $memberId): int
             continue;
         }
 
-        if ($this->classifyEducationIntent($text) !== 'education') {
+        if ($this->classifyQuestionDomain($text) === 'migration') {
             $count++;
         }
     }
@@ -1708,7 +1745,8 @@ private function buildPaidPlanLimitReply(string $question): string
     $system = "
 You are AI-mmi.
 
-The user is a FREE PLAN user and has exceeded their 5-message limit.
+The user is a FREE PLAN user and has exceeded their 5-message limit for migration/visa-related questions.
+Education-related questions are still free, but this current message is migration/visa related and must be gated.
 Your job:
 
 1. Detect the user's language.
@@ -1746,26 +1784,46 @@ Rules:
 
 private function classifyEducationIntent(string $question): string
 {
+    return $this->classifyQuestionDomain($question) === 'education'
+        ? 'education'
+        : 'non-education';
+}
+
+private function classifyQuestionDomain(string $question): string
+{
     $q = mb_strtolower(trim($question), 'UTF-8');
     if ($q === '') {
-        return 'non-education';
+        return 'other';
     }
 
-    $keywords = [
-        'study', 'studying', 'student', 'university', 'college', 'course', 'program',
-        'major', 'degree', 'tuition', 'scholarship', 'admission',
-        'campus', 'intake', 'enrol', 'enroll',
-        // Chinese
-        '留学', '学习', '学校', '大学', '学院', '课程', '专业', '学位', '学费', '奖学金', '申请', '入学'
+    $migrationKeywords = [
+        'visa', 'migration', 'migrate', 'immigration', 'immigrate',
+        'pr', 'permanent residency', 'residency', 'citizenship',
+        'subclass', '189', '190', '491', '482', '485', '500', '600', '820', '801',
+        'skillselect', 'points test', 'state nomination', 'bridging visa',
+        '签证', '移民', '永居', '永久居留', '入籍', '公民', '技术移民', '雇主担保', '配偶签证',
     ];
 
-    foreach ($keywords as $kw) {
+    foreach ($migrationKeywords as $kw) {
+        if (mb_strpos($q, $kw) !== false) {
+            return 'migration';
+        }
+    }
+
+    $educationKeywords = [
+        'study', 'studying', 'student', 'university', 'college', 'course', 'program',
+        'major', 'degree', 'tuition', 'scholarship', 'admission', 'campus',
+        'intake', 'enrol', 'enroll', 'offer letter', 'coe',
+        '留学', '学习', '学校', '大学', '学院', '课程', '专业', '学位', '学费', '奖学金', '入学', '录取'
+    ];
+
+    foreach ($educationKeywords as $kw) {
         if (mb_strpos($q, $kw) !== false) {
             return 'education';
         }
     }
 
-    return 'non-education';
+    return 'other';
 }
 
 private function detectLangZhOrEn(string $q): string

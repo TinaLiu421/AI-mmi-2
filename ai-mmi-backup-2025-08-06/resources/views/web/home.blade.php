@@ -9,6 +9,17 @@
 </div>
 
 <div class="inner-panel">
+    @if(!empty($_current_member))
+    <div class="home-chat-notify" id="home-chat-notify" data-enabled="1">
+        <div class="home-chat-notify-head">
+            <div class="home-chat-notify-title">Chat Notifications</div>
+            <a class="home-chat-notify-link" href="/{{ $_current_lang_code }}/agent_chat/chat">Open chat</a>
+        </div>
+        <div class="home-chat-notify-empty" id="home-chat-notify-empty">No unread chats.</div>
+        <div class="home-chat-notify-list" id="home-chat-notify-list"></div>
+    </div>
+    @endif
+
     <?php if(!empty($_page_data['list_news'])) { ?>
     <div class="news-event">
         <div id="hslider-news" class="hslider">
@@ -55,4 +66,11 @@
     
     <div class="article-list" data-mid="0"></div>
 </div>
+
+<script>
+window.homeChatNotifyConfig = {
+    enabled: {{ !empty($_current_member) ? 'true' : 'false' }},
+    notificationsUrl: '/agent_chat/notifications'
+};
+</script>
 @endsection

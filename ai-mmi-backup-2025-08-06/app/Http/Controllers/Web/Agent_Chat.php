@@ -3,12 +3,35 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\WebController;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class Agent_Chat extends WebController
 {
+    private function requireBookingUnlockIfNeeded(?int $memberId, bool $isAgent, string $responseMode = 'json')
+    {
+        if ($isAgent || !$memberId) {
+            return null;
+        }
+
+        if ($this->hasUnlockedAgentChat($memberId)) {
+            return null;
+        }
+
+        if ($responseMode === 'redirect') {
+            return null;
+        }
+
+        return response()->json([
+            'ok' => false,
+            'message' => 'Please schedule a meeting with Wealthskey Migration first to unlock Talk to Agent chat.',
+            'booking_required' => true,
+            'redirect' => $this->toURL('agent_chat'),
+        ], 403);
+    }
+
     private function requireMemberAuth(string $responseMode = 'json')
     {
         if (!empty($this->_current_member['id'])) {
@@ -29,9 +52,6 @@ class Agent_Chat extends WebController
             return $authResponse;
         }
 
-        $this->pageCss('agent_chat');
-        $this->pageScript('agent_chat');
-
         $actor = $this->resolveActor();
         $member = $this->_current_member ?: null;
         $memberId = $member['id'] ?? null;
@@ -44,6 +64,53 @@ class Agent_Chat extends WebController
             'member_email' => $member['email'] ?? 'none',
             'member_type' => $member['type'] ?? 'none'
         ]);
+
+        if (!$isAgent && $memberId) {
+            $this->pageCss('agent_chat_booking_required');
+            $this->pageScript('agent_chat_booking_required');
+
+            $calendlyUrl = (string)env('AGENT_CHAT_CALENDLY_URL', 'https://calendly.com/admin-wealthskey/30min');
+
+            return $this->pageData([
+                'calendly_url' => $calendlyUrl,
+                'unlock_api_url' => $this->toURL('agent_chat/booking/confirm'),
+                'continue_url' => $this->toURL('agent_chat/chat'),
+            ])->pageView('agent_chat_booking_required');
+        }
+
+        return $this->renderChatPage($targetId);
+    }
+
+    public function chatPage($targetId = null)
+    {
+        $authResponse = $this->requireMemberAuth('redirect');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $member = $this->_current_member ?: null;
+        $memberId = $member['id'] ?? null;
+        $isAgent = $memberId ? $this->isAgentMember($memberId) : false;
+
+        if (!$isAgent && $memberId && !$this->hasUnlockedAgentChat((int)$memberId)) {
+            return $this->doRedirect($this->toURL('agent_chat'));
+        }
+
+        return $this->renderChatPage($targetId);
+    }
+
+    private function renderChatPage($targetId = null)
+    {
+        $member = $this->_current_member ?: null;
+        $memberId = $member['id'] ?? null;
+        $isAgent = $memberId ? $this->isAgentMember($memberId) : false;
+
+        if ($memberId) {
+            $this->touchAgentPresence((int)$memberId);
+        }
+
+        $this->pageCss('agent_chat');
+        $this->pageScript('agent_chat');
 
         $agents = [];
         $threads = [];
@@ -98,8 +165,79 @@ class Agent_Chat extends WebController
             return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
         }
 
+        $this->touchAgentPresence((int)$memberId);
+
         $threads = $this->getAgentThreads($memberId);
         return response()->json(['ok' => true, 'threads' => $threads]);
+    }
+
+    public function notifications()
+    {
+        $authResponse = $this->requireMemberAuth('json');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $member = $this->_current_member ?: null;
+        $memberId = (int)($member['id'] ?? 0);
+        if ($memberId <= 0) {
+            return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $isAgent = $this->isAgentMember($memberId);
+        $threads = $isAgent ? $this->getAgentThreads($memberId) : $this->getMemberThreads($memberId);
+
+        $unreadThreads = array_values(array_filter($threads, function ($thread) {
+            return (int)($thread['unread_count'] ?? 0) > 0;
+        }));
+
+        $totalUnread = array_reduce($unreadThreads, function ($carry, $thread) {
+            return $carry + (int)($thread['unread_count'] ?? 0);
+        }, 0);
+
+        $chatUrl = $this->toURL('agent_chat/chat');
+
+        return response()->json([
+            'ok' => true,
+            'is_agent' => $isAgent,
+            'total_unread' => $totalUnread,
+            'threads' => array_map(function ($thread) use ($chatUrl) {
+                $thread['chat_url'] = $chatUrl;
+                return $thread;
+            }, array_slice($unreadThreads, 0, 8)),
+        ]);
+    }
+
+    public function availability($agentId)
+    {
+        $authResponse = $this->requireMemberAuth('json');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $agentId = is_numeric($agentId) ? (int)$agentId : 0;
+        if ($agentId <= 0) {
+            return response()->json(['ok' => false, 'message' => 'Invalid agent'], 422);
+        }
+
+        $memberExists = DB::table('member')
+            ->where('id', $agentId)
+            ->where('status', '>', 0)
+            ->exists();
+
+        if (!$memberExists) {
+            return response()->json(['ok' => false, 'message' => 'Invalid agent'], 404);
+        }
+
+        $presence = $this->getAgentPresence($agentId);
+
+        return response()->json([
+            'ok' => true,
+            'agent_id' => $agentId,
+            'online' => !empty($presence['online']),
+            'last_seen_at' => $presence['last_seen_at'] ?? null,
+            'seconds_ago' => $presence['seconds_ago'] ?? null,
+        ]);
     }
 
     public function messages($targetType = null, $targetId = null)
@@ -110,8 +248,24 @@ class Agent_Chat extends WebController
         }
 
         $actor = $this->resolveActor();
+        if ($actor['type'] === 'member') {
+            $memberId = (int)($actor['id'] ?? 0);
+            $isAgent = $this->isAgentMember($memberId);
+            $bookingLockResponse = $this->requireBookingUnlockIfNeeded($memberId, $isAgent, 'json');
+            if ($bookingLockResponse !== null) {
+                return $bookingLockResponse;
+            }
+        }
+
         if (empty($targetType) || empty($targetId)) {
             return response()->json(['ok' => false, 'message' => 'Invalid target'], 422);
+        }
+
+        if (($actor['type'] ?? '') === 'member') {
+            $actorMemberId = (int)($actor['id'] ?? 0);
+            if ($actorMemberId > 0) {
+                $this->touchAgentPresence($actorMemberId);
+            }
         }
 
         $targetType = strtolower((string)$targetType);
@@ -215,6 +369,22 @@ class Agent_Chat extends WebController
             ];
         })->toArray();
 
+        if ($actor['type'] === 'member') {
+            $actorMemberId = (int)($actor['id'] ?? 0);
+            $lastIncomingMessageId = 0;
+            foreach ($rows as $row) {
+                $isIncoming = ((int)$row->receiver_member_id === $actorMemberId)
+                    && ((int)$row->sender_member_id !== $actorMemberId);
+                if ($isIncoming) {
+                    $lastIncomingMessageId = max($lastIncomingMessageId, (int)$row->id);
+                }
+            }
+
+            if ($actorMemberId > 0 && $lastIncomingMessageId > 0) {
+                $this->markAgentThreadAsRead($actorMemberId, $targetType, $targetId, $lastIncomingMessageId);
+            }
+        }
+
         return response()->json(['ok' => true, 'messages' => $messages]);
     }
 
@@ -239,6 +409,84 @@ class Agent_Chat extends WebController
         }
 
         return abort(405);
+    }
+
+    public function bookingConfirm()
+    {
+        $authResponse = $this->requireMemberAuth('json');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $memberId = (int)($this->_current_member['id'] ?? 0);
+        if ($memberId <= 0) {
+            return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        if ($this->isAgentMember($memberId)) {
+            return response()->json(['ok' => true, 'unlocked' => true]);
+        }
+
+        $source = strtolower(trim((string)request()->input('source', '')));
+        if ($source === '') {
+            $source = 'manual_continue';
+        }
+
+        $scheduleClickSessionKey = 'agent_chat_schedule_clicked_' . $memberId;
+
+        $alreadyUnlocked = $this->hasUnlockedAgentChat($memberId);
+
+        if ($source === 'manual_continue' && !$alreadyUnlocked && !session()->get($scheduleClickSessionKey, false)) {
+            return response()->json([
+                'ok' => false,
+                'unlocked' => false,
+                'require_schedule_click' => true,
+                'message' => 'Please click "Schedule meeting with agent" first before continuing to chat.',
+            ], 422);
+        }
+
+        $this->ensureAgentChatBookingTableExists();
+
+        $payload = [
+            'member_id' => $memberId,
+            'status' => 'booked',
+            'calendly_event_uri' => trim((string)request()->input('event_uri', '')) ?: null,
+            'calendly_invitee_uri' => trim((string)request()->input('invitee_uri', '')) ?: null,
+            'booked_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $existingId = DB::table('agent_chat_meeting_bookings')
+            ->where('member_id', $memberId)
+            ->value('id');
+
+        if ($existingId) {
+            DB::table('agent_chat_meeting_bookings')
+                ->where('id', (int)$existingId)
+                ->update([
+                    'status' => 'booked',
+                    'calendly_event_uri' => $payload['calendly_event_uri'],
+                    'calendly_invitee_uri' => $payload['calendly_invitee_uri'],
+                    'booked_at' => $payload['booked_at'],
+                    'updated_at' => $payload['updated_at'],
+                ]);
+        } else {
+            DB::table('agent_chat_meeting_bookings')->insert($payload);
+        }
+
+        session()->forget($scheduleClickSessionKey);
+
+        if ($source === 'schedule_click') {
+            return response()->json([
+                'ok' => true,
+                'unlocked' => true,
+                'schedule_clicked' => true,
+                'message' => 'Schedule click recorded. You can continue to chat now and on your next visit.',
+            ]);
+        }
+
+        return response()->json(['ok' => true, 'unlocked' => true]);
     }
 
     public function downloadAttachment($attachmentId, $maybeAttachmentId = null)
@@ -302,6 +550,21 @@ class Agent_Chat extends WebController
     private function handleSend(): void
     {
         $actor = $this->resolveActor();
+        if ($actor['type'] === 'member') {
+            $memberId = (int)($actor['id'] ?? 0);
+            $isAgent = $this->isAgentMember($memberId);
+            $bookingLockResponse = $this->requireBookingUnlockIfNeeded($memberId, $isAgent, 'json');
+            if ($bookingLockResponse !== null) {
+                $this->pageResult([
+                    'status' => 403,
+                    'message' => 'Please schedule a meeting with Wealthskey Migration first to unlock Talk to Agent chat.',
+                    'booking_required' => true,
+                    'redirect' => $this->toURL('agent_chat'),
+                ], true);
+                return;
+            }
+        }
+
         $targetType = strtolower((string)$this->postParamValue('target_type', ''));
         $targetId = $this->postParamValue('target_id', '');
         $message = trim((string)$this->postParamValue('message', ''));
@@ -410,6 +673,9 @@ class Agent_Chat extends WebController
             }
 
             DB::commit();
+
+            $this->notifyAgentOfNewMemberMessage($payload, $actor, $message, $attachment instanceof UploadedFile);
+
             \Illuminate\Support\Facades\Log::info('Agent_chat.send_success', [
                 'targetType' => $targetType,
                 'targetId' => $targetId,
@@ -435,6 +701,164 @@ class Agent_Chat extends WebController
         }
 
         return ['type' => 'guest', 'id' => ''];
+    }
+
+    private function notifyAgentOfNewMemberMessage(array $payload, array $actor, string $message, bool $hasAttachment = false): void
+    {
+        try {
+            if (($actor['type'] ?? '') !== 'member') {
+                return;
+            }
+
+            $senderMemberId = (int)($payload['sender_member_id'] ?? 0);
+            $receiverMemberId = (int)($payload['receiver_member_id'] ?? 0);
+
+            if ($senderMemberId <= 0 || $receiverMemberId <= 0) {
+                return;
+            }
+
+            if ($this->isAgentMember($senderMemberId)) {
+                return;
+            }
+
+            if (!$this->isAgentMember($receiverMemberId) || !$this->isAllowedPublicAgentId($receiverMemberId)) {
+                return;
+            }
+
+            $recipientEmail = $this->resolveAgentNotificationEmail($receiverMemberId);
+            if ($recipientEmail === null) {
+                \Illuminate\Support\Facades\Log::warning('Agent_chat.notification_skipped_no_recipient', [
+                    'receiver_member_id' => $receiverMemberId,
+                    'sender_member_id' => $senderMemberId,
+                ]);
+                return;
+            }
+
+            $sender = DB::table('member')
+                ->where('id', $senderMemberId)
+                ->select(['id', 'full_name', 'alias_name', 'email'])
+                ->first();
+
+            $senderName = trim((string)($sender->alias_name ?? $sender->full_name ?? ('Member #' . $senderMemberId)));
+            if ($senderName === '') {
+                $senderName = 'Member #' . $senderMemberId;
+            }
+
+            $senderEmail = trim((string)($sender->email ?? ''));
+            $messagePreview = trim($message) !== '' ? trim($message) : 'Attachment only message';
+            $messagePreview = mb_substr($messagePreview, 0, 1000, 'UTF-8');
+            $chatUrl = rtrim((string)request()->getSchemeAndHttpHost(), '/') . '/en/agent_chat/chat';
+
+            $subject = '[AI-mmi] New Talk to Agent message from ' . $senderName;
+            $content = '';
+            $content .= '<h2 style="margin:0 0 16px 0;color:#002065;">New Talk to Agent message</h2>';
+            $content .= '<p style="margin:0 0 12px 0;">A member has sent a new chat message to Wealthskey Migration.</p>';
+            $content .= '<table cellpadding="8" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;max-width:720px;margin:0 0 16px 0;">';
+            $content .= '<tr><td style="width:180px;font-weight:bold;border:1px solid #d9e2f3;">Sender name</td><td style="border:1px solid #d9e2f3;">' . htmlspecialchars($senderName, ENT_QUOTES, 'UTF-8') . '</td></tr>';
+            $content .= '<tr><td style="font-weight:bold;border:1px solid #d9e2f3;">Sender email</td><td style="border:1px solid #d9e2f3;">' . htmlspecialchars($senderEmail !== '' ? $senderEmail : '-', ENT_QUOTES, 'UTF-8') . '</td></tr>';
+            $content .= '<tr><td style="font-weight:bold;border:1px solid #d9e2f3;">Attachment</td><td style="border:1px solid #d9e2f3;">' . ($hasAttachment ? 'Yes' : 'No') . '</td></tr>';
+            $content .= '<tr><td style="font-weight:bold;border:1px solid #d9e2f3;">Received at</td><td style="border:1px solid #d9e2f3;">' . now()->format('Y-m-d H:i:s') . '</td></tr>';
+            $content .= '</table>';
+            $content .= '<div style="margin:0 0 16px 0;">';
+            $content .= '<div style="font-weight:bold;margin:0 0 8px 0;">Message preview</div>';
+            $content .= '<div style="padding:12px;border:1px solid #d9e2f3;border-radius:8px;background:#f8fbff;white-space:pre-wrap;">' . nl2br(htmlspecialchars($messagePreview, ENT_QUOTES, 'UTF-8')) . '</div>';
+            $content .= '</div>';
+            $content .= '<div style="margin-top:18px;">';
+            $content .= '<a href="' . htmlspecialchars($chatUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;padding:12px 18px;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;">Open Talk to Agent</a>';
+            $content .= '</div>';
+
+            $delivery = $this->sendAgentNotificationEmail($recipientEmail, $subject, $content);
+            $sent = (bool)($delivery['sent'] ?? false);
+            $channel = (string)($delivery['channel'] ?? 'unknown');
+            $error = (string)($delivery['error'] ?? '');
+
+            if ($sent) {
+                \Illuminate\Support\Facades\Log::info('Agent_chat.notification_sent', [
+                    'recipient' => $recipientEmail,
+                    'receiver_member_id' => $receiverMemberId,
+                    'sender_member_id' => $senderMemberId,
+                    'subject' => $subject,
+                    'channel' => $channel,
+                ]);
+                return;
+            }
+
+            \Illuminate\Support\Facades\Log::warning('Agent_chat.notification_failed', [
+                'recipient' => $recipientEmail,
+                'receiver_member_id' => $receiverMemberId,
+                'sender_member_id' => $senderMemberId,
+                'subject' => $subject,
+                'channel' => $channel,
+                'error' => $error,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Agent_chat.notification_exception', [
+                'error' => $e->getMessage(),
+                'sender_member_id' => (int)($payload['sender_member_id'] ?? 0),
+                'receiver_member_id' => (int)($payload['receiver_member_id'] ?? 0),
+            ]);
+        }
+    }
+
+    private function resolveAgentNotificationEmail(int $receiverMemberId): ?string
+    {
+        $overrideEmail = trim((string)env('AGENT_CHAT_NOTIFY_EMAIL', app()->environment('local') ? 'poonkenith@gmail.com' : ''));
+        if ($overrideEmail !== '' && filter_var($overrideEmail, FILTER_VALIDATE_EMAIL)) {
+            return $overrideEmail;
+        }
+
+        $member = DB::table('member')
+            ->where('id', $receiverMemberId)
+            ->select(['email'])
+            ->first();
+
+        $email = trim((string)($member->email ?? ''));
+        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+    }
+
+    private function sendAgentNotificationEmail(string $recipientEmail, string $subject, string $content): array
+    {
+        if (getenv('SENDGRID_API_KEY')) {
+            $sent = (bool)$this->sendEmail($recipientEmail, $subject, $content);
+            return [
+                'sent' => $sent,
+                'channel' => 'sendgrid',
+                'error' => $sent ? '' : 'sendgrid_send_failed',
+            ];
+        }
+
+        try {
+            $fromAddress = (string)(config('mail.from.address') ?: 'no-reply@wealthskey.com');
+            $fromName = (string)(config('mail.from.name') ?: 'AI-mmi');
+
+            \Illuminate\Support\Facades\Mail::send([], [], function ($mail) use ($recipientEmail, $subject, $content, $fromAddress, $fromName) {
+                $mail->to($recipientEmail)
+                    ->from($fromAddress, $fromName)
+                    ->subject($subject)
+                    ->setBody($content, 'text/html');
+            });
+
+            $failures = \Illuminate\Support\Facades\Mail::failures();
+            if (!empty($failures)) {
+                return [
+                    'sent' => false,
+                    'channel' => 'smtp',
+                    'error' => 'mail_failures:' . implode(',', $failures),
+                ];
+            }
+
+            return [
+                'sent' => true,
+                'channel' => 'smtp',
+                'error' => '',
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'sent' => false,
+                'channel' => 'smtp',
+                'error' => $e->getMessage(),
+            ];
+        }
     }
 
     private function isAgentMember(int $memberId): bool
@@ -542,6 +966,8 @@ class Agent_Chat extends WebController
 
     private function getAgentThreads(int $agentId): array
     {
+        $readMarkers = $this->getAgentThreadReadMarkers($agentId);
+
         $rows = DB::table('agent_chat_messages')
             ->where('sender_member_id', $agentId)
             ->orWhere('receiver_member_id', $agentId)
@@ -576,6 +1002,7 @@ class Agent_Chat extends WebController
             }
 
             $key = $targetType . ':' . $targetId;
+            $lastReadMessageId = (int)($readMarkers[$key] ?? 0);
             if (!isset($threads[$key])) {
                 $threads[$key] = [
                     'target_type' => $targetType,
@@ -583,11 +1010,153 @@ class Agent_Chat extends WebController
                     'label' => $this->resolveThreadLabel($targetType, $targetId),
                     'last_message' => $row->message,
                     'last_at' => $row->created_at,
+                    'unread_count' => 0,
                 ];
+            }
+
+            $isIncomingForAgent = ((int)$row->receiver_member_id === $agentId) && ((int)$row->sender_member_id !== $agentId);
+            if ($isIncomingForAgent && (int)$row->id > $lastReadMessageId) {
+                $threads[$key]['unread_count']++;
             }
         }
 
-        return array_values($threads);
+        $threadList = array_values($threads);
+        usort($threadList, function ($a, $b) {
+            return strtotime((string)($b['last_at'] ?? '')) <=> strtotime((string)($a['last_at'] ?? ''));
+        });
+
+        return $threadList;
+    }
+
+    private function getMemberThreads(int $memberId): array
+    {
+        $readMarkers = $this->getAgentThreadReadMarkers($memberId);
+
+        $rows = DB::table('agent_chat_messages')
+            ->where(function ($q) use ($memberId) {
+                $q->where('sender_member_id', $memberId)
+                    ->orWhere('receiver_member_id', $memberId);
+            })
+            ->whereNotNull('sender_member_id')
+            ->whereNotNull('receiver_member_id')
+            ->orderByDesc('created_at')
+            ->limit(300)
+            ->get();
+
+        $threads = [];
+        foreach ($rows as $row) {
+            $targetType = 'member';
+            $targetId = null;
+
+            if ((int)$row->sender_member_id === $memberId && !empty($row->receiver_member_id)) {
+                $targetId = (int)$row->receiver_member_id;
+            } elseif ((int)$row->receiver_member_id === $memberId && !empty($row->sender_member_id)) {
+                $targetId = (int)$row->sender_member_id;
+            }
+
+            if (empty($targetId) || $targetId === $memberId) {
+                continue;
+            }
+
+            $key = $targetType . ':' . $targetId;
+            $lastReadMessageId = (int)($readMarkers[$key] ?? 0);
+
+            if (!isset($threads[$key])) {
+                $threads[$key] = [
+                    'target_type' => $targetType,
+                    'target_id' => $targetId,
+                    'label' => $this->resolveThreadLabel($targetType, $targetId),
+                    'last_message' => $row->message,
+                    'last_at' => $row->created_at,
+                    'unread_count' => 0,
+                ];
+            }
+
+            $isIncomingForMember = ((int)$row->receiver_member_id === $memberId)
+                && ((int)$row->sender_member_id !== $memberId);
+
+            if ($isIncomingForMember && (int)$row->id > $lastReadMessageId) {
+                $threads[$key]['unread_count']++;
+            }
+        }
+
+        $threadList = array_values($threads);
+        usort($threadList, function ($a, $b) {
+            return strtotime((string)($b['last_at'] ?? '')) <=> strtotime((string)($a['last_at'] ?? ''));
+        });
+
+        return $threadList;
+    }
+
+    private function markAgentThreadAsRead(int $agentId, string $targetType, $targetId, int $messageId): void
+    {
+        if ($agentId <= 0 || $messageId <= 0) {
+            return;
+        }
+
+        $threadKey = $this->threadKey($targetType, $targetId);
+        $readMarkers = $this->getAgentThreadReadMarkers($agentId);
+        $current = (int)($readMarkers[$threadKey] ?? 0);
+        if ($messageId > $current) {
+            $readMarkers[$threadKey] = $messageId;
+            session()->put($this->threadReadSessionKey($agentId), $readMarkers);
+            session()->save();
+        }
+    }
+
+    private function getAgentThreadReadMarkers(int $agentId): array
+    {
+        if ($agentId <= 0) {
+            return [];
+        }
+
+        $readMarkers = session()->get($this->threadReadSessionKey($agentId), []);
+        return is_array($readMarkers) ? $readMarkers : [];
+    }
+
+    private function threadReadSessionKey(int $agentId): string
+    {
+        return 'agent_chat_thread_read_markers_' . $agentId;
+    }
+
+    private function threadKey(string $targetType, $targetId): string
+    {
+        return strtolower(trim($targetType)) . ':' . (is_numeric($targetId) ? (int)$targetId : (string)$targetId);
+    }
+
+    private function touchAgentPresence(int $agentId): void
+    {
+        if ($agentId <= 0) {
+            return;
+        }
+
+        Cache::put($this->agentPresenceCacheKey($agentId), time(), now()->addMinutes(15));
+    }
+
+    private function getAgentPresence(int $agentId): array
+    {
+        $lastSeenTs = (int)Cache::get($this->agentPresenceCacheKey($agentId), 0);
+        if ($lastSeenTs <= 0) {
+            return [
+                'online' => false,
+                'last_seen_at' => null,
+                'seconds_ago' => null,
+            ];
+        }
+
+        $secondsAgo = max(0, time() - $lastSeenTs);
+        $onlineWindow = (int)env('AGENT_CHAT_ONLINE_WINDOW_SECONDS', 45);
+
+        return [
+            'online' => ($secondsAgo <= $onlineWindow),
+            'last_seen_at' => date('Y-m-d H:i:s', $lastSeenTs),
+            'seconds_ago' => $secondsAgo,
+        ];
+    }
+
+    private function agentPresenceCacheKey(int $agentId): string
+    {
+        return 'agent_chat_presence_' . $agentId;
     }
 
     private function resolveThreadLabel(string $targetType, $targetId): string
@@ -694,5 +1263,46 @@ class Agent_Chat extends WebController
         $guestId = (string)$actor['id'];
         return ((string)$messageRow->sender_guest_id === $guestId)
             || ((string)$messageRow->receiver_guest_id === $guestId);
+    }
+
+    private function ensureAgentChatBookingTableExists(): void
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+
+        if (!Schema::hasTable('agent_chat_meeting_bookings')) {
+            $table = DB::getTablePrefix() . 'agent_chat_meeting_bookings';
+            DB::statement("CREATE TABLE IF NOT EXISTS `{$table}` (
+                `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `member_id` BIGINT UNSIGNED NOT NULL,
+                `status` VARCHAR(30) NOT NULL DEFAULT 'booked',
+                `calendly_event_uri` VARCHAR(500) NULL,
+                `calendly_invitee_uri` VARCHAR(500) NULL,
+                `booked_at` TIMESTAMP NULL DEFAULT NULL,
+                `created_at` TIMESTAMP NULL DEFAULT NULL,
+                `updated_at` TIMESTAMP NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `agent_chat_meeting_bookings_member_id_unique` (`member_id`),
+                KEY `agent_chat_meeting_bookings_status_index` (`status`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+
+        $checked = true;
+    }
+
+    private function hasUnlockedAgentChat(int $memberId): bool
+    {
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        $this->ensureAgentChatBookingTableExists();
+
+        return DB::table('agent_chat_meeting_bookings')
+            ->where('member_id', $memberId)
+            ->where('status', 'booked')
+            ->exists();
     }
 }

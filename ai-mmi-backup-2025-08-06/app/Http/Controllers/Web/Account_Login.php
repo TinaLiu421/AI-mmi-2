@@ -7,7 +7,7 @@ use App\Rules\RecaptchaRule;
 
 class Account_Login extends WebController {
 
-    public function __construct($data) {
+    public function __construct(array $data = []) {
         parent::__construct($data);
 
         if (!empty($this->_current_member)) {
@@ -33,6 +33,37 @@ class Account_Login extends WebController {
         });
 
         return $this->pageView();
+    }
+
+    public function localWealthskeyAgentLogin() {
+        if (!app()->environment('local')) {
+            abort(404);
+        }
+
+        $member = \DB::table('member')
+            ->where(function ($q) {
+                $q->where('email', 'admin@wealthskey.com')
+                  ->orWhere('alias_name', 'Wealthskey Migration');
+            })
+            ->where('status', '>', 0)
+            ->first();
+
+        if (!$member || empty($member->id)) {
+            abort(404, 'Wealthskey agent account not found.');
+        }
+
+        $token = md5(uniqid(rand(), true));
+        \DB::table('member_token')->insert([
+            'type'       => 1,
+            'member_id'  => (int)$member->id,
+            'value'      => $token,
+            'created_by' => (int)$member->id,
+        ]);
+
+        $this->setSession(['member_access_token' => $token]);
+        $this->setMyCookie('member_access_token', $token);
+
+        return redirect('/en/agent_chat/chat');
     }
 
     /* =======================

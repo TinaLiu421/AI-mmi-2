@@ -1,7 +1,7 @@
 (() => {
   function initAgentChat() {
     const config = window.agentChatConfig || {};
-    const listItems = document.querySelectorAll('.agent-chat-list-item');
+    const listEl = document.querySelector('.agent-chat-list');
     const messagesEl = document.getElementById('agent-chat-messages');
     const formEl = document.getElementById('agent-chat-form');
     const inputEl = document.getElementById('agent-chat-input');
@@ -15,9 +15,20 @@
     let activeTargetId = config.activeTargetId;
     let lastMessageId = null;
     let pollTimer = null;
+    let threadTimer = null;
+    let presenceTimer = null;
+    const presenceEl = document.getElementById('agent-chat-presence');
+    const presenceAgentId = config.presenceAgentId || null;
+
+    function getListItems() {
+      if (!listEl) {
+        return [];
+      }
+      return Array.from(listEl.querySelectorAll('.agent-chat-list-item'));
+    }
 
     function setActiveItem() {
-      listItems.forEach(item => {
+      getListItems().forEach(item => {
         const t = item.getAttribute('data-target-type');
         const id = item.getAttribute('data-target-id');
         if (t === activeTargetType && String(id) === String(activeTargetId)) {
@@ -36,7 +47,8 @@
         return;
       }
 
-      const activeItem = document.querySelector('.agent-chat-list-item.active');
+      const listItems = getListItems();
+      const activeItem = listEl ? listEl.querySelector('.agent-chat-list-item.active') : null;
       const fallbackItem = activeItem || (listItems.length > 0 ? listItems[0] : null);
       if (!fallbackItem) {
         return;
@@ -93,8 +105,119 @@
         .then(data => {
           if (!data || !data.ok) return;
           renderMessages(data.messages || []);
+          if (config.isAgent) {
+            fetchThreads();
+          }
         })
         .catch(() => {});
+    }
+
+    function renderThreadList(threads) {
+      if (!config.isAgent || !listEl) {
+        return;
+      }
+
+      const threadList = Array.isArray(threads) ? threads : [];
+      if (threadList.length === 0) {
+        listEl.innerHTML = '<div class="agent-chat-empty">No conversations yet.</div>';
+        activeTargetType = null;
+        activeTargetId = null;
+        setActiveItem();
+        return;
+      }
+
+      const html = threadList.map(thread => {
+        const targetType = escapeHtml(thread.target_type || 'member');
+        const targetId = escapeHtml(String(thread.target_id || ''));
+        const label = escapeHtml(thread.label || 'Conversation');
+        const lastMessage = escapeHtml(thread.last_message || '');
+        const unreadCount = Number(thread.unread_count || 0);
+        const unreadBadge = unreadCount > 0
+          ? `<span class="agent-chat-unread-badge">${unreadCount > 99 ? '99+' : unreadCount}</span>`
+          : '';
+
+        return `<div class="agent-chat-list-item" data-target-type="${targetType}" data-target-id="${targetId}">
+          <div class="agent-chat-list-head">
+            <div class="agent-name">${label}</div>
+            ${unreadBadge}
+          </div>
+          <div class="agent-meta">${lastMessage}</div>
+        </div>`;
+      }).join('');
+
+      listEl.innerHTML = html;
+
+      const stillExists = threadList.some(thread => (
+        String(thread.target_type || '') === String(activeTargetType || '')
+        && String(thread.target_id || '') === String(activeTargetId || '')
+      ));
+
+      if (!stillExists) {
+        activeTargetType = threadList[0].target_type || 'member';
+        activeTargetId = threadList[0].target_id || null;
+      }
+
+      setActiveItem();
+    }
+
+    function fetchThreads() {
+      if (!config.isAgent) {
+        return;
+      }
+
+      fetch('/agent_chat/threads', {
+        credentials: 'same-origin'
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data || !data.ok) {
+            return;
+          }
+          renderThreadList(data.threads || []);
+        })
+        .catch(() => {});
+    }
+
+    function setPresenceState(state, text) {
+      if (!presenceEl) return;
+      presenceEl.setAttribute('data-state', state || 'unknown');
+      const textEl = presenceEl.querySelector('.agent-chat-presence-text');
+      if (textEl) {
+        textEl.textContent = text || 'Checking status...';
+      }
+    }
+
+    function fetchPresence() {
+      if (!presenceEl || config.isAgent || !presenceAgentId) return;
+
+      fetch(`/agent_chat/availability/${presenceAgentId}`, {
+        credentials: 'same-origin'
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data || !data.ok) {
+            setPresenceState('unknown', 'Status unavailable');
+            return;
+          }
+
+          if (data.online) {
+            setPresenceState('online', 'Online');
+            return;
+          }
+
+          if (typeof data.seconds_ago === 'number' && data.seconds_ago > 0) {
+            const mins = Math.floor(data.seconds_ago / 60);
+            if (mins > 0) {
+              setPresenceState('offline', `Last seen ${mins} min ago`);
+              return;
+            }
+          }
+
+          setPresenceState('offline', 'Offline');
+        })
+        .catch(() => {
+          setPresenceState('unknown', 'Status unavailable');
+        });
     }
 
     function sendMessage(message, attachmentFile) {
@@ -161,14 +284,19 @@
       return (num / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
-    listItems.forEach(item => {
-      item.addEventListener('click', () => {
+    if (listEl) {
+      listEl.addEventListener('click', (event) => {
+        const item = event.target.closest('.agent-chat-list-item');
+        if (!item || !listEl.contains(item)) {
+          return;
+        }
+
         activeTargetType = item.getAttribute('data-target-type');
         activeTargetId = item.getAttribute('data-target-id');
         setActiveItem();
         fetchMessages();
       });
-    });
+    }
 
     if (formEl) {
       formEl.addEventListener('submit', (e) => {
@@ -201,8 +329,9 @@
       });
     }
 
-    if ((!activeTargetType || !activeTargetId) && listItems.length > 0) {
-      const first = listItems[0];
+    const initialListItems = getListItems();
+    if ((!activeTargetType || !activeTargetId) && initialListItems.length > 0) {
+      const first = initialListItems[0];
       activeTargetType = first.getAttribute('data-target-type');
       activeTargetId = first.getAttribute('data-target-id');
     }
@@ -210,6 +339,14 @@
     setActiveItem();
     fetchMessages();
     pollTimer = setInterval(fetchMessages, 3000);
+
+    if (config.isAgent) {
+      fetchThreads();
+      threadTimer = setInterval(fetchThreads, 5000);
+    }
+
+    fetchPresence();
+    presenceTimer = setInterval(fetchPresence, 10000);
   }
 
   if (document.readyState === 'loading') {

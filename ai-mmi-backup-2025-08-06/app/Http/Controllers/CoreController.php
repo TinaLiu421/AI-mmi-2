@@ -55,7 +55,15 @@ class CoreController extends Controller {
         if (empty($this->_mapping_data)) {
             // Provide safe defaults so controllers instantiated without mapping data
             // (e.g. direct routes) won't raise undefined index errors.
-            $appUrl = \Illuminate\Support\Facades\Config::get('app.url');
+            // Use the current request origin when available so direct-route redirects
+            // stay on the active host/port instead of falling back to APP_URL.
+            $requestRoot = '';
+            try {
+                $requestRoot = rtrim((string) \Illuminate\Support\Facades\Request::root(), '/');
+            } catch (\Throwable $e) {
+                $requestRoot = '';
+            }
+            $appUrl = $requestRoot ?: rtrim((string) \Illuminate\Support\Facades\Config::get('app.url'), '/');
             $this->_mapping_data = [
                 'support_lang' => Config::get('app_portal.support_lang', []),
                 'default_lang_index' => Config::get('app_portal.default_lang_index', 0),

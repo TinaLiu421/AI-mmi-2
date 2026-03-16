@@ -17,6 +17,7 @@ class VerifyCsrfToken extends Middleware
         'chat/log',
         'chat/stream',
         '**/agent_chat/send',
+        '**/agent_chat/booking/confirm',
         '**/eligibility_check/assess',
         '**/migration_eligibility/assess',
         //'*/account_article/comment',

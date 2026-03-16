@@ -19,7 +19,12 @@
             @if($_page_data['is_agent'])
                 @foreach($_page_data['threads'] as $thread)
                     <div class="agent-chat-list-item" data-target-type="{{ $thread['target_type'] }}" data-target-id="{{ $thread['target_id'] }}">
-                        <div class="agent-name">{{ $thread['label'] }}</div>
+                        <div class="agent-chat-list-head">
+                            <div class="agent-name">{{ $thread['label'] }}</div>
+                            @if(!empty($thread['unread_count']))
+                                <span class="agent-chat-unread-badge">{{ $thread['unread_count'] > 99 ? '99+' : $thread['unread_count'] }}</span>
+                            @endif
+                        </div>
                         <div class="agent-meta">{{ $thread['last_message'] }}</div>
                     </div>
                 @endforeach
@@ -50,12 +55,26 @@
 
                 @if(!empty($selectedAgent))
                     <div class="agent-chat-list-item" data-target-type="member" data-target-id="{{ $selectedAgent['id'] }}">
-                        <div class="agent-name">Wealthskey Migration</div>
+                        <div class="agent-chat-logo-row">
+                            <img
+                                src="/upload/member_avatar/d148b40e4988fd1cbe690bfc0613dcaf.png"
+                                alt="Wealthskey Migration"
+                                class="agent-chat-logo"
+                            />
+                            <div>
+                                <div class="agent-name">Wealthskey Migration</div>
+                                <div class="agent-chat-presence" id="agent-chat-presence" data-state="unknown" aria-live="polite">
+                                    <span class="agent-chat-presence-dot"></span>
+                                    <span class="agent-chat-presence-text">Checking status...</span>
+                                </div>
+                            </div>
+                        </div>
                         <div class="agent-meta">
-                            <div>https://wealthskey.com</div>
-                            <div>Brisbane, Australia</div>
-                            <div>852 54867893</div>
-                            <div>Reg #: 2418441</div>
+                            <div>Website : https://wealthskey.com</div>
+                            <div>Location : Brisbane, Australia</div>
+                            <div>Whatsapp Number +852 54867893</div>
+                            <div>Mobile Number : +61 413892060</div>
+                            <div>Registration number : 2418441</div>
                             <a
                                 class="agent-chat-schedule-link"
                                 href="https://calendly.com/admin-wealthskey/30min"
@@ -126,7 +145,8 @@ window.agentChatConfig = {
     isAgent: {{ $_page_data['is_agent'] ? 'true' : 'false' }},
     activeTargetType: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? 'member' : $_page_data['active_target_type']) !!},
     activeTargetId: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? (int)$selectedAgent['id'] : $_page_data['active_target_id']) !!},
-    langCode: '{{ $_current_lang_code }}'
+    langCode: '{{ $_current_lang_code }}',
+    presenceAgentId: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? (int)$selectedAgent['id'] : null) !!}
 };
 </script>
 @endsection

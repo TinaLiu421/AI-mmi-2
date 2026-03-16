@@ -125,3 +125,86 @@ div.page-content.home div.news-event div.hslider .slick-next > i {
         display: block;
     }
 }
+
+div.page-content.home .home-chat-notify {
+    border: 1px solid #e6e6e6;
+    border-radius: 10px;
+    background: #fff;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+}
+
+div.page-content.home .home-chat-notify-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+div.page-content.home .home-chat-notify-title {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+div.page-content.home .home-chat-notify-link {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+div.page-content.home .home-chat-notify-empty {
+    color: #666;
+    font-size: 13px;
+    padding: 8px 0;
+}
+
+div.page-content.home .home-chat-notify-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+div.page-content.home .home-chat-notify-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-decoration: none;
+}
+
+div.page-content.home .home-chat-notify-item:hover {
+    background: #f8fbff;
+}
+
+div.page-content.home .home-chat-notify-item-name {
+    color: #222;
+    font-weight: 600;
+}
+
+div.page-content.home .home-chat-notify-item-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+div.page-content.home .home-chat-notify-item-text {
+    color: #666;
+    font-size: 12px;
+}
+
+div.page-content.home .home-chat-notify-badge {
+    min-width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    background: #22c55e;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+}

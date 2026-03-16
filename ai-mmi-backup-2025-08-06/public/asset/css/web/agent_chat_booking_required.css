@@ -1,0 +1,36 @@
+.agent-booking-page { max-width: 980px; margin: 30px auto; padding: 24px; }
+.agent-booking-card { background: #fff; border-radius: 16px; border: 1px solid #e5e7eb; padding: 24px; box-shadow: 0 8px 20px rgba(17,24,39,.05); }
+.agent-booking-title { font-size: 30px; font-weight: 700; margin-bottom: 12px; color: #111827; }
+.agent-booking-desc { color: #374151; line-height: 1.7; margin-bottom: 18px; font-size: 15px; }
+.agent-booking-details {
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    background: #f9fafb;
+    padding: 16px;
+    margin-bottom: 18px;
+}
+.agent-booking-logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.agent-booking-logo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid #e5e7eb; flex-shrink: 0; }
+.agent-booking-details .agent-name { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 0; }
+.agent-booking-details .agent-meta div { color: #374151; line-height: 1.6; }
+.agent-booking-details .agent-meta a { color: #0f766e; text-decoration: none; }
+.agent-booking-details .agent-meta a:hover { text-decoration: underline; }
+.agent-booking-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.agent-booking-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 18px !important;
+    border-radius: 10px;
+    text-decoration: none !important;
+    cursor: pointer;
+    border: 0;
+    font-weight: 600;
+    position: relative;
+    z-index: 2;
+}
+.agent-booking-btn.primary { background: #0f766e !important; color: #fff !important; }
+.agent-booking-btn.primary:hover { background: #0d655e !important; }
+.agent-booking-btn.secondary { background: #e5e7eb !important; color: #111827 !important; }
+.agent-booking-btn.secondary:hover { background: #d1d5db !important; }
+.agent-booking-status { font-size: 14px; color: #6b7280; min-height: 22px; }
