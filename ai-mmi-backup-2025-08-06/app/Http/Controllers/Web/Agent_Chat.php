@@ -66,16 +66,26 @@ class Agent_Chat extends WebController
         ]);
 
         if (!$isAgent && $memberId) {
-            $this->pageCss('agent_chat_booking_required');
-            $this->pageScript('agent_chat_booking_required');
+            $planCode = $this->getMemberActivePlanCode((int)$memberId);
 
-            $calendlyUrl = (string)env('AGENT_CHAT_CALENDLY_URL', 'https://calendly.com/admin-wealthskey/30min');
+            // DIY Plan (premium) or VIP Agent Plan → full agent chat access
+            if (in_array($planCode, ['premium', 'vip'], true)) {
+                return $this->renderChatPage($targetId);
+            }
 
-            return $this->pageData([
-                'calendly_url' => $calendlyUrl,
-                'unlock_api_url' => $this->toURL('agent_chat/booking/confirm'),
-                'continue_url' => $this->toURL('agent_chat/chat'),
-            ])->pageView('agent_chat_booking_required');
+            // AI + Agent Plan (hybrid) → Calendly booking page only (no chat)
+            if ($planCode === 'hybrid') {
+                $this->pageCss('agent_chat_booking_required');
+                $this->pageScript('agent_chat_booking_required');
+                $calendlyUrl = (string)env('AGENT_CHAT_CALENDLY_URL', 'https://calendly.com/admin-wealthskey/30min');
+                return $this->pageData([
+                    'mode'         => 'calendly_only',
+                    'calendly_url' => $calendlyUrl,
+                ])->pageView('agent_chat_booking_required');
+            }
+
+            // Free / AI Smart Plan / no plan → upgrade page
+            return $this->doRedirect($this->toURL('upgrade'));
         }
 
         return $this->renderChatPage($targetId);
