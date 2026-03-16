@@ -200,7 +200,8 @@ class Home extends WebController {
             if (!empty($member)) {
 
                 // ① 判断是否付费用户
-                $isPaidUser = $this->hasActivePaidSubscription((int)$memberId);
+                $isPaidUser = $this->hasActivePaidSubscription((int)$memberId)
+                    || $this->isWealthskeyFreeFlowMember($member);
 
                 // 仅对“移民/签证类问题”执行 Free Plan 5 次限制
                 if (!$isPaidUser && $isMigrationVisa) {
@@ -1255,7 +1256,8 @@ Rules:
         $domain = $this->classifyQuestionDomain((string)$question);
         $isEdu = $domain === 'education';
         $isMigrationVisa = $domain === 'migration';
-        $isPaidUser = $this->hasActivePaidSubscription($memberId);
+        $isPaidUser = $this->hasActivePaidSubscription($memberId)
+            || $this->isWealthskeyFreeFlowMember($member);
 
         if (!$isPaidUser && $isMigrationVisa) {
             $memberAskCount = $this->countMigrationVisaAskQuestions($memberId);
@@ -1502,13 +1504,53 @@ private function hasActivePaidSubscription(int $memberId): bool
     }
 
     return DB::table('subscriptions')
+        ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
         ->where('member_id', $memberId)
-        ->where('status', 'active')
+        ->where('subscriptions.status', 'active')
+        ->where('plans.is_active', 1)
+        ->where('plans.code', '!=', 'free')
         ->where(function ($q) {
-            $q->whereNull('ends_at')
-            ->orWhere('ends_at', '>', now());
+            $q->whereNull('subscriptions.ends_at')
+            ->orWhere('subscriptions.ends_at', '>', now());
         })
         ->exists();
+}
+
+private function isWealthskeyFreeFlowMember(?array $member): bool
+{
+    if (empty($member) || empty($member['id'])) {
+        return false;
+    }
+
+    $name = mb_strtolower(trim((string)($member['alias_name'] ?? '')), 'UTF-8');
+    $email = mb_strtolower(trim((string)($member['email'] ?? '')), 'UTF-8');
+
+    if ($name !== '' && mb_strpos($name, 'wealthskey migration') !== false) {
+        return true;
+    }
+
+    if ($email === 'admin@wealthskey.com') {
+        return true;
+    }
+
+    try {
+        $dbMember = DB::table('member')
+            ->select('alias_name', 'email')
+            ->where('id', (int)$member['id'])
+            ->first();
+
+        if (!$dbMember) {
+            return false;
+        }
+
+        $dbName = mb_strtolower(trim((string)($dbMember->alias_name ?? '')), 'UTF-8');
+        $dbEmail = mb_strtolower(trim((string)($dbMember->email ?? '')), 'UTF-8');
+
+        return ($dbName !== '' && mb_strpos($dbName, 'wealthskey migration') !== false)
+            || $dbEmail === 'admin@wealthskey.com';
+    } catch (\Throwable $e) {
+        return false;
+    }
 }
 
 private function countMigrationVisaAskQuestions(int $memberId): int
@@ -1742,44 +1784,19 @@ If you'd like to continue, just register or log in — it only takes a moment.'
 
 private function buildPaidPlanLimitReply(string $question): string
 {
-    $system = "
-You are AI-mmi.
+    $lang = $this->detectLangZhOrEn($question);
 
-The user is a FREE PLAN user and has exceeded their 5-message limit for migration/visa-related questions.
-Education-related questions are still free, but this current message is migration/visa related and must be gated.
-Your job:
-
-1. Detect the user's language.
-2. Provide a VERY SHORT (2–3 lines) general non-specific statement (do NOT answer the visa question).
-3. Then append this upgrade message translated into the user's language:
-
-'You've reached your free chat limit 😊
-I now provide general information only.
-For more detailed guidance and access to our full planning and comparison tools, please upgrade to a paid plan.
-You'll enjoy unlimited Q&A, updated information, personalized tools, and huge savings in time and cost.
-👉 Click Upgrade to continue your journey.'
-
-Rules:
-- Do NOT mention xAI, Grok, LLM, provider names or tools.
-- No citations or IDs.
-- Output ONE block of text only.
-";
-
-    $x = $this->callXaiResponses($question, [
-        'temperature'       => 0.25,
-        'max_output_tokens' => 256,
-        'model'             => 'grok-4-1-fast-reasoning',
-        'enable_search'     => false,
-        'collection_ids'    => [],
-        'system'            => $system,
-    ]);
-
-    if (is_array($x) && !empty($x['ok']) && !empty($x['text'])) {
-        return trim($x['text']);
+    if ($lang === 'zh') {
+        return "您已用完免费的移民/签证咨询次数（5次）。\n"
+            . "如需继续获得移民/签证相关详细建议，请升级付费方案。\n"
+            . "您仍可免费咨询教育相关问题；升级后可在方案有效期内不限次数咨询。\n"
+            . "👉 点击 Upgrade 继续。";
     }
 
-    // fallback
-    return "You've reached your free chat limit. Please upgrade to continue.";
+    return "You've reached your free migration/visa chat limit (5 chats).\n"
+        . "To continue with detailed migration/visa guidance, please upgrade your plan.\n"
+        . "You can still ask education-related questions for free; after upgrade, you can chat without limits during your plan period.\n"
+        . "👉 Click Upgrade to continue.";
 }
 
 private function classifyEducationIntent(string $question): string
@@ -1799,9 +1816,13 @@ private function classifyQuestionDomain(string $question): string
     $migrationKeywords = [
         'visa', 'migration', 'migrate', 'immigration', 'immigrate',
         'pr', 'permanent residency', 'residency', 'citizenship',
+        'residence permit', 'work permit', 'student permit', 'dependent visa',
+        'spouse visa', 'partner visa', 'visitor visa', 'tourist visa',
+        'can i stay', 'stay in australia', 'move to australia', 'move to canada',
+        'immigration lawyer', 'migration agent',
         'subclass', '189', '190', '491', '482', '485', '500', '600', '820', '801',
         'skillselect', 'points test', 'state nomination', 'bridging visa',
-        '签证', '移民', '永居', '永久居留', '入籍', '公民', '技术移民', '雇主担保', '配偶签证',
+        '签证', '移民', '永居', '永久居留', '入籍', '公民', '技术移民', '雇主担保', '配偶签证', '工签', '学签',
     ];
 
     foreach ($migrationKeywords as $kw) {
@@ -1820,6 +1841,19 @@ private function classifyQuestionDomain(string $question): string
     foreach ($educationKeywords as $kw) {
         if (mb_strpos($q, $kw) !== false) {
             return 'education';
+        }
+    }
+
+    $migrationPatterns = [
+        '/\b(subclass\s*\d{3}|\d{3}\s*visa)\b/u',
+        '/\b(immigration|migrat(e|ion)|citizenship|permanent\s+residen|pr\s+pathway)\b/u',
+        '/\b(spouse|partner|dependent|visitor|tourist|student|work)\s+visa\b/u',
+        '/(签证|移民|永居|入籍|工签|学签)/u',
+    ];
+
+    foreach ($migrationPatterns as $pattern) {
+        if (preg_match($pattern, $q)) {
+            return 'migration';
         }
     }
 
