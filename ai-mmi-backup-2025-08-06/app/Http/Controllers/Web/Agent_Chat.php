@@ -1046,23 +1046,35 @@ class Agent_Chat extends WebController
         ));
         $planNames = [];
         if (!empty($memberIds)) {
-            $planRows = DB::table('subscriptions')
-                ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
-                ->whereIn('subscriptions.member_id', $memberIds)
-                ->where('subscriptions.status', 'active')
-                ->where('plans.is_active', 1)
-                ->where(function ($q) {
-                    $q->whereNull('subscriptions.ends_at')
-                      ->orWhere('subscriptions.ends_at', '>', now());
-                })
-                ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
-                ->select('subscriptions.member_id', 'plans.name')
-                ->get();
-            foreach ($planRows as $pr) {
-                $mid = (int)$pr->member_id;
-                if (!isset($planNames[$mid])) {
-                    $planNames[$mid] = $pr->name;
+            try {
+                $planQuery = DB::table('subscriptions')
+                    ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+                    ->whereIn('subscriptions.member_id', $memberIds)
+                    ->where('subscriptions.status', 'active')
+                    ->where(function ($q) {
+                        $q->whereNull('subscriptions.ends_at')
+                          ->orWhere('subscriptions.ends_at', '>', now());
+                    });
+
+                if (Schema::hasColumn('plans', 'is_active')) {
+                    $planQuery->where('plans.is_active', 1);
                 }
+
+                $planRows = $planQuery
+                    ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
+                    ->select('subscriptions.member_id', 'plans.name')
+                    ->get();
+
+                foreach ($planRows as $pr) {
+                    $mid = (int)$pr->member_id;
+                    if (!isset($planNames[$mid])) {
+                        $planNames[$mid] = $pr->name;
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Agent_chat.plan_names_lookup_failed', [
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
         foreach ($threadList as &$thread) {
@@ -1363,19 +1375,32 @@ class Agent_Chat extends WebController
             return null;
         }
 
-        $plan = DB::table('subscriptions')
-            ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
-            ->where('subscriptions.member_id', $memberId)
-            ->where('subscriptions.status', 'active')
-            ->where('plans.is_active', 1)
-            ->where(function ($q) {
-                $q->whereNull('subscriptions.ends_at')
-                  ->orWhere('subscriptions.ends_at', '>', now());
-            })
-            ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
-            ->select('plans.code')
-            ->first();
+        try {
+            $planQuery = DB::table('subscriptions')
+                ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+                ->where('subscriptions.member_id', $memberId)
+                ->where('subscriptions.status', 'active')
+                ->where(function ($q) {
+                    $q->whereNull('subscriptions.ends_at')
+                      ->orWhere('subscriptions.ends_at', '>', now());
+                });
 
-        return $plan ? $plan->code : null;
+            if (Schema::hasColumn('plans', 'is_active')) {
+                $planQuery->where('plans.is_active', 1);
+            }
+
+            $plan = $planQuery
+                ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
+                ->select('plans.code')
+                ->first();
+
+            return $plan ? $plan->code : null;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Agent_chat.member_plan_lookup_failed', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 }
