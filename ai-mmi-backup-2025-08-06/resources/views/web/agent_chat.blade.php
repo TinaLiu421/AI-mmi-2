@@ -65,7 +65,12 @@
                                 class="agent-chat-logo"
                             />
                             <div>
-                                <div class="agent-name">Wealthskey Migration</div>
+                                <div class="agent-name" style="display:flex;align-items:center;gap:8px;">
+                                    Wealthskey Migration
+                                    <a href="https://wa.me/85298684187" target="_blank" rel="noopener noreferrer" title="Chat on WhatsApp" style="line-height:1;">
+                                        <i class="fa fa-whatsapp" style="color:#25D366;font-size:20px;"></i>
+                                    </a>
+                                </div>
                                 <div class="agent-chat-presence" id="agent-chat-presence" data-state="unknown" aria-live="polite">
                                     <span class="agent-chat-presence-dot"></span>
                                     <span class="agent-chat-presence-text">Checking status...</span>
@@ -75,7 +80,7 @@
                         <div class="agent-meta">
                             <div>Website : https://wealthskey.com</div>
                             <div>Location : Brisbane, Australia</div>
-                            <div>Whatsapp Number +852 54867893</div>
+                            <div>Whatsapp Number +852 9868 4187</div>
                             <div>Mobile Number : +61 413892060</div>
                             <div>Registration number : 2418441</div>
                             <a
