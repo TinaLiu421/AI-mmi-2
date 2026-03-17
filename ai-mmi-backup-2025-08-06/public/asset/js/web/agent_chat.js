@@ -130,8 +130,12 @@
         const targetType = escapeHtml(thread.target_type || 'member');
         const targetId = escapeHtml(String(thread.target_id || ''));
         const label = escapeHtml(thread.label || 'Conversation');
+        const planName = escapeHtml(thread.plan_name || '');
         const lastMessage = escapeHtml(thread.last_message || '');
         const unreadCount = Number(thread.unread_count || 0);
+        const planBadge = planName
+          ? `<span class="agent-plan-badge">${planName}</span>`
+          : '';
         const unreadBadge = unreadCount > 0
           ? `<span class="agent-chat-unread-badge">${unreadCount > 99 ? '99+' : unreadCount}</span>`
           : '';
@@ -139,6 +143,7 @@
         return `<div class="agent-chat-list-item" data-target-type="${targetType}" data-target-id="${targetId}">
           <div class="agent-chat-list-head">
             <div class="agent-name">${label}</div>
+            ${planBadge}
             ${unreadBadge}
           </div>
           <div class="agent-meta">${lastMessage}</div>

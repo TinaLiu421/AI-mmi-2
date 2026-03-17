@@ -17,6 +17,12 @@
         </div>
         <div class="home-chat-notify-empty" id="home-chat-notify-empty">No unread chats.</div>
         <div class="home-chat-notify-list" id="home-chat-notify-list"></div>
+
+        <div class="home-paid-customers" id="home-paid-customers" style="display:none;">
+            <div class="home-paid-customers-title">Paid Customers</div>
+            <div class="home-paid-customers-empty" id="home-paid-customers-empty">No paid customers found.</div>
+            <div class="home-paid-customers-list" id="home-paid-customers-list"></div>
+        </div>
     </div>
     @endif
 

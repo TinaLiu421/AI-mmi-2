@@ -209,11 +209,13 @@ class Agent_Chat extends WebController
         }, 0);
 
         $chatUrl = $this->toURL('agent_chat/chat');
+        $paidCustomers = $isAgent ? $this->getPaidCustomersForAgentHome() : [];
 
         return response()->json([
             'ok' => true,
             'is_agent' => $isAgent,
             'total_unread' => $totalUnread,
+            'paid_customers' => $paidCustomers,
             'threads' => array_map(function ($thread) use ($chatUrl) {
                 $thread['chat_url'] = $chatUrl;
                 return $thread;
@@ -1085,6 +1087,58 @@ class Agent_Chat extends WebController
         unset($thread);
 
         return $threadList;
+    }
+
+    private function getPaidCustomersForAgentHome(): array
+    {
+        try {
+            $rows = DB::table('subscriptions')
+                ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+                ->join('member', 'member.id', '=', 'subscriptions.member_id')
+                ->where('subscriptions.status', 'active')
+                ->where('plans.code', '!=', 'free')
+                ->where(function ($q) {
+                    $q->whereNull('subscriptions.ends_at')
+                      ->orWhere('subscriptions.ends_at', '>', now());
+                })
+                ->orderByDesc('subscriptions.updated_at')
+                ->limit(50)
+                ->select([
+                    'subscriptions.member_id',
+                    'plans.name as plan_name',
+                    'plans.code as plan_code',
+                    'member.alias_name',
+                    'member.full_name',
+                    'member.email',
+                ])
+                ->get();
+
+            $result = [];
+            $seenMember = [];
+            foreach ($rows as $row) {
+                $memberId = (int)($row->member_id ?? 0);
+                if ($memberId <= 0 || isset($seenMember[$memberId])) {
+                    continue;
+                }
+                $seenMember[$memberId] = true;
+
+                $name = trim((string)($row->alias_name ?: $row->full_name ?: ('Member #' . $memberId)));
+                $result[] = [
+                    'member_id' => $memberId,
+                    'name' => $name,
+                    'email' => (string)($row->email ?? ''),
+                    'plan_name' => (string)($row->plan_name ?? ''),
+                    'plan_code' => (string)($row->plan_code ?? ''),
+                ];
+            }
+
+            return array_slice($result, 0, 20);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Agent_chat.paid_customers_lookup_failed', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 
     private function getMemberThreads(int $memberId): array

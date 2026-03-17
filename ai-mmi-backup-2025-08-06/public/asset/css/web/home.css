@@ -208,3 +208,51 @@ div.page-content.home .home-chat-notify-badge {
     justify-content: center;
     padding: 0 6px;
 }
+
+div.page-content.home .home-paid-customers {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px dashed #e5e7eb;
+}
+
+div.page-content.home .home-paid-customers-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+div.page-content.home .home-paid-customers-empty {
+    color: #666;
+    font-size: 12px;
+}
+
+div.page-content.home .home-paid-customers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+div.page-content.home .home-paid-customer-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #f0f0f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+div.page-content.home .home-paid-customer-name {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+div.page-content.home .home-paid-customer-plan {
+    font-size: 12px;
+    color: #0f766e;
+    background: #ecfeff;
+    border: 1px solid #99f6e4;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}

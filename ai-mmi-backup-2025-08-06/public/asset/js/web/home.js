@@ -73,6 +73,9 @@ function initHomeChatNotifications() {
     const wrapEl = document.getElementById('home-chat-notify');
     const listEl = document.getElementById('home-chat-notify-list');
     const emptyEl = document.getElementById('home-chat-notify-empty');
+    const paidWrapEl = document.getElementById('home-paid-customers');
+    const paidListEl = document.getElementById('home-paid-customers-list');
+    const paidEmptyEl = document.getElementById('home-paid-customers-empty');
     if (!wrapEl || !listEl || !emptyEl) {
         return;
     }
@@ -115,6 +118,37 @@ function initHomeChatNotifications() {
         wrapEl.setAttribute('data-total-unread', String(Number(totalUnread || 0)));
     }
 
+    function renderPaidCustomers(items, isAgent) {
+        if (!paidWrapEl || !paidListEl || !paidEmptyEl) {
+            return;
+        }
+
+        if (!isAgent) {
+            paidWrapEl.style.display = 'none';
+            return;
+        }
+
+        paidWrapEl.style.display = 'block';
+        const rows = Array.isArray(items) ? items : [];
+        if (!rows.length) {
+            paidListEl.innerHTML = '';
+            paidEmptyEl.style.display = 'block';
+            return;
+        }
+
+        const html = rows.map((row) => {
+            const name = escapeHtml(row.name || ('Member #' + String(row.member_id || '')));
+            const plan = escapeHtml(row.plan_name || row.plan_code || 'Paid Plan');
+            return '<div class="home-paid-customer-item">' +
+                '<div class="home-paid-customer-name">' + name + '</div>' +
+                '<div class="home-paid-customer-plan">' + plan + '</div>' +
+            '</div>';
+        }).join('');
+
+        paidListEl.innerHTML = html;
+        paidEmptyEl.style.display = 'none';
+    }
+
     function fetchNotifications() {
         fetch(config.notificationsUrl || '/agent_chat/notifications', {
             credentials: 'same-origin'
@@ -125,6 +159,7 @@ function initHomeChatNotifications() {
                     return;
                 }
                 renderThreads(data.threads || [], data.total_unread || 0);
+                renderPaidCustomers(data.paid_customers || [], !!data.is_agent);
             })
             .catch(() => {});
     }
