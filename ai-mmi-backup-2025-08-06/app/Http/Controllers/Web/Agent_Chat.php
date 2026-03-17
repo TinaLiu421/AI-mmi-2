@@ -1394,13 +1394,44 @@ class Agent_Chat extends WebController
                 ->select('plans.code')
                 ->first();
 
-            return $plan ? $plan->code : null;
+            if ($plan && !empty($plan->code)) {
+                return $plan->code;
+            }
+
+            // Fallback for envs with inconsistent legacy data: take latest active subscription plan.
+            $fallbackPlan = DB::table('subscriptions')
+                ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+                ->where('subscriptions.member_id', $memberId)
+                ->where('subscriptions.status', 'active')
+                ->orderByDesc('subscriptions.id')
+                ->select('plans.code')
+                ->first();
+
+            return ($fallbackPlan && !empty($fallbackPlan->code)) ? $fallbackPlan->code : null;
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Agent_chat.member_plan_lookup_failed', [
                 'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);
-            return null;
+
+            // Last-resort fallback query without ends_at/is_active constraints.
+            try {
+                $fallbackPlan = DB::table('subscriptions')
+                    ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+                    ->where('subscriptions.member_id', $memberId)
+                    ->where('subscriptions.status', 'active')
+                    ->orderByDesc('subscriptions.id')
+                    ->select('plans.code')
+                    ->first();
+
+                return ($fallbackPlan && !empty($fallbackPlan->code)) ? $fallbackPlan->code : null;
+            } catch (\Throwable $fallbackError) {
+                \Illuminate\Support\Facades\Log::warning('Agent_chat.member_plan_lookup_fallback_failed', [
+                    'member_id' => $memberId,
+                    'error' => $fallbackError->getMessage(),
+                ]);
+                return null;
+            }
         }
     }
 }
