@@ -1552,7 +1552,7 @@ private function isWealthskeyFreeFlowMember(?array $member): bool
         return true;
     }
 
-    if (in_array($email, ['admin@wealthskey.com', 'finodetesta242@gmail.com'], true)) {
+    if ($email === 'admin@wealthskey.com') {
         return true;
     }
 
@@ -1570,7 +1570,7 @@ private function isWealthskeyFreeFlowMember(?array $member): bool
         $dbEmail = mb_strtolower(trim((string)($dbMember->email ?? '')), 'UTF-8');
 
         return ($dbName !== '' && mb_strpos($dbName, 'wealthskey migration') !== false)
-            || in_array($dbEmail, ['admin@wealthskey.com', 'finodetesta242@gmail.com'], true);
+            || $dbEmail === 'admin@wealthskey.com';
     } catch (\Throwable $e) {
         return false;
     }

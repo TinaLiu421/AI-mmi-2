@@ -66,10 +66,6 @@ class Agent_Chat extends WebController
         ]);
 
         if (!$isAgent && $memberId) {
-            if ($this->isTestingAllAccessMember($member)) {
-                return $this->renderChatPage($targetId);
-            }
-
             $planCode = $this->getMemberActivePlanCode((int)$memberId);
 
             // DIY Plan (premium) or VIP Agent Plan → full agent chat access
@@ -107,10 +103,6 @@ class Agent_Chat extends WebController
         $isAgent = $memberId ? $this->isAgentMember($memberId) : false;
 
         if (!$isAgent && $memberId) {
-            if ($this->isTestingAllAccessMember($member)) {
-                return $this->renderChatPage($targetId);
-            }
-
             $planCode = $this->getMemberActivePlanCode((int)$memberId);
             if (!in_array($planCode, ['premium', 'vip'], true)) {
                 return $this->doRedirect($this->toURL('agent_chat'));
@@ -1371,16 +1363,6 @@ class Agent_Chat extends WebController
             ->where('member_id', $memberId)
             ->where('status', 'booked')
             ->exists();
-    }
-
-    private function isTestingAllAccessMember(?array $member): bool
-    {
-        if (empty($member)) {
-            return false;
-        }
-
-        $email = mb_strtolower(trim((string)($member['email'] ?? '')), 'UTF-8');
-        return $email === 'finodetesta242@gmail.com';
     }
 
     /**
