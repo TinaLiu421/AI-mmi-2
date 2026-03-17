@@ -1055,7 +1055,7 @@ class Agent_Chat extends WebController
                     $q->whereNull('subscriptions.ends_at')
                       ->orWhere('subscriptions.ends_at', '>', now());
                 })
-                ->orderByRaw("FIELD(plans.code, 'vip', 'premium', 'hybrid', 'all_ai', 'free')")
+                ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
                 ->select('subscriptions.member_id', 'plans.name')
                 ->get();
             foreach ($planRows as $pr) {
@@ -1372,7 +1372,7 @@ class Agent_Chat extends WebController
                 $q->whereNull('subscriptions.ends_at')
                   ->orWhere('subscriptions.ends_at', '>', now());
             })
-            ->orderByRaw("FIELD(plans.code, 'vip', 'premium', 'hybrid', 'all_ai', 'free')")
+            ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
             ->select('plans.code')
             ->first();
 
