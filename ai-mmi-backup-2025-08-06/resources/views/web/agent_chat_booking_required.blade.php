@@ -31,7 +31,7 @@
                 </div>
                 <div class="agent-meta">
                     <div>Website : <a href="https://wealthskey.com" target="_blank" rel="noopener noreferrer">https://wealthskey.com</a></div>
-                    <div>Location : Brisbane, Australia</div>
+                    <div>Location : Australia, Hong Kong</div>
                     <div>Whatsapp Number +852 54867893</div>
                     <div>Mobile Number : +61 413892060</div>
                     <div>Registration number : 2418441</div>
