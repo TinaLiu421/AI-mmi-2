@@ -234,6 +234,22 @@
   color: #222;
 }
 
+.agent-chat-time {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: right;
+  opacity: 0.8;
+}
+
+.agent-chat-bubble.mine .agent-chat-time {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.agent-chat-bubble.theirs .agent-chat-time {
+  color: #6b7280;
+}
+
 .agent-chat-form {
   display: flex;
   align-items: center;

@@ -76,6 +76,7 @@
         const bubble = document.createElement('div');
         bubble.className = 'agent-chat-bubble ' + (msg.is_mine ? 'mine' : 'theirs');
         const msgText = escapeHtml(msg.message || '');
+        const timeLabel = escapeHtml(formatMessageTime(msg.created_at || ''));
         let attachmentHtml = '';
         const attachments = Array.isArray(msg.attachments) ? msg.attachments : [];
         if (attachments.length > 0) {
@@ -88,7 +89,7 @@
           }).join('');
           attachmentHtml = `<div class="agent-chat-attachments">${items}</div>`;
         }
-        bubble.innerHTML = `<div class="agent-chat-text">${msgText}</div>${attachmentHtml}`;
+        bubble.innerHTML = `<div class="agent-chat-text">${msgText}</div>${attachmentHtml}<div class="agent-chat-time">${timeLabel}</div>`;
         messagesEl.appendChild(bubble);
         lastMessageId = msg.id;
       });
@@ -287,6 +288,37 @@
       if (num < 1024) return num + ' B';
       if (num < 1024 * 1024) return (num / 1024).toFixed(1) + ' KB';
       return (num / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function formatMessageTime(value) {
+      if (!value) return '';
+
+      const normalized = String(value).replace(' ', 'T');
+      const date = new Date(normalized);
+      if (Number.isNaN(date.getTime())) {
+        return escapeHtml(String(value));
+      }
+
+      const now = new Date();
+      const isSameDay = date.getFullYear() === now.getFullYear()
+        && date.getMonth() === now.getMonth()
+        && date.getDate() === now.getDate();
+
+      const timeText = date.toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+
+      if (isSameDay) {
+        return timeText;
+      }
+
+      const dateText = date.toLocaleDateString([], {
+        day: 'numeric',
+        month: 'short'
+      });
+
+      return `${dateText}, ${timeText}`;
     }
 
     if (listEl) {
