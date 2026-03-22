@@ -205,7 +205,8 @@ class Home extends WebController {
             if (!empty($member)) {
 
                 // ① 判断是否 AI freeflow 用户（all_ai / hybrid / vip 不受免费额度限制；premium仍受限）
-                $isPaidUser = $this->isAiFreeFlowPlan((int)$memberId)
+                $isPaidUser = $this->hasActivePaidSubscription((int)$memberId)
+                    || $this->isAiFreeFlowPlan((int)$memberId)
                     || $this->isWealthskeyFreeFlowMember($member);
 
                 // Free 用户达到额度后，统一返回简短升级提示
@@ -1266,7 +1267,8 @@ Rules:
         $domain = $this->classifyQuestionDomain((string)$question);
         $isEdu = $domain === 'education';
         $isMigrationVisa = $domain === 'migration';
-        $isPaidUser = $this->isAiFreeFlowPlan($memberId)
+        $isPaidUser = $this->hasActivePaidSubscription($memberId)
+            || $this->isAiFreeFlowPlan($memberId)
             || $this->isWealthskeyFreeFlowMember($member);
 
         if (!$isPaidUser) {
@@ -1518,17 +1520,34 @@ private function hasActivePaidSubscription(int $memberId): bool
         return false;
     }
 
-    return DB::table('subscriptions')
-        ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
-        ->where('member_id', $memberId)
-        ->where('subscriptions.status', 'active')
-        ->where('plans.is_active', 1)
-        ->where('plans.code', '!=', 'free')
-        ->where(function ($q) {
-            $q->whereNull('subscriptions.ends_at')
-            ->orWhere('subscriptions.ends_at', '>', now());
-        })
-        ->exists();
+    try {
+        $query = DB::table('subscriptions')
+            ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+            ->where('member_id', $memberId)
+            ->where('subscriptions.status', 'active')
+            ->where('plans.code', '!=', 'free')
+            ->where(function ($q) {
+                $q->whereNull('subscriptions.ends_at')
+                  ->orWhere('subscriptions.ends_at', '>', now());
+            });
+
+        if (Schema::hasColumn('plans', 'is_active')) {
+            $query->where('plans.is_active', 1);
+        }
+
+        return $query->exists();
+    } catch (\Throwable $e) {
+        return DB::table('subscriptions')
+            ->where('member_id', $memberId)
+            ->where('status', 'active')
+            ->whereIn('plan_id', function ($q) {
+                $q->select('id')->from('plans')->where('code', '!=', 'free');
+            })
+            ->where(function ($q) {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->exists();
+    }
 }
 
 /**
@@ -1541,17 +1560,34 @@ private function isAiFreeFlowPlan(int $memberId): bool
         return false;
     }
 
-    return DB::table('subscriptions')
-        ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
-        ->where('subscriptions.member_id', $memberId)
-        ->where('subscriptions.status', 'active')
-        ->where('plans.is_active', 1)
-        ->whereIn('plans.code', ['all_ai', 'hybrid', 'vip'])
-        ->where(function ($q) {
-            $q->whereNull('subscriptions.ends_at')
-              ->orWhere('subscriptions.ends_at', '>', now());
-        })
-        ->exists();
+    try {
+        $query = DB::table('subscriptions')
+            ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+            ->where('subscriptions.member_id', $memberId)
+            ->where('subscriptions.status', 'active')
+            ->whereIn('plans.code', ['all_ai', 'hybrid', 'vip'])
+            ->where(function ($q) {
+                $q->whereNull('subscriptions.ends_at')
+                  ->orWhere('subscriptions.ends_at', '>', now());
+            });
+
+        if (Schema::hasColumn('plans', 'is_active')) {
+            $query->where('plans.is_active', 1);
+        }
+
+        return $query->exists();
+    } catch (\Throwable $e) {
+        return DB::table('subscriptions')
+            ->where('member_id', $memberId)
+            ->where('status', 'active')
+            ->whereIn('plan_id', function ($q) {
+                $q->select('id')->from('plans')->whereIn('code', ['all_ai', 'hybrid', 'vip']);
+            })
+            ->where(function ($q) {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->exists();
+    }
 }
 
 private function isWealthskeyFreeFlowMember(?array $member): bool
