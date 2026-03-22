@@ -403,7 +403,7 @@ Rules:
                                         ### READABILITY FORMAT (important)
                                         - Keep answers easy to scan on mobile.
                                         - Use short sections with line breaks.
-                                        - Prefer plain-text bullets like: "•", "-", "✅", "👉".
+                                        - Prefer plain-text bullets like: •  -  ✅  👉
                                         - Do NOT use markdown tables.
                                         - Do NOT put the whole answer in one long paragraph.
                                         - For visa explanations, use this order when relevant:
@@ -1372,7 +1372,7 @@ or equivalent wording in the user's language.
 ### READABILITY FORMAT (important)
 - Keep answers easy to scan on mobile.
 - Use short sections with line breaks.
-- Prefer plain-text bullets like: "•", "-", "✅", "👉".
+- Prefer plain-text bullets like: •  -  ✅  👉
 - Do NOT use markdown tables.
 - Do NOT put the whole answer in one long paragraph.
 - For visa explanations, use this order when relevant:
