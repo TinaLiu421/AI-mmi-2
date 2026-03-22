@@ -399,6 +399,18 @@ Rules:
                     - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
                     - Include at most one short, natural upgrade nudge when relevant (consultative, never pushy), e.g. suggest upgrade for deeper step-by-step help.
                     - Keep answers concise but helpful, and always end with a clear next action.
+
+                                        ### READABILITY FORMAT (important)
+                                        - Keep answers easy to scan on mobile.
+                                        - Use short sections with line breaks.
+                                        - Prefer plain-text bullets like: "•", "-", "✅", "👉".
+                                        - Do NOT use markdown tables.
+                                        - Do NOT put the whole answer in one long paragraph.
+                                        - For visa explanations, use this order when relevant:
+                                            1) Quick summary
+                                            2) Key streams/options (bullets)
+                                            3) Core requirements (bullets)
+                                            4) Clear next step
                                         " . $this->buildStrictLanguageInstruction($nonQaLang),
 
                 ]);
@@ -1356,6 +1368,18 @@ or equivalent wording in the user's language.
 - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
 - Include at most one short, natural upgrade nudge when relevant (consultative, never pushy), e.g. suggest upgrade for deeper step-by-step help.
 - Keep answers concise but helpful, and always end with a clear next action.
+
+### READABILITY FORMAT (important)
+- Keep answers easy to scan on mobile.
+- Use short sections with line breaks.
+- Prefer plain-text bullets like: "•", "-", "✅", "👉".
+- Do NOT use markdown tables.
+- Do NOT put the whole answer in one long paragraph.
+- For visa explanations, use this order when relevant:
+    1) Quick summary
+    2) Key streams/options (bullets)
+    3) Core requirements (bullets)
+    4) Clear next step
 " . $this->buildStrictLanguageInstruction($lang);
 
         $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
@@ -1666,7 +1690,8 @@ private function processFinalText($text, $isFromQa, $lang) {
 
     // Remove citation-style markers like [1], [2], [1][2]
     $processed = preg_replace('/\[(\d+)\]/u', '', (string)$processed);
-    $processed = preg_replace('/\s{2,}/u', ' ', (string)$processed);
+    // Collapse repeated spaces/tabs only; keep line breaks for readability
+    $processed = preg_replace('/[ \t]{2,}/u', ' ', (string)$processed);
     $processed = preg_replace('/\n{3,}/u', "\n\n", (string)$processed);
     
     // Add QA CTA if needed (same as chat())
