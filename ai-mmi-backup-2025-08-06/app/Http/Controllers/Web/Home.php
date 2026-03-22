@@ -367,7 +367,7 @@ Rules:
                     ## Greeting Behaviour (only first reply)
                     - Only when this is the FIRST reply in a new conversation thread, start with a short greeting + self-introduction.
                     - First reply greeting templates:
-                        - English: “Hi this is AI-mmi, your smart education and migration assistant.”
+                        - English: “Hey — AI-mmi here 👋 I can help with your migration and study questions.”
                         - Simplified Chinese: “您好！我是 AI-mmi，您的智能留学和移民助理。”
                         - Traditional Chinese: “您好！我是 AI-mmi，您的智能留學和移民助理。”
                         - Other languages: translate the English sentence naturally into that language.
@@ -390,6 +390,7 @@ Rules:
                     ### CITATION & TECHNICAL INFO
                     - Citations, technical IDs, raw metadata are for internal logging only.
                     - They MUST NOT appear in user-visible output.
+                    - Do NOT output bracketed reference markers like [1], [2], [1][2] in the final answer.
 
                     ### RESPONSE STYLE
                     - Provide accurate, practical and easy-to-follow guidance.
@@ -1323,7 +1324,7 @@ You are AI-mmi, specialised in immigration and visa queries.
 ## Greeting Behaviour (only first reply)
 - Only when this is the FIRST reply in a new conversation thread, start with a short greeting + self-introduction.
 - First reply greeting templates:
-    - English: “Hi this is AI-mmi, your smart education and migration assistant.”
+    - English: “Hey — AI-mmi here 👋 I can help with your migration and study questions.”
     - Simplified Chinese: “您好！我是 AI-mmi，您的智能留学和移民助理。”
     - Traditional Chinese: “您好！我是 AI-mmi，您的智能留學和移民助理。”
     - Other languages: translate the English sentence naturally into that language.
@@ -1346,6 +1347,7 @@ or equivalent wording in the user's language.
 ### CITATION & TECHNICAL INFO
 - Citations, technical IDs, raw metadata are for internal logging only.
 - They MUST NOT appear in user-visible output.
+- Do NOT output bracketed reference markers like [1], [2], [1][2] in the final answer.
 
 ### RESPONSE STYLE
 - Provide accurate, practical and easy-to-follow guidance.
@@ -1661,6 +1663,11 @@ private function processFinalText($text, $isFromQa, $lang) {
         '信息基于AI-mmi内部集合检索的资料',
         $text
     );
+
+    // Remove citation-style markers like [1], [2], [1][2]
+    $processed = preg_replace('/\[(\d+)\]/u', '', (string)$processed);
+    $processed = preg_replace('/\s{2,}/u', ' ', (string)$processed);
+    $processed = preg_replace('/\n{3,}/u', "\n\n", (string)$processed);
     
     // Add QA CTA if needed (same as chat())
     if ($isFromQa) {
