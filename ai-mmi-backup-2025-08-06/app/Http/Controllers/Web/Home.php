@@ -124,11 +124,16 @@ class Home extends WebController {
         $this->pageCss('slick.min', 'asset/lib/slider', false);
         $this->pageScript('slick.min', 'asset/lib/slider', false);
 
+        $agentLayoutAllowedEmails = ['admin@wealthskey.com', 'info@ai-mmi.com'];
+        $currentEmail = mb_strtolower(trim((string)($this->_current_member['email'] ?? '')), 'UTF-8');
+        $showAgentHomeLayout = in_array($currentEmail, $agentLayoutAllowedEmails, true);
+
         return $this->pageData(
         [
             'details'       =>  $home_page_data,
             'list_news'     =>  $list_news,
-            'list_events'   =>  $list_events
+            'list_events'   =>  $list_events,
+            'show_agent_home_layout' => $showAgentHomeLayout,
         ])->pageView();
     }
 
@@ -195,22 +200,23 @@ class Home extends WebController {
             //     $applyIntent = $this->detectApplyIntent($rawQuestion);
             // }
 
-            // === ③.1 已登录用户免费次数限制（Free 用户 5 次） ===
+            // === ③.1 已登录用户免费次数限制（Free 用户默认 10 次） ===
 
             if (!empty($member)) {
 
-                // ① 判断是否 AI freeflow 用户（all_ai / hybrid / vip 才不受5次限制；premium仍受限）
+                // ① 判断是否 AI freeflow 用户（all_ai / hybrid / vip 不受免费额度限制；premium仍受限）
                 $isPaidUser = $this->isAiFreeFlowPlan((int)$memberId)
                     || $this->isWealthskeyFreeFlowMember($member);
 
-                // 仅对“移民/签证类问题”执行 Free Plan 5 次限制
-                if (!$isPaidUser && $isMigrationVisa) {
+                // Free 用户达到额度后，统一返回简短升级提示
+                if (!$isPaidUser) {
 
                     // ② 统计用户提问次数（只数 type='ask'）
-                    $memberAskCount = $this->countMigrationVisaAskQuestions((int)$memberId);
+                    $memberAskCount = $this->countMemberAskQuestions((int)$memberId);
+                    $freeLimit = $this->freePlanChatLimit();
 
-                    // ③ 超过 5 次 → 返回简短回答 + 升级提示
-                    if ($memberAskCount >= 5) {
+                    // ③ 超过额度 → 返回简短回答 + 升级提示
+                    if ($memberAskCount >= $freeLimit) {
 
                         $limitMsg = $this->buildPaidPlanLimitReply($rawQuestion);
 
@@ -334,7 +340,7 @@ Rules:
             if ($reply === '' && !$isFromQa) {
                 $nonQaLang = $this->detectLangZhOrEn($rawQuestion);
                 $x = $this->callXaiResponses($rawQuestion, [
-                    'temperature' => 0.2,
+                    'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.35),
                     'max_output_tokens' => 2048,
                     'model' => 'grok-4-1-fast-reasoning',
                     'enable_search'     => true,
@@ -385,8 +391,12 @@ Rules:
                     - They MUST NOT appear in user-visible output.
 
                     ### RESPONSE STYLE
-                    - Provide precise, structured, factual information.
-                    - Keep the tone professional, clear and user-friendly.
+                    - Provide accurate, practical and easy-to-follow guidance.
+                    - Sound human, warm and conversational (not robotic).
+                    - You may add light humor occasionally to keep the chat engaging.
+                    - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
+                    - Include at most one short, natural upgrade nudge when relevant (consultative, never pushy), e.g. suggest upgrade for deeper step-by-step help.
+                    - Keep answers concise but helpful, and always end with a clear next action.
                                         " . $this->buildStrictLanguageInstruction($nonQaLang),
 
                 ]);
@@ -1259,9 +1269,10 @@ Rules:
         $isPaidUser = $this->isAiFreeFlowPlan($memberId)
             || $this->isWealthskeyFreeFlowMember($member);
 
-        if (!$isPaidUser && $isMigrationVisa) {
-            $memberAskCount = $this->countMigrationVisaAskQuestions($memberId);
-            if ($memberAskCount >= 5) {
+        if (!$isPaidUser) {
+            $memberAskCount = $this->countMemberAskQuestions($memberId);
+            $freeLimit = $this->freePlanChatLimit();
+            if ($memberAskCount >= $freeLimit) {
                 $limitMsg = $this->buildPaidPlanLimitReply((string)$question);
                 $this->storeChat(
                     $memberId,
@@ -1335,8 +1346,12 @@ or equivalent wording in the user's language.
 - They MUST NOT appear in user-visible output.
 
 ### RESPONSE STYLE
-- Provide precise, structured, factual information.
-- Keep the tone professional, clear and user-friendly.
+- Provide accurate, practical and easy-to-follow guidance.
+- Sound human, warm and conversational (not robotic).
+- You may add light humor occasionally to keep the chat engaging.
+- For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
+- Include at most one short, natural upgrade nudge when relevant (consultative, never pushy), e.g. suggest upgrade for deeper step-by-step help.
+- Keep answers concise but helpful, and always end with a clear next action.
 " . $this->buildStrictLanguageInstruction($lang);
 
         $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
@@ -1377,7 +1392,7 @@ or equivalent wording in the user's language.
         }
 
         $x = $this->callXaiResponses($question, [
-            'temperature' => 0.2,
+            'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.35),
             'max_output_tokens' => (int)env('XAI_MAX_OUTPUT_TOKENS', 1024),
             'model' => 'grok-4-1-fast-reasoning',
             'enable_search'     => filter_var(env('XAI_ENABLE_WEB_SEARCH', true), FILTER_VALIDATE_BOOLEAN),
@@ -1552,7 +1567,7 @@ private function isWealthskeyFreeFlowMember(?array $member): bool
         return true;
     }
 
-    if ($email === 'admin@wealthskey.com') {
+    if (in_array($email, ['admin@wealthskey.com', 'info@ai-mmi.com'], true)) {
         return true;
     }
 
@@ -1570,7 +1585,7 @@ private function isWealthskeyFreeFlowMember(?array $member): bool
         $dbEmail = mb_strtolower(trim((string)($dbMember->email ?? '')), 'UTF-8');
 
         return ($dbName !== '' && mb_strpos($dbName, 'wealthskey migration') !== false)
-            || $dbEmail === 'admin@wealthskey.com';
+            || in_array($dbEmail, ['admin@wealthskey.com', 'info@ai-mmi.com'], true);
     } catch (\Throwable $e) {
         return false;
     }
@@ -1808,18 +1823,32 @@ If you'd like to continue, just register or log in — it only takes a moment.'
 private function buildPaidPlanLimitReply(string $question): string
 {
     $lang = $this->detectLangZhOrEn($question);
+    $limit = $this->freePlanChatLimit();
 
     if ($lang === 'zh') {
-        return "您已用完免费的移民/签证咨询次数（5次）。\n"
-            . "如需继续获得移民/签证相关详细建议，请升级付费方案。\n"
-            . "您仍可免费咨询教育相关问题；升级后可在方案有效期内不限次数咨询。\n"
-            . "👉 点击 Upgrade 继续。";
+        return "您已用完免费聊天次数（{$limit}次）🙂。\n"
+            . "升级方案后，我会继续给您更完整、更深入的个性化建议。👉 点击 Upgrade";
     }
 
-    return "You've reached your free migration/visa chat limit (5 chats).\n"
-        . "To continue with detailed migration/visa guidance, please upgrade your plan.\n"
-        . "You can still ask education-related questions for free; after upgrade, you can chat without limits during your plan period.\n"
-        . "👉 Click Upgrade to continue.";
+    return "You've reached your free chat limit ({$limit} chats) 🙂.\n"
+        . "Upgrade your plan and I'll continue with deeper, step-by-step personalized guidance. 👉 Click Upgrade";
+}
+
+private function freePlanChatLimit(): int
+{
+    return max(1, (int)env('FREE_PLAN_CHAT_LIMIT', 10));
+}
+
+private function countMemberAskQuestions(int $memberId): int
+{
+    if ($memberId <= 0) {
+        return 0;
+    }
+
+    return (int)DB::table('chat_log')
+        ->where('member_id', $memberId)
+        ->where('type', 'ask')
+        ->count();
 }
 
 private function classifyEducationIntent(string $question): string
