@@ -209,11 +209,14 @@ class Home extends WebController {
             $freeLimit = $this->freePlanChatLimit();
             $shouldRedirectToUpgrade = false;
             $upgradeRedirectUrl = $this->toURL('upgrade');
+            $isVipMember = false;
 
             if (!empty($member)) {
                 $activePlanCode = $this->resolveActivePlanCode((int)$memberId);
+                $isVipMember = $this->isVipMemberBySubscription((int)$memberId);
                 $isLimitedPlanUser = $this->isChatLimitPlanCode($activePlanCode)
-                    && !$this->isWealthskeyFreeFlowMember($member);
+                    && !$this->isWealthskeyFreeFlowMember($member)
+                    && !$this->isAiFreeFlowPlan((int)$memberId);
 
                 if ($isLimitedPlanUser) {
                     $memberAskCount = $this->countMemberAskQuestions((int)$memberId);
@@ -221,7 +224,7 @@ class Home extends WebController {
                     if (($memberAskCount + 1) >= $freeLimit) {
                         // At/over limit (10th+): shorter answer mode + upgrade redirect
                         $isOverLimit = true;
-                        $shouldRedirectToUpgrade = true;
+                        $shouldRedirectToUpgrade = $this->shouldApplyUpgradeNudgeForMember((int)$memberId);
                     }
                 }
             }
@@ -338,6 +341,9 @@ Rules:
                 );
 
                 $systemParts = [];
+                if ($isVipMember) {
+                    $systemParts[] = $this->buildVipNoUpgradeNote();
+                }
                 if ($isLimitedPlanUser) {
                     $systemParts[] = $this->buildFreePlanEngagementPrompt();
                     if ($isOverLimit) {
@@ -1326,8 +1332,10 @@ Rules:
         $isEdu = $domain === 'education';
         $isMigrationVisa = $domain === 'migration';
         $activePlanCode = $this->resolveActivePlanCode($memberId);
+        $isVipMember = $this->isVipMemberBySubscription($memberId);
         $isLimitedPlanUser = $this->isChatLimitPlanCode($activePlanCode)
-            && !$this->isWealthskeyFreeFlowMember($member);
+            && !$this->isWealthskeyFreeFlowMember($member)
+            && !$this->isAiFreeFlowPlan($memberId);
         $isOverLimit = false;
         $memberAskCount = 0;
         $freeLimit = $this->freePlanChatLimit();
@@ -1339,7 +1347,7 @@ Rules:
             if (($memberAskCount + 1) >= $freeLimit) {
                 // At/over limit (10th+): shorter answer mode + upgrade redirect
                 $isOverLimit = true;
-                $shouldRedirectToUpgrade = true;
+                $shouldRedirectToUpgrade = $this->shouldApplyUpgradeNudgeForMember($memberId);
             }
         }
 
@@ -1444,6 +1452,9 @@ or equivalent wording in the user's language.
 " . $this->buildStrictLanguageInstruction($lang);
 
         $systemPromptParts = [];
+        if ($isVipMember) {
+            $systemPromptParts[] = $this->buildVipNoUpgradeNote();
+        }
         if ($isLimitedPlanUser) {
             $systemPromptParts[] = $this->buildFreePlanEngagementPrompt();
             if ($isOverLimit) {
@@ -1779,6 +1790,42 @@ private function isAiFreeFlowPlan(int $memberId): bool
             ->where('status', 'active')
             ->whereIn('plan_id', function ($q) {
                 $q->select('id')->from('plans')->whereIn('code', ['all_ai', 'hybrid', 'vip']);
+            })
+            ->where(function ($q) {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->exists();
+    }
+}
+
+private function isVipMemberBySubscription(int $memberId): bool
+{
+    if ($memberId <= 0) {
+        return false;
+    }
+
+    try {
+        $query = DB::table('subscriptions')
+            ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+            ->where('subscriptions.member_id', $memberId)
+            ->where('subscriptions.status', 'active')
+            ->where('plans.code', 'vip')
+            ->where(function ($q) {
+                $q->whereNull('subscriptions.ends_at')
+                  ->orWhere('subscriptions.ends_at', '>', now());
+            });
+
+        if (Schema::hasColumn('plans', 'is_active')) {
+            $query->where('plans.is_active', 1);
+        }
+
+        return $query->exists();
+    } catch (\Throwable $e) {
+        return DB::table('subscriptions')
+            ->where('member_id', $memberId)
+            ->where('status', 'active')
+            ->whereIn('plan_id', function ($q) {
+                $q->select('id')->from('plans')->where('code', 'vip');
             })
             ->where(function ($q) {
                 $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
@@ -2267,31 +2314,22 @@ private function shouldApplyUpgradeNudgeForMember(int $memberId): bool
     }
 
     try {
-        $rows = DB::select(
-            "SELECT p.code
-             FROM app_subscriptions s
-             JOIN app_plans p ON p.id = s.plan_id
-             WHERE s.member_id = ?
-               AND s.status = 'active'
-               AND (s.ends_at IS NULL OR s.ends_at > NOW())
-               AND p.is_active = 1
-             ORDER BY (s.ends_at IS NULL) DESC, s.ends_at DESC, s.id DESC
-             LIMIT 1",
-            [$memberId]
-        );
-
-        if (empty($rows) || empty($rows[0]->code)) {
-            return true;
+        if ($this->isAiFreeFlowPlan($memberId) || $this->isVipMemberBySubscription($memberId)) {
+            return false;
         }
 
-        $planCode = strtolower(trim((string)$rows[0]->code));
-        return in_array($planCode, ['free', 'premium'], true);
+        $planCode = $this->resolveActivePlanCode($memberId);
+        return $this->isChatLimitPlanCode($planCode);
     } catch (\Throwable $e) {
         // Fail-safe: never nudge when resolver errors.
         return false;
     }
 }
 
+private function buildVipNoUpgradeNote(): string
+{
+    return "\n\n## VIP NO-UPGRADE MODE\nThe user is VIP/freeflow.\n- Do NOT mention upgrades, plans, subscriptions, limits, or paywalls.\n- Do NOT include any upsell CTA.\n- Provide full, detailed, complete guidance.\n";
+}
 private function shouldAppendMicroHook(int $currentAskNumber, int $limit): bool
 {
     if ($limit <= 0) {
