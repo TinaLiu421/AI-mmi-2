@@ -207,6 +207,8 @@ class Home extends WebController {
             $isOverLimit = false;
             $memberAskCount = 0;
             $freeLimit = $this->freePlanChatLimit();
+            $shouldRedirectToUpgrade = false;
+            $upgradeRedirectUrl = $this->toURL('upgrade');
 
             if (!empty($member)) {
                 $activePlanCode = $this->resolveActivePlanCode((int)$memberId);
@@ -216,9 +218,10 @@ class Home extends WebController {
                 if ($isLimitedPlanUser) {
                     $memberAskCount = $this->countMemberAskQuestions((int)$memberId);
 
-                    if ($memberAskCount >= $freeLimit) {
-                        // Over limit: still answer, but brevity mode + upgrade nudge appended
+                    if (($memberAskCount + 1) >= $freeLimit) {
+                        // At/over limit (10th+): shorter answer mode + upgrade redirect
                         $isOverLimit = true;
+                        $shouldRedirectToUpgrade = true;
                     }
                 }
             }
@@ -473,7 +476,19 @@ Rules:
 
             // === ④ 入库 + 返回 ===
             $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
-            $this->jsonReply($rawQuestion, $reply, $replySource, $member);
+            $extraReplyMeta = [];
+            if (!$isFromQa && $shouldRedirectToUpgrade) {
+                $extraReplyMeta = [
+                    'action' => 'redirect',
+                    'redirect' => $upgradeRedirectUrl,
+                    'redirect_url' => $upgradeRedirectUrl,
+                    'reason' => 'free-plan-limit-reached',
+                    'show_upgrade' => true,
+                    'upgrade_url' => $upgradeRedirectUrl,
+                ];
+            }
+
+            $this->jsonReply($rawQuestion, $reply, $replySource, $member, $extraReplyMeta);
         });
 
         if (request()->isMethod('post')) return;
@@ -1316,12 +1331,15 @@ Rules:
         $isOverLimit = false;
         $memberAskCount = 0;
         $freeLimit = $this->freePlanChatLimit();
+        $shouldRedirectToUpgrade = false;
+        $upgradeRedirectUrl = $this->toURL('upgrade');
 
         if ($isLimitedPlanUser) {
             $memberAskCount = $this->countMemberAskQuestions($memberId);
-            if ($memberAskCount >= $freeLimit) {
-                // Over limit: still answer, but brevity mode + upgrade nudge appended
+            if (($memberAskCount + 1) >= $freeLimit) {
+                // At/over limit (10th+): shorter answer mode + upgrade redirect
                 $isOverLimit = true;
+                $shouldRedirectToUpgrade = true;
             }
         }
 
@@ -1475,7 +1493,17 @@ or equivalent wording in the user's language.
                         'AI-mmi',
                         ['log_to_chat_table' => true, 'source' => 'chat']
                     );
-                    $this->streamMessage($replyForCurrentUser, ['reply_source' => 'model']);
+                    $streamMeta = ['reply_source' => 'model'];
+                    if ($shouldRedirectToUpgrade) {
+                        $streamMeta = array_merge($streamMeta, [
+                            'action'       => 'redirect',
+                            'redirect_url' => $upgradeRedirectUrl,
+                            'reason'       => 'free-plan-limit-reached',
+                            'show_upgrade' => true,
+                            'upgrade_url'  => $upgradeRedirectUrl,
+                        ]);
+                    }
+                    $this->streamMessage($replyForCurrentUser, $streamMeta);
                     return;
                 }
             }
@@ -1551,7 +1579,18 @@ or equivalent wording in the user's language.
             ['log_to_chat_table' => true, 'source' => 'chat']
         );
 
-        $this->streamMessage($replyForCurrentUser, ['reply_source' => 'model']);
+        $streamMeta = ['reply_source' => 'model'];
+        if ($shouldRedirectToUpgrade) {
+            $streamMeta = array_merge($streamMeta, [
+                'action'       => 'redirect',
+                'redirect_url' => $upgradeRedirectUrl,
+                'reason'       => 'free-plan-limit-reached',
+                'show_upgrade' => true,
+                'upgrade_url'  => $upgradeRedirectUrl,
+            ]);
+        }
+
+        $this->streamMessage($replyForCurrentUser, $streamMeta);
     }, 200, [
         'Content-Type' => 'text/event-stream',
         'Cache-Control' => 'no-cache',
@@ -2185,12 +2224,8 @@ private function appendSoftUpgradeNudge(string $reply, string $question, int $cu
         return $reply;
     }
 
-    $triggerAt = max(4, $limit - 2);
+    $triggerAt = 1;
     if ($currentAskNumber < $triggerAt) {
-        return $reply;
-    }
-
-    if (preg_match('/\b(upgrade|plan|subscription|subscribe)\b|升级|套餐|订阅|方案/u', $reply)) {
         return $reply;
     }
 
