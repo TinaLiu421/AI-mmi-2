@@ -666,11 +666,18 @@ function iweb_global_func() {
         toggleMobileChat();
     });
 
-    // edit publish post
-    $(document).on("click", "#edit-publish-posts", function () {
-        $.get(
-            _page_base_url + "/account/posts_publish/" + $(this).data("id"),
-            function (html) {
+    function openPostPublishDialog(postId) {
+        var targetId = parseInt(postId, 10);
+        if (isNaN(targetId) || targetId < 0) {
+            targetId = 0;
+        }
+
+        var requestUrl = _page_base_url + "/account/posts_publish";
+        if (targetId > 0) {
+            requestUrl += "/" + targetId;
+        }
+
+        $.get(requestUrl, function (html) {
                 iweb.dialog(
                     html,
                     function () {
@@ -830,8 +837,25 @@ function iweb_global_func() {
                     null,
                     "publish"
                 );
-            }
-        );
+            }).fail(function (xhr) {
+                var message = "Unable to open the post form right now.";
+                if (xhr && xhr.responseText) {
+                    message = xhr.responseText;
+                }
+                iweb.alert(message);
+            });
+    }
+
+    $(document).on("click", "#edit-publish-posts", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openPostPublishDialog($(this).data("id"));
+    });
+
+    $(document).on("click", "#publish-photo, #publish-video", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openPostPublishDialog(0);
     });
 
     $(document).on("click", "a.do-like", function () {

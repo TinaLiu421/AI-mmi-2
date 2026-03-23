@@ -37,7 +37,7 @@ function iweb_self_func() {
 						formData.append('itoken', window.btoa(md5(iweb.csrf_token + '#dt' + local_time) + '%' + local_time));
                         formData.append('_token', _token);
 						formData.append('myavatar', file, file.name);
-                        
+
                         $.ajax({
                             url: _page_base_url+'/account/myavatar',
                             type: 'post',
