@@ -334,6 +334,15 @@ Rules:
                     (string)$sessionId
                 );
 
+                $systemParts = [];
+                if ($isLimitedPlanUser) {
+                    $systemParts[] = $this->buildFreePlanEngagementPrompt();
+                    if ($isOverLimit) {
+                        $systemParts[] = $this->buildBrevityConstraintNote();
+                    }
+                }
+                $systemPromptBase = implode('', $systemParts);
+
                 $x = $this->callXaiResponses($questionForModel, [
                     'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
                     'max_output_tokens' => 2048,
@@ -341,7 +350,7 @@ Rules:
                     'enable_search'     => true,
                     'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                     'vector_store_ids' => [],
-                    'system' => ($isOverLimit ? $this->buildBrevityConstraintNote() : '') . "
+                    'system' => $systemPromptBase . "
                     You are AI-mmi, specialised in immigration and visa queries.
 
                     ## Identity & Naming
@@ -1386,8 +1395,15 @@ or equivalent wording in the user's language.
 - Keep the flow natural: do not force all sections if a shorter conversational answer is better.
 " . $this->buildStrictLanguageInstruction($lang);
 
-        if ($isOverLimit) {
-            $systemPrompt = $this->buildBrevityConstraintNote() . $systemPrompt;
+        $systemPromptParts = [];
+        if ($isLimitedPlanUser) {
+            $systemPromptParts[] = $this->buildFreePlanEngagementPrompt();
+            if ($isOverLimit) {
+                $systemPromptParts[] = $this->buildBrevityConstraintNote();
+            }
+        }
+        if (!empty($systemPromptParts)) {
+            $systemPrompt = implode('', $systemPromptParts) . $systemPrompt;
         }
 
         $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
@@ -2248,6 +2264,11 @@ private function buildMicroHookEnding(string $lang, int $currentAskNumber): stri
 private function buildBrevityConstraintNote(): string
 {
     return "\n\n## FREE PLAN BREVITY MODE\nThe user is on a free or starter plan and has used all their free chats.\nKeep your reply SHORT — maximum 2-3 sentences or up to 3 bullets.\nGive a genuinely useful quick answer but do NOT go into full step-by-step depth.\nDo NOT mention the free plan, chat limits, upgrades, or pricing in your reply — that note will be appended separately after your reply.\n";
+}
+
+private function buildFreePlanEngagementPrompt(): string
+{
+    return "\n\n## FREE PLAN ENGAGEMENT MODE\nThe user is on a free plan. Your goal is to give them a TEASER answer that is helpful but hints at deeper content available with an upgrade.\nStrategy:\n- Start with the KEY insight or quick answer (1-2 sentences max for the headline).\n- Briefly mention 2-3 supporting points or options — but do NOT spell out all details.\n- Create CURIOSITY: end with something like \"There's a full step-by-step breakdown and personalized timeline available when you upgrade\" OR \"Want the complete strategy? That's what Upgrade gives you.\"\nTONE: Friendly, conversational, encouraging. Make them WANT to see the full answer.\nDo NOT mention pricing, free plan mechanics, or chat limits in the reply text itself — the upgrade nudge will be added after.\n";
 }
 
 private function freePlanChatLimit(): int
