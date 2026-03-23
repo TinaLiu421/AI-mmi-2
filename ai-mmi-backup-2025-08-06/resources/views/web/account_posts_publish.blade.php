@@ -5,6 +5,7 @@ $_show_posts = array_merge([
     'category_type'     =>  1,
     'category_lang'     =>  0,
     'category_country'  =>  0,
+    'sector'            =>  'study',
     'title'             =>  '',
     'content'           =>  '',
     'photo'             =>  '',
@@ -61,6 +62,14 @@ $_show_posts = array_merge([
                             <?php if(!empty($_page_options['countries'])) { foreach ($_page_options['countries'] as $country_id => $country) { ?>
                             <option value="<?php echo $country_id; ?>"<?php echo ($_show_posts['category_country']==$country_id)?'selected':''; ?>><?php echo $country; ?></option>
                             <?php }} ?>
+                        </select>
+                    </div>
+
+                    <div class="dropdown">
+                        <select id="sector" name="sector" data-validation="required">
+                            <option value=""><?php echo $_page_lang['posts']['sector']; ?></option>
+                            <option value="study"<?php echo ($_show_posts['sector']==='study')?'selected':''; ?>><?php echo $_page_lang['posts']['sector_study']; ?></option>
+                            <option value="migration"<?php echo ($_show_posts['sector']==='migration')?'selected':''; ?>><?php echo $_page_lang['posts']['sector_migration']; ?></option>
                         </select>
                     </div>
                 </div>

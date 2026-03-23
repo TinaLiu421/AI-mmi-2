@@ -207,6 +207,9 @@ return
         'enter_subject'         =>  'Enter your subject here',
         'enter_content'         =>  'Enter your content here',
         'add_to_post'           =>  'Add into the post',
+        'sector'                =>  'Sector',
+        'sector_study'          =>  'Study',
+        'sector_migration'      =>  'Migration',
         'youtube_url'           =>  'Enter your youtube url here'
     ],
     'list_agents'               =>  'List of Migration Agents',

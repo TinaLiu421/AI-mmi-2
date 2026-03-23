@@ -249,10 +249,38 @@ function streamResponse(question, bubbleId) {
         if (!(streamMeta && streamMeta.show_upgrade)) return;
 
         const upgradeUrl = streamMeta.upgrade_url || (_page_base_url + '/upgrade');
-        const btnHtml = '<div class="chat-upgrade-wrap" style="margin-top:10px;">'
+        const label = streamMeta.upgrade_label || '✨ See the Full Plan → Upgrade';
+        const isOverLimit = !!(streamMeta.reason && streamMeta.reason === 'free-plan-limit-reached');
+
+        const wrapStyle = [
+            'margin-top:14px',
+            'padding:12px 14px',
+            'background:linear-gradient(135deg,#0f766e 0%,#0e9488 100%)',
+            'border-radius:12px',
+            'display:flex',
+            'align-items:center',
+            'justify-content:space-between',
+            'gap:10px',
+            'box-shadow:0 2px 8px rgba(15,118,110,0.25)',
+        ].join(';');
+
+        const subtext = isOverLimit
+            ? 'Get unlimited deep-dive answers + certified specialist access'
+            : 'Deeper answers, full step-by-step plans & specialist access';
+
+        const btnHtml = '<div class="chat-upgrade-wrap" style="' + wrapStyle + '">'
+            + '<div style="flex:1;min-width:0;">'
+            + '<div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:2px;">' + label + '</div>'
+            + '<div style="color:rgba(255,255,255,0.8);font-size:12px;">' + subtext + '</div>'
+            + '</div>'
             + '<button type="button" class="chat-upgrade-btn" '
-            + 'style="padding:8px 14px;border:none;border-radius:8px;background:#0f766e;color:#fff;cursor:pointer;font-weight:600;">'
-            + 'Upgrade</button></div>';
+            + 'style="flex-shrink:0;padding:9px 18px;border:2px solid #fff;border-radius:8px;'
+            + 'background:transparent;color:#fff;cursor:pointer;font-weight:700;font-size:13px;'
+            + 'white-space:nowrap;transition:background 0.15s;"'
+            + ' onmouseover="this.style.background=\'rgba(255,255,255,0.15)\'"'
+            + ' onmouseout="this.style.background=\'transparent\'">'
+            + 'Upgrade Now</button>'
+            + '</div>';
 
         $text.append(btnHtml);
         $text.find('.chat-upgrade-btn').off('click').on('click', function () {
@@ -833,8 +861,10 @@ function iweb_global_func() {
 
     $(document).on("click", "a.do-toapply", function () {
         var object = $(this);
-        //var posts_id = parseInt(object.data("id"));
-        window.location.href = _page_base_url+"/apply"
+        var actionUrl = object.data("action-url");
+        window.location.href = iweb.isValue(actionUrl)
+            ? actionUrl
+            : (_page_base_url + "/apply");
     });
 
     $(document).on("click", "a.do-qanda", function () {

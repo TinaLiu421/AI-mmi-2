@@ -1,5 +1,11 @@
 <?php $_show_current_member = $_page_data['show_current_member']; ?>
-<?php if(!empty($_page_data['list_posts']['data'])) { foreach ($_page_data['list_posts']['data'] as $posts) { ?>
+<?php if(!empty($_page_data['list_posts']['data'])) { foreach ($_page_data['list_posts']['data'] as $posts) { 
+    $postSector = (!empty($posts['sector']) && in_array($posts['sector'], ['study', 'migration'], true)) ? $posts['sector'] : 'study';
+    $postActionLabel = ($postSector === 'migration')
+        ? ($_page_lang['chat_robot']['talk_to_agent'] ?? 'Talk to Agent')
+        : ($_page_lang['apply'] ?? 'Apply Now !');
+    $postActionUrl = ($postSector === 'migration') ? ($_page_base_url.'/agent_chat') : ($_page_base_url.'/apply');
+?>
 <div class="post">
     <div>
         <div class="author">
@@ -77,9 +83,9 @@
                 </div>
             </div>
             <div class="actions">
-                <a class="do-toapply" data-id="<?php echo $posts['id']; ?>">
+                <a class="do-toapply" data-id="<?php echo $posts['id']; ?>" data-action-url="<?php echo $postActionUrl; ?>" data-sector="<?php echo $postSector; ?>">
                     <img src="asset/image/icon-apply.png" alt="icon-comment"/>
-                    <span><?php echo $_page_lang['apply']; ?></span>
+                    <span><?php echo $postActionLabel; ?></span>
                 </a>    
                 <a class="do-qanda" data-id="<?php echo $posts['id']; ?>">
                     <img src="asset/image/icon-comment.png" alt="icon-comment"/>

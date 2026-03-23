@@ -64,7 +64,8 @@ class Account extends WebController {
             $validator = Validator::make($this->_page_post_data, 
             [
                 'title'     =>  'required',
-                'content'   =>  'required'
+                'content'   =>  'required',
+                'sector'    =>  'required|in:study,migration'
             ]);
             
             if(!$validator->fails()) {

@@ -207,6 +207,9 @@ return
         'enter_subject'         =>  '在此输入您的主题',
         'enter_content'         =>  '在此输入您的内容',
         'add_to_post'           =>  '加入帖子中',
+        'sector'                =>  '类别',
+        'sector_study'          =>  '留学',
+        'sector_migration'      =>  '移民',
         'youtube_url'           =>  '在此输入您的 YouTube 网址'
     ],
     'list_agents'               =>  '移民代理名单',
