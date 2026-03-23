@@ -202,36 +202,23 @@ class Home extends WebController {
 
             // === ③.1 已登录用户免费次数限制（Free 用户默认 10 次） ===
 
+            $activePlanCode = 'free';
+            $isLimitedPlanUser = false;
+            $isOverLimit = false;
+            $memberAskCount = 0;
+            $freeLimit = $this->freePlanChatLimit();
+
             if (!empty($member)) {
+                $activePlanCode = $this->resolveActivePlanCode((int)$memberId);
+                $isLimitedPlanUser = $this->isChatLimitPlanCode($activePlanCode)
+                    && !$this->isWealthskeyFreeFlowMember($member);
 
-                // ① 判断是否 AI freeflow 用户（all_ai / hybrid / vip 不受免费额度限制；premium仍受限）
-                $isPaidUser = $this->hasActivePaidSubscription((int)$memberId)
-                    || $this->isAiFreeFlowPlan((int)$memberId)
-                    || $this->isWealthskeyFreeFlowMember($member);
-
-                // Free 用户达到额度后，统一返回简短升级提示
-                if (!$isPaidUser) {
-
-                    // ② 统计用户提问次数（只数 type='ask'）
+                if ($isLimitedPlanUser) {
                     $memberAskCount = $this->countMemberAskQuestions((int)$memberId);
-                    $freeLimit = $this->freePlanChatLimit();
 
-                    // ③ 超过额度 → 返回简短回答 + 升级提示
                     if ($memberAskCount >= $freeLimit) {
-
-                        $limitMsg = $this->buildPaidPlanLimitReply($rawQuestion);
-
-                        // 入库
-                        $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $limitMsg, 'free-plan-limit', 'AI-mmi', $storeChatConfig);
-
-                        // 返回用户
-                        $this->jsonReply($rawQuestion, $limitMsg, 'free-plan-limit', $member, [
-                            'show_upgrade' => true,
-                            'upgrade_url'  => '/upgrade',
-                            'action'       => 'redirect',
-                            'redirect_url' => '/upgrade',
-                        ]);
-                        return;
+                        // Over limit: still answer, but brevity mode + upgrade nudge appended
+                        $isOverLimit = true;
                     }
                 }
             }
@@ -340,14 +327,21 @@ Rules:
             // ❸ 纯模型 Pure model
             if ($reply === '' && !$isFromQa) {
                 $nonQaLang = $this->detectLangZhOrEn($rawQuestion);
-                $x = $this->callXaiResponses($rawQuestion, [
+                $questionForModel = $this->buildQuestionWithConversationContext(
+                    (string)$rawQuestion,
+                    (int)$memberId,
+                    (string)$guestId,
+                    (string)$sessionId
+                );
+
+                $x = $this->callXaiResponses($questionForModel, [
                     'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
                     'max_output_tokens' => 2048,
                     'model' => 'grok-4-1-fast-reasoning',
                     'enable_search'     => true,
                     'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                     'vector_store_ids' => [],
-                    'system' => "
+                    'system' => ($isOverLimit ? $this->buildBrevityConstraintNote() : '') . "
                     You are AI-mmi, specialised in immigration and visa queries.
 
                     ## Identity & Naming
@@ -447,6 +441,16 @@ Rules:
                 }
 
                 $aiOwnerName = 'AI-mmi';
+            }
+
+            if (!$isFromQa && $isLimitedPlanUser) {
+                $reply = $this->appendSoftUpgradeNudge(
+                    (string)$reply,
+                    (string)$rawQuestion,
+                    $memberAskCount + 1,
+                    $freeLimit,
+                    (int)$memberId
+                );
             }
 
             // === ④ 入库 + 返回 ===
@@ -1288,32 +1292,18 @@ Rules:
         $domain = $this->classifyQuestionDomain((string)$question);
         $isEdu = $domain === 'education';
         $isMigrationVisa = $domain === 'migration';
-        $isPaidUser = $this->hasActivePaidSubscription($memberId)
-            || $this->isAiFreeFlowPlan($memberId)
-            || $this->isWealthskeyFreeFlowMember($member);
+        $activePlanCode = $this->resolveActivePlanCode($memberId);
+        $isLimitedPlanUser = $this->isChatLimitPlanCode($activePlanCode)
+            && !$this->isWealthskeyFreeFlowMember($member);
+        $isOverLimit = false;
+        $memberAskCount = 0;
+        $freeLimit = $this->freePlanChatLimit();
 
-        if (!$isPaidUser) {
+        if ($isLimitedPlanUser) {
             $memberAskCount = $this->countMemberAskQuestions($memberId);
-            $freeLimit = $this->freePlanChatLimit();
             if ($memberAskCount >= $freeLimit) {
-                $limitMsg = $this->buildPaidPlanLimitReply((string)$question);
-                $this->storeChat(
-                    $memberId,
-                    $guestId,
-                    $sessionId,
-                    (string)$question,
-                    $limitMsg,
-                    'free-plan-limit',
-                    'AI-mmi',
-                    ['log_to_chat_table' => true, 'source' => 'chat']
-                );
-                $this->streamMessage($limitMsg, [
-                    'reply_source' => 'free-plan-limit',
-                    'show_upgrade' => true,
-                    'upgrade_url'  => '/upgrade',
-                    'action'       => 'redirect',
-                    'redirect_url' => '/upgrade',
-                ]);
+                // Over limit: still answer, but brevity mode + upgrade nudge appended
+                $isOverLimit = true;
             }
         }
 
@@ -1396,9 +1386,21 @@ or equivalent wording in the user's language.
 - Keep the flow natural: do not force all sections if a shorter conversational answer is better.
 " . $this->buildStrictLanguageInstruction($lang);
 
+        if ($isOverLimit) {
+            $systemPrompt = $this->buildBrevityConstraintNote() . $systemPrompt;
+        }
+
         $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
             $cacheQuestion = $this->normalizeQuestionForCache((string)$question);
-            $cacheKey = 'xai_chat_cache:' . md5($lang . '|' . $cacheQuestion);
+            $cacheMode = $isOverLimit ? 'brevity' : 'full';
+            $cacheAudience = $memberId > 0
+                ? ('member:' . (string)$memberId)
+                : ('guest:' . (string)$guestId . ':' . (string)$sessionId);
+            $threadAnchor = (string)($this->getXaiPrevResponseId() ?? '');
+            $threadScope = $threadAnchor !== '' ? substr($threadAnchor, 0, 64) : 'root';
+            $cacheKey = 'xai_chat_cache:' . md5(
+                $cacheAudience . '|' . $lang . '|' . $cacheMode . '|' . $threadScope . '|' . $cacheQuestion
+            );
         if ($cacheTtl > 0 && Cache::has($cacheKey)) {
             $cachedReply = (string)Cache::get($cacheKey);
             if ($lang === 'en' && $this->containsCjk($cachedReply)) {
@@ -1406,17 +1408,28 @@ or equivalent wording in the user's language.
             }
             if (trim($cachedReply) !== '') {
                 if (!($lang === 'en' && $this->containsCjk($cachedReply))) {
+                    $replyForCurrentUser = $cachedReply;
+                    if ($isLimitedPlanUser) {
+                        $replyForCurrentUser = $this->appendSoftUpgradeNudge(
+                            (string)$replyForCurrentUser,
+                            (string)$question,
+                            $memberAskCount + 1,
+                            $freeLimit,
+                            (int)$memberId
+                        );
+                    }
+
                     $this->storeChat(
                         $memberId,
                         $guestId,
                         $sessionId,
                         (string)$question,
-                        $cachedReply,
+                        $replyForCurrentUser,
                         'model-cache',
                         'AI-mmi',
                         ['log_to_chat_table' => true, 'source' => 'chat']
                     );
-                    $this->streamMessage($cachedReply, ['reply_source' => 'model']);
+                    $this->streamMessage($replyForCurrentUser, ['reply_source' => 'model']);
                     return;
                 }
             }
@@ -1433,7 +1446,15 @@ or equivalent wording in the user's language.
             $finalSystemPrompt .= "\n\n- Do NOT add greeting or self-introduction in this response.\n- Provide only verified facts from available sources.\n- If a specific number/date cannot be verified, explicitly say it may vary and ask user to confirm the official page.";
         }
 
-        $x = $this->callXaiResponses($question, [
+        $questionForModel = $this->buildQuestionWithConversationContext(
+            (string)$question,
+            (int)$memberId,
+            (string)$guestId,
+            (string)$sessionId
+        );
+
+        $x = $this->callXaiResponses($questionForModel, [
+            'resume_thread'      => true,
             'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
             'max_output_tokens' => (int)env('XAI_MAX_OUTPUT_TOKENS', 1024),
             'model' => 'grok-4-1-fast-reasoning',
@@ -1462,18 +1483,29 @@ or equivalent wording in the user's language.
             Cache::put($cacheKey, $reply, $cacheTtl);
         }
 
+        $replyForCurrentUser = $reply;
+        if ($isLimitedPlanUser) {
+            $replyForCurrentUser = $this->appendSoftUpgradeNudge(
+                (string)$replyForCurrentUser,
+                (string)$question,
+                $memberAskCount + 1,
+                $freeLimit,
+                (int)$memberId
+            );
+        }
+
         $this->storeChat(
             $memberId,
             $guestId,
             $sessionId,
             (string)$question,
-            $reply,
+            $replyForCurrentUser,
             'model',
             'AI-mmi',
             ['log_to_chat_table' => true, 'source' => 'chat']
         );
 
-        $this->streamMessage($reply, ['reply_source' => 'model']);
+        $this->streamMessage($replyForCurrentUser, ['reply_source' => 'model']);
     }, 200, [
         'Content-Type' => 'text/event-stream',
         'Cache-Control' => 'no-cache',
@@ -1590,6 +1622,46 @@ private function hasActivePaidSubscription(int $memberId): bool
     }
 }
 
+private function resolveActivePlanCode(int $memberId): string
+{
+    if ($memberId <= 0) {
+        return 'free';
+    }
+
+    try {
+        $query = DB::table('subscriptions')
+            ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+            ->where('subscriptions.member_id', $memberId)
+            ->where('subscriptions.status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('subscriptions.ends_at')
+                  ->orWhere('subscriptions.ends_at', '>', now());
+            });
+
+        if (Schema::hasColumn('plans', 'is_active')) {
+            $query->where('plans.is_active', 1);
+        }
+
+        $row = $query
+            ->orderByRaw('CASE WHEN subscriptions.ends_at IS NULL THEN 1 ELSE 0 END DESC')
+            ->orderBy('subscriptions.ends_at', 'desc')
+            ->orderBy('subscriptions.id', 'desc')
+            ->select('plans.code')
+            ->first();
+
+        $code = strtolower(trim((string)($row->code ?? '')));
+        return $code !== '' ? $code : 'free';
+    } catch (\Throwable $e) {
+        return 'free';
+    }
+}
+
+private function isChatLimitPlanCode(string $planCode): bool
+{
+    $normalized = strtolower(trim($planCode));
+    return in_array($normalized, ['free', 'premium'], true);
+}
+
 /**
  * AI freeflow: only all_ai, hybrid, vip bypass the 5-question limit.
  * premium users keep the 5-chat restriction.
@@ -1704,6 +1776,8 @@ private function processFinalText($text, $isFromQa, $lang) {
 
     // Remove citation-style markers like [1], [2], [1][2]
     $processed = preg_replace('/\[(\d+)\]/u', '', (string)$processed);
+    // Clean occasional stray prefix typo like "xHey — AI-mmi..."
+    $processed = preg_replace('/^\s*x(?=Hey\s*[—-]\s*AI-mmi\b)/iu', '', (string)$processed);
     // Collapse repeated spaces/tabs only; keep line breaks for readability
     $processed = preg_replace('/[ \t]{2,}/u', ' ', (string)$processed);
     $processed = preg_replace('/\n{3,}/u', "\n\n", (string)$processed);
@@ -1727,6 +1801,143 @@ private function normalizeQuestionForCache(string $question): string
     $q = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $q);
     $q = preg_replace('/\s+/u', ' ', (string)$q);
     return trim((string)$q);
+}
+
+private function buildQuestionWithConversationContext(string $question, int $memberId, string $guestId = '', string $sessionId = ''): string
+{
+    $question = trim($question);
+    if ($question === '') {
+        return '';
+    }
+
+    $resolvedReference = '';
+    if ($this->isAmbiguousFollowUpQuestion($question)) {
+        $latestUserAsk = $this->getLatestUserAskBeforeCurrent($memberId, $sessionId);
+        if ($latestUserAsk !== '') {
+            $resolvedReference = "Ambiguity resolution rule:\n"
+                . "- The current question is a follow-up and MUST refer to the immediately previous user question.\n"
+                . "- Previous user question: " . $latestUserAsk . "\n"
+                . "- If the user asks 'how much/fee/cost/how long' without subject, answer for that previous question subject.\n\n";
+        }
+    }
+
+    $context = $this->buildRecentConversationContext($memberId, $guestId, $sessionId, 6);
+    if ($context === '') {
+        return $resolvedReference . $question;
+    }
+
+    return $resolvedReference
+        . "Conversation context (latest turns):\n"
+        . $context
+        . "\n\nCurrent user question:\n"
+        . $question;
+}
+
+private function isAmbiguousFollowUpQuestion(string $question): bool
+{
+    $q = mb_strtolower(trim($question), 'UTF-8');
+    if ($q === '') {
+        return false;
+    }
+
+    if (mb_strlen($q, 'UTF-8') > 80) {
+        return false;
+    }
+
+    $patterns = [
+        '/\b(how much|how long|how many|what about|and fee|cost\??|price\??|fee\??)\b/u',
+        '/\b(is it|can i|what is it|that one|this one|it\??)\b/u',
+        '/(多少钱|多少|费用|价格|多久|这个|那个)/u',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $q)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+private function getLatestUserAskBeforeCurrent(int $memberId, string $sessionId = ''): string
+{
+    if ($memberId <= 0) {
+        return '';
+    }
+
+    try {
+        $query = DB::table('chat_log')
+            ->where('member_id', $memberId)
+            ->where('type', 'ask')
+            ->orderBy('id', 'desc')
+            ->select('content')
+            ->limit(1);
+
+        if ($sessionId !== '' && $this->chatLogHasSessionId()) {
+            $query->where('session_id', $sessionId);
+        }
+
+        $row = $query->first();
+        $text = trim((string)($row->content ?? ''));
+        if ($text === '') {
+            return '';
+        }
+
+        return mb_strlen($text, 'UTF-8') > 260
+            ? (mb_substr($text, 0, 260, 'UTF-8') . '…')
+            : $text;
+    } catch (\Throwable $e) {
+        return '';
+    }
+}
+
+private function buildRecentConversationContext(int $memberId, string $guestId = '', string $sessionId = '', int $limit = 6): string
+{
+    if ($memberId <= 0) {
+        return '';
+    }
+
+    try {
+        $query = DB::table('chat_log')
+            ->select('type', 'content')
+            ->where('member_id', $memberId)
+            ->whereIn('type', ['ask', 'reply'])
+            ->orderBy('id', 'desc')
+            ->limit(max(2, min(12, $limit)));
+
+        if ($sessionId !== '' && $this->chatLogHasSessionId()) {
+            $query->where('session_id', $sessionId);
+        }
+
+        $rows = $query->get()->reverse()->values();
+        if ($rows->isEmpty()) {
+            return '';
+        }
+
+        $lines = [];
+        foreach ($rows as $row) {
+            $role = strtolower((string)($row->type ?? '')) === 'reply' ? 'AI' : 'User';
+            $text = trim((string)($row->content ?? ''));
+            if ($text === '') {
+                continue;
+            }
+
+            $text = preg_replace('/\s+/u', ' ', $text);
+            if (mb_strlen($text, 'UTF-8') > 220) {
+                $text = mb_substr($text, 0, 220, 'UTF-8') . '…';
+            }
+
+            $lines[] = $role . ': ' . $text;
+        }
+
+        if (empty($lines)) {
+            return '';
+        }
+
+        return implode("\n", $lines);
+    } catch (\Throwable $e) {
+        return '';
+    }
 }
 
 private function buildVerificationLeadMessage(string $lang): string
@@ -1908,12 +2119,135 @@ private function buildPaidPlanLimitReply(string $question): string
     $limit = $this->freePlanChatLimit();
 
     if ($lang === 'zh') {
-        return "您已用完免费聊天次数（{$limit}次）🙂。\n"
-            . "升级方案后，我会继续给您更完整、更深入的个性化建议。👉 点击 Upgrade";
+        return "您已达到当前方案聊天上限（{$limit}次）🙂。\n"
+            . "升级后我可以继续陪您做更深入、更完整的个性化规划。👉 点击 Upgrade";
     }
 
-    return "You've reached your free chat limit ({$limit} chats) 🙂.\n"
-        . "Upgrade your plan and I'll continue with deeper, step-by-step personalized guidance. 👉 Click Upgrade";
+    return "You've reached the chat limit for your current plan ({$limit} chats) 🙂.\n"
+        . "Upgrade and I’ll keep going with deeper, step-by-step personalized guidance. 👉 Click Upgrade";
+}
+
+private function appendSoftUpgradeNudge(string $reply, string $question, int $currentAskNumber, int $limit, int $memberId = 0): string
+{
+    $reply = trim($reply);
+    if ($reply === '' || $limit <= 0) {
+        return $reply;
+    }
+
+    // Hard safety guard: only free/premium users should ever see upgrade nudges.
+    if ($memberId > 0 && !$this->shouldApplyUpgradeNudgeForMember($memberId)) {
+        return $reply;
+    }
+
+    $triggerAt = max(4, $limit - 2);
+    if ($currentAskNumber < $triggerAt) {
+        return $reply;
+    }
+
+    if (preg_match('/\b(upgrade|plan|subscription|subscribe)\b|升级|套餐|订阅|方案/u', $reply)) {
+        return $reply;
+    }
+
+    $remaining = max(0, $limit - $currentAskNumber);
+    $lang = $this->detectLangZhOrEn($question);
+    $isOverLimitNudge = ($currentAskNumber >= $limit);
+    $nudge = '';
+
+    if ($lang === 'zh') {
+        if ($isOverLimitNudge) {
+            $nudge = "温馨提示😊：您的免费额度已用完，我仍可继续简短回答。"
+                . "升级后我可以提供更详细的一步步个性化规划。👉 点击 Upgrade";
+        } else {
+            $nudge = "小提醒🙂：您当前方案还剩 {$remaining} 次对话额度。"
+                . "如果想让我继续给您更完整的一步步规划，随时点一下 Upgrade 就好。";
+        }
+    } else {
+        if ($isOverLimitNudge) {
+            $nudge = "FYI 😊 Your free chats are used up — but I’m still here for quick answers. "
+                . "Upgrade for the full deep-dive whenever you’re ready. 👉 Upgrade";
+        } else {
+            $nudge = "Quick heads-up 🙂 You have {$remaining} chats left on your current plan. "
+                . "If you want deeper step-by-step planning, tap Upgrade anytime and I’ll keep rolling with you.";
+        }
+    }
+
+    $parts = [$nudge];
+    if ($this->shouldAppendMicroHook($currentAskNumber, $limit)) {
+        $parts[] = $this->buildMicroHookEnding($lang, $currentAskNumber);
+    }
+
+    return $reply . "\n\n" . implode("\n", array_filter($parts));
+}
+
+private function shouldApplyUpgradeNudgeForMember(int $memberId): bool
+{
+    if ($memberId <= 0) {
+        return false;
+    }
+
+    try {
+        $rows = DB::select(
+            "SELECT p.code
+             FROM app_subscriptions s
+             JOIN app_plans p ON p.id = s.plan_id
+             WHERE s.member_id = ?
+               AND s.status = 'active'
+               AND (s.ends_at IS NULL OR s.ends_at > NOW())
+               AND p.is_active = 1
+             ORDER BY (s.ends_at IS NULL) DESC, s.ends_at DESC, s.id DESC
+             LIMIT 1",
+            [$memberId]
+        );
+
+        if (empty($rows) || empty($rows[0]->code)) {
+            return true;
+        }
+
+        $planCode = strtolower(trim((string)$rows[0]->code));
+        return in_array($planCode, ['free', 'premium'], true);
+    } catch (\Throwable $e) {
+        // Fail-safe: never nudge when resolver errors.
+        return false;
+    }
+}
+
+private function shouldAppendMicroHook(int $currentAskNumber, int $limit): bool
+{
+    if ($limit <= 0) {
+        return false;
+    }
+
+    $hookPoints = array_unique([
+        max(1, $limit - 2),
+        max(1, $limit),
+    ]);
+
+    return in_array($currentAskNumber, $hookPoints, true);
+}
+
+private function buildMicroHookEnding(string $lang, int $currentAskNumber): string
+{
+    if ($lang === 'zh') {
+        $hooks = [
+            '要不要我下一条直接给你“最快可执行路径”？',
+            '想不想我帮你把路线压成“最省时间版本”？',
+            '要的话我下一步就给你“最稳+最快”的行动清单。',
+        ];
+    } else {
+        $hooks = [
+            'Want the fastest realistic path next?',
+            'Want me to map the quickest step-by-step route for you?',
+            'If you want, next message I’ll give you the fastest low-risk action plan.',
+        ];
+    }
+
+    $index = abs($currentAskNumber) % count($hooks);
+    return $hooks[$index];
+}
+
+private function buildBrevityConstraintNote(): string
+{
+    return "\n\n## FREE PLAN BREVITY MODE\nThe user is on a free or starter plan and has used all their free chats.\nKeep your reply SHORT — maximum 2-3 sentences or up to 3 bullets.\nGive a genuinely useful quick answer but do NOT go into full step-by-step depth.\nDo NOT mention the free plan, chat limits, upgrades, or pricing in your reply — that note will be appended separately after your reply.\n";
 }
 
 private function freePlanChatLimit(): int
