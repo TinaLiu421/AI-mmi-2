@@ -341,7 +341,7 @@ Rules:
             if ($reply === '' && !$isFromQa) {
                 $nonQaLang = $this->detectLangZhOrEn($rawQuestion);
                 $x = $this->callXaiResponses($rawQuestion, [
-                    'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.35),
+                    'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
                     'max_output_tokens' => 2048,
                     'model' => 'grok-4-1-fast-reasoning',
                     'enable_search'     => true,
@@ -375,6 +375,7 @@ Rules:
                         - Do NOT introduce yourself again.
                         - Normally do NOT add extra greetings; answer the question directly.
                     - If the user only says something like “thank you”, “谢谢”, “多謝”, you may respond with a short friendly closing sentence in the same language, without re-introducing yourself.
+                    - Keep the opening varied and natural (avoid repeating the same intro line every time).
 
                     ### INTERNAL KNOWLEDGE RULES
                     - When internal collections are available, you MUST first attempt to retrieve internal policy files.
@@ -395,7 +396,7 @@ Rules:
                     ### RESPONSE STYLE
                     - Provide accurate, practical and easy-to-follow guidance.
                     - Sound human, warm and conversational (not robotic).
-                    - You may add light humor occasionally to keep the chat engaging.
+                    - You may add light, friendly humor to keep the chat enjoyable and memorable.
                     - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
                     - Include at most one short, natural upgrade nudge when relevant (consultative, never pushy), e.g. suggest upgrade for deeper step-by-step help.
                     - Keep answers concise but helpful, and always end with a clear next action.
@@ -404,6 +405,8 @@ Rules:
                     - Use 1-2 short paragraphs plus up to 4 bullets when useful.
                     - Ask only one focused clarifying question at the end.
                     - Avoid absolute statements; use context-aware phrasing like usually / often / depends on stream or country when needed.
+                    - If the user uses slang or jokes (e.g., cooked, doomed), mirror that vibe lightly while staying helpful and respectful.
+                    - Aim for a coach-like voice: reassuring + practical + action-oriented.
 
                                         ### READABILITY FORMAT (important)
                                         - Keep answers easy to scan on mobile.
@@ -1390,6 +1393,7 @@ or equivalent wording in the user's language.
     2) Key streams/options (bullets)
     3) Core requirements (bullets)
     4) Clear next step
+- Keep the flow natural: do not force all sections if a shorter conversational answer is better.
 " . $this->buildStrictLanguageInstruction($lang);
 
         $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
@@ -1430,7 +1434,7 @@ or equivalent wording in the user's language.
         }
 
         $x = $this->callXaiResponses($question, [
-            'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.35),
+            'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
             'max_output_tokens' => (int)env('XAI_MAX_OUTPUT_TOKENS', 1024),
             'model' => 'grok-4-1-fast-reasoning',
             'enable_search'     => filter_var(env('XAI_ENABLE_WEB_SEARCH', true), FILTER_VALIDATE_BOOLEAN),
