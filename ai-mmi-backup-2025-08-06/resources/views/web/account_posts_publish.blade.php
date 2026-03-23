@@ -67,9 +67,9 @@ $_show_posts = array_merge([
 
                     <div class="dropdown">
                         <select id="sector" name="sector" data-validation="required">
-                            <option value=""><?php echo $_page_lang['posts']['sector']; ?></option>
-                            <option value="study"<?php echo ($_show_posts['sector']==='study')?'selected':''; ?>><?php echo $_page_lang['posts']['sector_study']; ?></option>
-                            <option value="migration"<?php echo ($_show_posts['sector']==='migration')?'selected':''; ?>><?php echo $_page_lang['posts']['sector_migration']; ?></option>
+                            <option value=""><?php echo $_page_lang['posts.sector']; ?></option>
+                            <option value="study"<?php echo ($_show_posts['sector']==='study')?'selected':''; ?>><?php echo $_page_lang['posts.sector_study']; ?></option>
+                            <option value="migration"<?php echo ($_show_posts['sector']==='migration')?'selected':''; ?>><?php echo $_page_lang['posts.sector_migration']; ?></option>
                         </select>
                     </div>
                 </div>
