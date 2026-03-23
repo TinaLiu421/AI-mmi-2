@@ -224,7 +224,8 @@ class Home extends WebController {
                     if (($memberAskCount + 1) >= $freeLimit) {
                         // At/over limit (10th+): shorter answer mode + upgrade redirect
                         $isOverLimit = true;
-                        $shouldRedirectToUpgrade = $this->shouldApplyUpgradeNudgeForMember((int)$memberId);
+                        $shouldRedirectToUpgrade = ($activePlanCode === 'free')
+                            && $this->shouldApplyUpgradeNudgeForMember((int)$memberId);
                     }
                 }
             }
@@ -470,10 +471,11 @@ Rules:
                 $aiOwnerName = 'AI-mmi';
             }
 
-            if (!$isFromQa && $isLimitedPlanUser) {
-                $reply = $this->appendSoftUpgradeNudge(
+            if (!$isFromQa && !empty($member)) {
+                $reply = $this->appendPlanPromotionNudge(
                     (string)$reply,
                     (string)$rawQuestion,
+                    (string)$activePlanCode,
                     $memberAskCount + 1,
                     $freeLimit,
                     (int)$memberId
@@ -1347,7 +1349,8 @@ Rules:
             if (($memberAskCount + 1) >= $freeLimit) {
                 // At/over limit (10th+): shorter answer mode + upgrade redirect
                 $isOverLimit = true;
-                $shouldRedirectToUpgrade = $this->shouldApplyUpgradeNudgeForMember($memberId);
+                $shouldRedirectToUpgrade = ($activePlanCode === 'free')
+                    && $this->shouldApplyUpgradeNudgeForMember($memberId);
             }
         }
 
@@ -1484,10 +1487,11 @@ or equivalent wording in the user's language.
             if (trim($cachedReply) !== '') {
                 if (!($lang === 'en' && $this->containsCjk($cachedReply))) {
                     $replyForCurrentUser = $cachedReply;
-                    if ($isLimitedPlanUser) {
-                        $replyForCurrentUser = $this->appendSoftUpgradeNudge(
+                    if ($memberId > 0) {
+                        $replyForCurrentUser = $this->appendPlanPromotionNudge(
                             (string)$replyForCurrentUser,
                             (string)$question,
+                            (string)$activePlanCode,
                             $memberAskCount + 1,
                             $freeLimit,
                             (int)$memberId
@@ -1569,10 +1573,11 @@ or equivalent wording in the user's language.
         }
 
         $replyForCurrentUser = $reply;
-        if ($isLimitedPlanUser) {
-            $replyForCurrentUser = $this->appendSoftUpgradeNudge(
+        if ($memberId > 0) {
+            $replyForCurrentUser = $this->appendPlanPromotionNudge(
                 (string)$replyForCurrentUser,
                 (string)$question,
+                (string)$activePlanCode,
                 $memberAskCount + 1,
                 $freeLimit,
                 (int)$memberId
@@ -2259,7 +2264,42 @@ private function buildPaidPlanLimitReply(string $question): string
         . "Upgrade and I’ll keep going with deeper, step-by-step personalized guidance. 👉 Click Upgrade";
 }
 
-private function appendSoftUpgradeNudge(string $reply, string $question, int $currentAskNumber, int $limit, int $memberId = 0): string
+private function appendPlanPromotionNudge(string $reply, string $question, string $planCode, int $currentAskNumber, int $limit, int $memberId = 0): string
+{
+    $normalizedPlan = strtolower(trim($planCode));
+
+    if ($normalizedPlan === 'vip') {
+        return trim($reply);
+    }
+
+    if (in_array($normalizedPlan, ['free', 'premium'], true)) {
+        return $this->appendSoftUpgradeNudge($reply, $question, $currentAskNumber, $limit, $memberId, $normalizedPlan);
+    }
+
+    $reply = trim((string)$reply);
+    if ($reply === '') {
+        return $reply;
+    }
+
+    $lang = $this->detectLangZhOrEn($question);
+    if ($normalizedPlan === 'all_ai') {
+        $nudge = ($lang === 'zh')
+            ? "想要一对一真人把关您的签证路径吗？升级后可直接咨询 AI-MMI 认证顾问。👉 Upgrade"
+            : "Need a real expert to sanity-check your visa pathway? Upgrade to talk with a Certified AI-MMI specialist for 1-on-1 consultation. 👉 Upgrade";
+        return $reply . "\n\n" . $nudge;
+    }
+
+    if ($normalizedPlan === 'hybrid') {
+        $nudge = ($lang === 'zh')
+            ? "如果您希望进入更完整的代办/深度服务，升级到 VIP 或 DIY 方案即可对接 AI-MMI 认证顾问。👉 Upgrade"
+            : "Want end-to-end processing support beyond AI guidance? Upgrade to VIP or DIY plans to connect with AI-MMI certified specialists. 👉 Upgrade";
+        return $reply . "\n\n" . $nudge;
+    }
+
+    return $reply;
+}
+
+private function appendSoftUpgradeNudge(string $reply, string $question, int $currentAskNumber, int $limit, int $memberId = 0, string $planCode = 'free'): string
 {
     $reply = trim($reply);
     if ($reply === '' || $limit <= 0) {
@@ -2279,23 +2319,42 @@ private function appendSoftUpgradeNudge(string $reply, string $question, int $cu
     $remaining = max(0, $limit - $currentAskNumber);
     $lang = $this->detectLangZhOrEn($question);
     $isOverLimitNudge = ($currentAskNumber >= $limit);
+    $normalizedPlan = strtolower(trim($planCode));
     $nudge = '';
 
     if ($lang === 'zh') {
-        if ($isOverLimitNudge) {
-            $nudge = "温馨提示😊：您的免费额度已用完，我仍可继续简短回答。"
-                . "升级后我可以提供更详细的一步步个性化规划。👉 点击 Upgrade";
+        if ($normalizedPlan === 'premium') {
+            if ($isOverLimitNudge) {
+                $nudge = "提示😊：您当前 DIY 方案已进入简答模式。"
+                    . "升级 VIP 后可获得更完整、更深入的全流程支持。👉 点击 Upgrade";
+            } else {
+                $nudge = "小提醒🙂：想要完整深度支持和更高优先级，可升级到 VIP。👉 点击 Upgrade";
+            }
         } else {
-            $nudge = "小提醒🙂：您当前方案还剩 {$remaining} 次对话额度。"
-                . "如果想让我继续给您更完整的一步步规划，随时点一下 Upgrade 就好。";
+            if ($isOverLimitNudge) {
+                $nudge = "温馨提示😊：您的免费额度已用完，我仍可继续简短回答。"
+                    . "升级后我可以提供更详细的一步步个性化规划。👉 点击 Upgrade";
+            } else {
+                $nudge = "小提醒🙂：您当前方案还剩 {$remaining} 次对话额度。"
+                    . "如果想让我继续给您更完整的一步步规划，随时点一下 Upgrade 就好。";
+            }
         }
     } else {
-        if ($isOverLimitNudge) {
-            $nudge = "FYI 😊 Your free chats are used up — but I’m still here for quick answers. "
-                . "Upgrade for the full deep-dive whenever you’re ready. 👉 Upgrade";
+        if ($normalizedPlan === 'premium') {
+            if ($isOverLimitNudge) {
+                $nudge = "Quick note 😊 Your DIY plan is now in short-answer mode. "
+                    . "Upgrade to VIP for full-depth guidance and priority support. 👉 Upgrade";
+            } else {
+                $nudge = "Quick tip 🙂 Want fuller guidance and premium support? Upgrade to VIP anytime. 👉 Upgrade";
+            }
         } else {
-            $nudge = "Quick heads-up 🙂 You have {$remaining} chats left on your current plan. "
-                . "If you want deeper step-by-step planning, tap Upgrade anytime and I’ll keep rolling with you.";
+            if ($isOverLimitNudge) {
+                $nudge = "FYI 😊 Your free chats are used up — but I’m still here for quick answers. "
+                    . "Upgrade for the full deep-dive whenever you’re ready. 👉 Upgrade";
+            } else {
+                $nudge = "Quick heads-up 🙂 You have {$remaining} chats left on your current plan. "
+                    . "If you want deeper step-by-step planning, tap Upgrade anytime and I’ll keep rolling with you.";
+            }
         }
     }
 
