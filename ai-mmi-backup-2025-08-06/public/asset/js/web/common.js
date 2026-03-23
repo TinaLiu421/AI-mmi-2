@@ -1348,17 +1348,13 @@ function loadChatMessage(init) {
                         : "reply";
 
                 const isAi = (role === "reply");
-                // 历史数据也可能是 markdown/纯文本；AI 的消息转为安全 HTML，用户消息保留纯文本
+                // 历史数据也可能是 markdown/纯文本；AI 消息统一走 markdown 渲染链，避免显示 ** 或 []() 原始符号
                 let textForBubble;
                 const contentRaw = value.content_raw || value.content || "";
                 if (isAi) {
-                    if (value.content_html) {
-                        textForBubble = DOMPurify.sanitize(String(value.content_html));
-                    } else {
-                        const md = contentRaw;
-                        const mdDecorated = decorateMarkdownWithEmojis(md);
-                        textForBubble = mdToSafeHtml(mdDecorated);
-                    }
+                    const md = String(contentRaw || "");
+                    const mdDecorated = decorateMarkdownWithEmojis(md);
+                    textForBubble = mdToSafeHtml(mdDecorated);
                 } else {
                     textForBubble = contentRaw;
                 }
