@@ -2,10 +2,12 @@
 namespace App\Models;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class Posts extends BaseModel {
     protected $_member_table = 'member';
     protected $_posts_table = 'member_posts';
+    protected $_has_sector_column = null;
 
     public function __construct($data) {
         parent::__construct($data);
@@ -66,12 +68,11 @@ class Posts extends BaseModel {
             $this->setPageSize((int)$options['show_page_size']);
         }
         
-        $query->select([
+        $selectFields = [
             $this->_posts_table.'.id',
             $this->_posts_table.'.category_type',
             $this->_posts_table.'.category_lang',
             $this->_posts_table.'.category_country',
-            $this->_posts_table.'.sector',
             $this->_posts_table.'.title',
             $this->_posts_table.'.content',
             $this->_posts_table.'.photo',
@@ -83,7 +84,15 @@ class Posts extends BaseModel {
             $this->_member_table.'.alias_name',
             'like.total_like',
             'comment.total_comment',
-        ]);
+        ];
+
+        if ($this->hasSectorColumn()) {
+            $selectFields[] = $this->_posts_table.'.sector';
+        } else {
+            $selectFields[] = DB::raw("'study' AS sector");
+        }
+
+        $query->select($selectFields);
         
         if(!empty($options['show_highlight'])) {
             $query->orderBy($this->_posts_table.'.highlight', 'DESC');
@@ -132,12 +141,11 @@ class Posts extends BaseModel {
         $query->where($this->_member_table.'.status', '>', 0);
         $query->where($this->_posts_table.'.id', '=', (int)$posts_id);
         
-        $query->select([
+        $selectFields = [
             $this->_posts_table.'.id',
             $this->_posts_table.'.category_type',
             $this->_posts_table.'.category_lang',
             $this->_posts_table.'.category_country',
-            $this->_posts_table.'.sector',
             $this->_posts_table.'.title',
             $this->_posts_table.'.content',
             $this->_posts_table.'.photo',
@@ -149,7 +157,15 @@ class Posts extends BaseModel {
             $this->_member_table.'.alias_name',
             'like.total_like',
             'comment.total_comment',
-        ]);
+        ];
+
+        if ($this->hasSectorColumn()) {
+            $selectFields[] = $this->_posts_table.'.sector';
+        } else {
+            $selectFields[] = DB::raw("'study' AS sector");
+        }
+
+        $query->select($selectFields);
         
         $query->orderBy($this->_posts_table.'.id', 'DESC');
 
@@ -192,11 +208,29 @@ class Posts extends BaseModel {
         }
         unset($data['posts_id']);
 
+        if (!$this->hasSectorColumn()) {
+            unset($data['sector']);
+        }
+
         return (((int)$data['member_id'] > 0)?$this->setWhere(
         [
             ['id', '=', (int)$posts_id],
             ['member_id', '=', (int)$data['member_id']]
         ])->queryInsertData($this->_posts_table, $data):false);
+    }
+
+    protected function hasSectorColumn(): bool {
+        if ($this->_has_sector_column !== null) {
+            return $this->_has_sector_column;
+        }
+
+        try {
+            $this->_has_sector_column = Schema::hasColumn($this->_posts_table, 'sector');
+        } catch (\Throwable $e) {
+            $this->_has_sector_column = false;
+        }
+
+        return $this->_has_sector_column;
     }
     
     
