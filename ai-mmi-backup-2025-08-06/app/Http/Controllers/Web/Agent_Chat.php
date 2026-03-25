@@ -198,7 +198,8 @@ class Agent_Chat extends WebController
         }
 
         $isAgent = $this->isAgentMember($memberId);
-        $threads = $isAgent ? $this->getAgentThreads($memberId) : $this->getMemberThreads($memberId);
+        $canUseAgentHomeLayout = $isAgent && $this->canUseAgentHomeLayout($memberId);
+        $threads = $canUseAgentHomeLayout ? $this->getAgentThreads($memberId) : $this->getMemberThreads($memberId);
 
         $unreadThreads = array_values(array_filter($threads, function ($thread) {
             return (int)($thread['unread_count'] ?? 0) > 0;
@@ -209,11 +210,11 @@ class Agent_Chat extends WebController
         }, 0);
 
         $chatUrl = $this->toURL('agent_chat/chat');
-        $paidCustomers = $isAgent ? $this->getPaidCustomersForAgentHome() : [];
+        $paidCustomers = $canUseAgentHomeLayout ? $this->getPaidCustomersForAgentHome() : [];
 
         return response()->json([
             'ok' => true,
-            'is_agent' => $isAgent,
+            'is_agent' => $canUseAgentHomeLayout,
             'total_unread' => $totalUnread,
             'paid_customers' => $paidCustomers,
             'threads' => array_map(function ($thread) use ($chatUrl) {
@@ -892,6 +893,20 @@ class Agent_Chat extends WebController
             ->whereIn('type', [2, 3])
             ->where('status', '>', 0)
             ->exists();
+    }
+
+    private function canUseAgentHomeLayout(int $memberId): bool
+    {
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        $email = DB::table('member')
+            ->where('id', $memberId)
+            ->value('email');
+
+        $email = mb_strtolower(trim((string)$email), 'UTF-8');
+        return in_array($email, ['admin@wealthskey.com', 'info@ai-mmi.com'], true);
     }
 
     private function getAgents(): array
