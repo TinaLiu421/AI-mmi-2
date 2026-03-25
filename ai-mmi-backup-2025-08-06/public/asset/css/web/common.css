@@ -1640,7 +1640,6 @@ footer.page-footer a:hover {
 
     header.page-header .controls {
         gap: var(--space-3);
-        height: 20px;
     }
 
     /* mobile header control sizes */
