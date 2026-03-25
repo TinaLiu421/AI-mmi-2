@@ -1411,7 +1411,8 @@ footer.page-footer a:hover {
     }
 
     header.page-header .controls .lang > a span,
-    header.page-header .controls .service_provider_info > a span {
+    header.page-header .controls .service_provider_info > a span,
+    header.page-header .controls .upgrade_link > a span {
         display: none;
     }
 
@@ -1639,7 +1640,12 @@ footer.page-footer a:hover {
     }
 
     header.page-header .controls {
-        gap: var(--space-3);
+        gap: 8px;
+    }
+
+    /* Hide service provider button on very small screens to prevent overflow */
+    header.page-header .controls .service_provider_info {
+        display: none;
     }
 
     /* mobile header control sizes */
