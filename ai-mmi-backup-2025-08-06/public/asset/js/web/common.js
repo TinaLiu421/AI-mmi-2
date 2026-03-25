@@ -184,8 +184,15 @@ function showTalkToAgentCTA() {
     }, 300);
 }
 
+function bindBannerTalkAgentCtaUrl() {
+    var $bannerCta = $('#banner-talk-agent-btn');
+    if (!$bannerCta.length) return;
+    $bannerCta.attr('href', getTalkToAgentCTAUrl());
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     showTalkToAgentCTA();
+    bindBannerTalkAgentCtaUrl();
 });
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -936,6 +943,12 @@ function iweb_global_func() {
         var actionUrl = object.data("action-url");
 
         if (sector === "migration") {
+            // Require sign-in for migration AI chat entry point
+            if (!(typeof _current_member !== "undefined" && _current_member && _current_member.id)) {
+                window.location.href = _page_base_url + "/account_login";
+                return;
+            }
+
             // Auto-send a migration greeting to the embedded AI chatbot
             var presetMsg = "Hi, I would like to ask about migration. Could you help?";
             var $input = $("#ask_question");

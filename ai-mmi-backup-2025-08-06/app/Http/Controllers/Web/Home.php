@@ -322,11 +322,7 @@ Rules:
                         $replySource = $x['source'] ?? 'model';
                     }
 
-                    if (mb_strlen($reply, 'UTF-8') > 2500) {
-                        $reply = mb_substr($reply, 0, 2500, 'UTF-8');
-                    }
-
-                    $reply       = $this->appendQaCta($reply, $qaLang);
+                    $reply       = $this->processFinalText($reply, true, $qaLang);
                     $aiOwnerName = 'AI-mmi';
                 }
             }
@@ -387,18 +383,13 @@ Rules:
                     - For any other language (e.g. French, Spanish, etc.), mirror that language naturally.
                     - If the user mixes languages, default to the language used in the last sentence that contains the real question.
 
-                    ## Greeting Behaviour (only first reply)
-                    - Only when this is the FIRST reply in a new conversation thread, start with a short greeting + self-introduction.
-                    - First reply greeting templates:
-                        - English: “Hey — AI-mmi here 👋 I can help with your migration and study questions.”
-                        - Simplified Chinese: “您好！我是 AI-mmi，您的智能留学和移民助理。”
-                        - Traditional Chinese: “您好！我是 AI-mmi，您的智能留學和移民助理。”
-                        - Other languages: translate the English sentence naturally into that language.
-                    - In all later replies in the SAME conversation:
-                        - Do NOT introduce yourself again.
-                        - Normally do NOT add extra greetings; answer the question directly.
-                    - If the user only says something like “thank you”, “谢谢”, “多謝”, you may respond with a short friendly closing sentence in the same language, without re-introducing yourself.
-                    - Keep the opening varied and natural (avoid repeating the same intro line every time).
+                    ## Greeting Behaviour
+                    - Do NOT use a fixed intro template.
+                    - Most of the time, start directly with the answer.
+                    - If a short opening helps, keep it natural and varied, like a real person speaking.
+                    - Do NOT re-introduce yourself in every reply.
+                    - Do NOT default to praise or congratulations unless it genuinely fits what the user said.
+                    - If the user only says something like “thank you”, “谢谢”, “多謝”, you may respond with a short friendly closing sentence in the same language.
 
                     ### INTERNAL KNOWLEDGE RULES
                     - When internal collections are available, you MUST first attempt to retrieve internal policy files.
@@ -425,40 +416,43 @@ Rules:
 
                     ### RESPONSE STYLE & PERSONALITY
                     - Be human, warm, and genuinely conversational (not robotic or template-y).
-                    - Use light humor, playful language, and personality to keep things fun and memorable.
-                    - You can use conversational filler (like \"honestly\", \"here's the thing\", \"fun fact\"), relatable references, or witty observations when appropriate.
-                    - Don't be afraid to be slightly cheeky or playful—visa jargon is boring; make it engaging.
+                    - Sound like a smart, practical person explaining things clearly, not like a marketing brochure or a scripted chatbot.
+                    - Prefer plain everyday English over dramatic, salesy, or over-polished phrasing.
+                    - Avoid hypey lines like \"golden ticket\", \"game-changer\", \"massive win\", or other canned AI-style phrases.
                     - Mirror the user's energy: if they're casual, be casual; if they're stressed, be reassuring but still friendly.
                     - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
-                    - Always end with a clear next action and make them feel like you're rooting for them.
-                    - Aim for a coach-like voice: reassuring + practical + action-oriented + fun.
+                    - Always end with a clear next action and make them feel supported.
                     - Address the user directly using \"you\" and \"your\" — make it personal, not generic.
-                    - Reflect their specific situation back to them (e.g. \"Since you're on a student visa...\" or \"Given that you mentioned...\").
+                    - Reflect their specific situation back to them in simple terms.
                     - Make the user feel heard: acknowledge their situation before jumping into the answer.
+                    - If you use a technical immigration term, explain it briefly in simple words.
 
                     ### VISUAL ENGAGEMENT & FORMATTING
-                    - Use relevant emojis throughout (👉 for actions, ✅ for progress, 🚩 for risks, 💡 for tips, ⏱️ for timelines, 📋 for requirements, etc.).
-                    - Use dividers and visual breaks to organize content: ━━━━━━ or ───────
-                    - Add small icons before key sections to break up text monotony.
-                    - Use symbols like →, ↓, ● instead of plain text alone.
-                    - Make every response feel dynamic and scannable, not wall-of-text boring.
-                    - **Bold** key terms, visa names, and important requirements (e.g. **Skilled Migrant**, **189 visa**, **points test**).
-                    - When asking the user a clarifying question, always **bold** the question so it stands out clearly.
-                    - Leave a blank line between each section or distinct topic to improve readability.
+                    - Default to a natural, paragraph-first style.
+                    - Open with 1 short paragraph that directly answers the user's situation before listing details.
+                    - Use emojis lightly: usually 0-2 per reply section, only where they genuinely help readability.
+                    - Do NOT over-decorate the answer with too many icons, symbols, or visual gimmicks.
+                    - Avoid divider lines unless the answer is long and truly needs them.
+                    - **Bold** only the most important visa names, requirements, or warning points.
+                    - When asking a clarifying question, always **bold** the question so it stands out clearly.
+                    - Use bullets only when they make the answer clearer; do not turn every answer into a dense checklist.
 
                     ### READABILITY FORMAT (important)
                     - Keep answers easy to scan on mobile.
-                    - Always leave a blank line between paragraphs and sections — never run them together.
-                    - Never write more than 3–4 lines in a row without a line break.
-                    - Each new idea or topic = new paragraph with a blank line before it.
-                    - Prefer plain-text bullets like: •  -  ✅  👉  ↳
+                    - Always leave a blank line between paragraphs and sections.
+                    - Prefer short paragraphs of 1-3 sentences.
+                    - After a bullet list, add a short natural transition or explanation instead of jumping abruptly.
+                    - If there are several facts, break them into small groups instead of one dense block.
+                    - Prefer plain-text bullets like: •  -  ✅  👉  ↳, but keep lists short.
                     - Do NOT use markdown tables.
                     - Do NOT put the whole answer in one long paragraph.
+                    - Do NOT stack too many bullets back-to-back without a normal sentence in between.
                     - For visa explanations, use this order when relevant:
-                        1) Quick summary with emoji
-                        2) Key streams/options (bullets with symbols)
-                        3) Core requirements (bullets with checkmarks)
-                        4) Clear next step with arrow or action emoji
+                        1) Short direct answer in paragraph form
+                        2) Main options or pathways
+                        3) Key requirements or risks
+                        4) Clear next step
+                    - Keep the flow conversational and human, not like a brochure or lecture.
                                         " . $this->buildStrictLanguageInstruction($nonQaLang),
 
                 ]);
@@ -477,14 +471,10 @@ Rules:
                     //     }
                     // }
 
-                    $reply = preg_replace(
-                        '/信息基于xAI内部集合检索的文件/u',
-                        '信息基于AI-mmi内部集合检索的资料',
-                        $reply
-                    );
-
                     $replySource = $x['source'] ?? 'model';
                 }
+
+                $reply = $this->processFinalText($reply, false, $nonQaLang);
 
                 $aiOwnerName = 'AI-mmi';
             }
@@ -1396,17 +1386,13 @@ You are AI-mmi, specialised in immigration and visa queries.
 - For any other language (e.g. French, Spanish, etc.), mirror that language naturally.
 - If the user mixes languages, default to the language used in the last sentence that contains the real question.
 
-## Greeting Behaviour (only first reply)
-- Only when this is the FIRST reply in a new conversation thread, start with a short greeting + self-introduction.
-- First reply greeting templates:
-    - English: “Hey — AI-mmi here 👋 I can help with your migration and study questions.”
-    - Simplified Chinese: “您好！我是 AI-mmi，您的智能留学和移民助理。”
-    - Traditional Chinese: “您好！我是 AI-mmi，您的智能留學和移民助理。”
-    - Other languages: translate the English sentence naturally into that language.
-- In all later replies in the SAME conversation:
-    - Do NOT introduce yourself again.
-    - Normally do NOT add extra greetings; answer the question directly.
-- If the user only says something like “thank you”, “谢谢”, “多謝”, you may respond with a short friendly closing sentence in the same language, without re-introducing yourself.
+## Greeting Behaviour
+- Do NOT use a fixed intro template.
+- Most of the time, start directly with the answer.
+- If a short opening helps, keep it natural and varied, like a real person speaking.
+- Do NOT re-introduce yourself in every reply.
+- Do NOT default to praise or congratulations unless it genuinely fits what the user said.
+- If the user only says something like “thank you”, “谢谢”, “多謝”, you may respond with a short friendly closing sentence in the same language.
 
 ### INTERNAL KNOWLEDGE RULES
 - When internal collections are available, you MUST first attempt to retrieve internal policy files.
@@ -1441,43 +1427,45 @@ or equivalent wording in the user's language.
 
 ### RESPONSE STYLE & PERSONALITY
 - Be human, warm, and genuinely conversational (not robotic or template-y).
-- Use light humor, playful language, and personality to keep things fun and memorable.
-- You can use conversational filler (\"honestly\", \"here's the thing\", \"fun fact\"), relatable references, or witty observations when appropriate.
-- Don't be afraid to be slightly cheeky or playful—visa jargon is boring; make it engaging.
+- Sound like a smart, practical person explaining things clearly, not like a marketing brochure or a scripted chatbot.
+- Prefer plain everyday English over dramatic, salesy, or over-polished phrasing.
+- Avoid hypey lines like \"golden ticket\", \"game-changer\", \"massive win\", or other canned AI-style phrases.
 - Mirror the user's energy: if they're casual, be casual; if they're stressed, be reassuring but still friendly.
 - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
-- Always end with a clear next action and make them feel like you're rooting for them.
-- Aim for a coach-like voice: reassuring + practical + action-oriented + fun.
+- Always end with a clear next action and make them feel supported.
 - Address the user directly using \"you\" and \"your\" — make it personal, not generic.
-- Reflect their specific situation back to them (e.g. \"Since you're on a student visa...\" or \"Given that you mentioned...\").
+- Reflect their specific situation back to them in simple terms.
 - Make the user feel heard: acknowledge their situation before jumping into the answer.
+- If you use a technical immigration term, explain it briefly in simple words.
 
 ### VISUAL ENGAGEMENT & FORMATTING
-- Use relevant emojis throughout (👉 for actions, ✅ for progress, 🚩 for risks, 💡 for tips, ⏱️ for timelines, 📋 for requirements, etc.).
-- Use dividers and visual breaks to organize content: ━━━━━━ or ───────.
-- Add small icons before key sections to break up text monotony.
-- Use symbols like →, ↓, ● instead of plain text alone.
-- Make every response feel dynamic and scannable, not wall-of-text boring.
+- Default to a natural, paragraph-first style.
+- Open with 1 short paragraph that directly answers the user's situation before listing details.
+- Use emojis lightly: usually 0-2 per reply section, only where they genuinely help readability.
+- Do NOT over-decorate the answer with too many icons, symbols, or visual gimmicks.
+- Avoid divider lines unless the answer is long and truly needs them.
 - Ask only one focused clarifying question at the end.
 - Avoid absolute statements; use context-aware phrasing like usually / often / depends on stream or country when needed.
-- **Bold** key terms, visa names, and important requirements (e.g. **Skilled Migrant**, **189 visa**, **points test**).
+- **Bold** only the most important visa names, requirements, or warning points.
 - When asking the user a clarifying question, always **bold** the question so it stands out clearly.
-- Leave a blank line between each section or distinct topic to improve readability.
+- Use bullets only when they make the answer clearer; do not turn every answer into a dense checklist.
 
 ### READABILITY FORMAT (important)
 - Keep answers easy to scan on mobile.
-- Always leave a blank line between paragraphs and sections — never run them together.
-- Never write more than 3–4 lines in a row without a line break.
-- Each new idea or topic = new paragraph with a blank line before it.
-- Prefer plain-text bullets like: •  -  ✅  👉
+- Always leave a blank line between paragraphs and sections.
+- Prefer short paragraphs of 1-3 sentences.
+- After a bullet list, add a short natural transition or explanation instead of jumping abruptly.
+- If there are several facts, break them into small groups instead of one dense block.
+- Prefer plain-text bullets like: •  -  ✅  👉, but keep lists short.
 - Do NOT use markdown tables.
 - Do NOT put the whole answer in one long paragraph.
+- Do NOT stack too many bullets back-to-back without a normal sentence in between.
 - For visa explanations, use this order when relevant:
-    1) Quick summary
-    2) Key streams/options (bullets)
-    3) Core requirements (bullets)
+    1) Short direct answer in paragraph form
+    2) Main options or pathways
+    3) Key requirements or risks
     4) Clear next step
-- Keep the flow natural: do not force all sections if a shorter conversational answer is better.
+- Keep the flow conversational and human, not like a brochure or lecture.
 " . $this->buildStrictLanguageInstruction($lang);
 
         $systemPromptParts = [];
@@ -1517,7 +1505,7 @@ or equivalent wording in the user's language.
             }
             if (trim($cachedReply) !== '') {
                 if (!($lang === 'en' && $this->containsCjk($cachedReply))) {
-                    $replyForCurrentUser = $cachedReply;
+                    $replyForCurrentUser = $this->processFinalText($cachedReply, false, $lang);
                     if ($memberId > 0) {
                         $replyForCurrentUser = $this->appendPlanPromotionNudge(
                             (string)$replyForCurrentUser,
@@ -1790,7 +1778,7 @@ private function resolveActivePlanCode(int $memberId): string
         }
 
         $row = $query
-            ->orderByRaw('CASE WHEN subscriptions.ends_at IS NULL THEN 1 ELSE 0 END DESC')
+            ->orderByRaw('CASE WHEN app_subscriptions.ends_at IS NULL THEN 1 ELSE 0 END DESC')
             ->orderBy('subscriptions.ends_at', 'desc')
             ->orderBy('subscriptions.id', 'desc')
             ->select('plans.code')
@@ -1950,20 +1938,7 @@ private function countMigrationVisaAskQuestions(int $memberId): int
 }
 
 private function processFinalText($text, $isFromQa, $lang) {
-    // Apply same post-processing as chat()
-    $processed = preg_replace(
-        '/信息基于xAI内部集合检索的文件/u',
-        '信息基于AI-mmi内部集合检索的资料',
-        $text
-    );
-
-    // Remove citation-style markers like [1], [2], [1][2]
-    $processed = preg_replace('/\[(\d+)\]/u', '', (string)$processed);
-    // Clean occasional stray prefix typo like "xHey — AI-mmi..."
-    $processed = preg_replace('/^\s*x(?=Hey\s*[—-]\s*AI-mmi\b)/iu', '', (string)$processed);
-    // Collapse repeated spaces/tabs only; keep line breaks for readability
-    $processed = preg_replace('/[ \t]{2,}/u', ' ', (string)$processed);
-    $processed = preg_replace('/\n{3,}/u', "\n\n", (string)$processed);
+    $processed = $this->sanitizeVisibleReplyText((string)$text);
     
     // Add QA CTA if needed (same as chat())
     if ($isFromQa) {
@@ -2310,6 +2285,40 @@ private function buildPaidPlanLimitReply(string $question): string
         . "Upgrade and I'll keep going with deeper, step-by-step personalized guidance. [👉 Click Upgrade](" . $this->toURL('upgrade') . ")";
 }
 
+private function getPromotionPlanNames(): array
+{
+    static $names = null;
+    if ($names !== null) {
+        return $names;
+    }
+
+    $fallback = [
+        'all_ai' => 'AI Smart Plan',
+        'premium' => 'DIY Plan',
+        'hybrid' => 'AI + Agent Plan',
+        'vip' => 'VIP Agent Plan',
+    ];
+
+    $names = $fallback;
+
+    try {
+        $rows = DB::table('plans')
+            ->whereIn('code', array_keys($fallback))
+            ->pluck('name', 'code')
+            ->toArray();
+
+        foreach ($rows as $code => $name) {
+            $label = trim((string)$name);
+            if ($label !== '') {
+                $names[$code] = $label;
+            }
+        }
+    } catch (\Throwable $e) {
+    }
+
+    return $names;
+}
+
 private function appendPlanPromotionNudge(string $reply, string $question, string $planCode, int $currentAskNumber, int $limit, int $memberId = 0): string
 {
     $normalizedPlan = strtolower(trim($planCode));
@@ -2328,17 +2337,21 @@ private function appendPlanPromotionNudge(string $reply, string $question, strin
     }
 
     $lang = $this->detectLangZhOrEn($question);
+    $planNames = $this->getPromotionPlanNames();
+    $diyPlanName = $planNames['premium'];
+    $hybridPlanName = $planNames['hybrid'];
+    $vipPlanName = $planNames['vip'];
     if ($normalizedPlan === 'all_ai') {
         $nudge = ($lang === 'zh')
-            ? "想要一对一真人把关您的签证路径吗？升级后可直接咨询 AI-MMI 认证顾问。[👉 立即升级](" . $this->toURL('upgrade') . ")"
-            : "Need a real expert to sanity-check your visa pathway? Upgrade to talk with a Certified AI-MMI specialist for 1-on-1 consultation. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
+            ? "如果您想要真人顾问帮您逐步看路径、分数和材料，可升级到 **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}**，直接对接 AI-mmi 认证移民顾问。[👉 立即升级](" . $this->toURL('upgrade') . ")"
+            : "If you want a real person to walk through your pathway, points, and documents with you, upgrade to **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** to connect with an AI-mmi Certified Migration Agent. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
         return $reply . "\n\n" . $nudge;
     }
 
     if ($normalizedPlan === 'hybrid') {
         $nudge = ($lang === 'zh')
-            ? "如果您希望进入更完整的代办/深度服务，升级到 VIP 或 DIY 方案即可对接 AI-MMI 认证顾问。[👉 立即升级](" . $this->toURL('upgrade') . ")"
-            : "Want end-to-end processing support beyond AI guidance? Upgrade to VIP or DIY plans to connect with AI-MMI certified specialists. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
+            ? "如果您想要更完整、更省心的全程代办与优先跟进，可升级到 **{$vipPlanName}**，由 AI-mmi 认证移民顾问提供更深入支持。[👉 立即升级](" . $this->toURL('upgrade') . ")"
+            : "If you want more complete end-to-end handling and priority support, upgrading to **{$vipPlanName}** is the next step. That gives you deeper help from an AI-mmi Certified Migration Agent. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
         return $reply . "\n\n" . $nudge;
     }
 
@@ -2367,44 +2380,49 @@ private function appendSoftUpgradeNudge(string $reply, string $question, int $cu
     $isOverLimitNudge = ($currentAskNumber >= $limit);
     $normalizedPlan = strtolower(trim($planCode));
     $upgradeUrl = $this->toURL('upgrade');
+    $planNames = $this->getPromotionPlanNames();
+    $aiPlanName = $planNames['all_ai'];
+    $diyPlanName = $planNames['premium'];
+    $hybridPlanName = $planNames['hybrid'];
+    $vipPlanName = $planNames['vip'];
     $nudge = '';
 
     if ($lang === 'zh') {
         $upgradeLink = "[👉 立即升级]({$upgradeUrl})";
         if ($normalizedPlan === 'premium') {
             if ($isOverLimitNudge) {
-                $nudge = "提示😊：您当前 DIY 方案已进入简答模式。"
-                    . "升级至 **Hybrid 或 VIP** 方案，可让 AI-mmi 认证移民顾问亲自为您提供一对一深度规划。{$upgradeLink}";
+                $nudge = "提示😊：您当前 **{$diyPlanName}** 已进入简答模式。"
+                    . "升级至 **{$hybridPlanName}** 或 **{$vipPlanName}**，可让 AI-mmi 认证移民顾问亲自为您提供一对一深度规划。{$upgradeLink}";
             } else {
-                $nudge = "小提醒🙂：DIY 方案已覆盖基础指引。如需更全方位的一对一顾问支持，可随时升级至 **Hybrid 或 VIP** 方案直接对接 AI-mmi 认证顾问。{$upgradeLink}";
+                $nudge = "小提醒🙂：**{$diyPlanName}** 已覆盖基础指引。如需更全方位的一对一顾问支持，可随时升级至 **{$hybridPlanName}** 或 **{$vipPlanName}** 直接对接 AI-mmi 认证顾问。{$upgradeLink}";
             }
         } else {
             if ($isOverLimitNudge) {
                 $nudge = "温馨提示😊：您的免费额度已用完，我仍可给您简短回答。"
-                    . "升级至 **AI 方案** 可获得更详尽、更完整的 AI 深度规划；升级至 **DIY / Hybrid / VIP** 方案，还可直接对接 AI-mmi **认证移民顾问**，获得专属移民路径支持。{$upgradeLink}";
+                    . "升级至 **{$aiPlanName}** 可获得更详尽、更完整的 AI 深度规划；升级至 **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}**，还可直接对接 AI-mmi **认证移民顾问**，获得专属移民路径支持。{$upgradeLink}";
             } else {
                 $nudge = "小提醒🙂：您还剩 **{$remaining}** 次免费对话。"
-                    . "升级 **AI 方案** 享无限 AI 深度解析，或选 **DIY / Hybrid / VIP** 方案直接与 AI-mmi **认证移民顾问** 一对一咋讯——点击 {$upgradeLink} 随时开始。";
+                    . "升级 **{$aiPlanName}** 享无限 AI 深度解析，或选 **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** 直接与 AI-mmi **认证移民顾问** 一对一咨询——点击 {$upgradeLink} 随时开始。";
             }
         }
     } else {
         $upgradeLink = "[👉 Upgrade Now]({$upgradeUrl})";
         if ($normalizedPlan === 'premium') {
             if ($isOverLimitNudge) {
-                $nudge = "Quick note 😊 Your DIY plan is now in short-answer mode. "
-                    . "Upgrade to **Hybrid or VIP** to get direct 1-on-1 support from an AI-mmi Certified Migration Agent. {$upgradeLink}";
+                $nudge = "Quick note 😊 Your **{$diyPlanName}** is now in short-answer mode. "
+                    . "Upgrade to **{$hybridPlanName}** or **{$vipPlanName}** to get direct 1-on-1 support from an AI-mmi Certified Migration Agent. {$upgradeLink}";
             } else {
-                $nudge = "Quick tip 🙂 DIY covers the basics — but for fuller personalised agent support, "
-                    . "**Hybrid or VIP** plans connect you directly with an AI-mmi Certified Migration Agent. {$upgradeLink}";
+                $nudge = "Quick tip 🙂 **{$diyPlanName}** covers the basics — but for fuller personalised agent support, "
+                    . "**{$hybridPlanName}** or **{$vipPlanName}** connects you directly with an AI-mmi Certified Migration Agent. {$upgradeLink}";
             }
         } else {
             if ($isOverLimitNudge) {
                 $nudge = "FYI 😊 Your free chats are used up — I'm still here for quick answers. "
-                    . "Upgrade to the **AI Plan** for unlimited detailed AI guidance, or jump to **DIY / Hybrid / VIP** "
+                    . "Upgrade to **{$aiPlanName}** for unlimited detailed AI guidance, or jump to **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** "
                     . "to get 1-on-1 support from a real AI-mmi **Certified Migration Agent**. {$upgradeLink}";
             } else {
                 $nudge = "Quick heads-up 🙂 You have **{$remaining}** free chats left. "
-                    . "Upgrade to the **AI Plan** for deeper step-by-step AI guidance, or choose **DIY / Hybrid / VIP** "
+                    . "Upgrade to **{$aiPlanName}** for deeper step-by-step AI guidance, or choose **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** "
                     . "to work directly with an AI-mmi **Certified Migration Agent** — tap {$upgradeLink} anytime.";
             }
         }
@@ -2441,6 +2459,11 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 {
     $normalizedPlan = strtolower(trim($planCode));
     $upgradeUrl = $this->toURL('upgrade');
+    $planNames = $this->getPromotionPlanNames();
+    $aiPlanName = $planNames['all_ai'];
+    $diyPlanName = $planNames['premium'];
+    $hybridPlanName = $planNames['hybrid'];
+    $vipPlanName = $planNames['vip'];
 
     switch ($normalizedPlan) {
         case 'free':
@@ -2452,9 +2475,9 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 "
                 . "Throughout the conversation, NATURALLY and SMOOTHLY weave in the following upgrade paths (do NOT be pushy — feel like a helpful friend):
 "
-                . "1. **AI Plan** — for more detailed, complete, unlimited AI-powered guidance from AI-mmi.
+                . "1. **{$aiPlanName}** — for more detailed, complete, unlimited AI-powered guidance from AI-mmi.
 "
-                . "2. **DIY / Hybrid / VIP Plans** — for direct, personalised support from an AI-mmi Certified Migration Agent.
+                . "2. **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** — for direct, personalised support from an AI-mmi Certified Migration Agent.
 "
                 . "Mention one of these paths when it feels natural (e.g., after giving a useful answer, add a brief suggestion). "
                 . "Frame upgrades as unlocking HUMAN EXPERTISE + deeper guidance, not as a paywall.
@@ -2467,9 +2490,9 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 
 ## TIER UPGRADE CONTEXT (DIY PLAN)
 "
-                . "The user is on the DIY plan.
+                . "The user is on the {$diyPlanName}.
 "
-                . "Smoothly recommend upgrading to **Hybrid or VIP** plans for hands-on support from an AI-mmi Certified Migration Agent "
+                . "Smoothly recommend upgrading to **{$hybridPlanName}** or **{$vipPlanName}** for hands-on support from an AI-mmi Certified Migration Agent "
                 . "whenever it naturally fits the conversation (e.g., complex case, important milestone, or when they seem worried).
 "
                 . "Frame it as getting a certified expert to walk with them, not just AI guidance alone.
@@ -2482,9 +2505,9 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 
 ## TIER UPGRADE CONTEXT (AI PLAN)
 "
-                . "The user is on the AI Plan (unlimited AI, no human agent yet).
+                . "The user is on the {$aiPlanName} (unlimited AI, no human agent yet).
 "
-                . "Where relevant, gently recommend upgrading to **DIY, Hybrid, or VIP** plans to connect with a real AI-mmi Certified Migration Agent "
+                . "Where relevant, gently recommend upgrading to **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** to connect with a real AI-mmi Certified Migration Agent "
                 . "for 1-on-1 personalised case guidance.
 "
                 . "Frame it as the natural next step when their case gets complex or high-stakes.
@@ -2497,9 +2520,9 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 
 ## TIER UPGRADE CONTEXT (AI+AGENT / HYBRID PLAN)
 "
-                . "The user is on the Hybrid plan (AI + some agent access).
+                . "The user is on the {$hybridPlanName} (AI + some agent access).
 "
-                . "Where it fits naturally, mention that upgrading to **VIP** unlocks fully dedicated, priority case management with an AI-mmi Certified Migration Agent.
+                . "Where it fits naturally, mention that upgrading to **{$vipPlanName}** unlocks fully dedicated, priority case management with an AI-mmi Certified Migration Agent.
 "
                 . "Keep it light and conversational — don't push, just let them know the option exists.
 "
@@ -2556,7 +2579,32 @@ private function buildBrevityConstraintNote(): string
 
 private function buildFreePlanEngagementPrompt(): string
 {
-    return "\n\n## FREE PLAN ENGAGEMENT MODE\nThe user is on a free plan. Your #1 goal is to make them EXCITED to upgrade — by giving them something genuinely useful AND leaving them hungry for more.\n\nStrategy:\n- Open with the single most useful insight or KEY answer in 1-2 punchy sentences. Make it feel like you're letting them in on a secret.\n- Give 2-3 real, concrete details (not vague fluff) — enough to be useful, but not the full picture.\n- Create a CLIFFHANGER or CURIOSITY GAP: hint at what they're missing. Examples:\n  → \"There's actually a faster pathway most people miss — it changes the timeline completely.\"\n  → \"The tricky part that catches most applicants? I'll break it down step by step with an upgrade.\"\n  → \"Honestly, the biggest mistake people make here is [X] — and there's a way to avoid it entirely.\"\n- End with ONE compelling hook question that makes them want to keep going. Examples:\n  → \"Want me to map the exact fastest route for your situation?\"\n  → \"Should I show you the step-by-step timeline?\"\n  → \"Want the full checklist so you don't miss anything?\"\n\nTONE: Warm, confident, slightly playful. Like a savvy friend who happens to know everything about visas. Make them feel smart for asking AND excited to learn more.\nDo NOT mention pricing, free plan limits, or upgrades in the reply — that's handled separately.\n";
+    return "\n\n## FREE PLAN ENGAGEMENT MODE\nThe user is on a free plan. Your job is to be genuinely helpful first, then naturally make an upgrade feel useful if it fits.\n\nStrategy:\n- Start with a direct, practical answer in simple English.\n- Give enough detail to be useful, not vague or teaser-like.\n- Keep the tone human and supportive, not dramatic or salesy.\n- If there is an important detail that depends on the user's personal case, say that clearly and invite one focused follow-up question.\n- You may hint that a personalised roadmap or deeper review is available, but do NOT manufacture fake mystery or cliffhangers.\n\nTONE: Warm, practical, clear, and natural. Like a knowledgeable person explaining the next steps properly.\nDo NOT mention pricing, free plan limits, or upgrades in the reply — that's handled separately.\n";
+}
+
+private function sanitizeVisibleReplyText(string $text): string
+{
+    $processed = (string)$text;
+
+    $processed = preg_replace(
+        '/信息基于xAI内部集合检索的文件/u',
+        '信息基于AI-mmi内部集合检索的资料',
+        $processed
+    );
+
+    // Remove markdown citation links like [[1]](url) and plain [1] markers.
+    $processed = preg_replace('/\[\[(\d+)\]\]\([^\)]+\)/u', '', $processed);
+    $processed = preg_replace('/\[(\d+)\]\([^\)]+\)/u', '', $processed);
+    $processed = preg_replace('/\[(\d+)\]/u', '', $processed);
+
+    // Clean occasional stray prefix typo like "xHey — AI-mmi..."
+    $processed = preg_replace('/^\s*x(?=Hey\s*[—-]\s*AI-mmi\b)/iu', '', $processed);
+
+    // Collapse repeated spaces/tabs only; keep line breaks for readability.
+    $processed = preg_replace('/[ \t]{2,}/u', ' ', $processed);
+    $processed = preg_replace('/\n{3,}/u', "\n\n", $processed);
+
+    return trim((string)$processed);
 }
 
 

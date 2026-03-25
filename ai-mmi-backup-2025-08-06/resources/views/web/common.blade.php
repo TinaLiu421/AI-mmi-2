@@ -665,8 +665,8 @@
                                         <div id="talk-agent-cta" class="visible">
                                             <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.(!empty($_page_has_agent_access) ? '/agent_chat' : '/upgrade'), ENT_QUOTES, 'UTF-8'); ?>">
                                                 <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
-                                                <span class="tac-label">Talk to Agent</span>
-                                                <span class="tac-sub">Certified agent</span>
+                                                <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Agent</span></span>
+                                                <span class="tac-sub">Registered Migration Agent</span>
                                             </a>
                                         </div>
                                     </div>

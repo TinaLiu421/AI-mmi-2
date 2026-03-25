@@ -1,15 +1,29 @@
 @extends('web.common')
 @section('content')
 <!-- Banner Section -->
-<div class="banner">
-    <img src="/asset/image/home-banner.svg" alt="AI-mmi Banner" class="banner-img"/>
-    <div class="country">
-        
+<div class="banner banner-video-wrap">
+    <video class="banner-video" autoplay muted loop playsinline preload="metadata">
+        <source src="/asset/image/home-banner-video.mp4" type="video/mp4">
+        <!-- fallback -->
+        <img src="/asset/image/home-banner.svg" alt="AI-mmi Banner" class="banner-img"/>
+    </video>
+    <div class="banner-blur-overlay"></div>
+    <div class="banner-content">
+        <div class="banner-logo-row">
+            <img src="/asset/image/logo.png" alt="AI-mmi" class="banner-logo"/>
+        </div>
+        <h1 class="banner-title">Your AI-Powered Migration &amp; Study Guide</h1>
+        <p class="banner-sub">Get instant answers on Australian &amp; NZ visas, study pathways, and residency — 24/7, in your language.</p>
+        <div class="banner-cta-row">
+            <a class="banner-cta-btn primary do-toapply" data-sector="migration" data-action-url="<?php echo $_page_base_url.'/agent_chat'; ?>" href="javascript:void(0);">Talk to AI-mmi</a>
+            <a class="banner-cta-btn secondary" id="banner-talk-agent-btn" href="javascript:void(0);">Talk to Registered Migration Agent</a>
+        </div>
     </div>
+    <div class="country"></div>
 </div>
 
 <div class="inner-panel">
-    @if(!empty($_current_member))
+    @if(!empty($_current_member) && !empty($_page_data['show_agent_home_layout']))
     <div class="home-chat-notify" id="home-chat-notify" data-enabled="1">
         <div class="home-chat-notify-head">
             <div class="home-chat-notify-title">Chat Notifications</div>
@@ -75,7 +89,7 @@
 
 <script>
 window.homeChatNotifyConfig = {
-    enabled: {{ !empty($_current_member) ? 'true' : 'false' }},
+    enabled: {{ (!empty($_current_member) && !empty($_page_data['show_agent_home_layout'])) ? 'true' : 'false' }},
     notificationsUrl: '/agent_chat/notifications'
 };
 </script>
