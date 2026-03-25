@@ -13,7 +13,7 @@
             <img src="/asset/image/logo.png" alt="AI-mmi" class="banner-logo"/>
         </div>
         <h1 class="banner-title">Your AI-Powered Migration &amp; Study Guide</h1>
-        <p class="banner-sub">Get instant answers on Australian &amp; NZ visas, study pathways, and residency — 24/7, in your language.</p>
+        <p class="banner-sub">Get instant guidance in your language on visas, study, scholarships, and more — with access to qualified experts when you need them.</p>
         <div class="banner-cta-row">
             <a class="banner-cta-btn primary do-toapply" data-sector="migration" data-action-url="<?php echo $_page_base_url.'/agent_chat'; ?>" href="javascript:void(0);">Talk to AI-mmi</a>
             <a class="banner-cta-btn secondary" id="banner-talk-agent-btn" href="javascript:void(0);">Talk to Registered Migration Agent</a>
