@@ -885,7 +885,35 @@ function iweb_global_func() {
 
     $(document).on("click", "a.do-toapply", function () {
         var object = $(this);
+        var sector = object.data("sector");
         var actionUrl = object.data("action-url");
+
+        if (sector === "migration") {
+            // Auto-send a migration greeting to the embedded AI chatbot
+            var presetMsg = "Hi, I would like to ask about migration. Could you help?";
+            var $input = $("#ask_question");
+            var $form  = $("#ask-form");
+
+            if ($input.length && $form.length) {
+                // Scroll the chat input into view
+                $("html, body").animate({
+                    scrollTop: $input.offset().top - 120
+                }, 400, function () {
+                    $input.val(presetMsg).focus();
+                    // Give the UI a moment to render, then submit
+                    setTimeout(function () {
+                        $form.submit();
+                    }, 150);
+                });
+            } else {
+                // Fallback: navigate to the chat page
+                window.location.href = iweb.isValue(actionUrl)
+                    ? actionUrl
+                    : (_page_base_url + "/agent_chat");
+            }
+            return;
+        }
+
         window.location.href = iweb.isValue(actionUrl)
             ? actionUrl
             : (_page_base_url + "/apply");

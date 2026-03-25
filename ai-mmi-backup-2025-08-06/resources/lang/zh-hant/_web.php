@@ -33,6 +33,7 @@ return
         'immigration'           =>  '移民',
         'study'                 =>  '留學',
         'talk_to_agent'         =>  '聯絡顧問',
+        'talk_to_ai_mmi'        =>  '諮詢 AI-mmi',
         'upgrade'               =>  '升級',
         'my_eligibility'        =>  '我的資格',
         'apply'                 =>  '申請',

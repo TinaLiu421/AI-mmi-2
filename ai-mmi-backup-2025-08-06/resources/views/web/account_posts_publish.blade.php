@@ -11,10 +11,15 @@ $_show_posts = array_merge([
     'photo'             =>  '',
     'youtube_url'       =>  '',
 ], ((!empty($_page_data['posts']))?$_page_data['posts']:[])); 
+
+$_itoken_timestamp = round(microtime(true) * 1000);
+$_itoken_seed = md5(md5('iweb@'.((!empty($_SERVER['SERVER_NAME']))?$_SERVER['SERVER_NAME']:'/')).'@'.$_page_csrf_token);
+$_itoken_value = base64_encode(md5($_itoken_seed.'#dt'.$_itoken_timestamp).'%'.$_itoken_timestamp);
 ?>
 <div class="form" style="margin-top:0px;background:#fff;">
     <form id="account-publish-form" method="post" action="<?php echo $_page_base_url.'/account/posts_publish'; ?> " enctype="multipart/form-data">
         <div>@csrf</div>
+        <div><input type="hidden" name="itoken" value="<?php echo $_itoken_value; ?>"></div>
         <div><input type="hidden" id="posts_id" name="posts_id" value="<?php echo $_show_posts['id']; ?>"></div>
         
         <?php if(!empty($_show_posts['id'])) { ?>

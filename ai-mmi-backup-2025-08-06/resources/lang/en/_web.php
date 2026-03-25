@@ -33,6 +33,7 @@ return
         'immigration'           =>  'Immigration',
         'study'                 =>  'Study',
         'talk_to_agent'         =>  'Talk to Agent',
+        'talk_to_ai_mmi'        =>  'Talk to AI-mmi',
         'upgrade'               =>  'Upgrade',
         'my_eligibility'        =>  'My Eligibility',
         'apply'                 =>  'Apply',

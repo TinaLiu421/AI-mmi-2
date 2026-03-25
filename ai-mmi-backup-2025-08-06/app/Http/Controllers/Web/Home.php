@@ -344,6 +344,11 @@ Rules:
                 $systemParts = [];
                 if ($isVipMember) {
                     $systemParts[] = $this->buildVipNoUpgradeNote();
+                } else {
+                    $tierNote = $this->buildTierUpgradeSystemNote((string)$activePlanCode);
+                    if ($tierNote !== '') {
+                        $systemParts[] = $tierNote;
+                    }
                 }
                 if ($isLimitedPlanUser) {
                     $systemParts[] = $this->buildFreePlanEngagementPrompt();
@@ -353,11 +358,16 @@ Rules:
                 }
                 $systemPromptBase = implode('', $systemParts);
 
+                // Free/DIY plan speed optimisation:
+                // Skip live web search for off-topic questions (not visa or education)
+                // so the AI can reply from its own knowledge immediately.
+                $freeEnableSearch = !($isLimitedPlanUser && $domain === 'other');
+
                 $x = $this->callXaiResponses($questionForModel, [
                     'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
-                    'max_output_tokens' => 2048,
+                    'max_output_tokens' => $isLimitedPlanUser ? 1024 : 2048,
                     'model' => 'grok-4-1-fast-reasoning',
-                    'enable_search'     => true,
+                    'enable_search'     => $freeEnableSearch,
                     'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                     'vector_store_ids' => [],
                     'system' => $systemPromptBase . "
@@ -422,6 +432,9 @@ Rules:
                     - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
                     - Always end with a clear next action and make them feel like you're rooting for them.
                     - Aim for a coach-like voice: reassuring + practical + action-oriented + fun.
+                    - Address the user directly using \"you\" and \"your\" — make it personal, not generic.
+                    - Reflect their specific situation back to them (e.g. \"Since you're on a student visa...\" or \"Given that you mentioned...\").
+                    - Make the user feel heard: acknowledge their situation before jumping into the answer.
 
                     ### VISUAL ENGAGEMENT & FORMATTING
                     - Use relevant emojis throughout (👉 for actions, ✅ for progress, 🚩 for risks, 💡 for tips, ⏱️ for timelines, 📋 for requirements, etc.).
@@ -429,10 +442,15 @@ Rules:
                     - Add small icons before key sections to break up text monotony.
                     - Use symbols like →, ↓, ● instead of plain text alone.
                     - Make every response feel dynamic and scannable, not wall-of-text boring.
+                    - **Bold** key terms, visa names, and important requirements (e.g. **Skilled Migrant**, **189 visa**, **points test**).
+                    - When asking the user a clarifying question, always **bold** the question so it stands out clearly.
+                    - Leave a blank line between each section or distinct topic to improve readability.
 
                     ### READABILITY FORMAT (important)
                     - Keep answers easy to scan on mobile.
-                    - Use short sections with line breaks.
+                    - Always leave a blank line between paragraphs and sections — never run them together.
+                    - Never write more than 3–4 lines in a row without a line break.
+                    - Each new idea or topic = new paragraph with a blank line before it.
                     - Prefer plain-text bullets like: •  -  ✅  👉  ↳
                     - Do NOT use markdown tables.
                     - Do NOT put the whole answer in one long paragraph.
@@ -1430,6 +1448,9 @@ or equivalent wording in the user's language.
 - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
 - Always end with a clear next action and make them feel like you're rooting for them.
 - Aim for a coach-like voice: reassuring + practical + action-oriented + fun.
+- Address the user directly using \"you\" and \"your\" — make it personal, not generic.
+- Reflect their specific situation back to them (e.g. \"Since you're on a student visa...\" or \"Given that you mentioned...\").
+- Make the user feel heard: acknowledge their situation before jumping into the answer.
 
 ### VISUAL ENGAGEMENT & FORMATTING
 - Use relevant emojis throughout (👉 for actions, ✅ for progress, 🚩 for risks, 💡 for tips, ⏱️ for timelines, 📋 for requirements, etc.).
@@ -1439,10 +1460,15 @@ or equivalent wording in the user's language.
 - Make every response feel dynamic and scannable, not wall-of-text boring.
 - Ask only one focused clarifying question at the end.
 - Avoid absolute statements; use context-aware phrasing like usually / often / depends on stream or country when needed.
+- **Bold** key terms, visa names, and important requirements (e.g. **Skilled Migrant**, **189 visa**, **points test**).
+- When asking the user a clarifying question, always **bold** the question so it stands out clearly.
+- Leave a blank line between each section or distinct topic to improve readability.
 
 ### READABILITY FORMAT (important)
 - Keep answers easy to scan on mobile.
-- Use short sections with line breaks.
+- Always leave a blank line between paragraphs and sections — never run them together.
+- Never write more than 3–4 lines in a row without a line break.
+- Each new idea or topic = new paragraph with a blank line before it.
 - Prefer plain-text bullets like: •  -  ✅  👉
 - Do NOT use markdown tables.
 - Do NOT put the whole answer in one long paragraph.
@@ -1457,6 +1483,11 @@ or equivalent wording in the user's language.
         $systemPromptParts = [];
         if ($isVipMember) {
             $systemPromptParts[] = $this->buildVipNoUpgradeNote();
+        } else {
+            $tierNote = $this->buildTierUpgradeSystemNote((string)$activePlanCode);
+            if ($tierNote !== '') {
+                $systemPromptParts[] = $tierNote;
+            }
         }
         if ($isLimitedPlanUser) {
             $systemPromptParts[] = $this->buildFreePlanEngagementPrompt();
@@ -1547,7 +1578,10 @@ or equivalent wording in the user's language.
             'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
             'max_output_tokens' => (int)env('XAI_MAX_OUTPUT_TOKENS', 1024),
             'model' => 'grok-4-1-fast-reasoning',
-            'enable_search'     => filter_var(env('XAI_ENABLE_WEB_SEARCH', true), FILTER_VALIDATE_BOOLEAN),
+            // Free/DIY plan speed optimisation: skip live web search for off-topic questions
+            'enable_search'     => ($isLimitedPlanUser && $domain === 'other')
+                ? false
+                : filter_var(env('XAI_ENABLE_WEB_SEARCH', true), FILTER_VALIDATE_BOOLEAN),
             'allowed_domains'   => $allowedDomains,
             'file_search_max'   => (int)env('XAI_FILE_SEARCH_MAX', 8),
             'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
@@ -1598,11 +1632,23 @@ or equivalent wording in the user's language.
         $streamMeta = ['reply_source' => 'model'];
         if ($shouldRedirectToUpgrade) {
             $streamMeta = array_merge($streamMeta, [
-                'action'       => 'redirect',
-                'redirect_url' => $upgradeRedirectUrl,
-                'reason'       => 'free-plan-limit-reached',
-                'show_upgrade' => true,
-                'upgrade_url'  => $upgradeRedirectUrl,
+                'action'        => 'redirect',
+                'redirect_url'  => $upgradeRedirectUrl,
+                'reason'        => 'free-plan-limit-reached',
+                'show_upgrade'  => true,
+                'upgrade_url'   => $upgradeRedirectUrl,
+                'upgrade_label' => $lang === 'zh'
+                    ? '🔓 解锁完整指导 → 升级'
+                    : '🔓 Unlock Full Guidance → Upgrade',
+            ]);
+        } elseif ($isLimitedPlanUser) {
+            // Show upgrade CTA on every free/DIY reply to drive conversions
+            $streamMeta = array_merge($streamMeta, [
+                'show_upgrade'  => true,
+                'upgrade_url'   => $upgradeRedirectUrl,
+                'upgrade_label' => $lang === 'zh'
+                    ? '✨ 查看完整方案 → 立即升级'
+                    : '✨ See the Full Plan → Upgrade',
             ]);
         }
 
@@ -2257,11 +2303,11 @@ private function buildPaidPlanLimitReply(string $question): string
 
     if ($lang === 'zh') {
         return "您已达到当前方案聊天上限（{$limit}次）🙂。\n"
-            . "升级后我可以继续陪您做更深入、更完整的个性化规划。👉 点击 Upgrade";
+            . "升级后我可以继续陪您做更深入、更完整的个性化规划。{$upgradeLink}";
     }
 
     return "You've reached the chat limit for your current plan ({$limit} chats) 🙂.\n"
-        . "Upgrade and I’ll keep going with deeper, step-by-step personalized guidance. 👉 Click Upgrade";
+        . "Upgrade and I'll keep going with deeper, step-by-step personalized guidance. [👉 Click Upgrade](" . $this->toURL('upgrade') . ")";
 }
 
 private function appendPlanPromotionNudge(string $reply, string $question, string $planCode, int $currentAskNumber, int $limit, int $memberId = 0): string
@@ -2284,15 +2330,15 @@ private function appendPlanPromotionNudge(string $reply, string $question, strin
     $lang = $this->detectLangZhOrEn($question);
     if ($normalizedPlan === 'all_ai') {
         $nudge = ($lang === 'zh')
-            ? "想要一对一真人把关您的签证路径吗？升级后可直接咨询 AI-MMI 认证顾问。👉 Upgrade"
-            : "Need a real expert to sanity-check your visa pathway? Upgrade to talk with a Certified AI-MMI specialist for 1-on-1 consultation. 👉 Upgrade";
+            ? "想要一对一真人把关您的签证路径吗？升级后可直接咨询 AI-MMI 认证顾问。[👉 立即升级](" . $this->toURL('upgrade') . ")"
+            : "Need a real expert to sanity-check your visa pathway? Upgrade to talk with a Certified AI-MMI specialist for 1-on-1 consultation. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
         return $reply . "\n\n" . $nudge;
     }
 
     if ($normalizedPlan === 'hybrid') {
         $nudge = ($lang === 'zh')
-            ? "如果您希望进入更完整的代办/深度服务，升级到 VIP 或 DIY 方案即可对接 AI-MMI 认证顾问。👉 Upgrade"
-            : "Want end-to-end processing support beyond AI guidance? Upgrade to VIP or DIY plans to connect with AI-MMI certified specialists. 👉 Upgrade";
+            ? "如果您希望进入更完整的代办/深度服务，升级到 VIP 或 DIY 方案即可对接 AI-MMI 认证顾问。[👉 立即升级](" . $this->toURL('upgrade') . ")"
+            : "Want end-to-end processing support beyond AI guidance? Upgrade to VIP or DIY plans to connect with AI-MMI certified specialists. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
         return $reply . "\n\n" . $nudge;
     }
 
@@ -2320,40 +2366,46 @@ private function appendSoftUpgradeNudge(string $reply, string $question, int $cu
     $lang = $this->detectLangZhOrEn($question);
     $isOverLimitNudge = ($currentAskNumber >= $limit);
     $normalizedPlan = strtolower(trim($planCode));
+    $upgradeUrl = $this->toURL('upgrade');
     $nudge = '';
 
     if ($lang === 'zh') {
+        $upgradeLink = "[👉 立即升级]({$upgradeUrl})";
         if ($normalizedPlan === 'premium') {
             if ($isOverLimitNudge) {
                 $nudge = "提示😊：您当前 DIY 方案已进入简答模式。"
-                    . "升级 VIP 后可获得更完整、更深入的全流程支持。👉 点击 Upgrade";
+                    . "升级至 **Hybrid 或 VIP** 方案，可让 AI-mmi 认证移民顾问亲自为您提供一对一深度规划。{$upgradeLink}";
             } else {
-                $nudge = "小提醒🙂：想要完整深度支持和更高优先级，可升级到 VIP。👉 点击 Upgrade";
+                $nudge = "小提醒🙂：DIY 方案已覆盖基础指引。如需更全方位的一对一顾问支持，可随时升级至 **Hybrid 或 VIP** 方案直接对接 AI-mmi 认证顾问。{$upgradeLink}";
             }
         } else {
             if ($isOverLimitNudge) {
-                $nudge = "温馨提示😊：您的免费额度已用完，我仍可继续简短回答。"
-                    . "升级后我可以提供更详细的一步步个性化规划。👉 点击 Upgrade";
+                $nudge = "温馨提示😊：您的免费额度已用完，我仍可给您简短回答。"
+                    . "升级至 **AI 方案** 可获得更详尽、更完整的 AI 深度规划；升级至 **DIY / Hybrid / VIP** 方案，还可直接对接 AI-mmi **认证移民顾问**，获得专属移民路径支持。{$upgradeLink}";
             } else {
-                $nudge = "小提醒🙂：您当前方案还剩 {$remaining} 次对话额度。"
-                    . "如果想让我继续给您更完整的一步步规划，随时点一下 Upgrade 就好。";
+                $nudge = "小提醒🙂：您还剩 **{$remaining}** 次免费对话。"
+                    . "升级 **AI 方案** 享无限 AI 深度解析，或选 **DIY / Hybrid / VIP** 方案直接与 AI-mmi **认证移民顾问** 一对一咋讯——点击 {$upgradeLink} 随时开始。";
             }
         }
     } else {
+        $upgradeLink = "[👉 Upgrade Now]({$upgradeUrl})";
         if ($normalizedPlan === 'premium') {
             if ($isOverLimitNudge) {
                 $nudge = "Quick note 😊 Your DIY plan is now in short-answer mode. "
-                    . "Upgrade to VIP for full-depth guidance and priority support. 👉 Upgrade";
+                    . "Upgrade to **Hybrid or VIP** to get direct 1-on-1 support from an AI-mmi Certified Migration Agent. {$upgradeLink}";
             } else {
-                $nudge = "Quick tip 🙂 Want fuller guidance and premium support? Upgrade to VIP anytime. 👉 Upgrade";
+                $nudge = "Quick tip 🙂 DIY covers the basics — but for fuller personalised agent support, "
+                    . "**Hybrid or VIP** plans connect you directly with an AI-mmi Certified Migration Agent. {$upgradeLink}";
             }
         } else {
             if ($isOverLimitNudge) {
-                $nudge = "FYI 😊 Your free chats are used up — but I’m still here for quick answers. "
-                    . "Upgrade for the full deep-dive whenever you’re ready. 👉 Upgrade";
+                $nudge = "FYI 😊 Your free chats are used up — I'm still here for quick answers. "
+                    . "Upgrade to the **AI Plan** for unlimited detailed AI guidance, or jump to **DIY / Hybrid / VIP** "
+                    . "to get 1-on-1 support from a real AI-mmi **Certified Migration Agent**. {$upgradeLink}";
             } else {
-                $nudge = "Quick heads-up 🙂 You have {$remaining} chats left on your current plan. "
-                    . "If you want deeper step-by-step planning, tap Upgrade anytime and I’ll keep rolling with you.";
+                $nudge = "Quick heads-up 🙂 You have **{$remaining}** free chats left. "
+                    . "Upgrade to the **AI Plan** for deeper step-by-step AI guidance, or choose **DIY / Hybrid / VIP** "
+                    . "to work directly with an AI-mmi **Certified Migration Agent** — tap {$upgradeLink} anytime.";
             }
         }
     }
@@ -2382,6 +2434,80 @@ private function shouldApplyUpgradeNudgeForMember(int $memberId): bool
     } catch (\Throwable $e) {
         // Fail-safe: never nudge when resolver errors.
         return false;
+    }
+}
+
+private function buildTierUpgradeSystemNote(string $planCode): string
+{
+    $normalizedPlan = strtolower(trim($planCode));
+    $upgradeUrl = $this->toURL('upgrade');
+
+    switch ($normalizedPlan) {
+        case 'free':
+            return "
+
+## TIER UPGRADE CONTEXT (FREE PLAN)
+"
+                . "The user is on the FREE plan.
+"
+                . "Throughout the conversation, NATURALLY and SMOOTHLY weave in the following upgrade paths (do NOT be pushy — feel like a helpful friend):
+"
+                . "1. **AI Plan** — for more detailed, complete, unlimited AI-powered guidance from AI-mmi.
+"
+                . "2. **DIY / Hybrid / VIP Plans** — for direct, personalised support from an AI-mmi Certified Migration Agent.
+"
+                . "Mention one of these paths when it feels natural (e.g., after giving a useful answer, add a brief suggestion). "
+                . "Frame upgrades as unlocking HUMAN EXPERTISE + deeper guidance, not as a paywall.
+"
+                . "Upgrade link: {$upgradeUrl}
+";
+
+        case 'premium': // DIY plan
+            return "
+
+## TIER UPGRADE CONTEXT (DIY PLAN)
+"
+                . "The user is on the DIY plan.
+"
+                . "Smoothly recommend upgrading to **Hybrid or VIP** plans for hands-on support from an AI-mmi Certified Migration Agent "
+                . "whenever it naturally fits the conversation (e.g., complex case, important milestone, or when they seem worried).
+"
+                . "Frame it as getting a certified expert to walk with them, not just AI guidance alone.
+"
+                . "Upgrade link: {$upgradeUrl}
+";
+
+        case 'all_ai':
+            return "
+
+## TIER UPGRADE CONTEXT (AI PLAN)
+"
+                . "The user is on the AI Plan (unlimited AI, no human agent yet).
+"
+                . "Where relevant, gently recommend upgrading to **DIY, Hybrid, or VIP** plans to connect with a real AI-mmi Certified Migration Agent "
+                . "for 1-on-1 personalised case guidance.
+"
+                . "Frame it as the natural next step when their case gets complex or high-stakes.
+"
+                . "Upgrade link: {$upgradeUrl}
+";
+
+        case 'hybrid':
+            return "
+
+## TIER UPGRADE CONTEXT (AI+AGENT / HYBRID PLAN)
+"
+                . "The user is on the Hybrid plan (AI + some agent access).
+"
+                . "Where it fits naturally, mention that upgrading to **VIP** unlocks fully dedicated, priority case management with an AI-mmi Certified Migration Agent.
+"
+                . "Keep it light and conversational — don't push, just let them know the option exists.
+"
+                . "Upgrade link: {$upgradeUrl}
+";
+
+        default:
+            return '';
     }
 }
 
@@ -2430,8 +2556,9 @@ private function buildBrevityConstraintNote(): string
 
 private function buildFreePlanEngagementPrompt(): string
 {
-    return "\n\n## FREE PLAN ENGAGEMENT MODE\nThe user is on a free plan. Your goal is to give them a TEASER answer that is helpful but hints at deeper content available with an upgrade.\nStrategy:\n- Start with the KEY insight or quick answer (1-2 sentences max for the headline).\n- Briefly mention 2-3 supporting points or options — but do NOT spell out all details.\n- Create CURIOSITY: end with something like \"There's a full step-by-step breakdown, timeline, and certified AI-MMI specialist matching available when you upgrade\" OR \"Want the complete playbook + direct access to our certified agents? That's what Upgrade gives you.\"\nTONE: Friendly, conversational, encouraging, slightly playful. Make them WANT to see the full answer AND talk to a real expert.\nDo NOT mention pricing, free plan mechanics, or chat limits in the reply text itself — the upgrade nudge will be added after.\n";
+    return "\n\n## FREE PLAN ENGAGEMENT MODE\nThe user is on a free plan. Your #1 goal is to make them EXCITED to upgrade — by giving them something genuinely useful AND leaving them hungry for more.\n\nStrategy:\n- Open with the single most useful insight or KEY answer in 1-2 punchy sentences. Make it feel like you're letting them in on a secret.\n- Give 2-3 real, concrete details (not vague fluff) — enough to be useful, but not the full picture.\n- Create a CLIFFHANGER or CURIOSITY GAP: hint at what they're missing. Examples:\n  → \"There's actually a faster pathway most people miss — it changes the timeline completely.\"\n  → \"The tricky part that catches most applicants? I'll break it down step by step with an upgrade.\"\n  → \"Honestly, the biggest mistake people make here is [X] — and there's a way to avoid it entirely.\"\n- End with ONE compelling hook question that makes them want to keep going. Examples:\n  → \"Want me to map the exact fastest route for your situation?\"\n  → \"Should I show you the step-by-step timeline?\"\n  → \"Want the full checklist so you don't miss anything?\"\n\nTONE: Warm, confident, slightly playful. Like a savvy friend who happens to know everything about visas. Make them feel smart for asking AND excited to learn more.\nDo NOT mention pricing, free plan limits, or upgrades in the reply — that's handled separately.\n";
 }
+
 
 private function freePlanChatLimit(): int
 {

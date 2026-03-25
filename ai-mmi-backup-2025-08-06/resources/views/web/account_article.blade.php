@@ -2,7 +2,7 @@
 <?php if(!empty($_page_data['list_posts']['data'])) { foreach ($_page_data['list_posts']['data'] as $posts) { 
     $postSector = (!empty($posts['sector']) && in_array($posts['sector'], ['study', 'migration'], true)) ? $posts['sector'] : 'study';
     $postActionLabel = ($postSector === 'migration')
-        ? ($_page_lang['chat_robot.talk_to_agent'] ?? 'Talk to Agent')
+        ? ($_page_lang['chat_robot.talk_to_ai_mmi'] ?? 'Talk to AI-mmi')
         : ($_page_lang['apply'] ?? 'Apply Now !');
     $postActionUrl = ($postSector === 'migration') ? ($_page_base_url.'/agent_chat') : ($_page_base_url.'/apply');
 ?>
