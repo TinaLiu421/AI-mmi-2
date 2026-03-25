@@ -1411,8 +1411,7 @@ footer.page-footer a:hover {
     }
 
     header.page-header .controls .lang > a span,
-    header.page-header .controls .service_provider_info > a span,
-    header.page-header .controls .upgrade_link > a span {
+    header.page-header .controls .service_provider_info > a span {
         display: none;
     }
 
