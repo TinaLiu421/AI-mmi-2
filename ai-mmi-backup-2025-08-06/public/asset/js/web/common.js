@@ -949,8 +949,8 @@ function iweb_global_func() {
                 return;
             }
 
-            // Auto-send a migration greeting to the embedded AI chatbot
-            var presetMsg = "Hi, I would like to ask about migration. Could you help?";
+            // Auto-send a short greeting to open the AI chat session
+            var presetMsg = "Hi!";
             var $input = $("#ask_question");
             var $form  = $("#ask-form");
 
