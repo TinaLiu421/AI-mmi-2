@@ -41,6 +41,33 @@
         const _page_base_url = '<?php echo $_page_base_url; ?>';
         const _token = '<?php echo $_token; ?>';
         const _current_member = <?php echo (!empty($_current_member)) ? json_encode($_current_member) : 'null'; ?>;
+        <?php
+            /* Detect whether logged-in member has an agent-enabled plan (hybrid / vip). */
+            $_page_has_agent_access = false;
+            if (!empty($_current_member)) {
+                $_mid = (int)($_current_member['id'] ?? 0);
+                if ($_mid > 0) {
+                    try {
+                        $_page_has_agent_access = \DB::table('subscriptions as sub')
+                            ->join('plans as pl', 'sub.plan_id', '=', 'pl.id')
+                            ->where('sub.member_id', $_mid)
+                            ->whereIn('pl.code', ['hybrid', 'vip'])
+                            ->where(function ($q) {
+                                $q->whereNull('sub.ends_at')
+                                  ->orWhere('sub.ends_at', '>', \Carbon\Carbon::now());
+                            })
+                            ->exists();
+                    } catch (\Throwable $e) {
+                        $_page_has_agent_access = false;
+                    }
+                }
+            }
+            /* Build the URL now without $appendAutoLang (not yet defined).
+               autolang query param, if needed, is appended by JS on click instead. */
+            $_page_agent_cta_path = $_page_has_agent_access ? '/agent_chat' : '/upgrade';
+        ?>
+        const _page_has_agent_access = <?php echo $_page_has_agent_access ? 'true' : 'false'; ?>;
+        const _page_agent_cta_url = '<?php echo htmlspecialchars($_page_base_url . $_page_agent_cta_path, ENT_QUOTES, 'UTF-8'); ?>';
         </script>
         <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) { ?>
         <script src="<?php echo $js_file; ?>?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
@@ -627,12 +654,19 @@
                                 <input type="hidden" id="question_number" name="question_number" value="1">
                                 <div class="input-question show">
                                     <div class="robot-container">
-                                        <div class="robot">
+                                        <div class="robot" id="chat-robot-inner" style="display:none;">
                                             <video id="chat-robot-video" autoplay loop muted playsinline>
                                                 <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
                                             </video>
                                             <a id="sound-control" href="javascript:void(0);">
                                                 <i class="fa fa-microphone"></i>
+                                            </a>
+                                        </div>
+                                        <div id="talk-agent-cta" class="visible">
+                                            <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.(!empty($_page_has_agent_access) ? '/agent_chat' : '/upgrade'), ENT_QUOTES, 'UTF-8'); ?>">
+                                                <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
+                                                <span class="tac-label">Talk to Agent</span>
+                                                <span class="tac-sub">Certified agent</span>
                                             </a>
                                         </div>
                                     </div>

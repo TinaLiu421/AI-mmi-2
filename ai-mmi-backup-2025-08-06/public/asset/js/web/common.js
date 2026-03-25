@@ -143,6 +143,52 @@ function submitOnce() {
 }
 */
 
+// ── Talk-to-Agent CTA ──────────────────────────────────────────────────────
+// Show the CTA by default and keep it visible after streamed replies.
+var _talkAgentCtaShown = false;
+
+function getTalkToAgentCTAUrl() {
+    return (typeof _page_agent_cta_url !== 'undefined' && _page_agent_cta_url)
+        ? _page_agent_cta_url
+        : (_page_base_url + '/upgrade');
+}
+
+function showTalkToAgentCTA() {
+    var $robot = $('#chat-robot-inner');
+    var $cta   = $('#talk-agent-cta');
+    if (!$cta.length) return;
+
+    $('#talk-agent-cta-link').attr('href', getTalkToAgentCTAUrl());
+
+    if (_talkAgentCtaShown) {
+        $robot.hide();
+        $cta.show().addClass('visible');
+        return;
+    }
+
+    _talkAgentCtaShown = true;
+
+    if (!$robot.is(':visible')) {
+        $cta.show().addClass('visible');
+        return;
+    }
+
+    // Fade out the robot video, then swap in the CTA with a pop animation
+    $robot.css({ transition: 'opacity 0.28s ease', opacity: '0' });
+    setTimeout(function () {
+        $robot.hide();
+        $cta.css({ display: 'block', opacity: '0' });
+        requestAnimationFrame(function () {
+            $cta.addClass('visible');
+        });
+    }, 300);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    showTalkToAgentCTA();
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 function ensureHiddenFields() {
   // RAG 已停用，不再需要额外隐藏字段
 }
@@ -423,6 +469,7 @@ function streamResponse(question, bubbleId) {
                             renderMode = 'markdown';
                             renderMarkdown();
                             renderUpgradeButton();
+                            showTalkToAgentCTA();
                             $bubble.removeClass('streaming');
                             return;
                         }
