@@ -25,8 +25,9 @@ class Upgrade extends WebController
         ]);
 
         $data = [
-            'pricing_table_id' => env('STRIPE_PRICING_TABLE_ID_1'),
-            'stripe_pk'        => env('STRIPE_KEY'),
+            'pricing_table_id'          => env('STRIPE_PRICING_TABLE_ID_1'),
+            'one_time_pricing_table_id' => env('STRIPE_PRICING_TABLE_ID_ONE_TIME', env('STRIPE_PRICING_TABLE_ID_2')),
+            'stripe_pk'                 => env('STRIPE_KEY'),
         ];
 
         return $this->pageData($data)->pageView();
