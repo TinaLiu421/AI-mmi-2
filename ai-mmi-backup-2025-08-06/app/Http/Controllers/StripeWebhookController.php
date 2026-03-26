@@ -291,23 +291,44 @@ class StripeWebhookController extends Controller
                     $start = now();
                     $end   = $plan->duration_months ? now()->copy()->addMonths($plan->duration_months) : null;
 
-                    // ⚡ 核心逻辑：只对 migration 类覆盖，其它(education)直接并行
-                    if ($plan->business_domain === 'migration') {
-                        DB::table('subscriptions')
-                            ->where('member_id', $memberId)
-                            ->where('status', 'active')
-                            ->whereIn('plan_id', function($q){
-                                $q->select('id')->from('plans')->where('business_domain','migration');
-                            })
-                            ->update(['status'=>'expired','updated_at'=>now()]);
-                    }
-
-                    // 幂等检查
-                    $exists = DB::table('subscriptions')
+                    // Find existing subscription row (idempotency + renewal)
+                    $existing = DB::table('subscriptions')
                         ->where('stripe_subscription_id', $subId)
-                        ->exists();
+                        ->orderByDesc('id')
+                        ->first();
 
-                    if (!$exists) {
+                    if ($existing) {
+                        // Renewal: extend ends_at so access continues after the new billing period.
+                        // Also expire any OTHER active migration subscriptions (plan switch scenario).
+                        if ($plan->business_domain === 'migration') {
+                            DB::table('subscriptions')
+                                ->where('member_id', $memberId)
+                                ->where('status', 'active')
+                                ->where('id', '!=', $existing->id)
+                                ->whereIn('plan_id', function($q){
+                                    $q->select('id')->from('plans')->where('business_domain','migration');
+                                })
+                                ->update(['status'=>'expired','updated_at'=>now()]);
+                        }
+                        DB::table('subscriptions')
+                            ->where('id', $existing->id)
+                            ->update(['status'=>'active','ends_at'=>$end,'updated_at'=>now()]);
+                        Log::info('invoice.paid → renewal extended ends_at', [
+                            'sub_id'    => $existing->id,
+                            'plan_code' => $plan->code,
+                            'ends_at'   => $end,
+                        ]);
+                    } else {
+                        // No row yet (checkout.session.completed may not have fired yet).
+                        if ($plan->business_domain === 'migration') {
+                            DB::table('subscriptions')
+                                ->where('member_id', $memberId)
+                                ->where('status', 'active')
+                                ->whereIn('plan_id', function($q){
+                                    $q->select('id')->from('plans')->where('business_domain','migration');
+                                })
+                                ->update(['status'=>'expired','updated_at'=>now()]);
+                        }
                         $id = DB::table('subscriptions')->insertGetId([
                             'member_id'              => $memberId,
                             'plan_id'                => $plan->id,
@@ -323,14 +344,12 @@ class StripeWebhookController extends Controller
                             'updated_at'             => now(),
                         ]);
                         Log::info('invoice.paid → subscriptions insert', ['id'=>$id,'plan_code'=>$plan->code]);
-                    } else {
-                        Log::info('invoice.paid → subscriptions exists', ['subId'=>$subId]);
                     }
                 } else {
-                    Log::warning('invoice.paid price 未映射到 plan', ['price_id'=>$priceId]);
+                    Log::warning('invoice.paid price not mapped to plan', ['price_id'=>$priceId]);
                 }
             } else {
-                Log::warning('invoice.paid 缺少 member 或 price，跳过创建订阅', [
+                Log::warning('invoice.paid missing member or price, skipped', [
                     'member_id'=>$memberId,
                     'price_id'=>$priceId
                 ]);
@@ -357,13 +376,31 @@ class StripeWebhookController extends Controller
 
     protected function onSubscriptionCanceled($subscription)
     {
+        $subId = $subscription->id;
+
         DB::table('payments')
-            ->where('stripe_subscription_id', $subscription->id)
+            ->where('stripe_subscription_id', $subId)
             ->update([
                 'status'      => 'canceled',
                 'raw_payload' => json_encode($subscription),
                 'updated_at'  => now(),
             ]);
+
+        // Revoke access immediately: mark subscription record as canceled
+        // so member.active_subscriptions no longer includes this plan.
+        $affected = DB::table('subscriptions')
+            ->where('stripe_subscription_id', $subId)
+            ->where('status', 'active')
+            ->update([
+                'status'     => 'canceled',
+                'ends_at'    => now(),
+                'updated_at' => now(),
+            ]);
+
+        Log::info('subscription.canceled → access revoked', [
+            'stripe_sub_id' => $subId,
+            'rows_updated'  => $affected,
+        ]);
     }
 
     public function paySuccess(Request $request)
