@@ -504,7 +504,9 @@ class Agent_Chat extends WebController
 
         $alreadyUnlocked = $this->hasUnlockedAgentChat($memberId, $currentPlanCode);
 
-        if ($source === 'manual_continue' && !$alreadyUnlocked && !session()->get($scheduleClickSessionKey, false)) {
+        // For free/all_ai plans, auto-confirm is always safe — no need to require prior schedule click.
+        // The strict gate is only kept for hybrid where the agent manually confirms attendance.
+        if (!$isFreePlan && $source === 'manual_continue' && !$alreadyUnlocked && !session()->get($scheduleClickSessionKey, false)) {
             return response()->json([
                 'ok' => false,
                 'unlocked' => false,
@@ -1828,6 +1830,15 @@ class Agent_Chat extends WebController
             }
             if (!in_array('attended_at', $colNames, true)) {
                 DB::statement("ALTER TABLE `{$table}` ADD COLUMN `attended_at` TIMESTAMP NULL DEFAULT NULL AFTER `agent_attended`");
+            }
+            if (!in_array('calendly_event_uri', $colNames, true)) {
+                DB::statement("ALTER TABLE `{$table}` ADD COLUMN `calendly_event_uri` VARCHAR(500) NULL DEFAULT NULL AFTER `attended_at`");
+            }
+            if (!in_array('calendly_invitee_uri', $colNames, true)) {
+                DB::statement("ALTER TABLE `{$table}` ADD COLUMN `calendly_invitee_uri` VARCHAR(500) NULL DEFAULT NULL AFTER `calendly_event_uri`");
+            }
+            if (!in_array('booked_at', $colNames, true)) {
+                DB::statement("ALTER TABLE `{$table}` ADD COLUMN `booked_at` TIMESTAMP NULL DEFAULT NULL AFTER `calendly_invitee_uri`");
             }
         }
 
