@@ -2,7 +2,9 @@
 @section('content')
 <div class="container">
   @php
-    $plans = $plans_gate ?? [];
+    $plans = $_page_data['plans_gate'] ?? [];
+    $pricingTableId = $_page_data['pricing_table_id'] ?? env('STRIPE_PRICING_TABLE_ID_1');
+    $stripePublishableKey = $_page_data['stripe_pk'] ?? env('STRIPE_KEY');
   @endphp
 
   @if(!empty($plans))
@@ -192,8 +194,8 @@
   </div>
   @else
   <stripe-pricing-table
-    pricing-table-id="{{ $pricing_table_id ?? env('STRIPE_PRICING_TABLE_ID_1') }}"
-    publishable-key="{{ $stripe_pk ?? env('STRIPE_KEY') }}"
+    pricing-table-id="{{ $pricingTableId }}"
+    publishable-key="{{ $stripePublishableKey }}"
     client-reference-id="{{ $_current_member['id'] ?? '' }}"
     customer-email="{{ $_current_member['email'] ?? '' }}"
   ></stripe-pricing-table>
