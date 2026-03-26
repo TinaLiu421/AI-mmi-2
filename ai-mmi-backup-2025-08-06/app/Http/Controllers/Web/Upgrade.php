@@ -32,6 +32,8 @@ class Upgrade extends WebController
         $base = rtrim($this->_page_base_url ?? '', '/');
 
         $data = [
+            'pricing_table_id' => env('STRIPE_PRICING_TABLE_ID_1'),
+            'stripe_pk'        => env('STRIPE_KEY'),
             'plans_gate' => [
                 [
                     'code' => 'all_ai',

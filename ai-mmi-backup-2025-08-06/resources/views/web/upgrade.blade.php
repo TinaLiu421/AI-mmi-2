@@ -1,6 +1,11 @@
 @extends('web.common')
 @section('content')
 <div class="container">
+  @php
+    $plans = $plans_gate ?? [];
+  @endphp
+
+  @if(!empty($plans))
   <style>
     .upgrade-gate-wrap {
       padding: 20px 0 8px;
@@ -159,7 +164,7 @@
     </div>
 
     <div class="upgrade-plan-grid">
-      @foreach(($plans_gate ?? []) as $plan)
+      @foreach($plans as $plan)
         <article class="upgrade-plan-card{{ !empty($plan['is_popular']) ? ' is-popular' : '' }}">
           @if(!empty($plan['is_popular']))
             <span class="upgrade-popular-badge">Most popular</span>
@@ -185,5 +190,13 @@
       @endforeach
     </div>
   </div>
+  @else
+  <stripe-pricing-table
+    pricing-table-id="{{ $pricing_table_id ?? env('STRIPE_PRICING_TABLE_ID_1') }}"
+    publishable-key="{{ $stripe_pk ?? env('STRIPE_KEY') }}"
+    client-reference-id="{{ $_current_member['id'] ?? '' }}"
+    customer-email="{{ $_current_member['email'] ?? '' }}"
+  ></stripe-pricing-table>
+  @endif
 </div>
 @endsection
