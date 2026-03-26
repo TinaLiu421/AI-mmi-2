@@ -46,12 +46,22 @@ try {
 
 $now = date('Y-m-d H:i:s');
 
+header('Content-Type: text/plain; charset=utf-8');
+
+echo "DB: $dbname @ $host (prefix: '$prefix')\n\n";
+
+// ── Generate password hash and self-verify ────────────────────────────────────
+$plainPassword = 'Test1234!';
+$testPassword  = password_hash($plainPassword, PASSWORD_BCRYPT);
+$selfCheck     = password_verify($plainPassword, $testPassword);
+echo 'Hash self-check: ' . ($selfCheck ? 'PASS' : 'FAIL — aborting') . "\n\n";
+if (!$selfCheck) exit(1);
+
 // ── Plan map: code → plan_id (read from DB so it stays in sync) ───────────────
 $planRows = $pdo->query("SELECT id, code FROM {$prefix}plans")->fetchAll(PDO::FETCH_KEY_PAIR);
-// $planRows = ['free' => 1, 'all_ai' => 2, ...]
+echo 'Plans found: ' . implode(', ', array_keys($planRows)) . "\n\n";
 
 // ── Test accounts ─────────────────────────────────────────────────────────────
-$testPassword  = password_hash('Test1234!', PASSWORD_BCRYPT);
 $accounts = [
     ['email' => 'test.free@ai-mmi.com',    'alias' => 'Test Free',         'plan' => 'free'],
     ['email' => 'test.allai@ai-mmi.com',   'alias' => 'Test AI Smart',     'plan' => 'all_ai'],
@@ -59,8 +69,6 @@ $accounts = [
     ['email' => 'test.diy@ai-mmi.com',     'alias' => 'Test DIY',          'plan' => 'premium'],
     ['email' => 'test.vip@ai-mmi.com',     'alias' => 'Test VIP',          'plan' => 'vip'],
 ];
-
-header('Content-Type: text/plain; charset=utf-8');
 
 foreach ($accounts as $acc) {
     $email    = $acc['email'];
@@ -104,9 +112,17 @@ foreach ($accounts as $acc) {
         VALUES (?, ?, 'active', ?, NULL, 'USD', 0.00, ?, ?)")
         ->execute([$memberId, $planId, $now, $now, $now]);
 
-    echo "  → subscription: $planCode (plan_id=$planId)\n";
+    // Read stored hash back and verify — catches any truncation issues
+    $storedRow = $pdo->prepare("SELECT password FROM {$prefix}member WHERE id = ?");
+    $storedRow->execute([$memberId]);
+    $storedHash = (string)$storedRow->fetchColumn();
+    $loginCheck = password_verify($plainPassword, $storedHash);
+    echo '  login check: ' . ($loginCheck ? 'PASS' : 'FAIL — hash mismatch in DB!') . "\n";
+
+    echo "  subscription: $planCode (plan_id=$planId)\n\n";
 }
 
-echo "\nDone. Password for all accounts: Test1234!\n";
+echo "========================================\n";
+echo "Done. Password for all accounts: Test1234!\n";
 echo "Accounts: test.free / test.allai / test.hybrid / test.diy / test.vip @ai-mmi.com\n";
 echo "\n*** DELETE this file after testing: public/seed_test_accounts.php ***\n";
