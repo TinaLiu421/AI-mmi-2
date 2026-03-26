@@ -29,9 +29,28 @@ class Upgrade extends WebController
             'image'       => ''
         ]);
 
+        // Detect the member's current active migration plan (if any)
+        $activeMigrationSub = DB::table('subscriptions')
+            ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
+            ->where('subscriptions.member_id', $member['id'])
+            ->where('subscriptions.status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('subscriptions.ends_at')
+                  ->orWhere('subscriptions.ends_at', '>', now());
+            })
+            ->where('plans.business_domain', 'migration')
+            ->orderByDesc('subscriptions.id')
+            ->select('plans.code as plan_code', 'plans.name as plan_name', 'subscriptions.ends_at', 'subscriptions.stripe_subscription_id')
+            ->first();
+
+        $currentPlanCode = $activeMigrationSub->plan_code ?? null;
+
         $data = [
-            'pricing_table_id' => env('STRIPE_PRICING_TABLE_ID_1'),
-            'stripe_pk'        => env('STRIPE_KEY'),
+            'pricing_table_id'   => env('STRIPE_PRICING_TABLE_ID_1'),
+            'stripe_pk'          => env('STRIPE_KEY'),
+            'current_plan_code'  => $currentPlanCode,
+            'current_plan_name'  => $activeMigrationSub->plan_name ?? null,
+            'current_plan_expiry'=> $activeMigrationSub->ends_at ?? null,
             'plans_gate' => [
                 [
                     'code' => 'all_ai',
@@ -131,9 +150,59 @@ class Upgrade extends WebController
             return redirect()->to($this->toURL('upgrade'));
         }
 
-        try {
-            Stripe::setApiKey(config('services.stripe.secret'));
+        // Guard: prevent re-subscribing to the exact same plan while still active
+        $alreadyActive = DB::table('subscriptions')
+            ->where('member_id', $member['id'])
+            ->where('status', 'active')
+            ->where('plan_id', $plan->id)
+            ->where(function ($q) {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->exists();
 
+        if ($alreadyActive) {
+            $this->setSession(['error_message' => 'You already have this plan active. To renew early, please wait until closer to your expiry date.']);
+            return redirect()->to($this->toURL('upgrade'));
+        }
+
+        Stripe::setApiKey(config('services.stripe.secret'));
+
+        // Upgrade path: cancel the old Stripe subscription so it stops billing
+        $oldMigrationSub = DB::table('subscriptions')
+            ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
+            ->where('subscriptions.member_id', $member['id'])
+            ->where('subscriptions.status', 'active')
+            ->whereNotNull('subscriptions.stripe_subscription_id')
+            ->where('plans.business_domain', 'migration')
+            ->where(function ($q) {
+                $q->whereNull('subscriptions.ends_at')->orWhere('subscriptions.ends_at', '>', now());
+            })
+            ->orderByDesc('subscriptions.id')
+            ->select('subscriptions.id', 'subscriptions.stripe_subscription_id')
+            ->first();
+
+        if ($oldMigrationSub) {
+            try {
+                \Stripe\Subscription::cancel($oldMigrationSub->stripe_subscription_id);
+                DB::table('subscriptions')
+                    ->where('id', $oldMigrationSub->id)
+                    ->update(['status' => 'expired', 'ends_at' => now(), 'updated_at' => now()]);
+                Log::info('upgrade.checkout: cancelled old subscription', [
+                    'old_sub_id'        => $oldMigrationSub->id,
+                    'stripe_sub_id'     => $oldMigrationSub->stripe_subscription_id,
+                    'member_id'         => (int)($member['id'] ?? 0),
+                    'upgrading_to'      => $planCode,
+                ]);
+            } catch (\Throwable $e) {
+                // Log but don't block the upgrade checkout
+                Log::warning('upgrade.checkout: could not cancel old subscription', [
+                    'stripe_sub_id' => $oldMigrationSub->stripe_subscription_id,
+                    'error'         => $e->getMessage(),
+                ]);
+            }
+        }
+
+        try {
             $priceObj = StripePrice::retrieve($plan->stripe_price_id);
             $mode = !empty($priceObj->recurring) ? 'subscription' : 'payment';
 

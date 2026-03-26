@@ -5,12 +5,39 @@
     $plans = $_page_data['plans_gate'] ?? [];
     $pricingTableId = $_page_data['pricing_table_id'] ?? env('STRIPE_PRICING_TABLE_ID_1');
     $stripePublishableKey = $_page_data['stripe_pk'] ?? env('STRIPE_KEY');
+    $currentPlanCode  = $_page_data['current_plan_code'] ?? null;
+    $currentPlanName  = $_page_data['current_plan_name'] ?? null;
+    $currentPlanExpiry = $_page_data['current_plan_expiry'] ?? null;
   @endphp
 
   @if(!empty($plans))
   <style>
     .upgrade-gate-wrap {
       padding: 20px 0 8px;
+    }
+
+    .current-plan-banner {
+      background: #eef4ff;
+      border: 1px solid #bcd0ff;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--primary-blue-dark);
+    }
+
+    .current-plan-banner strong { font-weight: 800; }
+
+    .upgrade-cta.is-current {
+      background: var(--neutral-200);
+      color: var(--neutral-600);
+      pointer-events: none;
+      cursor: default;
+      box-shadow: none;
+      filter: none;
     }
 
     .upgrade-gate-header {
@@ -173,6 +200,16 @@
   </style>
 
   <div class="upgrade-gate-wrap">
+    @if($currentPlanCode)
+    <div class="current-plan-banner">
+      <i class="fas fa-check-circle" style="color:var(--primary-blue);font-size:18px;"></i>
+      <span>Your current plan: <strong>{{ $currentPlanName }}</strong>
+        @if($currentPlanExpiry)
+          &mdash; active until {{ \Carbon\Carbon::parse($currentPlanExpiry)->format('M j, Y') }}
+        @endif
+      </span>
+    </div>
+    @endif
     <div class="upgrade-gate-header">
       <h1>Choose Your Plan</h1>
       <p>Secure checkout powered by Stripe</p>
@@ -198,7 +235,10 @@
             <div class="upgrade-price">{{ $plan['price'] ?? '' }}</div>
           </div>
 
-          <a class="upgrade-cta" href="{{ $plan['checkout_url'] ?? '#' }}">{{ $plan['cta'] ?? 'Pay' }}</a>
+          @php $isCurrent = ($currentPlanCode === ($plan['code'] ?? '')); @endphp
+          <a class="upgrade-cta{{ $isCurrent ? ' is-current' : '' }}" href="{{ $isCurrent ? '#' : ($plan['checkout_url'] ?? '#') }}">
+            {{ $isCurrent ? 'Current Plan' : ($plan['cta'] ?? 'Pay') }}
+          </a>
 
           <p class="upgrade-features-title">This includes:</p>
           <ul class="upgrade-features-list">
