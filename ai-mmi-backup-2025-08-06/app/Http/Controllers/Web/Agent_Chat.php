@@ -603,7 +603,7 @@ class Agent_Chat extends WebController
         }
 
         $agentMemberId = (int)($this->_current_member['id'] ?? 0);
-        if (!$agentMemberId || !$this->isAgentMember($agentMemberId) || !$this->canUseAgentHomeLayout($agentMemberId)) {
+        if (!$agentMemberId || !$this->canUseAgentHomeLayout($agentMemberId)) {
             return response()->json(['ok' => false, 'message' => 'Unauthorized'], 403);
         }
 
@@ -651,7 +651,7 @@ class Agent_Chat extends WebController
         }
 
         $agentMemberId = (int)($this->_current_member['id'] ?? 0);
-        if (!$agentMemberId || !$this->isAgentMember($agentMemberId) || !$this->canUseAgentHomeLayout($agentMemberId)) {
+        if (!$agentMemberId || !$this->canUseAgentHomeLayout($agentMemberId)) {
             return response()->json(['ok' => false, 'message' => 'Unauthorized'], 403);
         }
 
@@ -677,7 +677,7 @@ class Agent_Chat extends WebController
         }
 
         $memberId = (int)($this->_current_member['id'] ?? 0);
-        if (!$memberId || !$this->isAgentMember($memberId) || !$this->canUseAgentHomeLayout($memberId)) {
+        if (!$memberId || !$this->canUseAgentHomeLayout($memberId)) {
             return $this->doRedirect($this->toURL('home'));
         }
 
@@ -704,10 +704,15 @@ class Agent_Chat extends WebController
         }
 
         // Load verification state from booking table
-        $bookingMap = DB::table('agent_chat_meeting_bookings')
-            ->select(['member_id', 'agent_attended', 'attended_at', 'status', 'booked_at', 'plan_code'])
-            ->get()
-            ->keyBy('member_id');
+        try {
+            $bookingMap = DB::table('agent_chat_meeting_bookings')
+                ->select(['member_id', 'agent_attended', 'attended_at', 'status', 'booked_at', 'plan_code'])
+                ->get()
+                ->keyBy('member_id');
+        } catch (\Throwable $e) {
+            $bookingMap = collect();
+            \Illuminate\Support\Facades\Log::warning('Agent_verification.bookingmap_failed', ['error' => $e->getMessage()]);
+        }
 
         foreach ($subRows as $row) {
             $mid = (int)$row->member_id;
@@ -802,28 +807,33 @@ class Agent_Chat extends WebController
         }
 
         $memberId = (int)($this->_current_member['id'] ?? 0);
-        if (!$memberId || !$this->isAgentMember($memberId) || !$this->canUseAgentHomeLayout($memberId)) {
+        if (!$memberId || !$this->canUseAgentHomeLayout($memberId)) {
             return $this->doRedirect($this->toURL('home'));
         }
 
         $this->ensureAgentChatBookingTableExists();
 
-        $bookingRows = DB::table('agent_chat_meeting_bookings as b')
-            ->leftJoin('member as m', 'm.id', '=', 'b.member_id')
-            ->select([
-                'b.id as booking_id',
-                'b.member_id',
-                'b.status',
-                'b.agent_attended',
-                'b.attended_at',
-                'b.booked_at',
-                'b.plan_code as saved_plan_code',
-                'm.alias_name',
-                'm.full_name',
-                'm.email',
-            ])
-            ->orderByDesc('b.created_at')
-            ->get();
+        try {
+            $bookingRows = DB::table('agent_chat_meeting_bookings as b')
+                ->leftJoin('member as m', 'm.id', '=', 'b.member_id')
+                ->select([
+                    'b.id as booking_id',
+                    'b.member_id',
+                    'b.status',
+                    'b.agent_attended',
+                    'b.attended_at',
+                    'b.booked_at',
+                    'b.plan_code as saved_plan_code',
+                    'm.alias_name',
+                    'm.full_name',
+                    'm.email',
+                ])
+                ->orderByDesc('b.created_at')
+                ->get();
+        } catch (\Throwable $e) {
+            $bookingRows = collect();
+            \Illuminate\Support\Facades\Log::warning('Agent_dashboard.bookingrows_failed', ['error' => $e->getMessage()]);
+        }
 
         $memberIds = $bookingRows->pluck('member_id')->filter()->unique()->values()->toArray();
 
@@ -1255,20 +1265,28 @@ class Agent_Chat extends WebController
 
     private function isAgentMember(int $memberId): bool
     {
-        $isExplicitAgent = DB::table('member_agent')
-            ->where('member_id', $memberId)
-            ->where('status', '>', 0)
-            ->exists();
+        try {
+            $isExplicitAgent = DB::table('member_agent')
+                ->where('member_id', $memberId)
+                ->where('status', '>', 0)
+                ->exists();
 
-        if ($isExplicitAgent) {
-            return true;
+            if ($isExplicitAgent) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            // member_agent table may not exist on this environment — fall through
         }
 
-        return DB::table('member')
-            ->where('id', $memberId)
-            ->whereIn('type', [2, 3])
-            ->where('status', '>', 0)
-            ->exists();
+        try {
+            return DB::table('member')
+                ->where('id', $memberId)
+                ->whereIn('type', [2, 3])
+                ->where('status', '>', 0)
+                ->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     private function canUseAgentHomeLayout(int $memberId): bool
