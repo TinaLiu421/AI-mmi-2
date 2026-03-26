@@ -600,9 +600,9 @@ class Agent_Chat extends WebController
     public function calendlyWebhook()
     {
         $rawBody    = request()->getContent();
-        $signingKey = env('CALENDLY_WEBHOOK_SIGNING_KEY', '');
+        $signingKey = '4940a185ff10cb9243e1be0d320fbd741efad2c4c95bce0f36ad3882220812a1';
 
-        // Verify HMAC signature when key is configured
+        // Verify HMAC signature
         if ($signingKey !== '') {
             $sigHeader = request()->header('Calendly-Webhook-Signature', '');
             if (!$this->verifyCalendlySignature($sigHeader, $rawBody, $signingKey)) {

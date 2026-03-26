@@ -11,18 +11,8 @@ class RegisterCalendlyWebhook extends Command
 
     public function handle(): int
     {
-        $token      = env('CALENDLY_TOKEN', '');
-        $signingKey = env('CALENDLY_WEBHOOK_SIGNING_KEY', '');
-
-        if ($token === '') {
-            $this->error('CALENDLY_TOKEN is not set in .env');
-            return 1;
-        }
-
-        if ($signingKey === '') {
-            $this->error('CALENDLY_WEBHOOK_SIGNING_KEY is not set in .env');
-            return 1;
-        }
+        $token      = 'eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzc0NTY1NTM4LCJqdGkiOiI5NmE3MTk2MC1lOWViLTQ5NzYtYTE3OS0wNDdlODBiOGQ1MjEiLCJ1c2VyX3V1aWQiOiIyZWYzMDQyMy0wMmFlLTQyNWItOWI3NS0wMDJjMWQ4NjczNGMiLCJzY29wZSI6ImF2YWlsYWJpbGl0eTpyZWFkIHdlYmhvb2tzOnJlYWQgd2ViaG9va3M6d3JpdGUgdXNlcnM6cmVhZCJ9.-atNL4uQJZaw18ZTAHPcgB9JnaxTFjf_plb8T7ya2qCG_imv1kEaeAHCmSSS0tmVJjdBNqfdfYjepza2kF8tGw';
+        $signingKey = '4940a185ff10cb9243e1be0d320fbd741efad2c4c95bce0f36ad3882220812a1';
 
         $webhookUrl = $this->option('url') ?: rtrim(env('APP_URL', 'https://ai-mmi.com'), '/') . '/calendly/webhook';
         $this->info("Webhook URL: {$webhookUrl}");
@@ -82,9 +72,7 @@ class RegisterCalendlyWebhook extends Command
         $this->line("  URI    : {$result['resource']['uri']}");
         $this->line("  State  : {$result['resource']['state']}");
         $this->line('');
-        $this->info('Make sure these are set in production .env:');
-        $this->line("  CALENDLY_TOKEN={$token}");
-        $this->line("  CALENDLY_WEBHOOK_SIGNING_KEY={$signingKey}");
+        $this->info('Webhook is active. No .env changes needed.');
 
         return 0;
     }
