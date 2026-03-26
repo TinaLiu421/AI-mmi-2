@@ -1295,11 +1295,13 @@ class Agent_Chat extends WebController
             return false;
         }
 
-        $email = DB::table('member')
-            ->where('id', $memberId)
-            ->value('email');
+        // Use the session-loaded member data first (already authenticated, avoids extra DB query).
+        // Fall back to a fresh DB lookup if the session email is unavailable.
+        $email = !empty($this->_current_member['email'])
+            ? (string)$this->_current_member['email']
+            : (string)(DB::table('member')->where('id', $memberId)->value('email') ?? '');
 
-        $email = mb_strtolower(trim((string)$email), 'UTF-8');
+        $email = mb_strtolower(trim($email), 'UTF-8');
         return in_array($email, ['admin@wealthskey.com', 'info@ai-mmi.com'], true);
     }
 
