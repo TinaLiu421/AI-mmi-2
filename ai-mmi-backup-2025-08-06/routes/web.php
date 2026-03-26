@@ -8,6 +8,7 @@ use App\Http\Controllers\Web\Account_Login as AccountLoginController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
+Route::post('/calendly/webhook', [AgentChatController::class, 'calendlyWebhook'])->name('calendly.webhook');
 Route::get('/posts/details/{postId}', [WebPosts::class, 'details'])->name('posts.details');
 Route::post('/posts/{postId}/qa-ask', [WebPosts::class, 'qaAsk']);
 // Streaming endpoint for AI responses handled by controller

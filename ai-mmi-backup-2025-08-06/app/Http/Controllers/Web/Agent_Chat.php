@@ -597,6 +597,111 @@ class Agent_Chat extends WebController
         ]);
     }
 
+    public function calendlyWebhook()
+    {
+        $rawBody    = request()->getContent();
+        $signingKey = env('CALENDLY_WEBHOOK_SIGNING_KEY', '');
+
+        // Verify HMAC signature when key is configured
+        if ($signingKey !== '') {
+            $sigHeader = request()->header('Calendly-Webhook-Signature', '');
+            if (!$this->verifyCalendlySignature($sigHeader, $rawBody, $signingKey)) {
+                \Illuminate\Support\Facades\Log::warning('calendly_webhook.invalid_signature', [
+                    'header' => $sigHeader,
+                ]);
+                return response()->json(['ok' => false, 'message' => 'Invalid signature'], 401);
+            }
+        }
+
+        $data  = json_decode($rawBody, true) ?: [];
+        $event = $data['event'] ?? '';
+
+        // Only process new bookings
+        if ($event !== 'invitee.created') {
+            return response()->json(['ok' => true, 'message' => 'event ignored']);
+        }
+
+        $payload    = $data['payload'] ?? [];
+        $invitee    = $payload['invitee'] ?? [];
+        $email      = strtolower(trim((string)($invitee['email'] ?? '')));
+        $eventUri   = (string)($payload['event'] ?? '');
+        $inviteeUri = (string)($invitee['uri'] ?? '');
+
+        if ($email === '') {
+            return response()->json(['ok' => false, 'message' => 'No invitee email'], 422);
+        }
+
+        // Find member by email
+        $member = DB::table('member')
+            ->where('email', $email)
+            ->where('verified', 1)
+            ->where('status', '>', 0)
+            ->select(['id'])
+            ->first();
+
+        if (!$member) {
+            \Illuminate\Support\Facades\Log::info('calendly_webhook.member_not_found', ['email' => $email]);
+            // Return 200 so Calendly does not keep retrying
+            return response()->json(['ok' => true, 'message' => 'member not found, ignored']);
+        }
+
+        $memberId    = (int)$member->id;
+        $planCode    = $this->getMemberActivePlanCode($memberId);
+        $autoConfirm = in_array($planCode, ['free', 'all_ai'], true) || $planCode === null;
+
+        // VIP / premium don't need booking records
+        if (in_array($planCode, ['vip', 'premium'], true)) {
+            return response()->json(['ok' => true, 'message' => 'plan does not require booking']);
+        }
+
+        $this->ensureAgentChatBookingTableExists();
+
+        $bookingData = [
+            'status'               => $autoConfirm ? 'attended' : 'booked',
+            'plan_code'            => $planCode,
+            'agent_attended'       => $autoConfirm ? 1 : 0,
+            'attended_at'          => $autoConfirm ? now() : null,
+            'calendly_event_uri'   => $eventUri ?: null,
+            'calendly_invitee_uri' => $inviteeUri ?: null,
+            'booked_at'            => now(),
+            'updated_at'           => now(),
+        ];
+
+        $existingId = DB::table('agent_chat_meeting_bookings')
+            ->where('member_id', $memberId)
+            ->value('id');
+
+        if ($existingId) {
+            DB::table('agent_chat_meeting_bookings')
+                ->where('id', (int)$existingId)
+                ->update($bookingData);
+        } else {
+            DB::table('agent_chat_meeting_bookings')->insert(array_merge($bookingData, [
+                'member_id'  => $memberId,
+                'created_at' => now(),
+            ]));
+        }
+
+        \Illuminate\Support\Facades\Log::info('calendly_webhook.booking_recorded', [
+            'member_id'    => $memberId,
+            'email'        => $email,
+            'plan_code'    => $planCode,
+            'auto_confirm' => $autoConfirm,
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    private function verifyCalendlySignature(string $sigHeader, string $rawBody, string $signingKey): bool
+    {
+        // Header format: t=TIMESTAMP,v1=HMAC_SHA256_HEX
+        if (!preg_match('/t=(\d+),v1=([a-f0-9]+)/i', $sigHeader, $m)) {
+            return false;
+        }
+        $expected = hash_hmac('sha256', $m[1] . '.' . $rawBody, $signingKey);
+        return hash_equals($expected, strtolower($m[2]));
+    }
+
     public function bookingMarkAttended()
     {
         $authResponse = $this->requireMemberAuth('json');

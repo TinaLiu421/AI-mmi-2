@@ -13,6 +13,7 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         'stripe/webhook',
+        'calendly/webhook',
         'api/*',
         'chat/log',
         'chat/stream',
