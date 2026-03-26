@@ -36,9 +36,11 @@ class Upgrade extends WebController
                 [
                     'code' => 'all_ai',
                     'name' => 'AI Smart Plan',
-                    'subtitle' => 'Your 24/7 AI migration guide. Perfect for self-starters who want smart support anytime (For 3 months).',
+                    'period_label' => '(For 90 days)',
+                    'renew_note' => 'Auto renews unless cancelled',
+                    'subtitle' => 'Your 24/7 AI migration guide. Perfect for self-starters who want smart support anytime.',
                     'price' => '$12',
-                    'billing' => 'every 3 months',
+                    'billing' => '',
                     'cta' => 'Subscribe',
                     'is_popular' => false,
                     'features' => [
@@ -51,9 +53,11 @@ class Upgrade extends WebController
                 [
                     'code' => 'hybrid',
                     'name' => 'AI + Agent Plan',
+                    'period_label' => '(For 90 days)',
+                    'renew_note' => 'Auto renews unless cancelled',
                     'subtitle' => 'AI Smart Plan + 2-hour voice or video call with a qualified migration/education agent',
                     'price' => '$99',
-                    'billing' => 'every 3 months',
+                    'billing' => '',
                     'cta' => 'Subscribe',
                     'is_popular' => true,
                     'features' => [
@@ -66,9 +70,11 @@ class Upgrade extends WebController
                 [
                     'code' => 'premium',
                     'name' => 'DIY Plan',
+                    'period_label' => 'One-time payment',
+                    'renew_note' => '',
                     'subtitle' => 'DIY for visa submission with final validation and review by a qualified migration agent',
                     'price' => '$699',
-                    'billing' => 'one-time payment',
+                    'billing' => '',
                     'cta' => 'Pay',
                     'is_popular' => false,
                     'features' => [
@@ -81,9 +87,11 @@ class Upgrade extends WebController
                 [
                     'code' => 'vip',
                     'name' => 'VIP Agent Plan',
+                    'period_label' => 'One-time payment',
+                    'renew_note' => '',
                     'subtitle' => 'AI and qualified migration agent support for student, graduate work, working holiday, tourist, and certain family visas',
                     'price' => '$999',
-                    'billing' => 'one-time payment',
+                    'billing' => '',
                     'cta' => 'Pay',
                     'is_popular' => false,
                     'features' => [

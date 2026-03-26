@@ -76,8 +76,21 @@
       font-weight: 900;
     }
 
+    .upgrade-plan-period {
+      margin: 4px 0 2px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary-blue);
+    }
+
+    .upgrade-plan-renew {
+      margin: 0 0 10px;
+      font-size: 12px;
+      color: var(--neutral-500);
+    }
+
     .upgrade-plan-subtitle {
-      margin: 10px 0 14px;
+      margin: 8px 0 14px;
       color: var(--neutral-700);
       line-height: 1.5;
       font-size: 14px;
@@ -173,11 +186,16 @@
           @endif
 
           <h2 class="upgrade-plan-name">{{ $plan['name'] ?? '' }}</h2>
+          @if(!empty($plan['period_label']))
+            <p class="upgrade-plan-period">{{ $plan['period_label'] }}</p>
+          @endif
+          @if(!empty($plan['renew_note']))
+            <p class="upgrade-plan-renew">{{ $plan['renew_note'] }}</p>
+          @endif
           <p class="upgrade-plan-subtitle">{{ $plan['subtitle'] ?? '' }}</p>
 
           <div class="upgrade-price-row">
             <div class="upgrade-price">{{ $plan['price'] ?? '' }}</div>
-            <div class="upgrade-billing">{{ $plan['billing'] ?? '' }}</div>
           </div>
 
           <a class="upgrade-cta" href="{{ $plan['checkout_url'] ?? '#' }}">{{ $plan['cta'] ?? 'Pay' }}</a>
