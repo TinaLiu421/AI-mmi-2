@@ -29,8 +29,6 @@ class Upgrade extends WebController
             'image'       => ''
         ]);
 
-        $base = rtrim($this->_page_base_url ?? '', '/');
-
         $data = [
             'pricing_table_id' => env('STRIPE_PRICING_TABLE_ID_1'),
             'stripe_pk'        => env('STRIPE_KEY'),
@@ -48,7 +46,7 @@ class Upgrade extends WebController
                         'DIY tools for eligibility, document prep, and planning',
                         'Regular policy updates and step-by-step guidance',
                     ],
-                    'checkout_url' => $base . '/upgrade/checkout/all_ai',
+                    'checkout_url' => $this->toURL('upgrade/checkout/all_ai'),
                 ],
                 [
                     'code' => 'hybrid',
@@ -63,7 +61,7 @@ class Upgrade extends WebController
                         '2-hour consultation with a registered migration agent/lawyer',
                         'Personalized feedback and recommendations',
                     ],
-                    'checkout_url' => $base . '/upgrade/checkout/hybrid',
+                    'checkout_url' => $this->toURL('upgrade/checkout/hybrid'),
                 ],
                 [
                     'code' => 'premium',
@@ -78,7 +76,7 @@ class Upgrade extends WebController
                         'Final review of your DIY application by a licensed expert',
                         'Detailed recommendations before submission',
                     ],
-                    'checkout_url' => $base . '/upgrade/checkout/premium',
+                    'checkout_url' => $this->toURL('upgrade/checkout/premium'),
                 ],
                 [
                     'code' => 'vip',
@@ -94,7 +92,7 @@ class Upgrade extends WebController
                         'Continuous follow-up and personalized support',
                         '*student, graduate work, working holiday, tourist, and certain family visas only',
                     ],
-                    'checkout_url' => $base . '/upgrade/checkout/vip',
+                    'checkout_url' => $this->toURL('upgrade/checkout/vip'),
                 ],
             ],
         ];
@@ -131,8 +129,8 @@ class Upgrade extends WebController
             $priceObj = StripePrice::retrieve($plan->stripe_price_id);
             $mode = !empty($priceObj->recurring) ? 'subscription' : 'payment';
 
-            $successUrl = rtrim($this->_page_base_url, '/') . '/upgrade?payment=success';
-            $cancelUrl  = rtrim($this->_page_base_url, '/') . '/upgrade?payment=cancel';
+            $successUrl = $this->toURL('upgrade') . '?payment=success';
+            $cancelUrl  = $this->toURL('upgrade') . '?payment=cancel';
 
             $session = StripeCheckoutSession::create([
                 'mode' => $mode,
@@ -160,6 +158,7 @@ class Upgrade extends WebController
                 'error' => $e->getMessage(),
             ]);
 
+            $this->setSession(['error_message' => 'Unable to start Stripe checkout right now. Please try again.']);
             return redirect()->to($this->toURL('upgrade'));
         }
     }
