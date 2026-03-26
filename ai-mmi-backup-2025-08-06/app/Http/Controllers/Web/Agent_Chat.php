@@ -502,11 +502,22 @@ class Agent_Chat extends WebController
             ], 422);
         }
 
+        // AI+Agent (hybrid): 1-time 2-hour meeting. Check if already used.
+        if ($currentPlanCode === 'hybrid' && $this->hasMeetingAttended($memberId, 'hybrid')) {
+            return response()->json([
+                'ok'            => false,
+                'already_used'  => true,
+                'redirect_upgrade' => true,
+                'message'       => 'You have already completed your AI+Agent 2-hour consultation meeting.',
+            ], 422);
+        }
+
         $alreadyUnlocked = $this->hasUnlockedAgentChat($memberId, $currentPlanCode);
 
-        // For free/all_ai plans, auto-confirm is always safe — no need to require prior schedule click.
-        // The strict gate is only kept for hybrid where the agent manually confirms attendance.
-        if (!$isFreePlan && $source === 'manual_continue' && !$alreadyUnlocked && !session()->get($scheduleClickSessionKey, false)) {
+        // For free/all_ai/hybrid: auto-confirm is always safe — no need to require prior schedule click.
+        // The strict gate is only kept for other non-auto-confirm plans.
+        $isAutoConfirmPlan = $isFreePlan || $currentPlanCode === 'hybrid';
+        if (!$isAutoConfirmPlan && $source === 'manual_continue' && !$alreadyUnlocked && !session()->get($scheduleClickSessionKey, false)) {
             return response()->json([
                 'ok' => false,
                 'unlocked' => false,
@@ -515,8 +526,8 @@ class Agent_Chat extends WebController
             ], 422);
         }
 
-        // For free/all_ai: auto-confirm immediately (no agent needed)
-        $autoConfirm = $isFreePlan;
+        // For free/all_ai/hybrid: auto-confirm immediately (no agent manual confirmation needed)
+        $autoConfirm = $isAutoConfirmPlan;
 
         $payload = [
             'member_id'            => $memberId,
@@ -556,14 +567,17 @@ class Agent_Chat extends WebController
             session()->put($scheduleClickSessionKey, true);
 
             if ($autoConfirm) {
-                // Free/all_ai: mark as used immediately, tell frontend to redirect to upgrade
+                // Free/all_ai/hybrid: mark as used immediately, tell frontend to redirect to upgrade
                 session()->forget($scheduleClickSessionKey);
+                $confirmMsg = ($currentPlanCode === 'hybrid')
+                    ? 'Your 2-hour AI+Agent consultation has been scheduled! This is a one-time benefit of your plan.'
+                    : 'Your 15-minute consultation has been scheduled! This is a one-time benefit. Upgrade your plan to book more meetings.';
                 return response()->json([
                     'ok'               => true,
                     'booked'           => true,
                     'meeting_used'     => true,
                     'redirect_upgrade' => true,
-                    'message'          => 'Your 15-minute consultation has been scheduled! This is a one-time benefit. Upgrade your plan to book more meetings.',
+                    'message'          => $confirmMsg,
                 ]);
             }
 
@@ -580,12 +594,15 @@ class Agent_Chat extends WebController
         session()->forget($scheduleClickSessionKey);
 
         if ($autoConfirm) {
+            $confirmMsg = ($currentPlanCode === 'hybrid')
+                ? 'Your 2-hour AI+Agent consultation has been scheduled! This is a one-time benefit of your plan.'
+                : 'Your 15-minute consultation has been scheduled! This is a one-time benefit.';
             return response()->json([
                 'ok'               => true,
                 'booked'           => true,
                 'meeting_used'     => true,
                 'redirect_upgrade' => true,
-                'message'          => 'Your 15-minute consultation has been scheduled! This is a one-time benefit.',
+                'message'          => $confirmMsg,
             ]);
         }
 
@@ -647,12 +664,16 @@ class Agent_Chat extends WebController
 
         $memberId    = (int)$member->id;
         $planCode    = $this->getMemberActivePlanCode($memberId);
-        $autoConfirm = in_array($planCode, ['free', 'all_ai'], true) || $planCode === null;
 
-        // VIP / premium don't need booking records
-        if (in_array($planCode, ['vip', 'premium'], true)) {
+        // premium doesn't need booking records
+        if ($planCode === 'premium') {
             return response()->json(['ok' => true, 'message' => 'plan does not require booking']);
         }
+
+        // free/all_ai/hybrid: 1-time auto-confirmed meeting
+        // VIP: always auto-confirmed (unlimited meetings; freeflow access)
+        // null (no active plan): treated as free (auto-confirm)
+        $autoConfirm = in_array($planCode, ['free', 'all_ai', 'hybrid', 'vip'], true) || $planCode === null;
 
         $this->ensureAgentChatBookingTableExists();
 
