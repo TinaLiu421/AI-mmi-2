@@ -16,7 +16,15 @@ class Agent_Chat extends WebController
             return null;
         }
 
-        if ($this->hasUnlockedAgentChat($memberId)) {
+        $planCode = $this->getMemberActivePlanCode($memberId);
+
+        // VIP → always allowed
+        if ($planCode === 'vip') {
+            return null;
+        }
+
+        // DIY (premium) → always allowed (full chat, no meeting required)
+        if ($planCode === 'premium') {
             return null;
         }
 
@@ -68,24 +76,46 @@ class Agent_Chat extends WebController
         if (!$isAgent && $memberId) {
             $planCode = $this->getMemberActivePlanCode((int)$memberId);
 
-            // DIY Plan (premium) or VIP Agent Plan → full agent chat access
-            if (in_array($planCode, ['premium', 'vip'], true)) {
+            // VIP → full agent chat access, no booking required
+            if ($planCode === 'vip') {
                 return $this->renderChatPage($targetId);
             }
 
-            // AI + Agent Plan (hybrid) → Calendly booking page only (no chat)
-            if ($planCode === 'hybrid') {
-                $this->pageCss('agent_chat_booking_required');
-                $this->pageScript('agent_chat_booking_required');
-                $calendlyUrl = (string)env('AGENT_CHAT_CALENDLY_URL', 'https://calendly.com/admin-wealthskey/30min');
-                return $this->pageData([
-                    'mode'         => 'calendly_only',
-                    'calendly_url' => $calendlyUrl,
-                ])->pageView('agent_chat_booking_required');
+            // DIY (premium) → always full chat access, no meeting booking needed
+            if ($planCode === 'premium') {
+                return $this->renderChatPage($targetId);
             }
 
-            // Free / AI Smart Plan / no plan → upgrade page
-            return $this->doRedirect($this->toURL('upgrade'));
+            // AI+Agent (hybrid) → booking page; after agent confirms attendance → upgrade redirect
+            if ($planCode === 'hybrid') {
+                if ($this->hasMeetingAttended((int)$memberId, 'hybrid')) {
+                    return $this->doRedirect($this->toURL('upgrade'));
+                }
+                return $this->buildBookingPage(
+                    'https://calendly.com/admin-wealthskey/ai-agent-plan-users',
+                    'hybrid',
+                    (int)$memberId
+                );
+            }
+
+            // Free / AI Smart → 1x 15-min meeting; once used → upgrade redirect
+            if (in_array($planCode, ['free', 'all_ai'], true)) {
+                if ($this->hasMeetingAttended((int)$memberId, 'free')) {
+                    return $this->doRedirect($this->toURL('upgrade'));
+                }
+                return $this->buildBookingPage(
+                    'https://calendly.com/admin-wealthskey/free-users',
+                    'free',
+                    (int)$memberId
+                );
+            }
+
+            // No active plan → same as free plan
+            return $this->buildBookingPage(
+                'https://calendly.com/admin-wealthskey/free-users',
+                'free',
+                (int)$memberId
+            );
         }
 
         return $this->renderChatPage($targetId);
@@ -104,7 +134,8 @@ class Agent_Chat extends WebController
 
         if (!$isAgent && $memberId) {
             $planCode = $this->getMemberActivePlanCode((int)$memberId);
-            if (!in_array($planCode, ['premium', 'vip'], true)) {
+            // Only VIP or DIY (full access) may reach the direct chat page
+            if ($planCode !== 'vip' && $planCode !== 'premium') {
                 return $this->doRedirect($this->toURL('agent_chat'));
             }
         }
@@ -156,12 +187,18 @@ class Agent_Chat extends WebController
             }
         }
 
+        $memberPlanCode = '';
+        if ($memberId && !$isAgent) {
+            $memberPlanCode = $this->getMemberActivePlanCode((int)$memberId);
+        }
+
         return $this->pageData([
-            'is_agent' => $isAgent,
-            'agents' => $agents,
-            'threads' => $threads,
+            'is_agent'           => $isAgent,
+            'agents'             => $agents,
+            'threads'            => $threads,
             'active_target_type' => $activeTargetType,
-            'active_target_id' => $activeTargetId,
+            'active_target_id'   => $activeTargetId,
+            'member_plan_code'   => $memberPlanCode,
         ])->pageView('agent_chat');
     }
 
@@ -450,27 +487,46 @@ class Agent_Chat extends WebController
 
         $scheduleClickSessionKey = 'agent_chat_schedule_clicked_' . $memberId;
 
-        $alreadyUnlocked = $this->hasUnlockedAgentChat($memberId);
+        $this->ensureAgentChatBookingTableExists();
+
+        $currentPlanCode = $this->getMemberActivePlanCode($memberId);
+
+        // Free / AI Smart: 1-time only. Check if already used.
+        $isFreePlan = in_array($currentPlanCode, ['free', 'all_ai'], true);
+        if ($isFreePlan && $this->hasMeetingAttended($memberId, 'free')) {
+            return response()->json([
+                'ok'            => false,
+                'already_used'  => true,
+                'redirect_upgrade' => true,
+                'message'       => 'You have already used your one-time free consultation meeting.',
+            ], 422);
+        }
+
+        $alreadyUnlocked = $this->hasUnlockedAgentChat($memberId, $currentPlanCode);
 
         if ($source === 'manual_continue' && !$alreadyUnlocked && !session()->get($scheduleClickSessionKey, false)) {
             return response()->json([
                 'ok' => false,
                 'unlocked' => false,
                 'require_schedule_click' => true,
-                'message' => 'Please click "Schedule meeting with agent" first before continuing to chat.',
+                'message' => 'Please click "Schedule meeting with agent" first to record your meeting.',
             ], 422);
         }
 
-        $this->ensureAgentChatBookingTableExists();
+        // For free/all_ai: auto-confirm immediately (no agent needed)
+        $autoConfirm = $isFreePlan;
 
         $payload = [
-            'member_id' => $memberId,
-            'status' => 'booked',
-            'calendly_event_uri' => trim((string)request()->input('event_uri', '')) ?: null,
+            'member_id'            => $memberId,
+            'status'               => $autoConfirm ? 'attended' : 'booked',
+            'plan_code'            => $currentPlanCode,
+            'agent_attended'       => $autoConfirm ? 1 : 0,
+            'attended_at'          => $autoConfirm ? now() : null,
+            'calendly_event_uri'   => trim((string)request()->input('event_uri', '')) ?: null,
             'calendly_invitee_uri' => trim((string)request()->input('invitee_uri', '')) ?: null,
-            'booked_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
+            'booked_at'            => now(),
+            'created_at'           => now(),
+            'updated_at'           => now(),
         ];
 
         $existingId = DB::table('agent_chat_meeting_bookings')
@@ -481,28 +537,348 @@ class Agent_Chat extends WebController
             DB::table('agent_chat_meeting_bookings')
                 ->where('id', (int)$existingId)
                 ->update([
-                    'status' => 'booked',
-                    'calendly_event_uri' => $payload['calendly_event_uri'],
+                    'status'               => $payload['status'],
+                    'plan_code'            => $payload['plan_code'],
+                    'agent_attended'       => $payload['agent_attended'],
+                    'attended_at'          => $payload['attended_at'],
+                    'calendly_event_uri'   => $payload['calendly_event_uri'],
                     'calendly_invitee_uri' => $payload['calendly_invitee_uri'],
-                    'booked_at' => $payload['booked_at'],
-                    'updated_at' => $payload['updated_at'],
+                    'booked_at'            => $payload['booked_at'],
+                    'updated_at'           => $payload['updated_at'],
                 ]);
         } else {
             DB::table('agent_chat_meeting_bookings')->insert($payload);
         }
 
-        session()->forget($scheduleClickSessionKey);
-
         if ($source === 'schedule_click') {
+            session()->put($scheduleClickSessionKey, true);
+
+            if ($autoConfirm) {
+                // Free/all_ai: mark as used immediately, tell frontend to redirect to upgrade
+                session()->forget($scheduleClickSessionKey);
+                return response()->json([
+                    'ok'               => true,
+                    'booked'           => true,
+                    'meeting_used'     => true,
+                    'redirect_upgrade' => true,
+                    'message'          => 'Your 15-minute consultation has been scheduled! This is a one-time benefit. Upgrade your plan to book more meetings.',
+                ]);
+            }
+
             return response()->json([
-                'ok' => true,
-                'unlocked' => true,
+                'ok'               => true,
+                'booked'           => true,
+                'needs_attendance' => true,
                 'schedule_clicked' => true,
-                'message' => 'Schedule click recorded. You can continue to chat now and on your next visit.',
+                'message'          => 'Schedule click recorded. Your meeting is being logged.',
             ]);
         }
 
-        return response()->json(['ok' => true, 'unlocked' => true]);
+        // manual_continue
+        session()->forget($scheduleClickSessionKey);
+
+        if ($autoConfirm) {
+            return response()->json([
+                'ok'               => true,
+                'booked'           => true,
+                'meeting_used'     => true,
+                'redirect_upgrade' => true,
+                'message'          => 'Your 15-minute consultation has been scheduled! This is a one-time benefit.',
+            ]);
+        }
+
+        return response()->json([
+            'ok'               => true,
+            'booked'           => true,
+            'needs_attendance' => true,
+            'message'          => 'Your meeting has been scheduled. Please wait for the agent to confirm your attendance.',
+        ]);
+    }
+
+    public function bookingMarkAttended()
+    {
+        $authResponse = $this->requireMemberAuth('json');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $agentMemberId = (int)($this->_current_member['id'] ?? 0);
+        if (!$agentMemberId || !$this->isAgentMember($agentMemberId) || !$this->canUseAgentHomeLayout($agentMemberId)) {
+            return response()->json(['ok' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $targetMemberId = (int)request()->input('member_id', 0);
+        $attended       = filter_var(request()->input('attended', true), FILTER_VALIDATE_BOOLEAN);
+
+        if ($targetMemberId <= 0) {
+            return response()->json(['ok' => false, 'message' => 'Invalid member_id'], 422);
+        }
+
+        $this->ensureAgentChatBookingTableExists();
+
+        $existingId = DB::table('agent_chat_meeting_bookings')
+            ->where('member_id', $targetMemberId)
+            ->value('id');
+
+        if ($existingId) {
+            DB::table('agent_chat_meeting_bookings')
+                ->where('member_id', $targetMemberId)
+                ->update([
+                    'agent_attended' => $attended ? 1 : 0,
+                    'attended_at'    => $attended ? now() : null,
+                    'status'         => $attended ? 'attended' : 'booked',
+                    'updated_at'     => now(),
+                ]);
+        } else {
+            DB::table('agent_chat_meeting_bookings')->insert([
+                'member_id'      => $targetMemberId,
+                'status'         => $attended ? 'attended' : 'booked',
+                'agent_attended' => $attended ? 1 : 0,
+                'attended_at'    => $attended ? now() : null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+        }
+
+        return response()->json(['ok' => true, 'member_id' => $targetMemberId, 'attended' => $attended]);
+    }
+
+    public function bookingDeleteReset()
+    {
+        $authResponse = $this->requireMemberAuth('json');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $agentMemberId = (int)($this->_current_member['id'] ?? 0);
+        if (!$agentMemberId || !$this->isAgentMember($agentMemberId) || !$this->canUseAgentHomeLayout($agentMemberId)) {
+            return response()->json(['ok' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $targetMemberId = (int)request()->input('member_id', 0);
+        if ($targetMemberId <= 0) {
+            return response()->json(['ok' => false, 'message' => 'Invalid member_id'], 422);
+        }
+
+        $this->ensureAgentChatBookingTableExists();
+
+        DB::table('agent_chat_meeting_bookings')
+            ->where('member_id', $targetMemberId)
+            ->delete();
+
+        return response()->json(['ok' => true, 'member_id' => $targetMemberId, 'message' => 'Booking record deleted.']);
+    }
+
+    public function agentVerification()
+    {
+        $authResponse = $this->requireMemberAuth('redirect');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $memberId = (int)($this->_current_member['id'] ?? 0);
+        if (!$memberId || !$this->isAgentMember($memberId) || !$this->canUseAgentHomeLayout($memberId)) {
+            return $this->doRedirect($this->toURL('home'));
+        }
+
+        $this->ensureAgentChatBookingTableExists();
+
+        // All members with any active subscription
+        $members = [];
+        $seenIds = [];
+
+        try {
+            $subRows = DB::table('subscriptions as s')
+                ->join('plans as p', 'p.id', '=', 's.plan_id')
+                ->join('member as m', 'm.id', '=', 's.member_id')
+                ->where('s.status', 'active')
+                ->where(function ($q) {
+                    $q->whereNull('s.ends_at')->orWhere('s.ends_at', '>', now());
+                })
+                ->where('m.status', '>', 0)
+                ->select(['m.id as member_id', 'm.alias_name', 'm.full_name', 'm.email', 'p.name as plan_name', 'p.code as plan_code'])
+                ->get();
+        } catch (\Throwable $e) {
+            $subRows = collect();
+            \Illuminate\Support\Facades\Log::warning('Agent_verification.subs_query_failed', ['error' => $e->getMessage()]);
+        }
+
+        // Load verification state from booking table
+        $bookingMap = DB::table('agent_chat_meeting_bookings')
+            ->select(['member_id', 'agent_attended', 'attended_at', 'status', 'booked_at', 'plan_code'])
+            ->get()
+            ->keyBy('member_id');
+
+        foreach ($subRows as $row) {
+            $mid = (int)$row->member_id;
+            if (isset($seenIds[$mid])) {
+                continue;
+            }
+            $seenIds[$mid] = true;
+
+            $booking  = $bookingMap[$mid] ?? null;
+            $planCode = (string)($row->plan_code ?? '');
+            $name     = trim((string)($row->alias_name ?: $row->full_name ?: ('Member #' . $mid)));
+
+            // What happens after agent verifies this member?
+            $outcomeMap = [
+                'vip'     => 'Full chat access (no booking required)',
+                'premium' => 'Full chat access (no booking required)',
+                'hybrid'  => '2-hour consultation — chat unlocked after agent confirms meeting',
+                'all_ai'  => 'One-time 15-min consultation — auto-recorded when scheduled',
+                'free'    => 'One-time 15-min consultation — auto-recorded when scheduled',
+            ];
+            $outcome = $outcomeMap[$planCode] ?? 'Redirected to upgrade page';
+
+            $members[] = [
+                'member_id'        => $mid,
+                'name'             => $name,
+                'email'            => (string)($row->email ?? ''),
+                'plan_name'        => (string)($row->plan_name ?? ''),
+                'plan_code'        => $planCode,
+                'outcome'          => $outcome,
+                'has_booked'       => !is_null($booking),
+                'verified'         => $booking ? (bool)$booking->agent_attended : false,
+                'verified_at'      => $booking ? (string)($booking->attended_at ?? '') : '',
+                'booked_at'        => $booking ? (string)($booking->booked_at ?? '') : '',
+                'booking_plan_code'=> $booking ? (string)($booking->plan_code ?? '') : '',
+            ];
+        }
+
+        // Also include members from booking table not already in list (edge case: expired plan)
+        foreach ($bookingMap as $mid => $booking) {
+            $mid = (int)$mid;
+            if (isset($seenIds[$mid])) {
+                continue;
+            }
+            $seenIds[$mid] = true;
+
+            $mem = DB::table('member')
+                ->where('id', $mid)
+                ->select(['alias_name', 'full_name', 'email'])
+                ->first();
+
+            if (!$mem) {
+                continue;
+            }
+
+            $name = trim((string)($mem->alias_name ?: $mem->full_name ?: ('Member #' . $mid)));
+            $members[] = [
+                'member_id'   => $mid,
+                'name'        => $name,
+                'email'       => (string)($mem->email ?? ''),
+                'plan_name'   => '—',
+                'plan_code'   => '',
+                'outcome'     => 'No active plan',
+                'has_booked'  => true,
+                'verified'    => (bool)$booking->agent_attended,
+                'verified_at' => (string)($booking->attended_at ?? ''),
+                'booked_at'   => (string)($booking->booked_at ?? ''),
+            ];
+        }
+
+        // Sort by plan priority: vip > premium > hybrid > all_ai > free > other
+        $planPriority = ['vip' => 1, 'premium' => 2, 'hybrid' => 3, 'all_ai' => 4, 'free' => 5];
+        usort($members, function ($a, $b) use ($planPriority) {
+            $pa = $planPriority[$a['plan_code']] ?? 99;
+            $pb = $planPriority[$b['plan_code']] ?? 99;
+            if ($pa !== $pb) return $pa <=> $pb;
+            return strcmp($a['name'], $b['name']);
+        });
+
+        $this->pageCss('agent_verification');
+        $this->pageScript('agent_verification');
+
+        return $this->pageData([
+            'members' => $members,
+        ])->pageView('agent_verification');
+    }
+
+    public function agentDashboard()
+    {
+        $authResponse = $this->requireMemberAuth('redirect');
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $memberId = (int)($this->_current_member['id'] ?? 0);
+        if (!$memberId || !$this->isAgentMember($memberId) || !$this->canUseAgentHomeLayout($memberId)) {
+            return $this->doRedirect($this->toURL('home'));
+        }
+
+        $this->ensureAgentChatBookingTableExists();
+
+        $bookingRows = DB::table('agent_chat_meeting_bookings as b')
+            ->leftJoin('member as m', 'm.id', '=', 'b.member_id')
+            ->select([
+                'b.id as booking_id',
+                'b.member_id',
+                'b.status',
+                'b.agent_attended',
+                'b.attended_at',
+                'b.booked_at',
+                'b.plan_code as saved_plan_code',
+                'm.alias_name',
+                'm.full_name',
+                'm.email',
+            ])
+            ->orderByDesc('b.created_at')
+            ->get();
+
+        $memberIds = $bookingRows->pluck('member_id')->filter()->unique()->values()->toArray();
+
+        $planNames = [];
+        $planCodes = [];
+        if (!empty($memberIds)) {
+            try {
+                $planRows = DB::table('subscriptions')
+                    ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
+                    ->whereIn('subscriptions.member_id', $memberIds)
+                    ->where('subscriptions.status', 'active')
+                    ->where(function ($q) {
+                        $q->whereNull('subscriptions.ends_at')
+                          ->orWhere('subscriptions.ends_at', '>', now());
+                    })
+                    ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
+                    ->select('subscriptions.member_id', 'plans.name', 'plans.code')
+                    ->get();
+
+                foreach ($planRows as $pr) {
+                    $mid = (int)$pr->member_id;
+                    if (!isset($planNames[$mid])) {
+                        $planNames[$mid] = $pr->name;
+                        $planCodes[$mid] = $pr->code;
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Agent_dashboard.plan_lookup_failed', ['error' => $e->getMessage()]);
+            }
+        }
+
+        $bookings = [];
+        foreach ($bookingRows as $row) {
+            $mid  = (int)($row->member_id ?? 0);
+            $name = trim((string)($row->alias_name ?: $row->full_name ?: ('Member #' . $mid)));
+            $bookings[] = [
+                'booking_id'     => (int)$row->booking_id,
+                'member_id'      => $mid,
+                'name'           => $name,
+                'email'          => (string)($row->email ?? ''),
+                'plan_name'      => $planNames[$mid] ?? ucfirst((string)($row->saved_plan_code ?? 'Free')),
+                'plan_code'      => $planCodes[$mid] ?? (string)($row->saved_plan_code ?? ''),
+                'status'         => (string)($row->status ?? ''),
+                'agent_attended' => (bool)$row->agent_attended,
+                'attended_at'    => (string)($row->attended_at ?? ''),
+                'booked_at'      => (string)($row->booked_at ?? ''),
+            ];
+        }
+
+        $this->pageCss('agent_dashboard');
+        $this->pageScript('agent_dashboard');
+
+        return $this->pageData([
+            'bookings' => $bookings,
+        ])->pageView('agent_dashboard');
     }
 
     public function downloadAttachment($attachmentId, $maybeAttachmentId = null)
@@ -1400,12 +1776,17 @@ class Agent_Chat extends WebController
             return;
         }
 
+        $prefix = DB::getTablePrefix();
+        $table  = $prefix . 'agent_chat_meeting_bookings';
+
         if (!Schema::hasTable('agent_chat_meeting_bookings')) {
-            $table = DB::getTablePrefix() . 'agent_chat_meeting_bookings';
             DB::statement("CREATE TABLE IF NOT EXISTS `{$table}` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `member_id` BIGINT UNSIGNED NOT NULL,
                 `status` VARCHAR(30) NOT NULL DEFAULT 'booked',
+                `plan_code` VARCHAR(30) NULL DEFAULT NULL,
+                `agent_attended` TINYINT(1) NOT NULL DEFAULT 0,
+                `attended_at` TIMESTAMP NULL DEFAULT NULL,
                 `calendly_event_uri` VARCHAR(500) NULL,
                 `calendly_invitee_uri` VARCHAR(500) NULL,
                 `booked_at` TIMESTAMP NULL DEFAULT NULL,
@@ -1415,12 +1796,30 @@ class Agent_Chat extends WebController
                 UNIQUE KEY `agent_chat_meeting_bookings_member_id_unique` (`member_id`),
                 KEY `agent_chat_meeting_bookings_status_index` (`status`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } else {
+            // Add new columns to existing table if missing
+            $existingColumns = DB::select("SHOW COLUMNS FROM `{$table}`");
+            $colNames = array_map(function ($col) { return $col->Field; }, $existingColumns);
+            if (!in_array('plan_code', $colNames, true)) {
+                DB::statement("ALTER TABLE `{$table}` ADD COLUMN `plan_code` VARCHAR(30) NULL DEFAULT NULL AFTER `status`");
+            }
+            if (!in_array('agent_attended', $colNames, true)) {
+                DB::statement("ALTER TABLE `{$table}` ADD COLUMN `agent_attended` TINYINT(1) NOT NULL DEFAULT 0 AFTER `plan_code`");
+            }
+            if (!in_array('attended_at', $colNames, true)) {
+                DB::statement("ALTER TABLE `{$table}` ADD COLUMN `attended_at` TIMESTAMP NULL DEFAULT NULL AFTER `agent_attended`");
+            }
         }
 
         $checked = true;
     }
 
-    private function hasUnlockedAgentChat(int $memberId): bool
+    /**
+     * Check if member has an active (not-yet-attended) booking for their current plan context.
+     * For hybrid: only counts hybrid bookings.
+     * For free/all_ai: only counts free/all_ai bookings.
+     */
+    private function hasUnlockedAgentChat(int $memberId, string $planCode = ''): bool
     {
         if ($memberId <= 0) {
             return false;
@@ -1428,10 +1827,78 @@ class Agent_Chat extends WebController
 
         $this->ensureAgentChatBookingTableExists();
 
-        return DB::table('agent_chat_meeting_bookings')
+        $q = DB::table('agent_chat_meeting_bookings')
             ->where('member_id', $memberId)
-            ->where('status', 'booked')
-            ->exists();
+            ->where('status', 'booked');
+
+        if ($planCode === 'hybrid') {
+            $q->where('plan_code', 'hybrid');
+        } elseif (in_array($planCode, ['free', 'all_ai'], true)) {
+            $q->whereIn('plan_code', ['free', 'all_ai']);
+        }
+
+        return $q->exists();
+    }
+
+    /**
+     * Check if member's meeting has been attended/used in the given plan context.
+     * - 'hybrid': only true if agent confirmed a hybrid booking
+     * - 'free' or 'all_ai': only true if free/all_ai auto-confirmed booking exists
+     * - '' (default): any attended booking
+     */
+    private function hasMeetingAttended(int $memberId, string $forPlanCode = ''): bool
+    {
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        $this->ensureAgentChatBookingTableExists();
+
+        $row = DB::table('agent_chat_meeting_bookings')
+            ->where('member_id', $memberId)
+            ->select(['agent_attended', 'plan_code'])
+            ->first();
+
+        if (!$row || !(bool)$row->agent_attended) {
+            return false;
+        }
+
+        if ($forPlanCode === 'hybrid') {
+            // Only count as attended if this booking was made under hybrid plan
+            return ($row->plan_code ?? '') === 'hybrid';
+        }
+
+        if (in_array($forPlanCode, ['free', 'all_ai'], true)) {
+            // Count as used if booking was made under free or all_ai plan
+            return in_array($row->plan_code ?? '', ['free', 'all_ai']);
+        }
+
+        return true;
+    }
+
+    private function buildBookingPage(string $calendlyUrl, string $planMode, int $memberId)
+    {
+        $this->pageCss('agent_chat_booking_required');
+        $this->pageScript('agent_chat_booking_required');
+
+        // has_booked controls whether the schedule button is hidden on page load.
+        // - hybrid: ALWAYS false — member can reschedule until agent confirms attendance.
+        //   (If agent_attended=1, index() already redirected to /upgrade before reaching here.)
+        // - free/all_ai: ALWAYS false — same logic: if quota used, index() redirects away.
+        $hasBooked = false;
+
+        $langPrefix  = '';
+        $currentLang = trim((string)request()->segment(1));
+        if ($currentLang !== '' && preg_match('/^[a-zA-Z_\-]+$/', $currentLang)) {
+            $langPrefix = '/' . $currentLang;
+        }
+
+        return $this->pageData([
+            'mode'           => $planMode,
+            'calendly_url'   => $calendlyUrl,
+            'has_booked'     => $hasBooked,
+            'unlock_api_url' => $langPrefix . '/agent_chat/booking/confirm',
+        ])->pageView('agent_chat_booking_required');
     }
 
     /**

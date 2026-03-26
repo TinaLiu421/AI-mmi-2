@@ -312,7 +312,7 @@ class CoreController extends Controller {
                         ]));
                     }
                     $path_value = trim($path_value);
-                    if(file_exists($path_value) || preg_match('/^(https|http)(:\/\/)(.*)$/i', $path_value, $external_match)) {
+                    if(file_exists(public_path($path_value)) || preg_match('/^(https|http)(:\/\/)(.*)$/i', $path_value, $external_match)) {
                         $this->_css_files[] = $path_value;
                     }
                 }
@@ -330,7 +330,7 @@ class CoreController extends Controller {
                     ]));
                 }
                 $path_value = trim($path_value);
-                if(file_exists($path_value) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $external_match)) {
+                if(file_exists(public_path($path_value)) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $external_match)) {
                     $this->_css_files[] = $path_value;
                 }
             }
@@ -353,7 +353,7 @@ class CoreController extends Controller {
                         ]));
                     }
                     $path_value = trim($path_value);
-                    if(file_exists($path_value) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $path_match)) {
+                    if(file_exists(public_path($path_value)) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $path_match)) {
                         $this->_js_files[] = $path_value;
                     }
                 }
@@ -371,7 +371,7 @@ class CoreController extends Controller {
                     ]));
                 }
                 $path_value = trim($path_value);
-                if(file_exists($path_value) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $external_match)) {
+                if(file_exists(public_path($path_value)) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $external_match)) {
                     $this->_js_files[] = $path_value;
                 }
             }
@@ -394,7 +394,7 @@ class CoreController extends Controller {
                         ]));
                     }
                     $path_value = trim($path_value);
-                    if(file_exists($path_value) || preg_match('/^(https|http)(:\/\/)(.*)$/i', $path_value, $external_match)) {
+                    if(file_exists(public_path($path_value)) || preg_match('/^(https|http)(:\/\/)(.*)$/i', $path_value, $external_match)) {
                         $this->_css_extra_files[] = $path_value;
                     }
                 }
@@ -412,7 +412,7 @@ class CoreController extends Controller {
                     ]));
                 }
                 $path_value = trim($path_value);
-                if(file_exists($path_value) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $external_match)) {
+                if(file_exists(public_path($path_value)) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $external_match)) {
                     $this->_css_extra_files[] = $path_value;
                 }
             }
@@ -435,7 +435,7 @@ class CoreController extends Controller {
                         ]));
                     }
                     $path_value = trim($path_value);
-                    if(file_exists($path_value) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $path_match)) {
+                    if(file_exists(public_path($path_value)) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $path_match)) {
                         $this->_js_extra_files[] = $path_value;
                     }
                 }
@@ -453,7 +453,7 @@ class CoreController extends Controller {
                     ]));
                 }
                 $path_value = trim($path_value);
-                if(file_exists($path_value) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $external_match)) {
+                if(file_exists(public_path($path_value)) || preg_match('/^(https|http)(:\/\/)(.*)$/', $path_value, $external_match)) {
                     $this->_js_extra_files[] = $path_value;
                 }
             }
@@ -885,7 +885,7 @@ class CoreController extends Controller {
                         ]
                     ])).'.'.$extension;
                     if(!file_exists(public_path($cache_folder.'/'.$file_name))) {
-                        $thumbnail = \Intervention\Image\Facades\Image::make($data['file_path'])->crop(
+                        $thumbnail = \Intervention\Image\Facades\Image::make(public_path($data['file_path']))->crop(
                             $data['file_attribute']['width'],
                             $data['file_attribute']['height'],
                             $data['file_attribute']['x'],
@@ -906,15 +906,15 @@ class CoreController extends Controller {
                     
                     if(empty($crop)) {
                         if(!file_exists(public_path($cache_folder.'/'.$file_name))) {
-                            $thumbnail = \Intervention\Image\Facades\Image::make($data['file_path'])->resize($width, $height, function ($constraint) {
+                            $thumbnail = \Intervention\Image\Facades\Image::make(public_path($data['file_path']))->resize($width, $height, function ($constraint) {
                                 $constraint->aspectRatio();
                                 $constraint->upsize();
                             })->save(public_path($cache_folder.'/'.$file_name));
                         }
                     }
                     else {
-                        if(!file_exists(public_path($cache_folder.'/'.$file_name)) || true) {
-                            $imageSize = getimagesize($data['file_path']);
+                        if(!file_exists(public_path($cache_folder.'/'.$file_name))) {
+                            $imageSize = getimagesize(public_path($data['file_path']));
                             if ($imageSize) {
                                 if($imageSize[0] < $width) {
                                     $height = (int)($imageSize[0]/$width*$height);
@@ -922,7 +922,7 @@ class CoreController extends Controller {
                                 }
                             }
                             
-                            $thumbnail = \Intervention\Image\Facades\Image::make($data['file_path'])->resize(((int)$width*1.2), null, function ($constraint) {
+                            $thumbnail = \Intervention\Image\Facades\Image::make(public_path($data['file_path']))->resize(((int)$width*1.2), null, function ($constraint) {
                                 $constraint->aspectRatio();
                                 $constraint->upsize();
                             });
@@ -935,7 +935,7 @@ class CoreController extends Controller {
                     }
                 }
                 else {
-                    list($image_width, $image_height) = getimagesize($data['file_path']);  
+                    list($image_width, $image_height) = getimagesize(public_path($data['file_path']));  
                     $file_name =  md5(json_encode([
                         'file_path' => $data['file_path'],
                         'attribute' =>  
@@ -948,7 +948,7 @@ class CoreController extends Controller {
                         'crop'      =>  $crop
                     ])).'.'.$extension;
                     if(!file_exists(public_path($cache_folder.'/'.$file_name))) {
-                        $thumbnail = \Intervention\Image\Facades\Image::make($data['file_path'])->resize($image_width, $image_height, function ($constraint) {
+                        $thumbnail = \Intervention\Image\Facades\Image::make(public_path($data['file_path']))->resize($image_width, $image_height, function ($constraint) {
                             $constraint->aspectRatio();
                             $constraint->upsize();
                         })->save(public_path($cache_folder.'/'.$file_name));

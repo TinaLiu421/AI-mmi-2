@@ -29,6 +29,14 @@ Route::get('/{lang}/agent_chat/availability/{agentId}', [AgentChatController::cl
 Route::post('/agent_chat/send', [AgentChatController::class, 'send']);
 Route::post('/agent_chat/booking/confirm', [AgentChatController::class, 'bookingConfirm']);
 Route::post('/{lang}/agent_chat/booking/confirm', [AgentChatController::class, 'bookingConfirm']);
+Route::post('/agent_chat/booking/attendance', [AgentChatController::class, 'bookingMarkAttended']);
+Route::post('/{lang}/agent_chat/booking/attendance', [AgentChatController::class, 'bookingMarkAttended']);
+Route::post('/agent_chat/booking/delete', [AgentChatController::class, 'bookingDeleteReset']);
+Route::post('/{lang}/agent_chat/booking/delete', [AgentChatController::class, 'bookingDeleteReset']);
+Route::get('/agent_dashboard', [AgentChatController::class, 'agentDashboard']);
+Route::get('/{lang}/agent_dashboard', [AgentChatController::class, 'agentDashboard']);
+Route::get('/agent_verification', [AgentChatController::class, 'agentVerification']);
+Route::get('/{lang}/agent_verification', [AgentChatController::class, 'agentVerification']);
 
 // Local testing helper: separate agent-side session on localhost:8002
 Route::get('/local/wealthskey-agent-login', [AccountLoginController::class, 'localWealthskeyAgentLogin']);

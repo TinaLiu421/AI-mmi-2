@@ -4,21 +4,33 @@
 
 @section('content')
     @php
-        $pageMode = $_page_data['mode'] ?? 'calendly_only';
-        $agentChatContinueUrl = '/' . trim((string)($_current_lang_code ?? ''), '/') . '/agent_chat/chat';
+        $pageMode    = $_page_data['mode'] ?? 'free';
+        $hasBooked   = !empty($_page_data['has_booked']);
+        $calendlyUrl = $_page_data['calendly_url'] ?? 'https://calendly.com/admin-wealthskey/free-users';
+        $unlockApiUrl = $_page_data['unlock_api_url'] ?? '/agent_chat/booking/confirm';
+        $agentChatContinueUrl = '/' . trim((string)($_current_lang_code ?? ''), '/') . '/agent_chat';
         $agentChatContinueUrl = preg_replace('#/+#', '/', $agentChatContinueUrl);
+
+        $meetingLabel = ($pageMode === 'hybrid') ? '2-hour' : '15-minute';
+
+        $descriptionMap = [
+            'free'   => 'Book a complimentary <strong>15-minute consultation</strong> with a qualified migration agent from Wealthskey Migration.',
+            'hybrid' => 'Your <strong>AI + Agent Plan</strong> includes a one-time <strong>2-hour consultation</strong> with a qualified migration agent. After the meeting, the agent will confirm your attendance to complete your consultation.',
+        ];
+        $description = $descriptionMap[$pageMode] ?? $descriptionMap['free'];
+
+        $bookedMessageMap = [
+            'free'   => 'Your 15-minute consultation has been scheduled! This is your one-time free meeting benefit. After scheduling, your quota is used and you may wish to upgrade your plan for continued agent access.',
+            'hybrid' => 'Your 2-hour consultation has been scheduled! The Wealthskey agent will confirm your attendance after the meeting. Your AI service continues in the meantime.',
+        ];
+        $bookedMessage = $bookedMessageMap[$pageMode] ?? $bookedMessageMap['free'];
+
+        $showBookedButton = !$hasBooked;
     @endphp
     <section class="agent-booking-page">
         <div class="agent-booking-card">
             <div class="agent-booking-title">Book Your Agent Meeting</div>
-            <div class="agent-booking-desc">
-                @if($pageMode === 'calendly_only')
-                    Your <strong>AI + Agent Plan</strong> includes a one-time consultation with a qualified migration agent.<br>
-                    Click below to schedule your meeting via Calendly.
-                @else
-                    Please schedule an online meeting with <strong>Wealthskey Migration</strong> to unlock agent chat.
-                @endif
-            </div>
+            <div class="agent-booking-desc">{!! $description !!}</div>
 
             <div class="agent-booking-details">
                 <div class="agent-booking-logo-row">
@@ -32,45 +44,47 @@
                 <div class="agent-meta">
                     <div>Website : <a href="https://wealthskey.com" target="_blank" rel="noopener noreferrer">https://wealthskey.com</a></div>
                     <div>Location : Australia, Hong Kong</div>
-                    <div>Whatsapp Number +852 54867893</div>
+                    <div>Whatsapp Number : +852 54867893</div>
                     <div>Mobile Number : +61 413892060</div>
                     <div>Registration number : 2418441</div>
                 </div>
             </div>
 
-            <div class="agent-booking-actions">
-                <a
-                    class="agent-booking-btn primary"
-                    id="open-calendly-booking"
-                    href="{{ $calendly_url ?? 'https://calendly.com/admin-wealthskey/30min' }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Schedule meeting with agent
-                </a>
-                @if($pageMode !== 'calendly_only')
-                <a
-                    class="agent-booking-btn secondary"
-                    href="{{ $agentChatContinueUrl }}"
-                >
-                    I already booked, continue to chat
-                </a>
-                @endif
-            </div>
-
-            @if($pageMode !== 'calendly_only')
-            <div class="agent-booking-status" id="agent-booking-status">
-                Waiting for booking confirmation...
-            </div>
+            @if($hasBooked)
+                <div class="agent-booking-status agent-booking-status--booked">
+                    <span class="agent-booking-check">✓</span>
+                    {!! $bookedMessage !!}
+                </div>
+            @else
+                <div class="agent-booking-actions">
+                    <a
+                        class="agent-booking-btn primary"
+                        id="open-calendly-booking"
+                        href="{{ $calendlyUrl }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Schedule {{ $meetingLabel }} meeting with agent
+                    </a>
+                    <button
+                        class="agent-booking-btn secondary"
+                        id="already-booked-btn"
+                        type="button"
+                    >
+                        I have already booked my meeting
+                    </button>
+                </div>
+                <div class="agent-booking-status" id="agent-booking-status"></div>
             @endif
         </div>
     </section>
     <script>
         window.agentBookingConfig = {
             mode: @json($pageMode),
-            calendlyUrl: @json($calendly_url ?? 'https://calendly.com/admin-wealthskey/30min'),
-            unlockApiUrl: @json($unlock_api_url ?? '/agent_chat/booking/confirm'),
-            continueUrl: @json($agentChatContinueUrl)
+            calendlyUrl: @json($calendlyUrl),
+            unlockApiUrl: @json($unlockApiUrl),
+            continueUrl: @json($agentChatContinueUrl),
+            hasBooked: @json($hasBooked)
         };
     </script>
 @endsection

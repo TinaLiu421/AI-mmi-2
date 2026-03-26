@@ -83,6 +83,8 @@
                             <div>Whatsapp Number +852 9868 4187</div>
                             <div>Mobile Number : +61 413892060</div>
                             <div>Registration number : 2418441</div>
+                            @php $memberPlanCode = $_page_data['member_plan_code'] ?? ''; @endphp
+                            @if(!in_array($memberPlanCode, ['vip', 'premium']))
                             <a
                                 class="agent-chat-schedule-link"
                                 href="https://calendly.com/admin-wealthskey/30min"
@@ -91,6 +93,7 @@
                             >
                                 Schedule online meeting with agent
                             </a>
+                            @endif
                         </div>
                     </div>
 

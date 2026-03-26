@@ -28,9 +28,28 @@
     font-weight: 600;
     position: relative;
     z-index: 2;
+    font-size: 14px;
 }
 .agent-booking-btn.primary { background: #0f766e !important; color: #fff !important; }
 .agent-booking-btn.primary:hover { background: #0d655e !important; }
 .agent-booking-btn.secondary { background: #e5e7eb !important; color: #111827 !important; }
 .agent-booking-btn.secondary:hover { background: #d1d5db !important; }
 .agent-booking-status { font-size: 14px; color: #6b7280; min-height: 22px; }
+.agent-booking-status--booked {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: #166534;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-top: 4px;
+}
+.agent-booking-check {
+    font-size: 20px;
+    flex-shrink: 0;
+    line-height: 1.4;
+}

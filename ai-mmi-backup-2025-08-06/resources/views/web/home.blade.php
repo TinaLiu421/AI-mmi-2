@@ -28,6 +28,7 @@
         <div class="home-chat-notify-head">
             <div class="home-chat-notify-title">Chat Notifications</div>
             <a class="home-chat-notify-link" href="/{{ $_current_lang_code }}/agent_chat/chat">Open chat</a>
+            <a class="home-chat-notify-link" href="/{{ $_current_lang_code }}/agent_verification" style="margin-left:10px;">Member Verification</a>
         </div>
         <div class="home-chat-notify-empty" id="home-chat-notify-empty">No unread chats.</div>
         <div class="home-chat-notify-list" id="home-chat-notify-list"></div>

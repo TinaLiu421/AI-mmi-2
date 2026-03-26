@@ -5,10 +5,10 @@ function commentAvatarUrl($avatar = '') {
     if (stripos($avatar, 'asset/') === 0 || preg_match('/^https?:\/\//i', $avatar)) {
         return $avatar;
     }
-    if (file_exists('upload/member_avatar/'.$avatar)) {
+    if (file_exists(public_path('upload/member_avatar/'.$avatar))) {
         return 'upload/member_avatar/'.$avatar;
     }
-    if (file_exists('upload/member_logo/'.$avatar)) {
+    if (file_exists(public_path('upload/member_logo/'.$avatar))) {
         return 'upload/member_logo/'.$avatar;
     }
     return $avatar;

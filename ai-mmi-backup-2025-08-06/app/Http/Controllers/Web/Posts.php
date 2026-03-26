@@ -280,10 +280,10 @@ Rules:
     private function memberAvatarPath(?string $avatar): string
     {
         if (!empty($avatar)) {
-            if (file_exists('upload/member_avatar/'.$avatar)) {
+            if (file_exists(public_path('upload/member_avatar/'.$avatar))) {
                 return 'upload/member_avatar/'.$avatar;
             }
-            if (file_exists('upload/member_logo/'.$avatar)) {
+            if (file_exists(public_path('upload/member_logo/'.$avatar))) {
                 return 'upload/member_logo/'.$avatar;
             }
         }

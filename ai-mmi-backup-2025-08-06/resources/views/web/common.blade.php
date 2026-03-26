@@ -64,7 +64,7 @@
             }
             /* Build the URL now without $appendAutoLang (not yet defined).
                autolang query param, if needed, is appended by JS on click instead. */
-            $_page_agent_cta_path = $_page_has_agent_access ? '/agent_chat' : '/upgrade';
+            $_page_agent_cta_path = '/agent_chat';
         ?>
         const _page_has_agent_access = <?php echo $_page_has_agent_access ? 'true' : 'false'; ?>;
         const _page_agent_cta_url = '<?php echo htmlspecialchars($_page_base_url . $_page_agent_cta_path, ENT_QUOTES, 'UTF-8'); ?>';
@@ -549,10 +549,12 @@
                     <div class="member large">
                         <a href="<?php echo $appendAutoLang(($_current_member['type'] == 1)?($_page_base_url.'/account/profile'):($_page_base_url.'/account/posts')); ?>">
                             <?php if(!empty($_current_member['avatar'])) { ?>
-                            <?php if(file_exists('upload/member_avatar/'.$_current_member['avatar'])) { ?>
+                            <?php if(file_exists(public_path('upload/member_avatar/'.$_current_member['avatar']))) { ?>
                             <div class="avatar" style="background-image:url('<?php echo 'upload/member_avatar/'.$_current_member['avatar']; ?>')"></div>
-                            <?php } else { ?>
+                            <?php } elseif(file_exists(public_path('upload/member_logo/'.$_current_member['avatar']))) { ?>
                             <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_current_member['avatar']; ?>')"></div>
+                            <?php } else { ?>
+                            <div class="avatar" style="background-image:url('asset/image/icon-member.png')"></div>
                             <?php } ?>
                             <?php } else { ?>
                             <?php
@@ -663,7 +665,7 @@
                                             </a>
                                         </div>
                                         <div id="talk-agent-cta" class="visible">
-                                            <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.(!empty($_page_has_agent_access) ? '/agent_chat' : '/upgrade'), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.'/agent_chat', ENT_QUOTES, 'UTF-8'); ?>">
                                                 <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
                                                 <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Agent</span></span>
                                                 <span class="tac-sub">Registered Migration Agent</span>

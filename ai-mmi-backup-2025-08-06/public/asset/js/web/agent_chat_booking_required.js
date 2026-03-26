@@ -1,22 +1,6 @@
 (function () {
-    let unlocked = false;
+    let submitted = false;
     let initialized = false;
-
-    function ensureCalendlyScript() {
-        if (window.Calendly) {
-            return;
-        }
-
-        if (document.querySelector('script[data-calendly-widget="1"]')) {
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://assets.calendly.com/assets/external/widget.js';
-        script.async = true;
-        script.setAttribute('data-calendly-widget', '1');
-        document.head.appendChild(script);
-    }
 
     function initBookingGate() {
         if (initialized) {
@@ -24,26 +8,65 @@
         }
 
         const cfg = window.agentBookingConfig || {};
-        const calendlyUrl = cfg.calendlyUrl || 'https://calendly.com/admin-wealthskey/30min';
+        const calendlyUrl  = cfg.calendlyUrl || 'https://calendly.com/admin-wealthskey/free-users';
         const unlockApiUrl = cfg.unlockApiUrl || '/agent_chat/booking/confirm';
-        const continueUrl = cfg.continueUrl || '/agent_chat';
 
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfMeta  = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-        const statusEl = document.getElementById('agent-booking-status');
-        const openBtn = document.getElementById('open-calendly-booking');
-        const proceedBtn = document.querySelector('.agent-booking-btn.secondary');
+        const statusEl  = document.getElementById('agent-booking-status');
+        const openBtn   = document.getElementById('open-calendly-booking');
+        const alreadyBtn = document.getElementById('already-booked-btn');
 
-        if (!statusEl && !openBtn && !proceedBtn) {
+        if (!openBtn && !alreadyBtn && !statusEl) {
             return;
         }
 
         initialized = true;
 
-        function setStatus(text) {
-            if (statusEl) {
-                statusEl.textContent = text;
+        function setStatus(text, success) {
+            if (!statusEl) return;
+            statusEl.textContent = text;
+            if (success) {
+                statusEl.style.color = '#166534';
             }
+        }
+
+        function showBookedState() {
+            // Hide the action buttons and show a success message inline
+            const actionsEl = document.querySelector('.agent-booking-actions');
+            if (actionsEl) {
+                actionsEl.style.display = 'none';
+            }
+            if (statusEl) {
+                statusEl.innerHTML = '<span style="color:#166534;font-weight:600;">&#10003; Meeting booked!</span> Your booking has been recorded. Please wait for the Wealthskey agent to confirm your attendance.';
+                statusEl.style.background = '#f0fdf4';
+                statusEl.style.border = '1px solid #bbf7d0';
+                statusEl.style.borderRadius = '10px';
+                statusEl.style.padding = '12px 14px';
+                statusEl.style.color = '#166534';
+                statusEl.style.fontSize = '15px';
+            }
+        }
+
+        function showMeetingUsedAndRedirect(message) {
+            // For free/all_ai: meeting is used immediately; redirect to upgrade
+            const actionsEl = document.querySelector('.agent-booking-actions');
+            if (actionsEl) {
+                actionsEl.style.display = 'none';
+            }
+            if (statusEl) {
+                statusEl.innerHTML = '<span style="color:#166534;font-weight:600;">&#10003; Consultation scheduled!</span> ' + (message || 'Your one-time consultation has been recorded. Upgrade your plan for continued agent access.');
+                statusEl.style.background = '#f0fdf4';
+                statusEl.style.border = '1px solid #bbf7d0';
+                statusEl.style.borderRadius = '10px';
+                statusEl.style.padding = '12px 14px';
+                statusEl.style.color = '#166534';
+                statusEl.style.fontSize = '15px';
+            }
+            // Redirect to upgrade page after short delay
+            setTimeout(function () {
+                window.location.href = '/upgrade';
+            }, 2500);
         }
 
         function markScheduleClick() {
@@ -55,28 +78,24 @@
                     'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    source: 'schedule_click'
-                }),
+                body: JSON.stringify({ source: 'schedule_click' }),
                 keepalive: true
-            }).catch(function () {
-                return null;
-            });
+            }).catch(function () { return null; });
         }
 
         function confirmBooking(payload) {
-            if (unlocked) {
+            if (submitted) {
                 return Promise.resolve(true);
             }
 
-            const detail = (payload && payload.payload) ? payload.payload : {};
-            const eventUri = detail.event ? detail.event.uri : '';
+            const detail     = (payload && payload.payload) ? payload.payload : {};
+            const eventUri   = detail.event   ? detail.event.uri   : '';
             const inviteeUri = detail.invitee ? detail.invitee.uri : '';
-            const source = (payload && payload.source) ? payload.source : 'calendly_event';
+            const source     = (payload && payload.source) ? payload.source : 'calendly_event';
 
             setStatus(source === 'manual_continue'
-                ? 'Checking your booking and unlocking chat access...'
-                : 'Booking detected. Unlocking chat access...');
+                ? 'Recording your booking...'
+                : 'Booking detected. Recording...');
 
             return fetch(unlockApiUrl, {
                 method: 'POST',
@@ -87,33 +106,38 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    event_uri: eventUri,
+                    event_uri:   eventUri,
                     invitee_uri: inviteeUri,
-                    source: source
+                    source:      source
                 })
             })
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data && data.ok) {
-                    unlocked = true;
-                    setStatus('Booking confirmed. Redirecting to chat...');
-                    setTimeout(function () {
-                        window.location.href = continueUrl;
-                    }, 600);
+                    submitted = true;
+                    if (data.redirect_upgrade) {
+                        showMeetingUsedAndRedirect(data.message);
+                    } else {
+                        showBookedState();
+                    }
                     return true;
                 }
-
+                if (data && data.already_used && data.redirect_upgrade) {
+                    showMeetingUsedAndRedirect('You have already used your one-time consultation. Upgrade your plan for more agent access.');
+                    return true;
+                }
                 setStatus((data && data.message)
                     ? data.message
-                    : 'Booking was detected, but unlock failed. Please click "I already booked, continue to chat".');
+                    : 'Could not record your booking. Please try clicking "I have already booked my meeting".');
                 return false;
             })
             .catch(function () {
-                setStatus('Booking was detected, but unlock failed. Please click "I already booked, continue to chat".');
+                setStatus('Network error. Please click "I have already booked my meeting" if you have scheduled.');
                 return false;
             });
         }
 
+        // Auto-detect Calendly booking completion via postMessage
         window.addEventListener('message', function (e) {
             if (!e || !e.data || e.data.event !== 'calendly.event_scheduled') {
                 return;
@@ -121,24 +145,28 @@
             confirmBooking(e.data);
         });
 
-        // Open Calendly as a plain new-tab link (works on localhost and production).
-        // The popup widget is unreliable in development environments.
         if (openBtn) {
             openBtn.addEventListener('click', function () {
-                setStatus('Opening booking page... Please complete booking, then click continue to chat.');
-                markScheduleClick();
+                setStatus('Opening Calendly... After booking, click "I have already booked my meeting".');
+                markScheduleClick().then(function (r) {
+                    if (!r) return;
+                    r.json().then(function (data) {
+                        if (data && data.ok && data.redirect_upgrade) {
+                            submitted = true;
+                            showMeetingUsedAndRedirect(data.message);
+                        }
+                    }).catch(function () {});
+                }).catch(function () {});
             });
         }
 
-        if (proceedBtn) {
-            proceedBtn.__bookingBindMarker = true;
-            proceedBtn.addEventListener('click', function (e) {
-                e.preventDefault();
-
+        if (alreadyBtn) {
+            alreadyBtn.addEventListener('click', function () {
+                alreadyBtn.disabled = true;
                 confirmBooking({ source: 'manual_continue' })
                     .then(function (ok) {
                         if (!ok) {
-                            return;
+                            alreadyBtn.disabled = false;
                         }
                     });
             });
