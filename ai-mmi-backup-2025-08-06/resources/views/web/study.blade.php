@@ -20,7 +20,7 @@
     <div class="study-header">
         <h1>Study Abroad Guidance</h1>
         <p>Choose a topic to get personalized assistance with your study abroad journey</p>
-        <p class="study-chat-notice">Answers will appear in the chatbox on the right.</p>
+        <p class="study-chat-notice">Answers will appear in the AI-mmi chatbox.</p>
     </div>
 
     <div class="study-options">
