@@ -15,7 +15,7 @@ if (!isset($_GET['key']) || $_GET['key'] !== 'wsk2026') {
 }
 
 // ── Hardcoded credentials (no .env needed) ────────────────────────────────────
-$token      = 'eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzc0NTY1NTM4LCJqdGkiOiI5NmE3MTk2MC1lOWViLTQ5NzYtYTE3OS0wNDdlODBiOGQ1MjEiLCJ1c2VyX3V1aWQiOiIyZWYzMDQyMy0wMmFlLTQyNWItOWI3NS0wMDJjMWQ4NjczNGMiLCJzY29wZSI6ImF2YWlsYWJpbGl0eTpyZWFkIHdlYmhvb2tzOnJlYWQgd2ViaG9va3M6d3JpdGUgdXNlcnM6cmVhZCJ9.-atNL4uQJZaw18ZTAHPcgB9JnaxTFjf_plb8T7ya2qCG_imv1kEaeAHCmSSS0tmVJjdBNqfdfYjepza2kF8tGw';
+$token      = 'eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzc0NTcwNjkyLCJqdGkiOiI4NDU5NzM4Yi1lMzAwLTQ0ZTUtOTczZi0zYWI0ZjU1Zjc2NDkiLCJ1c2VyX3V1aWQiOiIyZWYzMDQyMy0wMmFlLTQyNWItOWI3NS0wMDJjMWQ4NjczNGMiLCJzY29wZSI6InNjaGVkdWxlZF9ldmVudHM6cmVhZCBhdmFpbGFiaWxpdHk6cmVhZCB3ZWJob29rczpyZWFkIHdlYmhvb2tzOndyaXRlIHVzZXJzOnJlYWQifQ.n36aXox1bGJ68ZJWzLPTzsyFxdsmwGqGQK8s1pe4-hp7aMJL9_uLK9Qz_CGevyM27i4jqa0b-zT6u857aktYKg';
 $signingKey = '4940a185ff10cb9243e1be0d320fbd741efad2c4c95bce0f36ad3882220812a1';
 $webhookUrl = 'https://ai-mmi.com/calendly/webhook';
 // ─────────────────────────────────────────────────────────────────────────────
