@@ -9,7 +9,7 @@ class UpdatePlansStripePriceIdsAndNames extends Migration
     {
         $updates = [
             'all_ai'  => ['name' => 'AI Smart Plan',    'stripe_price_id' => 'price_1TBjgzKcbpMSEKkQccSj3vA0'],
-            'hybrid'  => ['name' => 'AI + Agent Plan',  'stripe_price_id' => 'price_1TBjlrKcbpMSEKkQIFSBDXCk'],
+            'hybrid'  => ['name' => 'AI + Agent Plan',  'stripe_price_id' => 'price_1TFFFdKcbpMSEKkQzo54WAWl'],
             'premium' => ['name' => 'DIY Plan',          'stripe_price_id' => 'price_1TBjocKcbpMSEKkQxZIliIvV'],
             'vip'     => ['name' => 'VIP Agent Plan',    'stripe_price_id' => 'price_1SBmHjKcbpMSEKkQ1T5PjSzz'],
         ];
