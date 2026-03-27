@@ -2346,14 +2346,14 @@ private function appendPlanPromotionNudge(string $reply, string $question, strin
     if ($normalizedPlan === 'all_ai') {
         $nudge = ($lang === 'zh')
             ? "如果您想要真人顾问帮您逐步看路径、分数和材料，可升级到 **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}**，直接对接 AI-mmi 认证移民顾问。[👉 立即升级](" . $this->toURL('upgrade') . ")"
-            : "If you want a real person to walk through your pathway, points, and documents with you, upgrade to **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** to connect with an AI-mmi Certified Migration Agent. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
+            : "If you want a real person to walk through your pathway, points, and documents with you, upgrade to **{$hybridPlanName} / {$diyPlanName} / {$vipPlanName}** to connect with an AI-mmi Registered Agent. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
         return $reply . "\n\n" . $nudge;
     }
 
     if ($normalizedPlan === 'hybrid') {
         $nudge = ($lang === 'zh')
             ? "如果您想要更完整、更省心的全程代办与优先跟进，可升级到 **{$vipPlanName}**，由 AI-mmi 认证移民顾问提供更深入支持。[👉 立即升级](" . $this->toURL('upgrade') . ")"
-            : "If you want more complete end-to-end handling and priority support, upgrading to **{$vipPlanName}** is the next step. That gives you deeper help from an AI-mmi Certified Migration Agent. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
+            : "If you want more complete end-to-end handling and priority support, upgrading to **{$vipPlanName}** is the next step. That gives you deeper help from an AI-mmi Registered Agent. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
         return $reply . "\n\n" . $nudge;
     }
 
@@ -2412,20 +2412,20 @@ private function appendSoftUpgradeNudge(string $reply, string $question, int $cu
         if ($normalizedPlan === 'premium') {
             if ($isOverLimitNudge) {
                 $nudge = "Quick note 😊 Your **{$diyPlanName}** is now in short-answer mode. "
-                    . "Upgrade to **{$hybridPlanName}** or **{$vipPlanName}** to get direct 1-on-1 support from an AI-mmi Certified Migration Agent. {$upgradeLink}";
+                    . "Upgrade to **{$hybridPlanName}** or **{$vipPlanName}** to get direct 1-on-1 support from an AI-mmi Registered Agent. {$upgradeLink}";
             } else {
                 $nudge = "Quick tip 🙂 **{$diyPlanName}** covers the basics — but for fuller personalised agent support, "
-                    . "**{$hybridPlanName}** or **{$vipPlanName}** connects you directly with an AI-mmi Certified Migration Agent. {$upgradeLink}";
+                    . "**{$hybridPlanName}** or **{$vipPlanName}** connects you directly with an AI-mmi Registered Agent. {$upgradeLink}";
             }
         } else {
             if ($isOverLimitNudge) {
                 $nudge = "FYI 😊 Your free chats are used up — I'm still here for quick answers. "
-                    . "Upgrade to **{$aiPlanName}** for unlimited detailed AI guidance, or jump to **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** "
-                    . "to get 1-on-1 support from a real AI-mmi **Certified Migration Agent**. {$upgradeLink}";
+                    . "Upgrade to **{$aiPlanName}** for unlimited detailed AI guidance, or jump to **{$hybridPlanName} / {$diyPlanName} / {$vipPlanName}** "
+                    . "to get 1-on-1 support from a real AI-mmi **Registered Agent**. {$upgradeLink}";
             } else {
                 $nudge = "Quick heads-up 🙂 You have **{$remaining}** free chats left. "
-                    . "Upgrade to **{$aiPlanName}** for deeper step-by-step AI guidance, or choose **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** "
-                    . "to work directly with an AI-mmi **Certified Migration Agent** — tap {$upgradeLink} anytime.";
+                    . "Upgrade to **{$aiPlanName}** for deeper step-by-step AI guidance, or choose **{$hybridPlanName} / {$diyPlanName} / {$vipPlanName}** "
+                    . "to work directly with an AI-mmi **Registered Agent** — tap {$upgradeLink} anytime.";
             }
         }
     }
@@ -2479,7 +2479,7 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 "
                 . "1. **{$aiPlanName}** — for more detailed, complete, unlimited AI-powered guidance from AI-mmi.
 "
-                . "2. **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** — for direct, personalised support from an AI-mmi Certified Migration Agent.
+                . "2. **{$hybridPlanName} / {$diyPlanName} / {$vipPlanName}** — for direct, personalised support from an AI-mmi Registered Agent.
 "
                 . "Mention one of these paths when it feels natural (e.g., after giving a useful answer, add a brief suggestion). "
                 . "Frame upgrades as unlocking HUMAN EXPERTISE + deeper guidance, not as a paywall.
@@ -2494,7 +2494,7 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 "
                 . "The user is on the {$diyPlanName}.
 "
-                . "Smoothly recommend upgrading to **{$hybridPlanName}** or **{$vipPlanName}** for hands-on support from an AI-mmi Certified Migration Agent "
+                . "Smoothly recommend upgrading to **{$hybridPlanName}** or **{$vipPlanName}** for hands-on support from an AI-mmi Registered Agent "
                 . "whenever it naturally fits the conversation (e.g., complex case, important milestone, or when they seem worried).
 "
                 . "Frame it as getting a certified expert to walk with them, not just AI guidance alone.
@@ -2509,7 +2509,7 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 "
                 . "The user is on the {$aiPlanName} (unlimited AI, no human agent yet).
 "
-                . "Where relevant, gently recommend upgrading to **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** to connect with a real AI-mmi Certified Migration Agent "
+                . "Where relevant, gently recommend upgrading to **{$hybridPlanName} / {$diyPlanName} / {$vipPlanName}** to connect with a real AI-mmi Registered Agent "
                 . "for 1-on-1 personalised case guidance.
 "
                 . "Frame it as the natural next step when their case gets complex or high-stakes.
@@ -2524,7 +2524,7 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 "
                 . "The user is on the {$hybridPlanName} (AI + some agent access).
 "
-                . "Where it fits naturally, mention that upgrading to **{$vipPlanName}** unlocks fully dedicated, priority case management with an AI-mmi Certified Migration Agent.
+                . "Where it fits naturally, mention that upgrading to **{$vipPlanName}** unlocks fully dedicated, priority case management with an AI-mmi Registered Agent.
 "
                 . "Keep it light and conversational — don't push, just let them know the option exists.
 "
