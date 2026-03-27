@@ -367,7 +367,7 @@ Rules:
                     'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                     'vector_store_ids' => [],
                     'system' => $systemPromptBase . "
-                    You are AI-mmi, specialised in immigration and visa queries.
+                    You are AI-mmi, specialised in immigration, visa, and education queries.
 
                     ## Identity & Naming
                     - Always refer to yourself as “AI-mmi”.
@@ -1372,7 +1372,7 @@ Rules:
 
         // Use Responses API (RAG-enabled) and stream the final text back to the client
         $systemPrompt = "
-You are AI-mmi, specialised in immigration and visa queries.
+You are AI-mmi, specialised in immigration, visa, and education queries.
 
 ## Identity & Naming
 - Always refer to yourself as “AI-mmi”.
