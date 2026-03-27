@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Support\CountriesPhoneCodes;
 use App\Support\DestinationsServing;
 
@@ -394,22 +395,31 @@ class Account extends WebController {
         
     // ✅ search subscriptions table
         $memberId = $this->_show_current_member['id'];
-        $currentSub = DB::table('subscriptions as s')
-            ->join('plans as p','p.id','=','s.plan_id')
-            ->where('s.member_id', $memberId)
-            ->where('s.status','active')
-            ->where(function($q){
-                $q->whereNull('s.ends_at')->orWhere('s.ends_at','>', now());
-            })
-            ->orderByDesc('s.started_at')
-            ->first(['p.name as plan_name','p.code as plan_code','s.ends_at','s.stripe_subscription_id','s.cancel_at_period_end']);
+        try {
+            $currentSub = DB::table('subscriptions as s')
+                ->join('plans as p','p.id','=','s.plan_id')
+                ->where('s.member_id', $memberId)
+                ->where('s.status','active')
+                ->where(function($q){
+                    $q->whereNull('s.ends_at')->orWhere('s.ends_at','>', now());
+                })
+                ->orderByDesc('s.started_at')
+                ->first(['p.name as plan_name','p.code as plan_code','s.ends_at','s.stripe_subscription_id','s.cancel_at_period_end']);
 
-        // write the finals into _show_current_member
-        $this->_show_current_member['subscription_name']   = ($currentSub !== null) ? $currentSub->plan_name : 'Free Plan';
-        $this->_show_current_member['subscription_expiry'] = ($currentSub !== null) ? $currentSub->ends_at : null;
-        $this->_show_current_member['subscription_plan_code']      = ($currentSub !== null) ? $currentSub->plan_code : null;
-        $this->_show_current_member['subscription_stripe_sub_id']  = ($currentSub !== null) ? $currentSub->stripe_subscription_id : null;
-        $this->_show_current_member['subscription_cancel_at_period_end'] = ($currentSub !== null) ? (bool)$currentSub->cancel_at_period_end : false;
+            // write the finals into _show_current_member
+            $this->_show_current_member['subscription_name']   = ($currentSub !== null) ? $currentSub->plan_name : 'Free Plan';
+            $this->_show_current_member['subscription_expiry'] = ($currentSub !== null) ? $currentSub->ends_at : null;
+            $this->_show_current_member['subscription_plan_code']      = ($currentSub !== null) ? $currentSub->plan_code : null;
+            $this->_show_current_member['subscription_stripe_sub_id']  = ($currentSub !== null) ? $currentSub->stripe_subscription_id : null;
+            $this->_show_current_member['subscription_cancel_at_period_end'] = ($currentSub !== null) ? (bool)$currentSub->cancel_at_period_end : false;
+        } catch (\Throwable $e) {
+            Log::warning('account.profile: subscription query failed', ['member_id' => $memberId, 'error' => $e->getMessage()]);
+            $this->_show_current_member['subscription_name']                 = 'Free Plan';
+            $this->_show_current_member['subscription_expiry']               = null;
+            $this->_show_current_member['subscription_plan_code']            = null;
+            $this->_show_current_member['subscription_stripe_sub_id']        = null;
+            $this->_show_current_member['subscription_cancel_at_period_end'] = false;
+        }
 
         $isSelf = isset($this->_current_member['id']) 
             && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];

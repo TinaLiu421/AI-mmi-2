@@ -110,7 +110,7 @@
                             confirm.textContent = 'Cancelling…';
                             status.style.display = 'block';
                             status.textContent = 'Processing…';
-                            var csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+                            var csrfToken = (typeof _token !== 'undefined' && _token) ? _token : (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
                             fetch('/upgrade/cancel-renewal', {
                                 method: 'POST',
                                 headers: {'Content-Type':'application/json','X-CSRF-TOKEN': csrfToken},
