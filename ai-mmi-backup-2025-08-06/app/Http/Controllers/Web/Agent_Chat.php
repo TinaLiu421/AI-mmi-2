@@ -110,7 +110,10 @@ class Agent_Chat extends WebController
                 );
             }
 
-            // No active plan → same as free plan
+            // No active plan → same as free plan (also check if meeting already used)
+            if ($this->hasMeetingAttended((int)$memberId, 'free')) {
+                return $this->doRedirect($this->toURL('upgrade'));
+            }
             return $this->buildBookingPage(
                 'https://calendly.com/admin-wealthskey/free-users',
                 'free',
