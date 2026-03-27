@@ -664,12 +664,11 @@
                                                 <i class="fa fa-microphone"></i>
                                             </a>
                                         </div>
-                                        <?php if(empty($_current_member) || (int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false): ?>
+                                        <?php if(!empty($_current_member) && ((int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false)): ?>
                                         <div id="talk-agent-cta" class="visible">
                                             <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.'/agent_chat', ENT_QUOTES, 'UTF-8'); ?>">
                                                 <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
-                                                <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Agent</span></span>
-                                                <span class="tac-sub">Registered Migration Agent</span>
+                                                <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Registered Agent</span></span>
                                             </a>
                                         </div>
                                         <?php endif; ?>
