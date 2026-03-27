@@ -57,6 +57,15 @@ class Account_Registration extends WebController {
                 // save data into session
                 if(!$validator->fails()) {
                     if(empty($this->_member_model->getByEmail($this->_page_post_data['email']))) {
+                        // Validate selected_plan against whitelist to prevent injection
+                        $selectedPlan = '';
+                        if(!empty($this->_page_post_data['selected_plan'])) {
+                            $candidate = strtolower(trim($this->_page_post_data['selected_plan']));
+                            if(in_array($candidate, ['all_ai', 'hybrid', 'premium', 'vip'], true)) {
+                                $selectedPlan = $candidate;
+                            }
+                        }
+
                         // Create account directly without preference step
                         $new_member =
                         [
@@ -72,7 +81,7 @@ class Account_Registration extends WebController {
                             'interested_visa'       =>  0,
                             'interested_topic'      =>  '',
                             'verified_token'        =>  md5($this->_page_post_data['email'].'@'.md5(uniqid(rand()))),
-                            'verified'              =>  0,
+                            'verified'              =>  (!empty($selectedPlan)) ? 1 : 0, // Paid plan: skip email gate, payment confirms identity
                             'third_party_token'     =>  ((!empty($this->_page_post_data['third_party_token']))?$this->_page_post_data['third_party_token']:'')
                         ];
                         $new_member['alias_name'] = $new_member['full_name'];
@@ -81,8 +90,20 @@ class Account_Registration extends WebController {
                         }
 
                         if($result = $this->_member_model->doSave($new_member, 0, true)) {
-                            // email verification if need
-                            if((int)$new_member['method'] == 1) {
+                            // Paid plan path: auto-login and redirect to Stripe checkout
+                            if(!empty($selectedPlan)) {
+                                $loginToken = $this->_member_model->doLogin($new_member['email'], $new_member['password']);
+                                if($loginToken) {
+                                    $this->setSession(['member_access_token' => $loginToken]);
+                                }
+                                $this->pageResult(
+                                [
+                                    'status'    =>  200,
+                                    'url'       =>  $this->toURL('upgrade/checkout/'.$selectedPlan)
+                                ]);
+                            }
+                            // Free plan path: email verification if need
+                            else if((int)$new_member['method'] == 1) {
                                 $link = $this->toURL('account_registration/verification').'?token='.$new_member['verified_token'];
                                 $subject = 'Email Verification';
                                 $body = '<p>Hello '.$new_member['full_name'].',</p>';
@@ -249,9 +270,17 @@ class Account_Registration extends WebController {
         
         // load view
         // UNUSED: Session variables related to removed preference step
+        $getSelectedPlan = '';
+        if(!empty($this->_page_get_data['plan'])) {
+            $candidate = strtolower(trim($this->_page_get_data['plan']));
+            if(in_array($candidate, ['all_ai', 'hybrid', 'premium', 'vip'], true)) {
+                $getSelectedPlan = $candidate;
+            }
+        }
         return $this->pageData(
         [
             'parameter'     =>  $parameter,
+            'selected_plan' =>  $getSelectedPlan,
             // 'account'       =>  $this->getSession('temp_individual_account'),
             // 'preference'    =>  $this->getSession('temp_individual_account_preference')
         ])->pageView();

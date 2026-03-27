@@ -11,15 +11,38 @@
         'repeat_password'   => ''
     ], ((!empty($_page_data['account']))?$_page_data['account']:[]))
     ?>
+    <?php
+    // Whitelisted selected plan (validated in controller, safe to output directly)
+    $selectedPlan = !empty($_page_data['selected_plan']) ? $_page_data['selected_plan'] : '';
+    $planMeta = [
+        'all_ai'  => ['name' => 'AI Smart Plan',   'price' => '$9',   'period' => '90 days — auto renews'],
+        'hybrid'  => ['name' => 'AI + Agent Plan', 'price' => '$29',  'period' => '90 days — auto renews'],
+        'premium' => ['name' => 'DIY Plan',         'price' => '$699', 'period' => 'one-time payment'],
+        'vip'     => ['name' => 'VIP Agent Plan',   'price' => '$999', 'period' => 'one-time payment'],
+    ];
+    ?>
     <h1 class="title"><?php echo $_page_lang['create_your_account']; ?></h1>
     <div class="underline"></div>
     <div class="clearboth"></div>
-    
+
+    <?php if(!empty($selectedPlan) && isset($planMeta[$selectedPlan])): ?>
+    <?php $pm = $planMeta[$selectedPlan]; ?>
+    <div style="background:#eef4ff;border:1px solid #bcd0ff;border-radius:12px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:10px;font-size:14px;color:#1a3c6e;">
+        <i class="fa fa-check-circle" style="color:#2563eb;font-size:18px;flex-shrink:0;"></i>
+        <span>
+            You selected: <strong><?php echo htmlspecialchars($pm['name'], ENT_QUOTES, 'UTF-8'); ?></strong>
+            &mdash; <?php echo htmlspecialchars($pm['price'], ENT_QUOTES, 'UTF-8'); ?> / <?php echo htmlspecialchars($pm['period'], ENT_QUOTES, 'UTF-8'); ?>.
+            Create your account below and you'll be taken to secure payment.
+        </span>
+    </div>
+    <?php endif; ?>
+
     <div class="form">
         <form id="account-individual-form" method="post">
             <div>@csrf</div>
             <div><input type="hidden" id="method" name="method" value="1"></div>
             <div><input type="hidden" id="third_party_token" name="third_party_token" value=""></div>
+            <div><input type="hidden" name="selected_plan" value="<?php echo htmlspecialchars($selectedPlan, ENT_QUOTES, 'UTF-8'); ?>"></div>
             
             <div class="required"><span style="color:red;">*</span> <?php echo $_page_lang['required']; ?></div>
             <div class="clearboth"></div>
