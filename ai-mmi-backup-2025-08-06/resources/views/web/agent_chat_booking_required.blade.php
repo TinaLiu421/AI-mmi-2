@@ -14,7 +14,7 @@
         $meetingLabel = ($pageMode === 'hybrid') ? '2-hour' : '15-minute';
 
         $descriptionMap = [
-            'free'   => 'Book a complimentary <strong>15-minute consultation</strong> with a qualified migration agent from Wealthskey Migration.',
+            'free'   => 'Book a complimentary <strong>15-minute consultation</strong> with a qualified migration agent from Wealthskey Migration & Education.',,
             'hybrid' => 'Your <strong>AI + Agent Plan</strong> includes a one-time <strong>2-hour consultation</strong> with a qualified migration agent. After the meeting, the agent will confirm your attendance to complete your consultation.',
         ];
         $description = $descriptionMap[$pageMode] ?? $descriptionMap['free'];
@@ -36,17 +36,21 @@
                 <div class="agent-booking-logo-row">
                     <img
                         src="/upload/member_avatar/d148b40e4988fd1cbe690bfc0613dcaf.png"
-                        alt="Wealthskey Migration Logo"
+                        alt="Wealthskey Migration & Education Logo"
                         class="agent-booking-logo"
                     />
-                    <div class="agent-name">Wealthskey Migration</div>
+                    <div class="agent-name">Wealthskey Migration & Education</div>
                 </div>
                 <div class="agent-meta">
                     <div>Website : <a href="https://wealthskey.com" target="_blank" rel="noopener noreferrer">https://wealthskey.com</a></div>
+                    @if($pageMode === 'hybrid')
                     <div>Location : Australia, Hong Kong</div>
-                    <div>Whatsapp Number : +852 54867893</div>
-                    <div>Mobile Number : +61 413892060</div>
+                    @endif
+                    <div>Whatsapp Number : +852 97016686</div>
+                    <div>Phone Number : +61 413892060</div>
+                    @if($pageMode === 'hybrid')
                     <div>Registration number : 2418441</div>
+                    @endif
                 </div>
             </div>
 

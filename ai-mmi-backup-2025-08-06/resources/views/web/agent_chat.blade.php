@@ -61,13 +61,13 @@
                         <div class="agent-chat-logo-row">
                             <img
                                 src="/upload/member_avatar/d148b40e4988fd1cbe690bfc0613dcaf.png"
-                                alt="Wealthskey Migration"
+                                alt="Wealthskey Migration & Education"
                                 class="agent-chat-logo"
                             />
                             <div>
                                 <div class="agent-name" style="display:flex;align-items:center;gap:8px;">
-                                    Wealthskey Migration
-                                    <a href="https://wa.me/85298684187" target="_blank" rel="noopener noreferrer" title="Chat on WhatsApp" style="line-height:1;">
+                                    Wealthskey Migration & Education
+                                    <a href="https://wa.me/85297016686" target="_blank" rel="noopener noreferrer" title="Chat on WhatsApp" style="line-height:1;">
                                         <i class="fa fa-whatsapp" style="color:#25D366;font-size:20px;"></i>
                                     </a>
                                 </div>
@@ -80,8 +80,8 @@
                         <div class="agent-meta">
                             <div>Website : https://wealthskey.com</div>
                             <div>Location : Australia, Hong Kong</div>
-                            <div>Whatsapp Number +852 9868 4187</div>
-                            <div>Mobile Number : +61 413892060</div>
+                            <div>Whatsapp Number +852 97016686</div>
+                            <div>Phone Number : +61 413892060</div>
                             <div>Registration number : 2418441</div>
                             @php $memberPlanCode = $_page_data['member_plan_code'] ?? ''; @endphp
                             @if($memberPlanCode !== 'premium')

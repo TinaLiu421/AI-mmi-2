@@ -34,7 +34,7 @@ class Agent_Chat extends WebController
 
         return response()->json([
             'ok' => false,
-            'message' => 'Please schedule a meeting with Wealthskey Migration first to unlock Talk to Agent chat.',
+            'message' => 'Please schedule a meeting with Wealthskey Migration & Education first to unlock Talk to Agent chat.',
             'booking_required' => true,
             'redirect' => $this->toURL('agent_chat'),
         ], 403);
@@ -1095,7 +1095,7 @@ class Agent_Chat extends WebController
             if ($bookingLockResponse !== null) {
                 $this->pageResult([
                     'status' => 403,
-                    'message' => 'Please schedule a meeting with Wealthskey Migration first to unlock Talk to Agent chat.',
+                    'message' => 'Please schedule a meeting with Wealthskey Migration & Education first to unlock Talk to Agent chat.',
                     'booking_required' => true,
                     'redirect' => $this->toURL('agent_chat'),
                 ], true);
@@ -1290,7 +1290,7 @@ class Agent_Chat extends WebController
             $subject = '[AI-mmi] New Talk to Agent message from ' . $senderName;
             $content = '';
             $content .= '<h2 style="margin:0 0 16px 0;color:#002065;">New Talk to Agent message</h2>';
-            $content .= '<p style="margin:0 0 12px 0;">A member has sent a new chat message to Wealthskey Migration.</p>';
+            $content .= '<p style="margin:0 0 12px 0;">A member has sent a new chat message to Wealthskey Migration & Education.</p>';
             $content .= '<table cellpadding="8" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;max-width:720px;margin:0 0 16px 0;">';
             $content .= '<tr><td style="width:180px;font-weight:bold;border:1px solid #d9e2f3;">Sender name</td><td style="border:1px solid #d9e2f3;">' . htmlspecialchars($senderName, ENT_QUOTES, 'UTF-8') . '</td></tr>';
             $content .= '<tr><td style="font-weight:bold;border:1px solid #d9e2f3;">Sender email</td><td style="border:1px solid #d9e2f3;">' . htmlspecialchars($senderEmail !== '' ? $senderEmail : '-', ENT_QUOTES, 'UTF-8') . '</td></tr>';
