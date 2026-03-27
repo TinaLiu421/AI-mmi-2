@@ -64,6 +64,7 @@
             </a>
         </div>
 
+        <?php if(empty($_current_member) || (int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false): ?>
         <div class="migration-option-card">
             <div class="migration-option-title">Talk to agent</div>
             <div class="migration-option-question">
@@ -73,6 +74,7 @@
                 Contact An Agent
             </a>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 @endsection
