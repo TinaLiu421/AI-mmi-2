@@ -491,6 +491,11 @@ class Agent_Chat extends WebController
 
         $currentPlanCode = $this->getMemberActivePlanCode($memberId);
 
+        // null means no active subscription found — treat as free plan (same 1-time booking gate)
+        if ($currentPlanCode === null) {
+            $currentPlanCode = 'free';
+        }
+
         // Free / AI Smart: 1-time only. Check if already used.
         $isFreePlan = in_array($currentPlanCode, ['free', 'all_ai'], true);
         if ($isFreePlan && $this->hasMeetingAttended($memberId, 'free')) {
@@ -1947,7 +1952,14 @@ class Agent_Chat extends WebController
         } else {
             // Add new columns to existing table if missing
             $existingColumns = DB::select("SHOW COLUMNS FROM `{$table}`");
-            $colNames = array_map(function ($col) { return $col->Field; }, $existingColumns);
+            $colNames = array_map(function ($col) {
+                // DB::select() returns stdClass objects on most setups, but some
+                // hosting environments may return associative arrays — handle both.
+                if (is_object($col)) {
+                    return $col->Field ?? $col->field ?? '';
+                }
+                return $col['Field'] ?? $col['field'] ?? '';
+            }, $existingColumns);
             if (!in_array('plan_code', $colNames, true)) {
                 DB::statement("ALTER TABLE `{$table}` ADD COLUMN `plan_code` VARCHAR(30) NULL DEFAULT NULL AFTER `status`");
             }
