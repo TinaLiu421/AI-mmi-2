@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use Stripe\Stripe;
 use Stripe\Checkout\Session as StripeCheckoutSession;
 use Stripe\Price as StripePrice;
+use Stripe\Subscription as StripeSubscription;
 
 class Upgrade extends WebController
 {
@@ -237,6 +238,64 @@ class Upgrade extends WebController
 
             $this->setSession(['error_message' => 'Unable to start Stripe checkout right now. Please try again.']);
             return redirect()->to($this->toURL('upgrade'));
+        }
+    }
+
+    public function cancelRenewal()
+    {
+        $member = $this->_current_member ?? null;
+        if (empty($member)) {
+            return response()->json(['ok' => false, 'message' => 'Not logged in.'], 401);
+        }
+
+        $sub = DB::table('subscriptions as s')
+            ->join('plans as p', 'p.id', '=', 's.plan_id')
+            ->where('s.member_id', $member['id'])
+            ->where('s.status', 'active')
+            ->whereIn('p.code', ['all_ai', 'hybrid'])
+            ->whereNotNull('s.stripe_subscription_id')
+            ->where(function ($q) {
+                $q->whereNull('s.ends_at')->orWhere('s.ends_at', '>', now());
+            })
+            ->orderByDesc('s.id')
+            ->select('s.id', 's.stripe_subscription_id', 's.ends_at', 's.cancel_at_period_end')
+            ->first();
+
+        if (!$sub) {
+            return response()->json(['ok' => false, 'message' => 'No cancellable subscription found.'], 404);
+        }
+
+        if ($sub->cancel_at_period_end) {
+            return response()->json(['ok' => false, 'message' => 'Auto-renewal is already cancelled.'], 409);
+        }
+
+        try {
+            Stripe::setApiKey(config('services.stripe.secret'));
+
+            StripeSubscription::update($sub->stripe_subscription_id, [
+                'cancel_at_period_end' => true,
+            ]);
+
+            DB::table('subscriptions')
+                ->where('id', $sub->id)
+                ->update(['cancel_at_period_end' => true, 'updated_at' => now()]);
+
+            Log::info('subscription.cancel_renewal: set cancel_at_period_end=true', [
+                'sub_id'    => $sub->id,
+                'stripe_id' => $sub->stripe_subscription_id,
+                'member_id' => (int)($member['id'] ?? 0),
+            ]);
+
+            $expiryFormatted = $sub->ends_at ? date('M d, Y', strtotime($sub->ends_at)) : null;
+
+            return response()->json(['ok' => true, 'expiry' => $expiryFormatted]);
+        } catch (\Throwable $e) {
+            Log::error('subscription.cancel_renewal failed', [
+                'stripe_id' => $sub->stripe_subscription_id,
+                'member_id' => (int)($member['id'] ?? 0),
+                'error'     => $e->getMessage(),
+            ]);
+            return response()->json(['ok' => false, 'message' => 'Unable to cancel at this time. Please try again.'], 500);
         }
     }
 }

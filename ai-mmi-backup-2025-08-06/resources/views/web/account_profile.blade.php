@@ -60,6 +60,85 @@
                     <div class="subscription-expiry">
                         <strong>Expires:</strong> <?php echo !empty($_show_current_member['subscription_expiry']) ? date('M d, Y', strtotime($_show_current_member['subscription_expiry'])) : 'N/A'; ?>
                     </div>
+                    <?php
+                    $canCancel = !empty($_show_current_member['subscription_stripe_sub_id'])
+                        && in_array($_show_current_member['subscription_plan_code'] ?? '', ['all_ai','hybrid'])
+                        && empty($_show_current_member['subscription_cancel_at_period_end']);
+                    $alreadyCancelling = !empty($_show_current_member['subscription_stripe_sub_id'])
+                        && in_array($_show_current_member['subscription_plan_code'] ?? '', ['all_ai','hybrid'])
+                        && !empty($_show_current_member['subscription_cancel_at_period_end']);
+                    ?>
+                    <?php if($alreadyCancelling): ?>
+                    <div class="subscription-cancel-note" style="margin-top:6px;font-size:13px;color:#e07b00;">
+                        ⚠ Auto-renewal cancelled — your plan stays active until <?php echo !empty($_show_current_member['subscription_expiry']) ? date('M d, Y', strtotime($_show_current_member['subscription_expiry'])) : 'expiry'; ?>.
+                    </div>
+                    <?php elseif($canCancel): ?>
+                    <div style="margin-top:8px;">
+                        <a href="javascript:void(0);" id="cancel-sub-trigger"
+                           style="font-size:12px;color:#999;text-decoration:underline;cursor:pointer;">
+                            Cancel auto-renewal
+                        </a>
+                    </div>
+                    <div id="cancel-sub-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+                        <div style="background:#fff;border-radius:10px;padding:32px 28px;max-width:420px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.18);">
+                            <h3 style="margin:0 0 12px;font-size:18px;">Cancel auto-renewal?</h3>
+                            <p style="font-size:14px;color:#555;margin:0 0 20px;">
+                                Your <strong><?php echo htmlspecialchars($_show_current_member['subscription_name'] ?? ''); ?></strong> will remain active until
+                                <strong><?php echo !empty($_show_current_member['subscription_expiry']) ? date('M d, Y', strtotime($_show_current_member['subscription_expiry'])) : 'expiry'; ?></strong>,
+                                then it will not renew. You can re-subscribe at any time.
+                            </p>
+                            <div style="display:flex;gap:12px;justify-content:center;">
+                                <button id="cancel-sub-confirm" style="background:#c0392b;color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:14px;">Yes, cancel renewal</button>
+                                <button id="cancel-sub-dismiss" style="background:#eee;color:#333;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:14px;">Keep my plan</button>
+                            </div>
+                            <p id="cancel-sub-status" style="margin:12px 0 0;font-size:13px;color:#555;display:none;"></p>
+                        </div>
+                    </div>
+                    <script>
+                    (function(){
+                        var trigger  = document.getElementById('cancel-sub-trigger');
+                        var modal    = document.getElementById('cancel-sub-modal');
+                        var confirm  = document.getElementById('cancel-sub-confirm');
+                        var dismiss  = document.getElementById('cancel-sub-dismiss');
+                        var status   = document.getElementById('cancel-sub-status');
+                        if(!trigger) return;
+                        trigger.addEventListener('click', function(){ modal.style.display='flex'; });
+                        dismiss.addEventListener('click', function(){ modal.style.display='none'; });
+                        modal.addEventListener('click', function(e){ if(e.target===modal) modal.style.display='none'; });
+                        confirm.addEventListener('click', function(){
+                            confirm.disabled = true;
+                            confirm.textContent = 'Cancelling…';
+                            status.style.display = 'block';
+                            status.textContent = 'Processing…';
+                            var csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+                            fetch('/upgrade/cancel-renewal', {
+                                method: 'POST',
+                                headers: {'Content-Type':'application/json','X-CSRF-TOKEN': csrfToken},
+                                credentials: 'same-origin'
+                            })
+                            .then(function(r){ return r.json(); })
+                            .then(function(data){
+                                if(data.ok){
+                                    status.style.color='#27ae60';
+                                    status.textContent = 'Done! Your plan will not renew after ' + (data.expiry || 'expiry') + '.';
+                                    setTimeout(function(){ location.reload(); }, 2000);
+                                } else {
+                                    status.style.color='#c0392b';
+                                    status.textContent = data.message || 'Something went wrong. Please try again.';
+                                    confirm.disabled = false;
+                                    confirm.textContent = 'Yes, cancel renewal';
+                                }
+                            })
+                            .catch(function(){
+                                status.style.color='#c0392b';
+                                status.textContent = 'Network error. Please try again.';
+                                confirm.disabled = false;
+                                confirm.textContent = 'Yes, cancel renewal';
+                            });
+                        });
+                    })();
+                    </script>
+                    <?php endif; ?>
                 </div>
 
                 <?php if(empty($_show_current_member['remark'])) { ?>

@@ -5,6 +5,7 @@ use App\Http\Controllers\RouteMapping;
 use App\Http\Controllers\Web\Posts as WebPosts;
 use App\Http\Controllers\Web\Agent_Chat as AgentChatController;
 use App\Http\Controllers\Web\Account_Login as AccountLoginController;
+use App\Http\Controllers\Web\Upgrade as UpgradeController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
@@ -41,6 +42,9 @@ Route::get('/{lang}/agent_verification', [AgentChatController::class, 'agentVeri
 
 // Local testing helper: separate agent-side session on localhost:8002
 Route::get('/local/wealthskey-agent-login', [AccountLoginController::class, 'localWealthskeyAgentLogin']);
+
+// Upgrade / subscription management
+Route::post('/upgrade/cancel-renewal', [UpgradeController::class, 'cancelRenewal']);
 
 /*
 |--------------------------------------------------------------------------

@@ -402,11 +402,14 @@ class Account extends WebController {
                 $q->whereNull('s.ends_at')->orWhere('s.ends_at','>', now());
             })
             ->orderByDesc('s.started_at')
-            ->first(['p.name as plan_name','s.ends_at']);
+            ->first(['p.name as plan_name','p.code as plan_code','s.ends_at','s.stripe_subscription_id','s.cancel_at_period_end']);
 
         // write the finals into _show_current_member
         $this->_show_current_member['subscription_name']   = ($currentSub !== null) ? $currentSub->plan_name : 'Free Plan';
         $this->_show_current_member['subscription_expiry'] = ($currentSub !== null) ? $currentSub->ends_at : null;
+        $this->_show_current_member['subscription_plan_code']      = ($currentSub !== null) ? $currentSub->plan_code : null;
+        $this->_show_current_member['subscription_stripe_sub_id']  = ($currentSub !== null) ? $currentSub->stripe_subscription_id : null;
+        $this->_show_current_member['subscription_cancel_at_period_end'] = ($currentSub !== null) ? (bool)$currentSub->cancel_at_period_end : false;
 
         $isSelf = isset($this->_current_member['id']) 
             && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];
