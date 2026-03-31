@@ -1411,8 +1411,17 @@ footer.page-footer a:hover {
     }
 
     header.page-header .controls .lang > a span,
-    header.page-header .controls .service_provider_info > a span {
+    header.page-header .controls .service_provider_info > a span,
+    header.page-header .controls .upgrade_link > a span {
         display: none;
+    }
+
+    /* Fix star icon size on mobile */
+    header.page-header .controls .upgrade_link > a i {
+        font-size: 16px;
+        width: auto !important;
+        height: auto !important;
+        padding: 0;
     }
 
     /* Hide sign-in text on smaller screens to avoid crowding */
