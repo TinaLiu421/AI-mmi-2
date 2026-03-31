@@ -1411,14 +1411,20 @@ footer.page-footer a:hover {
     }
 
     header.page-header .controls .lang > a span,
-    header.page-header .controls .service_provider_info > a span,
-    header.page-header .controls .upgrade_link > a span {
+    header.page-header .controls .service_provider_info > a span {
         display: none;
     }
 
-    /* Fix star icon size on mobile */
+    /* Compact Upgrade button on mobile: show text but smaller */
+    header.page-header .controls .upgrade_link > a {
+        padding: 0 8px;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        min-width: unset;
+    }
     header.page-header .controls .upgrade_link > a i {
-        font-size: 16px;
+        font-size: 11px;
         width: auto !important;
         height: auto !important;
         padding: 0;
