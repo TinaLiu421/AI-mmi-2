@@ -68,6 +68,11 @@
                 <i class="fa fa-facebook"></i><span>Sign in with Facebook (Service Provider)</span>
             </a>
         </div>
+
+        {{-- Mobile-only sign-up nudge (hidden on desktop via CSS) --}}
+        <div class="mobile-signup-nudge">
+            New here? <a href="<?php echo $_page_base_url.'/account_registration'; ?>"><?php echo $_page_lang['btn.sign_up_now']; ?></a>
+        </div>
     </div>
 </div>
 @endsection

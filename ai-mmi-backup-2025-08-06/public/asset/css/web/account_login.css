@@ -83,6 +83,9 @@ div.page-content.account-login div.form div.third-party > a > i {
 a.google:hover{ filter: brightness(0.95); }
 a.fb:hover{ filter: brightness(0.96); }
 
+/* Hide mobile-only nudge on desktop */
+.mobile-signup-nudge { display: none; }
+
 /* 响应式：≤700px 竖排全宽 + social buttons above form */
 @media (max-width: 700px) {
   div.page-content.account-login div.form div.third-party {
@@ -98,7 +101,7 @@ a.fb:hover{ filter: brightness(0.96); }
     flex-direction: column;
   }
   div.page-content.account-login div.form > form {
-    order: 3;
+    order: 4;
   }
   div.page-content.account-login div.form > div.or {
     order: 1;
@@ -108,5 +111,21 @@ a.fb:hover{ filter: brightness(0.96); }
   div.page-content.account-login div.form > div.third-party {
     order: 2;
     margin-top: 0;
+  }
+  /* Mobile-only sign-up nudge */
+  div.page-content.account-login div.form > div.mobile-signup-nudge {
+    display: block;
+    order: 3;
+    text-align: center;
+    padding: 16px 0 4px;
+    font-size: 14px;
+    color: #666;
+    border-top: 1px solid #e8e8e8;
+    margin-top: 4px;
+  }
+  div.page-content.account-login div.form > div.mobile-signup-nudge a {
+    color: #019ead;
+    font-weight: 600;
+    text-decoration: underline;
   }
 }
