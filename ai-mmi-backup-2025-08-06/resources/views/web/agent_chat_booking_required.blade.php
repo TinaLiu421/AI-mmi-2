@@ -14,7 +14,7 @@
         $meetingLabel = ($pageMode === 'hybrid') ? '2-hour' : '15-minute';
 
         $descriptionMap = [
-            'free'   => 'Book a complimentary <strong>15-minute consultation</strong> with a qualified migration agent from Wealthskey Migration & Education.',,
+            'free'   => 'Book a complimentary <strong>15-minute consultation</strong> with a qualified migration agent from Wealthskey Migration & Education.',
             'hybrid' => 'Your <strong>AI + Agent Plan</strong> includes a one-time <strong>2-hour consultation</strong> with a qualified migration agent. After the meeting, the agent will confirm your attendance to complete your consultation.',
         ];
         $description = $descriptionMap[$pageMode] ?? $descriptionMap['free'];
