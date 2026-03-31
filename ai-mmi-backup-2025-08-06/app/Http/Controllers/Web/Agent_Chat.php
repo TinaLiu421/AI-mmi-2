@@ -101,7 +101,7 @@ class Agent_Chat extends WebController
             // Free / AI Smart → 1x 15-min meeting; once used → upgrade redirect
             if (in_array($planCode, ['free', 'all_ai'], true)) {
                 if ($this->hasMeetingAttended((int)$memberId, 'free')) {
-                    return $this->doRedirect($this->toURL('upgrade'));
+                    return $this->doRedirect($this->toURL('upgrade') . '?notice=meeting_used');
                 }
                 return $this->buildBookingPage(
                     'https://calendly.com/admin-wealthskey/free-users',
@@ -112,7 +112,7 @@ class Agent_Chat extends WebController
 
             // No active plan → same as free plan (also check if meeting already used)
             if ($this->hasMeetingAttended((int)$memberId, 'free')) {
-                return $this->doRedirect($this->toURL('upgrade'));
+                return $this->doRedirect($this->toURL('upgrade') . '?notice=meeting_used');
             }
             return $this->buildBookingPage(
                 'https://calendly.com/admin-wealthskey/free-users',

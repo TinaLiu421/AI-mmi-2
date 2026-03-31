@@ -31,6 +31,38 @@
 
     .current-plan-banner strong { font-weight: 800; }
 
+    .meeting-used-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #5a4000;
+      line-height: 1.5;
+      position: relative;
+    }
+
+    .meeting-used-notice__icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    .meeting-used-notice__close {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 18px;
+      line-height: 1;
+      color: #999;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    .meeting-used-notice__close:hover { color: #333; }
+
     .upgrade-cta.is-current {
       background: var(--neutral-200);
       color: var(--neutral-600);
@@ -200,6 +232,13 @@
   </style>
 
   <div class="upgrade-gate-wrap">
+    @if(request()->query('notice') === 'meeting_used')
+    <div class="meeting-used-notice">
+      <span class="meeting-used-notice__icon">✅</span>
+      <span>You have completed your free consultation meeting with the agent. Upgrade your plan to enjoy more consultation arrangements with the agent.</span>
+      <button class="meeting-used-notice__close" onclick="this.parentElement.style.display='none'" aria-label="Dismiss">&times;</button>
+    </div>
+    @endif
     @if($currentPlanCode)
     <div class="current-plan-banner">
       <i class="fas fa-check-circle" style="color:var(--primary-blue);font-size:18px;"></i>
