@@ -283,6 +283,9 @@ function streamResponse(question, bubbleId) {
         if (!(streamMeta && streamMeta.show_upgrade)) return false;
         if (upgradePopupOpened) return true;
 
+        // On mobile, skip the popup redirect — the in-chat nudge message is enough
+        if ($(window).width() <= 700) return false;
+
         const upgradeUrl = streamMeta.upgrade_url || (_page_base_url + '/upgrade');
         const popup = window.open(
             upgradeUrl,
