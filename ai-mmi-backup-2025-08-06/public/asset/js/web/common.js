@@ -356,6 +356,13 @@ function streamResponse(question, bubbleId) {
         if (!(meta && typeof meta === 'object')) return false;
         if (meta.action !== 'redirect') return false;
 
+        // Upgrade redirect (quota used): on mobile skip the redirect entirely —
+        // the in-chat nudge message + Upgrade Now button are enough.
+        const isUpgradeRedirect = !!(meta.show_upgrade || meta.reason === 'free-plan-limit-reached');
+        if (isUpgradeRedirect && $(window).width() <= 700) {
+            return false;
+        }
+
         const redirectUrl = meta.redirect_url || (_page_base_url + '/agent_chat');
         setTimeout(() => {
             window.location.href = redirectUrl;
