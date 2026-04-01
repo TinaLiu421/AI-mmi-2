@@ -955,6 +955,11 @@ function iweb_global_func() {
             var $form  = $("#ask-form");
 
             if ($input.length && $form.length) {
+                // On mobile: open the chat panel first if it isn't already open
+                if ($(window).width() <= 700 && !$("main.page-body div.chat-area").hasClass("show-mobile")) {
+                    toggleMobileChat();
+                }
+
                 // Scroll the chat input into view
                 $("html, body").animate({
                     scrollTop: $input.offset().top - 120
