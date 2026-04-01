@@ -356,11 +356,19 @@ function streamResponse(question, bubbleId) {
         if (!(meta && typeof meta === 'object')) return false;
         if (meta.action !== 'redirect') return false;
 
-        // Upgrade redirect (quota used): on mobile skip the redirect entirely —
-        // the in-chat nudge message + Upgrade Now button are enough.
+        // Upgrade redirect (quota used):
+        // - Mobile: never redirect — in-chat nudge is enough.
+        // - Desktop: redirect only ONCE ever (tracked via localStorage).
         const isUpgradeRedirect = !!(meta.show_upgrade || meta.reason === 'free-plan-limit-reached');
-        if (isUpgradeRedirect && $(window).width() <= 700) {
-            return false;
+        if (isUpgradeRedirect) {
+            if ($(window).width() <= 700) {
+                return false;
+            }
+            const redirectedKey = 'aimmi_upgrade_redirected';
+            if (localStorage.getItem(redirectedKey)) {
+                return false; // already redirected once before, skip
+            }
+            localStorage.setItem(redirectedKey, '1');
         }
 
         const redirectUrl = meta.redirect_url || (_page_base_url + '/agent_chat');
