@@ -286,6 +286,9 @@ function streamResponse(question, bubbleId) {
         // On mobile, skip the popup redirect — the in-chat nudge message is enough
         if ($(window).width() <= 700) return false;
 
+        // Desktop: only open the popup once ever (same one-time rule as the redirect)
+        if (localStorage.getItem('aimmi_upgrade_redirected')) return false;
+
         const upgradeUrl = streamMeta.upgrade_url || (_page_base_url + '/upgrade');
         const popup = window.open(
             upgradeUrl,
