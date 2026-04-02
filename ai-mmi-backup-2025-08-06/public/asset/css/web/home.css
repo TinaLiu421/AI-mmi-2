@@ -1,8 +1,88 @@
+/* ── Home page: header integrates with banner ── */
+body.page-home main.page-body {
+    padding-top: 0;
+}
+
+/* Expand page-content to full width — chat-area is fixed so margin-right not needed */
+body.page-home main.page-body .page-content {
+    margin-right: 0;
+}
+
+/* info-area also full width so the banner fills the entire viewport */
+body.page-home main.page-body .info-area {
+    width: 100%;
+    background-color: transparent;
+    background-image: none;
+}
+
+/* Service frames and inner-panel must stay clear of the fixed 450px chat panel */
+body.page-home main.page-body .home-service-frames,
+body.page-home main.page-body .inner-panel {
+    max-width: calc(100% - 450px);
+}
+
+/* Make the chat-area box have a frosted-glass look over the banner */
+body.page-home main.page-body .chat-area {
+    background: transparent;
+}
+
+body.page-home header.page-header {
+    background: transparent;
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    border-bottom: none;
+    /* background-color intentionally excluded: it must snap instantly to dark when
+       header-scrolled is added — a fade would expose white page content below */
+    transition: backdrop-filter 0.35s ease,
+                -webkit-backdrop-filter 0.35s ease,
+                box-shadow 0.35s ease,
+                border-color 0.35s ease;
+}
+
+/* Keep control buttons clearly visible over the video */
+body.page-home header.page-header:not(.header-scrolled) .controls .lang > a,
+body.page-home header.page-header:not(.header-scrolled) .controls .service_provider_info > a,
+body.page-home header.page-header:not(.header-scrolled) .controls .upgrade_link > a,
+body.page-home header.page-header:not(.header-scrolled) .controls .member a,
+body.page-home header.page-header:not(.header-scrolled) .controls .menu > a {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.40);
+    color: #fff;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+
+body.page-home header.page-header.header-scrolled {
+    /* Dark navy fallback so white logo/buttons are always visible even if image is slow.
+       No transition on background-color — must be instant to avoid transparent gap. */
+    background-color: rgba(8, 25, 70, 0.97);
+    background-image: url("/asset/image/nav-background.jpg");
+    background-size: cover;
+    background-position: center;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-lg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Keep buttons clearly visible on the dark scrolled header */
+body.page-home header.page-header.header-scrolled .controls .lang > a,
+body.page-home header.page-header.header-scrolled .controls .service_provider_info > a,
+body.page-home header.page-header.header-scrolled .controls .upgrade_link > a,
+body.page-home header.page-header.header-scrolled .controls .member a,
+body.page-home header.page-header.header-scrolled .controls .menu > a {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #fff;
+}
+
 /* ── Banner Styles ── */
 div.page-content.home div.banner {
     position: relative;
     width: 100%;
-    margin-bottom: 30px;
+    margin-bottom: 0;
 }
 
 /* Legacy static image fallback */
@@ -15,11 +95,14 @@ div.page-content.home div.banner img.banner-img {
 /* ── Video Banner ── */
 div.page-content.home div.banner.banner-video-wrap {
     position: relative;
-    min-height: 380px;
+    min-height: calc(230px + var(--header-height, 80px));
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding-top: var(--header-height, 80px);
+    /* keep text content centred in the visible area (left of the 450px chat panel) */
+    padding-right: 450px;
 }
 
 div.page-content.home div.banner.banner-video-wrap .banner-video {
@@ -35,7 +118,7 @@ div.page-content.home div.banner.banner-video-wrap .banner-video {
     z-index: 0;
     /* slight scale for visual fullness */
     transform: scale(1.02);
-    filter: brightness(0.66) saturate(1.08);
+    filter: brightness(0.45) saturate(1.08);
 }
 
 div.page-content.home div.banner.banner-video-wrap .banner-blur-overlay {
@@ -58,7 +141,7 @@ div.page-content.home div.banner.banner-video-wrap .banner-content {
     position: relative;
     z-index: 2;
     text-align: center;
-    padding: 60px 24px 54px;
+    padding: 28px 24px 24px;
     max-width: 760px;
     margin: 0 auto;
     color: #fff;
@@ -137,10 +220,277 @@ div.page-content.home div.banner.banner-video-wrap .banner-cta-btn.secondary:hov
 
 @media (max-width: 600px) {
     div.page-content.home div.banner.banner-video-wrap {
-        min-height: 360px;
+        min-height: calc(200px + var(--header-height, 80px));
+        padding-top: var(--header-height, 80px);
     }
     div.page-content.home div.banner.banner-video-wrap .banner-content {
-        padding: 44px 18px 40px;
+        padding: 22px 16px 20px;
+    }
+}
+
+/* ── Service Frames ── */
+div.page-content.home .home-service-frames {
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    width: 100%;
+    background: linear-gradient(135deg, #2a5fc7 0%, #3a7bd5 100%);
+    margin-bottom: 0;
+    padding: 28px 32px;
+    box-sizing: border-box;
+}
+
+div.page-content.home .home-service-frame {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1 1 0;
+    text-decoration: none;
+    padding: 0 20px;
+    border-right: 1px solid rgba(255,255,255,0.18);
+    transition: background 0.2s ease;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+div.page-content.home .home-service-frame:first-child {
+    padding-left: 0;
+}
+
+div.page-content.home .home-service-frame:last-child {
+    border-right: none;
+    padding-right: 0;
+}
+
+div.page-content.home .home-service-frame:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+div.page-content.home .home-service-frame-thumb {
+    width: 100%;
+    height: 160px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+    margin-bottom: 16px;
+}
+
+div.page-content.home .home-service-frame-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    transition: transform 0.38s ease;
+}
+
+div.page-content.home .home-service-frame:hover .home-service-frame-thumb img {
+    transform: scale(1.06);
+}
+
+div.page-content.home .home-service-frame-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    width: 100%;
+}
+
+div.page-content.home .home-service-frame-title {
+    color: #fff;
+    font-size: 1.08rem;
+    font-weight: 800;
+    letter-spacing: 0.1px;
+    line-height: 1.25;
+}
+
+div.page-content.home .home-service-frame-divider {
+    display: none;
+}
+
+div.page-content.home .home-service-frame-tagline {
+    color: rgba(255,255,255,0.80);
+    font-size: 0.9rem;
+    font-weight: 400;
+    line-height: 1.45;
+    font-style: italic;
+}
+
+div.page-content.home .home-service-frame-arrow {
+    color: rgba(255,255,255,0.55);
+    font-size: 1rem;
+    margin-top: 10px;
+    transform: translateX(-4px);
+    opacity: 0;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+div.page-content.home .home-service-frame:hover .home-service-frame-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+@media (max-width: 700px) {
+    div.page-content.home .home-service-frames {
+        flex-direction: column;
+        padding: 20px 18px;
+        gap: 20px;
+    }
+    div.page-content.home .home-service-frame {
+        border-right: none;
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+        padding: 0 0 20px 0;
+    }
+    div.page-content.home .home-service-frame:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    div.page-content.home .home-service-frame-thumb {
+        height: 160px;
+    }
+}
+
+/* ── Why Choose AI-mmi Section ── */
+div.page-content.home .home-why-section {
+    max-width: calc(100% - 450px);
+    background: #fff;
+    padding: 48px 52px 64px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+}
+
+div.page-content.home .home-why-section::before {
+    content: "";
+    position: absolute;
+    top: -80px;
+    right: -120px;
+    width: 520px;
+    height: 520px;
+    background: radial-gradient(circle, rgba(42,95,199,0.07) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+div.page-content.home .home-why-inner {
+    max-width: 900px;
+}
+
+div.page-content.home .home-why-header {
+    margin-bottom: 48px;
+}
+
+div.page-content.home .home-why-title {
+    font-size: clamp(1.55rem, 3vw, 2.1rem);
+    font-weight: 800;
+    color: #0b1d4f;
+    margin: 0 0 16px;
+    line-height: 1.2;
+}
+
+div.page-content.home .home-why-title span {
+    background: linear-gradient(135deg, #2a5fc7, #3a7bd5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+div.page-content.home .home-why-subtitle {
+    font-size: 1.02rem;
+    line-height: 1.7;
+    color: #4a5568;
+    max-width: 680px;
+    margin: 0;
+}
+
+div.page-content.home .home-why-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+div.page-content.home .home-why-card {
+    background: #f8f9fc;
+    border: 1px solid #e8ecf4;
+    border-radius: 16px;
+    padding: 32px 28px;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+div.page-content.home .home-why-card::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #2a5fc7, #3a7bd5);
+    border-radius: 16px 16px 0 0;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+}
+
+div.page-content.home .home-why-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 36px rgba(42,95,199,0.13);
+    border-color: #c5d3ef;
+}
+
+div.page-content.home .home-why-card:hover::after {
+    opacity: 1;
+}
+
+div.page-content.home .home-why-card-icon {
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(135deg, #2a5fc7, #3a7bd5);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    box-shadow: 0 6px 18px rgba(42,95,199,0.28);
+}
+
+div.page-content.home .home-why-card-icon--logo {
+    background: #fff;
+    border: 1.5px solid #e0e8f5;
+    box-shadow: 0 4px 14px rgba(42,95,199,0.13);
+}
+
+div.page-content.home .home-why-card-logo-img {
+    width: 38px;
+    height: auto;
+    display: block;
+}
+
+div.page-content.home .home-why-card-icon i {
+    font-size: 1.3rem;
+    color: #fff;
+}
+
+div.page-content.home .home-why-card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0b1d4f;
+    margin: 0 0 10px;
+    line-height: 1.3;
+}
+
+div.page-content.home .home-why-card-desc {
+    font-size: 0.93rem;
+    color: #5a6880;
+    line-height: 1.65;
+    margin: 0;
+}
+
+@media (max-width: 700px) {
+    div.page-content.home .home-why-section {
+        padding: 44px 20px 52px;
+    }
+    div.page-content.home .home-why-cards {
+        grid-template-columns: 1fr;
     }
 }
 

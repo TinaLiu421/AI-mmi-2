@@ -4,6 +4,8 @@
 <?php $_show_current_member_details = (!empty($_page_data['current_member_details']))?$_page_data['current_member_details']:[]; ?>
 <?php $_show_current_member_agent = (!empty($_page_data['current_member_agent']))?$_page_data['current_member_agent']:[]; ?>
 <?php $_show_current_member_lawfirm = (!empty($_page_data['current_member_lawfirm']))?$_page_data['current_member_lawfirm']:[]; ?>
+<?php $_institution_profile = $_page_data['institution_profile'] ?? null; ?>
+<?php $_is_edu_institution = !empty($_institution_profile) || ((int)($_show_current_member['type'] ?? 0) === 3 && (int)($_show_current_member_details['institution_type'] ?? 0) === 2); ?>
 <div class="inner-panel full">
     <?php if(!empty($_show_current_member['coverphoto']) && file_exists('upload/member_coverphoto/'.$_show_current_member['coverphoto'])) { ?>
     <div class="banner" style="background-image:url('<?php echo 'upload/member_coverphoto/'.$_show_current_member['coverphoto']; ?>')"></div>
@@ -16,7 +18,7 @@
             <?php if(file_exists('upload/member_avatar/'.$_show_current_member['avatar'])) { ?>
             <div class="avatar" style="background-image:url('<?php echo 'upload/member_avatar/'.$_show_current_member['avatar']; ?>')"></div>
             <?php } else { ?>
-            <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_show_current_member['avatar']; ?>')"></div>
+            <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_show_current_member['avatar']; ?>');background-size:contain;background-color:#fff;<?php if($_is_edu_institution) echo 'border-radius:8px;'; ?>"></div>
             <?php } ?>
             <?php if(empty($_page_data['is_readonly'])) { ?>
             <a id="myavatar" class="camera"><i class="fa fa-camera"></i></a>
@@ -37,6 +39,12 @@
         <div class="tab">
             <a class="posts selected"><?php echo $_page_lang['tab_posts']; ?></a>
             <a class="about" href="<?php echo $_page_base_url.'/account/profile'.((!empty($_page_get_data['uid']))?'?uid='.$_page_get_data['uid']:''); ?>"><?php echo $_page_lang['tab_about']; ?></a>
+            <?php if($_is_edu_institution): ?>
+            <?php $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : ''; ?>
+            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_matched'.$_uid_qs; ?>">Students Matched</a>
+            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_applied'.$_uid_qs; ?>">Students Applied</a>
+            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_accepted'.$_uid_qs; ?>">Students Accepted</a>
+            <?php endif; ?>
         </div>
     </div>
     

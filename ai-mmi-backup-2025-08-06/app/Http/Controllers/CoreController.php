@@ -714,7 +714,14 @@ class CoreController extends Controller {
             $session_itoken = $this->getSession('itoken');
             $post_itoken = explode('%',base64_decode($this->postParamValue('itoken', '')));
             if(!empty($session_itoken) && (!empty($post_itoken) && is_array($post_itoken) && !empty($post_itoken[0]) && !empty($post_itoken[1]))) {
-                if(trim(md5(md5(md5('iweb@'.((!empty($_SERVER['SERVER_NAME']))?$_SERVER['SERVER_NAME']:'/')).'@'.$session_itoken).'#dt'.$post_itoken[1])) == trim($post_itoken[0])) {
+                // Use HTTP_HOST hostname (strip port) to match browser's location.hostname
+                $_itoken_host = '/';
+                if(!empty($_SERVER['HTTP_HOST'])) {
+                    $_itoken_host = explode(':', $_SERVER['HTTP_HOST'])[0];
+                } elseif(!empty($_SERVER['SERVER_NAME'])) {
+                    $_itoken_host = $_SERVER['SERVER_NAME'];
+                }
+                if(trim(md5(md5(md5('iweb@'.$_itoken_host).'@'.$session_itoken).'#dt'.$post_itoken[1])) == trim($post_itoken[0])) {
                     $next = true;
                 }
             }

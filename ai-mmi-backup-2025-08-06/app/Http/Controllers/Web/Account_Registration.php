@@ -616,19 +616,23 @@ class Account_Registration extends WebController {
             if(!empty($account_plan)) {
                 if(empty($parameter)) {
                     // do checking
-                    $validator = Validator::make($this->_page_post_data,
-                    [
+                    $isEduInstitution = (int)($this->_page_post_data['institution_type'] ?? 1) === 2;
+                    $validationRules = [
                         'company_type'      =>  'required',
                         'company_name'      =>  'required',
-                        'country'           =>  'required',
+                        'company_website'   =>  'required',
                         'first_name'        =>  'required',
                         'last_name'         =>  'required',
                         'email'             =>  'required|email',
                         'telephone_code'    =>  'required',
                         'telephone_num'     =>  'required',
                         'password'          =>  'required|regex:/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}$/',
-                        'repeat_password'   =>  'required|same:repeat_password'
-                    ]);
+                        'repeat_password'   =>  'required|same:password'
+                    ];
+                    if (!$isEduInstitution) {
+                        $validationRules['country'] = 'required';
+                    }
+                    $validator = Validator::make($this->_page_post_data, $validationRules);
 
                     if(!$validator->fails()) {
                         if(empty($this->_member_model->getByEmail($this->_page_post_data['email']))) {
@@ -691,12 +695,12 @@ class Account_Registration extends WebController {
                                     'company_name'      =>  $this->_page_post_data['company_name'],
                                     'company_website'   =>  (!empty($this->_page_post_data['company_website']) ? $this->_page_post_data['company_website'] : ''),
                                     'company_address'   =>  (!empty($this->_page_post_data['company_address']) ? $this->_page_post_data['company_address'] : ''),
-                                    'country'           =>  $this->_page_post_data['country'],
                                     'services_country'  =>  (!empty($this->_page_post_data['services_country']) ? json_encode(in_array('all', (array)$this->_page_post_data['services_country']) ? ['all'] : $this->_page_post_data['services_country']) : ''),
                                     'services'          =>  (!empty($this->_page_post_data['services']) ? $this->_page_post_data['services'] : ''),
                                     'registered_business_country' => (!empty($this->_page_post_data['registered_business_country']) ? $this->_page_post_data['registered_business_country'] : ''),
                                     'registered_business_name' => (!empty($this->_page_post_data['registered_business_name']) ? $this->_page_post_data['registered_business_name'] : ''),
-                                    'registered_business_number' => (!empty($this->_page_post_data['registered_business_number']) ? $this->_page_post_data['registered_business_number'] : '')
+                                    'registered_business_number' => (!empty($this->_page_post_data['registered_business_number']) ? $this->_page_post_data['registered_business_number'] : ''),
+                                    'institution_type' => (int)(isset($this->_page_post_data['institution_type']) ? $this->_page_post_data['institution_type'] : 1)
                                 ],
                                 'business_licenses'     =>  []
                             ];
@@ -734,6 +738,16 @@ class Account_Registration extends WebController {
                                     'created_at' => now(),
                                     'updated_at' => now()
                                 ]);
+
+                                // Create institution profile row for education institutions
+                                if((int)(isset($this->_page_post_data['institution_type']) ? $this->_page_post_data['institution_type'] : 1) === 2) {
+                                    DB::table('institution_profiles')->insert([
+                                        'member_id'  => $new_member_id,
+                                        'status'     => 1,
+                                        'created_at' => now(),
+                                        'updated_at' => now()
+                                    ]);
+                                }
 
                                 // email verification if need
                                 if((int)$new_member['method'] == 1) {

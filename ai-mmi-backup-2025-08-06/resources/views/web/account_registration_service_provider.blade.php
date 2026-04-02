@@ -28,19 +28,36 @@
     <h1 class="title"><?php echo $_page_lang['create_your_account']; ?></h1>
     <div class="underline"></div>
     <div class="clearboth"></div>
-    
+
+    <div class="institution-type-selector">
+        <p class="institution-type-label">Select Institution Type <span style="color:red;">*</span></p>
+        <div class="institution-type-cards">
+            <div class="institution-type-card selected" data-value="1" onclick="selectInstitutionType(1)">
+                <div class="institution-type-icon">🏛️</div>
+                <div class="institution-type-name">Migration Institution</div>
+                <div class="institution-type-desc">Immigration agencies, law firms, migration consultants</div>
+            </div>
+            <div class="institution-type-card" data-value="2" onclick="selectInstitutionType(2)">
+                <div class="institution-type-icon">🎓</div>
+                <div class="institution-type-name">Education Institution</div>
+                <div class="institution-type-desc">Universities, colleges, schools, training providers</div>
+            </div>
+        </div>
+    </div>
+
     <div class="form">
         <form id="account-service-provider-form" method="post" enctype="multipart/form-data">
             <div>@csrf</div>
             <div><input type="hidden" id="method" name="method" value="1"></div>
             <div><input type="hidden" id="third_party_token" name="third_party_token" value=""></div>
+            <div><input type="hidden" id="institution_type" name="institution_type" value="1"></div>
             
             <div class="required"><span style="color:red;">*</span> <?php echo $_page_lang['required']; ?></div>
             <div class="clearboth"></div>
             
             <div class="group-title"><u><?php echo $_page_lang['account.company_info']; ?></u></div>
             
-            <div class="row">
+            <div class="row sp-migration-only">
                 <label for="logo"><?php echo $_page_lang['account.add_logo']; ?></label>
                 <div class="logo-file">
                     <img src="asset/image/default_logo.jpg" alt="default_logo">
@@ -72,6 +89,7 @@
             </div>
             <div class="clearboth"></div>
             
+            <div class="sp-migration-only">
             <div class="row left">
                 <label for="country"><?php echo $_page_lang['account.country']; ?> <span style="color:red;">*</span></label>
                 <select id="country" name="country" data-validation="required">
@@ -92,17 +110,21 @@
                 </select>
             </div>
             <div class="clearboth"></div>
-
-            <div class="row left">
-                <label for="company_website"><?php echo $_page_lang['account.company_website']; ?></label>
-                <input type="text" id="company_website" name="company_website" placeholder="<?php echo $_page_lang['account.enter_company_website']; ?>" value="<?php echo $_page_data['account']['company_website']; ?>">
             </div>
-            <div class="row right">
+
+            <div class="row">
+                <label for="company_website"><?php echo $_page_lang['account.company_website']; ?> <span style="color:red;">*</span></label>
+                <input type="text" id="company_website" name="company_website" placeholder="<?php echo $_page_lang['account.enter_company_website']; ?>" value="<?php echo $_page_data['account']['company_website']; ?>" data-validation="required">
+            </div>
+            <div class="clearboth"></div>
+
+            <div class="row sp-migration-only">
                 <label for="company_address"><?php echo $_page_lang['account.company_address']; ?></label>
                 <input type="text" id="company_address" name="company_address" rows="3" placeholder="<?php echo $_page_lang['account.enter_company_address']; ?>"><?php echo $_page_data['account']['company_address']; ?>
             </div>
             <div class="clearboth"></div>
 
+            <div class="sp-migration-only">
             <div class="row">
                 <label for="services"><?php echo $_page_lang['account.services']; ?></label>
                 <textarea id="services" name="services" rows="3" placeholder="<?php echo $_page_lang['account.enter_services']; ?>"><?php echo (!empty($_page_data['account']['services']) ? $_page_data['account']['services'] : ''); ?></textarea>
@@ -250,6 +272,7 @@
             </div>
 
             <div>&nbsp;</div>
+            </div><!-- end sp-migration-only -->
 
             <div class="group-title"><u><?php echo $_page_lang['account.contact_info']; ?></u></div>
 
@@ -396,5 +419,96 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
+</script>
+
+<style>
+.institution-type-selector {
+    margin: 20px 0 30px 0;
+}
+.institution-type-label {
+    font-weight: 600;
+    font-size: 1em;
+    margin-bottom: 12px;
+    color: #333;
+}
+.institution-type-cards {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.institution-type-card {
+    flex: 1;
+    min-width: 200px;
+    max-width: 280px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    padding: 20px 18px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    background: #fff;
+    text-align: center;
+}
+.institution-type-card:hover {
+    border-color: #4a90d9;
+    box-shadow: 0 2px 10px rgba(74,144,217,0.15);
+}
+.institution-type-card.selected {
+    border-color: #1a73e8;
+    background: #f0f6ff;
+    box-shadow: 0 2px 12px rgba(26,115,232,0.2);
+}
+.institution-type-icon {
+    font-size: 2em;
+    margin-bottom: 8px;
+}
+.institution-type-name {
+    font-weight: 700;
+    font-size: 1em;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+}
+.institution-type-desc {
+    font-size: 0.82em;
+    color: #666;
+    line-height: 1.4;
+}
+</style>
+
+<script>
+function selectInstitutionType(value) {
+    document.querySelectorAll('.institution-type-card').forEach(function(card) {
+        card.classList.remove('selected');
+    });
+    document.querySelector('.institution-type-card[data-value="' + value + '"]').classList.add('selected');
+    document.getElementById('institution_type').value = value;
+
+    var isEdu = parseInt(value) === 2;
+    document.querySelectorAll('.sp-migration-only').forEach(function(el) {
+        if (isEdu) {
+            el.style.display = 'none';
+            el.querySelectorAll('input, select, textarea').forEach(function(inp) {
+                inp.disabled = true;
+                // Remove data-validation so the iweb client validator does not
+                // block submission for hidden/disabled fields
+                var dv = inp.getAttribute('data-validation');
+                if (dv) {
+                    inp.setAttribute('data-orig-validation', dv);
+                    inp.removeAttribute('data-validation');
+                }
+            });
+        } else {
+            el.style.display = '';
+            el.querySelectorAll('input, select, textarea').forEach(function(inp) {
+                inp.disabled = false;
+                // Restore data-validation when fields become visible again
+                var dv = inp.getAttribute('data-orig-validation');
+                if (dv) {
+                    inp.setAttribute('data-validation', dv);
+                    inp.removeAttribute('data-orig-validation');
+                }
+            });
+        }
+    });
+}
 </script>
 @endsection

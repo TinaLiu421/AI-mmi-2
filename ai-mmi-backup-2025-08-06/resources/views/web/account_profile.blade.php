@@ -5,6 +5,8 @@
 <?php $_show_current_member_agent = (!empty($_page_data['current_member_agent']))?$_page_data['current_member_agent']:[]; ?>
 <?php $_show_current_member_lawfirm = (!empty($_page_data['current_member_lawfirm']))?$_page_data['current_member_lawfirm']:[]; ?>
 <?php $_show_current_member_business_license = (!empty($_page_data['current_member_business_license']))?$_page_data['current_member_business_license']:[]; ?>
+<?php $_institution_profile = $_page_data['institution_profile'] ?? null; ?>
+<?php $_is_edu_institution = !empty($_institution_profile) || (int)($_show_current_member_details['institution_type'] ?? 0) === 2; ?>
 <div class="inner-panel full">
     <?php if(!empty($_show_current_member['coverphoto']) && file_exists('upload/member_coverphoto/'.$_show_current_member['coverphoto'])) { ?>
     <div class="banner" style="background-image:url('<?php echo 'upload/member_coverphoto/'.$_show_current_member['coverphoto']; ?>')"></div>
@@ -17,7 +19,7 @@
             <?php if(file_exists('upload/member_avatar/'.$_show_current_member['avatar'])) { ?>
             <div class="avatar" style="background-image:url('<?php echo 'upload/member_avatar/'.$_show_current_member['avatar']; ?>')"></div>
             <?php } else { ?>
-            <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_show_current_member['avatar']; ?>')"></div>
+            <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_show_current_member['avatar']; ?>');background-size:contain;background-color:#fff;<?php if($_is_edu_institution) echo 'border-radius:8px;'; ?>"></div>
             <?php } ?>
             <?php if(empty($_page_data['is_readonly'])) { ?>
             <a id="myavatar" class="camera"><i class="fa fa-camera"></i></a>
@@ -40,6 +42,12 @@
             <a class="posts" href="<?php echo $_page_base_url.'/account/posts'.((!empty($_page_get_data['uid']))?'?uid='.$_page_get_data['uid']:''); ?>"><?php echo $_page_lang['tab_posts']; ?></a>
             <?php } ?>
             <a class="about selected"><?php echo $_page_lang['tab_about']; ?></a>
+            <?php if($_is_edu_institution): ?>
+            <?php $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : ''; ?>
+            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_matched'.$_uid_qs; ?>">Students Matched</a>
+            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_applied'.$_uid_qs; ?>">Students Applied</a>
+            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_accepted'.$_uid_qs; ?>">Students Accepted</a>
+            <?php endif; ?>
         </div>
     </div>
     
@@ -160,6 +168,29 @@
                 <div class="clearboth"></div>
 
                 <?php if(in_array((int)$_show_current_member['type'], [2, 3])) { ?>
+                <?php if($_is_edu_institution) { ?>
+                <div class="group-title"><u>Institution Information</u></div>
+
+                <div class="row">
+                    <label for="company_name">Institution Name <span style="color:red;">*</span></label>
+                    <input type="text" id="company_name" name="company_name" placeholder="Enter institution name" value="<?php echo htmlspecialchars($_show_current_member_details['company_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" data-validation="required">
+                </div>
+                <div class="clearboth"></div>
+
+                <div class="row">
+                    <label for="company_website">Institution Website <span style="color:red;">*</span></label>
+                    <input type="text" id="company_website" name="company_website" placeholder="https://" value="<?php echo htmlspecialchars($_show_current_member_details['company_website'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" data-validation="required">
+                </div>
+                <div class="clearboth"></div>
+
+                <div style="background:#eaf4ff; border:1px solid #b3d7ff; border-radius:10px; padding:24px; margin:18px 0; text-align:center;">
+                    <div style="font-size:2em; margin-bottom:8px;">&#x1F393;</div>
+                    <h3 style="margin:0 0 8px; color:#1a73e8; font-size:1.1em;">AI-Powered Institution Profile</h3>
+                    <p style="margin:0 0 16px; color:#555; font-size:0.95em;">Let AI extract your programmes, admission requirements, tuition fees, and more directly from your website. Students will use this to match with your institution.</p>
+                    <a href="<?php echo $_page_base_url; ?>/institution_hub_profile" style="display:inline-block; background:#1a73e8; color:#fff; padding:10px 26px; border-radius:6px; text-decoration:none; font-weight:bold;">Manage AI Profile &rarr;</a>
+                </div>
+                <div>&nbsp;</div>
+                <?php } else { ?>
                 <div class="group-title"><u><?php echo $_page_lang['account.company_info']; ?></u></div>
 
                 <div class="row">
@@ -637,6 +668,7 @@
 
                 <div>&nbsp;</div>
                 <?php } ?>
+                <?php } // end else (migration SP, not education institution) ?>
 
                 <div class="group-title"><u><?php echo $_page_lang['account.contact_info']; ?></u></div>
 
@@ -753,6 +785,22 @@
             <div class="clearboth"></div>
 
             <?php if(in_array((int)$_show_current_member['type'], [2, 3])) { ?>
+            <?php if($_is_edu_institution) { ?>
+            <div class="group-title"><u>Institution Information</u></div>
+
+            <div class="row">
+                <label>Institution Name</label>
+                <div class="input-value"><?php echo htmlspecialchars($_show_current_member_details['company_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
+            </div>
+            <div class="clearboth"></div>
+
+            <div class="row">
+                <label>Institution Website</label>
+                <div class="input-value"><a href="<?php echo htmlspecialchars($_show_current_member_details['company_website'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($_show_current_member_details['company_website'] ?? '', ENT_QUOTES, 'UTF-8'); ?></a></div>
+            </div>
+            <div class="clearboth"></div>
+
+            <?php } else { ?>
             <div class="group-title"><u><?php echo $_page_lang['account.company_info']; ?></u></div>
 
             <div class="row">
@@ -960,6 +1008,7 @@
 
             <div>&nbsp;</div>
             <?php } ?>
+            <?php } // end else (migration SP, not education institution) ?>
 
             <div class="group-title"><u><?php echo $_page_lang['account.contact_info']; ?></u></div>
 
@@ -1032,6 +1081,90 @@
         </div>
     </div>
     <?php } ?>
+
+    <?php
+    // Education institution counters & profile link
+    $_institution_profile = !empty($_page_data['institution_profile']) ? $_page_data['institution_profile'] : null;
+    if (!empty($_institution_profile)) {
+    ?>
+    <div class="edu-institution-panel">
+        <div class="edu-panel-header">
+            <span class="edu-panel-title">Education Institution</span>
+            <?php if(empty($_page_data['is_readonly'])) { ?>
+            <a href="<?php echo $_page_base_url.'/institution_hub_profile'; ?>" class="edu-panel-link">Manage Profile</a>
+            <?php } ?>
+        </div>
+        <div class="edu-counters-row">
+            <div class="edu-counter-card">
+                <div class="edu-counter-num"><?php echo (int)($_institution_profile['students_matched'] ?? 0); ?></div>
+                <div class="edu-counter-label">Students Matched</div>
+            </div>
+            <div class="edu-counter-card">
+                <div class="edu-counter-num"><?php echo (int)($_institution_profile['students_applied'] ?? 0); ?></div>
+                <div class="edu-counter-label">Students Applied</div>
+            </div>
+            <div class="edu-counter-card">
+                <div class="edu-counter-num"><?php echo (int)($_institution_profile['students_accepted'] ?? 0); ?></div>
+                <div class="edu-counter-label">Students Accepted</div>
+            </div>
+        </div>
+    </div>
+    <style>
+    .edu-institution-panel {
+        background: #f7f9fc;
+        border: 1.5px solid #dde3ed;
+        border-radius: 10px;
+        padding: 22px 24px;
+        margin: 20px 0 10px 0;
+    }
+    .edu-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    .edu-panel-title {
+        font-weight: 700;
+        font-size: 0.95em;
+        color: #1a1a2e;
+    }
+    .edu-panel-link {
+        font-size: 0.85em;
+        color: #1a73e8;
+        text-decoration: none;
+        border: 1.5px solid #1a73e8;
+        padding: 5px 12px;
+        border-radius: 6px;
+        transition: background 0.2s;
+    }
+    .edu-panel-link:hover { background: #f0f6ff; }
+    .edu-counters-row {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+    .edu-counter-card {
+        flex: 1;
+        min-width: 120px;
+        background: #fff;
+        border: 1.5px solid #e4e8f0;
+        border-radius: 8px;
+        padding: 16px 12px;
+        text-align: center;
+    }
+    .edu-counter-num {
+        font-size: 1.8em;
+        font-weight: 800;
+        color: #1a73e8;
+    }
+    .edu-counter-label {
+        font-size: 0.78em;
+        color: #666;
+        margin-top: 4px;
+    }
+    </style>
+    <?php } ?>
+
 </div>
 <?php if(empty($_page_data['is_readonly'])) { ?>
 <div id="hide-extra-form" style="display:none;">

@@ -458,7 +458,7 @@
         gtag('config', 'AW-16657487633');
         </script>
     </head>
-    <body>
+    <body class="page-<?php echo $_mapping_data['class']; ?>">
         <?php
             $autoLang = !empty($_page_get_data['autolang']) ? $_page_get_data['autolang'] : session('autolang', '');
             $logoHomeUrl = url('/en');

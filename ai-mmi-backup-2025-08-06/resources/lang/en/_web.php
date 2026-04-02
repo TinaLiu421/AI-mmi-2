@@ -7,7 +7,7 @@ return
     'if_applicable'             =>  'if applicable',
     'sign_in'                   =>  'Sign In',
     'sign_out'                  =>  'Sign Out',
-    'service_provider'          =>  'Service Provider',
+    'service_provider'          =>  'Institution Hub',
     'about_us'                  =>  'About Us',
     'visa_options'              =>  'Visa Options',
     'faqs'                      =>  'FAQS',
@@ -214,7 +214,7 @@ return
         'youtube_url'           =>  'Enter your youtube url here'
     ],
     'list_agents'               =>  'List of Migration Agents',
-    'list_service_providers'    =>  'List of Service Providers',
+    'list_service_providers'    =>  'List of Institution Hubs',
     'inquiry'                   =>  'Content',
     'thanks_inquiry'            =>  'Thank you, we will respond you soon.',
     'all_options'               =>  'All',
@@ -260,11 +260,11 @@ return
 
     'service_provider_info'     =>
     [
-        'title'                 =>  'Service Provider',
-        'headline'              =>  'Join the AI-mmi Global Network of Service Providers',
+        'title'                 =>  'Institution Hub',
+        'headline'              =>  'Join the AI-mmi Global Network of Institutions',
         'subheadline'           =>  'Connect directly with migrants, students, and global movers — all in one smart platform',
-        'intro_1'               =>  'AI-mmi is one of the world\'s first AI-driven migration and education platforms, connecting millions of global movers — from aspiring students to skilled professionals and families — with trusted service providers like you.',
-        'intro_2'               =>  'Whether you\'re a university, college, migration agent, lawyer, English tutor, relocation company, housing provider, or employer, AI-mmi helps you reach qualified clients actively planning their move — in Australia, Canada, the U.S., Europe, and beyond.',
+        'intro_1'               =>  'AI-mmi is one of the world\'s first AI-driven migration and education platforms, connecting millions of global movers — from aspiring students to skilled professionals and families — with trusted institutions like you.',
+        'intro_2'               =>  'Whether you\'re a university, college, migration agency, law firm, English tutor, or relocation company, AI-mmi helps you reach qualified clients actively planning their move — in Australia, Canada, the U.S., Europe, and beyond.',
         'intro_3'               =>  'And the best part?',
         'free_join'             =>  'It\'s completely free to join.',
         'verified_only'         =>  'Only verified service providers can post and offer their services on AI-mmi — giving you quality visibility and direct engagement with real users who need what you offer.',

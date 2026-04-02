@@ -7,7 +7,7 @@ return
     'if_applicable'             =>  '(如适用)',
     'sign_in'                   =>  '登入',
     'sign_out'                  =>  '登出',
-    'service_provider'          =>  '服务提供者',
+    'service_provider'          =>  '机构中心',
     'about_us'                  =>  '关於我们',
     'visa_options'              =>  '签证选择',
     'faqs'                      =>  '常见问题',
@@ -214,7 +214,7 @@ return
         'youtube_url'           =>  '在此输入您的 YouTube 网址'
     ],
     'list_agents'               =>  '移民代理名单',
-    'list_service_providers'    =>  '服务提供者名单',
+    'list_service_providers'    =>  '机构中心名单',
     'inquiry'                   =>  '内容',
     'thanks_inquiry'            =>  '谢谢, 我们将尽快回复您。',
     'all_options'               =>  '所有',
@@ -260,8 +260,8 @@ return
 
     'service_provider_info'     =>
     [
-        'title'                 =>  '服务提供者',
-        'headline'              =>  '加入AI-mmi全球服务提供者网络',
+        'title'                 =>  '机构中心',
+        'headline'              =>  '加入AI-mmi全球机构网络',
         'subheadline'           =>  '在一个智能平台上直接连接移民者、学生和全球流动者',
         'intro_1'               =>  'AI-mmi是全球首批人工智能驱动的移民和教育平台之一，连接数百万全球流动者——从有抱负的学生到熟练专业人士和家庭——与像您这样值得信赖的服务提供者。',
         'intro_2'               =>  '无论您是大学、学院、移民代理、律师、英语导师、搬迁公司、住房提供者还是雇主，AI-mmi都能帮助您接触到正在积极规划移居澳大利亚、加拿大、美国、欧洲及其他地区的合格客户。',

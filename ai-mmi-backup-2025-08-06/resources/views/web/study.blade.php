@@ -20,10 +20,20 @@
     <div class="study-header">
         <h1>Study Abroad Guidance</h1>
         <p>Choose a topic to get personalized assistance with your study abroad journey</p>
-        <p class="study-chat-notice">Answers will appear in the AI-mmi chatbox.</p>
+<!--  -->        <p class="study-chat-notice">Answers will appear in the AI-mmi chatbox.</p>
     </div>
 
     <div class="study-options">
+        <div class="study-option-card" style="border:2px solid #012169;">
+            <div class="study-option-title" style="color:#012169;">College Match</div>
+            <div class="study-option-question">
+                See your personalised institution matches and manage your study preferences across your top 3 choices.
+            </div>
+            <a href="<?php echo $appendAutoLang($_page_base_url.'/study_college_match'); ?>" class="study-option-button" style="background:#012169;">
+                College Match
+            </a>
+        </div>
+
         <div class="study-option-card">
             <div class="study-option-title">Can I go?</div>
             <div class="study-option-question">

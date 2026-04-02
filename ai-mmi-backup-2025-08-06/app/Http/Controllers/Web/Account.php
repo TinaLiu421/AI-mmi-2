@@ -48,13 +48,25 @@ class Account extends WebController {
 
         $isSelf = isset($this->_current_member['id']) 
                 && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];
-        
+
+        // Load institution profile for education institutions
+        $institution_profile = null;
+        if ((int)$this->_show_current_member['type'] === 3) {
+            $det = DB::table('member_details')->where('member_id', $this->_show_current_member['id'])->first();
+            if ($det && (int)$det->institution_type === 2) {
+                $institution_profile = DB::table('institution_profiles')
+                    ->where('member_id', $this->_show_current_member['id'])
+                    ->first();
+            }
+        }
+
         return $this->pageData([
             'is_readonly' => !$isSelf,
             'show_current_member'       =>  $this->_show_current_member,
             'current_member_details'    =>  $this->_member_model->getDetailsByID($this->_show_current_member['id']),
             'current_member_agent'      =>  $this->_member_model->getAgentByID($this->_show_current_member['id']),
-            'current_member_lawfirm'    =>  $this->_member_model->getLawFirmByID($this->_show_current_member['id'])
+            'current_member_lawfirm'    =>  $this->_member_model->getLawFirmByID($this->_show_current_member['id']),
+            'institution_profile'       =>  $institution_profile ? (array)$institution_profile : null,
         ])->pageView();
     }
     
@@ -139,6 +151,12 @@ class Account extends WebController {
     public function profile() {
         // post event
         $this->pageAction(function() {
+            // Detect education institution for type=3 members
+            $_is_edu_institution = false;
+            if ((int)$this->_current_member['type'] === 3) {
+                $det = DB::table('member_details')->where('member_id', $this->_current_member['id'])->first();
+                $_is_edu_institution = $det && (int)$det->institution_type === 2;
+            }
             // do checking
             if((int)$this->_current_member['type'] == 1) {
                 $validator = Validator::make($this->_page_post_data, ((!empty($this->_page_post_data['password']))?
@@ -185,31 +203,56 @@ class Account extends WebController {
                 ]));
             }
             else if((int)$this->_current_member['type'] == 3) {
-                $validator = Validator::make($this->_page_post_data, ((!empty($this->_page_post_data['password']))?
-                [
-                    'company_type'      =>  'required',
-                    'company_name'      =>  'required',
-                    'company_website'   =>  'required',
-                    'company_address'   =>  'required',
-                    'first_name'        =>  'required',
-                    'last_name'         =>  'required',
-                    'email'             =>  'required|email',
-                    'telephone_code'    =>  'required',
-                    'telephone_num'     =>  'required',
-                    'password'          =>  'regex:/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}$/',
-                    'repeat_password'   =>  'same:repeat_password'
-                ]:
-                [
-                    'company_type'      =>  'required',
-                    'company_name'      =>  'required',
-                    'company_website'   =>  'required',
-                    'company_address'   =>  'required',
-                    'first_name'        =>  'required',
-                    'last_name'         =>  'required',
-                    'email'             =>  'required|email',
-                    'telephone_code'    =>  'required',
-                    'telephone_num'     =>  'required',
-                ]));
+                if($_is_edu_institution) {
+                    // Education institution: no company_type or company_address required
+                    $validator = Validator::make($this->_page_post_data, ((!empty($this->_page_post_data['password']))?
+                    [
+                        'company_name'      =>  'required',
+                        'company_website'   =>  'required',
+                        'first_name'        =>  'required',
+                        'last_name'         =>  'required',
+                        'email'             =>  'required|email',
+                        'telephone_code'    =>  'required',
+                        'telephone_num'     =>  'required',
+                        'password'          =>  'regex:/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}$/',
+                        'repeat_password'   =>  'same:repeat_password'
+                    ]:
+                    [
+                        'company_name'      =>  'required',
+                        'company_website'   =>  'required',
+                        'first_name'        =>  'required',
+                        'last_name'         =>  'required',
+                        'email'             =>  'required|email',
+                        'telephone_code'    =>  'required',
+                        'telephone_num'     =>  'required',
+                    ]));
+                } else {
+                    $validator = Validator::make($this->_page_post_data, ((!empty($this->_page_post_data['password']))?
+                    [
+                        'company_type'      =>  'required',
+                        'company_name'      =>  'required',
+                        'company_website'   =>  'required',
+                        'company_address'   =>  'required',
+                        'first_name'        =>  'required',
+                        'last_name'         =>  'required',
+                        'email'             =>  'required|email',
+                        'telephone_code'    =>  'required',
+                        'telephone_num'     =>  'required',
+                        'password'          =>  'regex:/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}$/',
+                        'repeat_password'   =>  'same:repeat_password'
+                    ]:
+                    [
+                        'company_type'      =>  'required',
+                        'company_name'      =>  'required',
+                        'company_website'   =>  'required',
+                        'company_address'   =>  'required',
+                        'first_name'        =>  'required',
+                        'last_name'         =>  'required',
+                        'email'             =>  'required|email',
+                        'telephone_code'    =>  'required',
+                        'telephone_num'     =>  'required',
+                    ]));
+                }
             }
             
             // save data into session
@@ -282,7 +325,7 @@ class Account extends WebController {
                     [
                         'company_name'      =>  $this->_page_post_data['company_name'],
                         'company_website'   =>  $this->_page_post_data['company_website'],
-                        'company_address'   =>  $this->_page_post_data['company_address'],
+                        'company_address'   =>  $this->_page_post_data['company_address'] ?? '',
                         'registered_agent'  =>  0,
                         'registered_lawfirm'=>  0,
                     ];
@@ -424,16 +467,72 @@ class Account extends WebController {
         $isSelf = isset($this->_current_member['id']) 
             && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];
 
+        // Load institution profile for education institutions (type=3, institution_type=2)
+        $institution_profile = null;
+        if ((int)$this->_show_current_member['type'] === 3) {
+            $det = DB::table('member_details')->where('member_id', $this->_show_current_member['id'])->first();
+            if ($det && (int)$det->institution_type === 2) {
+                $institution_profile = DB::table('institution_profiles')
+                    ->where('member_id', $this->_show_current_member['id'])
+                    ->first();
+            }
+        }
+
         return $this->pageData([
             'is_readonly' => !$isSelf,
             'show_current_member'       => $this->_show_current_member,
             'current_member_details'    => $this->_member_model->getDetailsByID($this->_show_current_member['id']),
             'current_member_agent'      => $this->_member_model->getAgentByID($this->_show_current_member['id']),
             'current_member_lawfirm'    => $this->_member_model->getLawFirmByID($this->_show_current_member['id']),
-            'current_member_business_license' => $this->_member_model->getBusinessLicenseByID($this->_show_current_member['id'])
+            'current_member_business_license' => $this->_member_model->getBusinessLicenseByID($this->_show_current_member['id']),
+            'institution_profile'       => $institution_profile ? (array)$institution_profile : null,
         ])->pageView();
     }
-    
+
+    // ── Education institution student list pages ─────────────────────────────
+
+    private function _eduStudentListPage(string $listType) {
+        if (!in_array($this->_show_current_member['type'], [2, 3])) {
+            $this->doRedirect($this->toURL([$this->_mapping_data['class'], 'profile']));
+        }
+        $institution_profile = null;
+        $det = DB::table('member_details')->where('member_id', $this->_show_current_member['id'])->first();
+        if (!$det || (int)$det->institution_type !== 2) {
+            $this->doRedirect($this->toURL([$this->_mapping_data['class'], 'posts']));
+        }
+        $institution_profile = DB::table('institution_profiles')
+            ->where('member_id', $this->_show_current_member['id'])
+            ->first();
+
+        $isSelf = isset($this->_current_member['id'])
+            && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];
+
+        return $this->pageData([
+            'is_readonly'           => !$isSelf,
+            'list_type'             => $listType,
+            'show_current_member'   => $this->_show_current_member,
+            'current_member_details'=> $this->_member_model->getDetailsByID($this->_show_current_member['id']),
+            'current_member_agent'  => $this->_member_model->getAgentByID($this->_show_current_member['id']),
+            'current_member_lawfirm'=> $this->_member_model->getLawFirmByID($this->_show_current_member['id']),
+            'institution_profile'   => $institution_profile ? (array)$institution_profile : null,
+            'students'              => [], // placeholder — to be populated when student-side feature is built
+        ])->pageView('account_students');
+    }
+
+    public function students_matched() {
+        return $this->_eduStudentListPage('matched');
+    }
+
+    public function students_applied() {
+        return $this->_eduStudentListPage('applied');
+    }
+
+    public function students_accepted() {
+        return $this->_eduStudentListPage('accepted');
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+
     public function myavatar() {
         // post event
         $this->pageAction(function() {

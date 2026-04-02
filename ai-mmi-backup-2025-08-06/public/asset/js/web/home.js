@@ -1,3 +1,21 @@
+document.addEventListener('DOMContentLoaded', function() {
+    var header = document.querySelector('header.page-header');
+    var banner = document.querySelector('.banner.banner-video-wrap');
+    if (!header || !banner) return;
+    function updateHeaderState() {
+        var bannerBottom = banner.getBoundingClientRect().bottom;
+        var threshold = parseInt(getComputedStyle(document.documentElement)
+            .getPropertyValue('--header-height')) || 80;
+        if (bannerBottom <= threshold) {
+            header.classList.add('header-scrolled');
+        } else {
+            header.classList.remove('header-scrolled');
+        }
+    }
+    window.addEventListener('scroll', updateHeaderState, { passive: true });
+    updateHeaderState();
+});
+
 function iweb_self_func() {
     if($('#hslider-news').length > 0) {
         $('#hslider-news').slick({

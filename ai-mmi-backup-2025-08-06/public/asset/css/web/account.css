@@ -117,6 +117,8 @@ div.page-content.account div.tab {
     padding: 20px 35px;
     margin-top: 40px;
     border-top: 1px solid #ececec;
+    white-space: nowrap;
+    overflow-x: auto;
 }
 
 div.page-content.account div.tab > a {
@@ -750,3 +752,6 @@ div.page-content.account
     display: block;
     text-align: center;
 }
+
+/* Education Institution tab buttons (Matched / Applied / Accepted) */
+

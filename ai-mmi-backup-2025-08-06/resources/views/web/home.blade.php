@@ -12,7 +12,7 @@
         <div class="banner-logo-row">
             <img src="/asset/image/logo.png" alt="AI-mmi" class="banner-logo"/>
         </div>
-        <h1 class="banner-title">Your AI-Powered Migration &amp; Study Guide</h1>
+        <h1 class="banner-title">Your AI-Powered Study &amp; Migration Guide</h1>
         <p class="banner-sub">Get instant guidance in your language on visas, study, scholarships, and more — with access to qualified experts when you need them.</p>
         <div class="banner-cta-row">
             <a class="banner-cta-btn primary do-toapply" data-sector="migration" data-action-url="<?php echo $_page_base_url.'/agent_chat'; ?>" href="javascript:void(0);">Talk to AI-mmi</a>
@@ -22,6 +22,83 @@
         </div>
     </div>
     <div class="country"></div>
+</div>
+
+<!-- Service Frames -->
+<div class="home-service-frames">
+    <a class="home-service-frame" href="<?php echo $_page_base_url.'/study'; ?>">
+        <div class="home-service-frame-thumb">
+            <img src="/asset/image/service-study.jpg" alt="Study Applications"/>
+        </div>
+        <div class="home-service-frame-text">
+            <span class="home-service-frame-title">Study Applications</span>
+            <span class="home-service-frame-divider"></span>
+            <span class="home-service-frame-tagline">Don't search for universities &mdash; Let them find you</span>
+        </div>
+        <span class="home-service-frame-arrow">&#8594;</span>
+    </a>
+    <a class="home-service-frame" href="<?php echo $_page_base_url.'/migration'; ?>">
+        <div class="home-service-frame-thumb">
+            <img src="/asset/image/service-migration.jpg" alt="Migration Applications"/>
+        </div>
+        <div class="home-service-frame-text">
+            <span class="home-service-frame-title">Migration Applications</span>
+            <span class="home-service-frame-divider"></span>
+            <span class="home-service-frame-tagline">Expert migration support, without the high fees</span>
+        </div>
+        <span class="home-service-frame-arrow">&#8594;</span>
+    </a>
+    <a class="home-service-frame" href="<?php echo $_page_base_url.'/service_provider_info'; ?>">
+        <div class="home-service-frame-thumb">
+            <img src="/asset/image/service-institution.jpg" alt="Institution Hub"/>
+        </div>
+        <div class="home-service-frame-text">
+            <span class="home-service-frame-title">Institution Hub</span>
+            <span class="home-service-frame-divider"></span>
+            <span class="home-service-frame-tagline">Connect with global qualified applicants, faster!</span>
+        </div>
+        <span class="home-service-frame-arrow">&#8594;</span>
+    </a>
+</div>
+
+<!-- Why Choose AI-mmi Section -->
+<div class="home-why-section">
+    <div class="home-why-inner">
+        <div class="home-why-header">
+            <h2 class="home-why-title">Why Choose <span>AI-mmi?</span></h2>
+            <p class="home-why-subtitle">Unlike generic AI tools or traditional agents, we deliver personalized action plans, accurate answers on policies, verified pathways, and direct connections — all in one platform.</p>
+        </div>
+        <div class="home-why-cards">
+            <div class="home-why-card">
+                <div class="home-why-card-icon home-why-card-icon--logo">
+                    <img src="/asset/image/logo-mmi.png" alt="AI-mmi" class="home-why-card-logo-img"/>
+                </div>
+                <h3 class="home-why-card-title">AI + Agent Model</h3>
+                <p class="home-why-card-desc">AI automation supported by human experts when you need them most.</p>
+            </div>
+            <div class="home-why-card">
+                <div class="home-why-card-icon">
+                    <i class="fa fa-list-alt"></i>
+                </div>
+                <h3 class="home-why-card-title">Personalized Action Plans</h3>
+                <p class="home-why-card-desc">Step-by-step plans tailored to your profile, goals, and timelines.</p>
+            </div>
+            <div class="home-why-card">
+                <div class="home-why-card-icon">
+                    <i class="fa fa-magic"></i>
+                </div>
+                <h3 class="home-why-card-title">Smart Matching</h3>
+                <p class="home-why-card-desc">Match with suitable colleges or visa pathways using intelligent matching.</p>
+            </div>
+            <div class="home-why-card">
+                <div class="home-why-card-icon">
+                    <i class="fa fa-paper-plane"></i>
+                </div>
+                <h3 class="home-why-card-title">Opportunities Come to You</h3>
+                <p class="home-why-card-desc">Matched universities and colleges can reach out to you directly.</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="inner-panel">

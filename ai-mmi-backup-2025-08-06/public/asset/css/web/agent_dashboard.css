@@ -1,0 +1,61 @@
+.agent-dashboard-page { max-width: 1100px; margin: 30px auto; padding: 0 24px 40px; }
+.agent-dashboard-header { margin-bottom: 24px; }
+.agent-dashboard-title { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 6px; }
+.agent-dashboard-subtitle { color: #6b7280; font-size: 15px; margin: 0; }
+.agent-dashboard-empty { text-align: center; padding: 60px 20px; color: #9ca3af; font-size: 16px; background: #f9fafb; border-radius: 14px; border: 1px dashed #d1d5db; }
+
+.agent-dashboard-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid #e5e7eb; }
+.agent-dashboard-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.agent-dashboard-table thead { background: #f3f4f6; }
+.agent-dashboard-table th { text-align: left; padding: 12px 16px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+.agent-dashboard-table td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+.agent-dashboard-table tbody tr:last-child td { border-bottom: 0; }
+.agent-dashboard-table tbody tr:hover { background: #f9fafb; }
+.agent-dashboard-table tbody tr.row-attended { background: #f0fdf4; }
+.agent-dashboard-table tbody tr.row-attended:hover { background: #dcfce7; }
+
+.cell-name { font-weight: 600; color: #111827; }
+.cell-email { color: #6b7280; }
+.cell-date { color: #6b7280; white-space: nowrap; }
+.cell-attended-at { color: #6b7280; white-space: nowrap; }
+.cell-pending { color: #d1d5db; }
+
+/* Plan badges */
+.plan-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.badge-vip     { background: #fef3c7; color: #92400e; }
+.badge-premium { background: #e0e7ff; color: #3730a3; }
+.badge-hybrid  { background: #d1fae5; color: #065f46; }
+.badge-allai   { background: #dbeafe; color: #1e40af; }
+.badge-free    { background: #f3f4f6; color: #6b7280; }
+
+/* Attendance toggle */
+.attendance-toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.attendance-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0f766e; cursor: pointer; }
+.attendance-toggle-label { font-size: 13px; color: #374151; min-width: 24px; }
+.attendance-toggle input:checked ~ .attendance-toggle-label { color: #166534; font-weight: 600; }
+.attendance-toggle.saving { opacity: 0.6; pointer-events: none; }
+
+/* Toast notification */
+.agent-dashboard-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #111827;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    max-width: 320px;
+}
+.agent-dashboard-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+.agent-dashboard-toast.toast-success { background: #15803d; }
+.agent-dashboard-toast.toast-error   { background: #b91c1c; }
