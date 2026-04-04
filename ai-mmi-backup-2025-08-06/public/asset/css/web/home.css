@@ -218,13 +218,34 @@ div.page-content.home div.banner.banner-video-wrap .banner-cta-btn.secondary:hov
     transform: translateY(-2px);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
     div.page-content.home div.banner.banner-video-wrap {
         min-height: calc(200px + var(--header-height, 80px));
         padding-top: var(--header-height, 80px);
+        /* remove desktop chat-panel reservation — chat panel is hidden on mobile */
+        padding-right: 0;
+        /* bleed out of inner-panel horizontal padding (50px left, 40px right) */
+        margin-left: -50px;
+        margin-right: -40px;
+        /* remove inner-panel top padding gap */
+        margin-top: -25px;
+        width: calc(100% + 90px);
     }
     div.page-content.home div.banner.banner-video-wrap .banner-content {
-        padding: 22px 16px 20px;
+        padding: 22px 20px 24px;
+        max-width: 100%;
+    }
+    div.page-content.home div.banner.banner-video-wrap .banner-cta-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    div.page-content.home div.banner.banner-video-wrap .banner-cta-btn {
+        width: 78%;
+        max-width: 280px;
+        text-align: center;
+        padding: 11px 20px;
+        box-sizing: border-box;
     }
 }
 
@@ -331,10 +352,21 @@ div.page-content.home .home-service-frame:hover .home-service-frame-arrow {
 }
 
 @media (max-width: 700px) {
+    /* Force service-frames to span the full viewport width regardless of parent constraints */
     div.page-content.home .home-service-frames {
         flex-direction: column;
-        padding: 20px 18px;
         gap: 20px;
+        max-width: 100% !important;
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 20px 20px;
+        box-sizing: border-box;
+    }
+    body.page-home main.page-body .home-service-frames,
+    body.page-home main.page-body .inner-panel {
+        max-width: 100% !important;
     }
     div.page-content.home .home-service-frame {
         border-right: none;
@@ -346,7 +378,7 @@ div.page-content.home .home-service-frame:hover .home-service-frame-arrow {
         padding-bottom: 0;
     }
     div.page-content.home .home-service-frame-thumb {
-        height: 160px;
+        height: 140px;
     }
 }
 
@@ -487,7 +519,8 @@ div.page-content.home .home-why-card-desc {
 
 @media (max-width: 700px) {
     div.page-content.home .home-why-section {
-        padding: 44px 20px 52px;
+        padding: 36px 20px 44px;
+        max-width: 100%;
     }
     div.page-content.home .home-why-cards {
         grid-template-columns: 1fr;
