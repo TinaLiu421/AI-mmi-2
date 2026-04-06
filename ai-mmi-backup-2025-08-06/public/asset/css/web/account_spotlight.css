@@ -1,0 +1,334 @@
+/* ================================================================
+   account_spotlight.css  —  Spotlight subscription page styles
+   ================================================================ */
+
+/* ── Page wrapper ──────────────────────────────────────────────── */
+div.page-content.account div.spotlight-page {
+    padding: 28px 36px 48px;
+}
+
+/* ── Back button ───────────────────────────────────────────────── */
+.spotlight-back-btn {
+    display: inline-block;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #888;
+    text-decoration: none;
+    transition: color .15s;
+}
+.spotlight-back-btn:hover {
+    color: #333;
+    text-decoration: none;
+}
+
+/* ── Flash banners ─────────────────────────────────────────────── */
+.spotlight-flash {
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    font-weight: 500;
+}
+.spotlight-flash--success {
+    background: #e8f5e9;
+    border: 1px solid #66bb6a;
+    color: #2e7d32;
+}
+.spotlight-flash--cancel {
+    background: #fff8e1;
+    border: 1px solid #ffa726;
+    color: #e65100;
+}
+.spotlight-flash--info {
+    background: #e3f2fd;
+    border: 1px solid #64b5f6;
+    color: #1565c0;
+}
+
+/* ── Section blocks ────────────────────────────────────────────── */
+.spotlight-section {
+    margin-bottom: 40px;
+}
+.spotlight-section-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 0 0 8px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #f0c040;
+    display: inline-block;
+}
+.spotlight-section-desc {
+    font-size: 13px;
+    color: #555;
+    margin: 0 0 18px;
+}
+.spotlight-empty {
+    font-size: 13px;
+    color: #888;
+    font-style: italic;
+    margin: 0;
+}
+.spotlight-empty a {
+    color: #c9a227;
+}
+
+/* ── No-posts CTA ─────────────────────────────────────────────── */
+.spotlight-no-posts-cta {
+    text-align: center;
+    padding: 36px 24px;
+    background: #fffdf4;
+    border: 1px dashed #e2c96a;
+    border-radius: 10px;
+}
+.spotlight-no-posts-icon {
+    font-size: 38px;
+    margin-bottom: 10px;
+}
+.spotlight-no-posts-cta h4 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px;
+}
+.spotlight-no-posts-cta p {
+    font-size: 13px;
+    color: #777;
+    margin: 0 0 18px;
+}
+
+/* ── Queue cards ───────────────────────────────────────────────── */
+.spotlight-queue-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+.spotlight-queue-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px 20px;
+    width: 260px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.spotlight-queue-card--active {
+    border-color: #f0c040;
+    box-shadow: 0 2px 8px rgba(240,192,64,0.25);
+}
+.spotlight-queue-card--queued {
+    border-color: #90caf9;
+}
+.spotlight-queue-card--pending_payment {
+    opacity: 0.75;
+}
+.spotlight-queue-card__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a2e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.spotlight-queue-card__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.sq-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+}
+.sq-badge--active  { background: #fff8e1; color: #c9a227; }
+.sq-badge--queued  { background: #e3f2fd; color: #1565c0; }
+.sq-badge--pending { background: #f3e5f5; color: #7b1fa2; }
+.sq-expires {
+    font-size: 11px;
+    color: #888;
+}
+.spotlight-queue-card__link {
+    font-size: 12px;
+    color: #c9a227;
+    text-decoration: none;
+    align-self: flex-start;
+}
+.spotlight-queue-card__link:hover { text-decoration: underline; }
+.spotlight-queue-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+.sq-action-btn {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    background: transparent;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.sq-action-btn--pay {
+    color: #1565c0;
+    border-color: #64b5f6;
+}
+.sq-action-btn--pay:hover { background: #e3f2fd; }
+.sq-action-btn--cancel {
+    color: #c62828;
+    border-color: #ef9a9a;
+}
+.sq-action-btn--cancel:hover { background: #ffebee; }
+
+/* ── Slot status ───────────────────────────────────────────────── */
+.spotlight-section--slots .spotlight-slots {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.spotlight-slot {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.spotlight-slot--taken { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+.spotlight-slot--free  { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+.spotlight-slot-label {
+    font-size: 13px;
+    color: #555;
+    margin: 0;
+}
+
+/* ── Basket / post picker ──────────────────────────────────────── */
+.spotlight-section--basket form {
+    max-width: 640px;
+}
+.spotlight-post-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.spotlight-post-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.spotlight-post-item:hover {
+    border-color: #c9a227;
+    background: #fffdf5;
+}
+.spotlight-post-item--selected {
+    border-color: #f0c040;
+    background: #fffde7;
+}
+.spotlight-post-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #c9a227;
+    flex-shrink: 0;
+}
+.spotlight-post-item__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+.spotlight-post-item__title {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a1a2e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.spotlight-post-item__type {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+}
+
+/* ── Schedule preview ──────────────────────────────────────────── */
+.spotlight-preview {
+    background: #fafafa;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+}
+.spotlight-preview h4 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    color: #1a1a2e;
+}
+.spotlight-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.spotlight-preview-table th,
+.spotlight-preview-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #eee;
+    text-align: left;
+}
+.spotlight-preview-table th {
+    font-weight: 600;
+    color: #555;
+    background: #f5f5f5;
+}
+
+/* ── Total & CTA ───────────────────────────────────────────────── */
+.spotlight-total {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 16px;
+}
+.spotlight-submit-wrap {
+    margin-top: 4px;
+}
+.spotlight-pay-btn {
+    display: inline-block;
+    background: #1a1a2e;
+    color: #f0c040;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+.spotlight-pay-btn:hover:not(:disabled) {
+    background: #2a2a4e;
+    transform: translateY(-1px);
+}
+.spotlight-pay-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media(max-width: 600px) {
+    div.page-content.account div.spotlight-page { padding: 18px 14px 40px; }
+    .spotlight-queue-list { flex-direction: column; }
+    .spotlight-queue-card { width: 100%; }
+    .spotlight-section--slots .spotlight-slots { flex-direction: column; }
+}

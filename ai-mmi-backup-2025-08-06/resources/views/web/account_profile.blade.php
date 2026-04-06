@@ -48,6 +48,9 @@
             <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_applied'.$_uid_qs; ?>">Students Applied</a>
             <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_accepted'.$_uid_qs; ?>">Students Accepted</a>
             <?php endif; ?>
+            <?php if(empty($_page_data['is_readonly']) && in_array((int)$_show_current_member['type'], [2, 3])): ?>
+            <a class="spotlight" href="<?php echo $_page_base_url.'/account/spotlight'; ?>">⭐ Spotlight</a>
+            <?php endif; ?>
         </div>
     </div>
     

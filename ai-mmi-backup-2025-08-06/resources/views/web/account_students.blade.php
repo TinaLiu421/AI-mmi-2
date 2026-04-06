@@ -46,6 +46,9 @@ $_page_title = $_tab_labels[$_list_type] ?? 'Students';
             <a class="edu-tab <?php echo $_list_type === 'matched' ? 'selected' : ''; ?>" href="<?php echo $_page_base_url.'/account/students_matched'.$_uid_qs; ?>">Students Matched</a>
             <a class="edu-tab <?php echo $_list_type === 'applied' ? 'selected' : ''; ?>" href="<?php echo $_page_base_url.'/account/students_applied'.$_uid_qs; ?>">Students Applied</a>
             <a class="edu-tab <?php echo $_list_type === 'accepted' ? 'selected' : ''; ?>" href="<?php echo $_page_base_url.'/account/students_accepted'.$_uid_qs; ?>">Students Accepted</a>
+            <?php if(empty($_page_data['is_readonly']) && in_array((int)$_show_current_member['type'], [2, 3])): ?>
+            <a class="spotlight" href="<?php echo $_page_base_url.'/account/spotlight'; ?>">⭐ Spotlight</a>
+            <?php endif; ?>
         </div>
     </div>
 

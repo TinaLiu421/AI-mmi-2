@@ -245,6 +245,42 @@ class StripeWebhookController extends Controller
                 Log::warning('skip subscriptions create', ['memberId'=>$memberId,'priceId'=>$priceId,'session_id'=>$sessId]);
             }
 
+            // ── Spotlight subscription handler ──────────────────────────────
+            if ($priceId === \App\Models\Spotlight_Queue::PRICE_ID && $memberId && $sessId) {
+                try {
+                    $post_ids_csv = $session->metadata->post_ids ?? '';
+                    $post_ids = array_filter(
+                        array_map('intval', explode(',', $post_ids_csv)),
+                        fn($id) => $id > 0
+                    );
+
+                    // Use webhook event time as authoritative paid_at for queue priority
+                    $paid_at = now()->toDateTimeString();
+
+                    /** @var \App\Models\Spotlight_Queue $sq */
+                    $sq = new \App\Models\Spotlight_Queue([]);
+                    $sq->onPaymentReceived(
+                        (int)$memberId,
+                        array_values($post_ids),
+                        $sessId,
+                        $paid_at
+                    );
+
+                    Log::info('spotlight:payment_processed', [
+                        'member_id'  => $memberId,
+                        'session_id' => $sessId,
+                        'post_ids'   => $post_ids,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::error('spotlight:payment_failed', [
+                        'member_id'  => $memberId,
+                        'session_id' => $sessId,
+                        'error'      => $e->getMessage(),
+                    ]);
+                }
+            }
+            // ── end spotlight ───────────────────────────────────────────────
+
         } catch (\Throwable $e) {
             Log::error('onCheckoutCompleted error: '.$e->getMessage(), ['trace'=>$e->getTraceAsString()]);
         }

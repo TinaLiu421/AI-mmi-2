@@ -128,12 +128,93 @@ class Home extends WebController {
         $currentEmail = mb_strtolower(trim((string)($this->_current_member['email'] ?? '')), 'UTF-8');
         $showAgentHomeLayout = in_array($currentEmail, $agentLayoutAllowedEmails, true);
 
+        // featured posts (max 3, active featured_until > now)
+        $featured_posts_raw = $this->loadModel('posts')->getFeatured(3);
+        $featured_posts = [];
+        if (!empty($featured_posts_raw)) {
+            foreach ($featured_posts_raw as $fp) {
+                if (empty($fp['title'])) {
+                    $fp['title'] = mb_substr($this->toPlainText($fp['content']), 0, 40);
+                }
+                $fp['excerpt'] = mb_substr($this->toPlainText($fp['content']), 0, 100);
+                if (mb_strlen($this->toPlainText($fp['content']), 'UTF-8') > 100) {
+                    $fp['excerpt'] .= '…';
+                }
+                $fp['url'] = $this->toURL('posts/details/' . $fp['id']);
+                if (!empty($fp['photo'])) {
+                    $fp['thumbnail'] = $this->generateImage([
+                        'absolute_path' => 'upload/member_posts/' . $fp['photo'],
+                        'file_path'     => 'upload/member_posts/' . $fp['photo'],
+                    ], 600, 380, true);
+                } elseif (!empty($fp['youtube_url'])) {
+                    // extract YouTube video ID and use its thumbnail
+                    $yt_short = '/youtu\.be\/([a-zA-Z0-9_-]+)\??/i';
+                    $yt_long  = '/youtube\.com\/((?:embed)|(?:watch)|(?:shorts))((?:\?v\=)|(?:\/))([a-zA-Z0-9_-]+)/i';
+                    $yt_id = '';
+                    if (preg_match($yt_long, $fp['youtube_url'], $m)) {
+                        $yt_id = $m[count($m) - 1];
+                    } elseif (preg_match($yt_short, $fp['youtube_url'], $m)) {
+                        $yt_id = $m[count($m) - 1];
+                    }
+                    $fp['thumbnail'] = !empty($yt_id)
+                        ? 'https://img.youtube.com/vi/' . $yt_id . '/hqdefault.jpg'
+                        : $this->generateImage(null, 600, 380, true);
+                } else {
+                    $fp['thumbnail'] = $this->generateImage(null, 600, 380, true);
+                }
+                $fp['youtube_url'] = $this->getYoutubeEmbedUrl($fp['youtube_url']);
+                $featured_posts[] = $fp;
+            }
+        }
+
+        // determine if current member already has a featured post (for upgrade CTA logic)
+        $member_has_featured = false;
+        if (!empty($this->_current_member['id'])) {
+            foreach ($featured_posts as $fp) {
+                if ((int)$fp['member_id'] === (int)$this->_current_member['id']) {
+                    $member_has_featured = true;
+                    break;
+                }
+            }
+        }
+
+        // Remove spotlighted posts from the regular news/events sliders so they
+        // only appear in the dedicated Featured section above.
+        $featured_post_ids = array_map('intval', array_column($featured_posts, 'id'));
+        if (!empty($featured_post_ids)) {
+            if (is_array($list_news)) {
+                $list_news = array_values(array_filter($list_news, function ($n) use ($featured_post_ids) {
+                    return !in_array((int)$n['id'], $featured_post_ids, true);
+                }));
+                if (empty($list_news)) { $list_news = false; }
+            }
+            if (is_array($list_events)) {
+                $list_events = array_values(array_filter($list_events, function ($e) use ($featured_post_ids) {
+                    return !in_array((int)$e['id'], $featured_post_ids, true);
+                }));
+                if (empty($list_events)) { $list_events = false; }
+            }
+        }
+
+        $is_spotlight_manager = !empty($this->_current_member['spotlight_manager']);
+        $spotlight_queue_overview = [];
+        if ($is_spotlight_manager) {
+            $sq = $this->loadModel('spotlight_queue');
+            $sq->expireActive();
+            $sq->activateNext();
+            $spotlight_queue_overview = $sq->getAdminOverview();
+        }
+
         return $this->pageData(
         [
-            'details'       =>  $home_page_data,
-            'list_news'     =>  $list_news,
-            'list_events'   =>  $list_events,
+            'details'               =>  $home_page_data,
+            'list_news'             =>  $list_news,
+            'list_events'           =>  $list_events,
             'show_agent_home_layout' => $showAgentHomeLayout,
+            'featured_posts'        =>  $featured_posts,
+            'member_has_featured'   =>  $member_has_featured,
+            'is_spotlight_manager'  =>  $is_spotlight_manager,
+            'spotlight_queue_overview' => $spotlight_queue_overview,
         ])->pageView();
     }
 
@@ -141,6 +222,48 @@ class Home extends WebController {
         require_once app_path('Libraries/phpqrcode/qrlib.php');
         \QRcode::png(urldecode($this->getParamValue('url')), false, QR_ECLEVEL_L, 16, 2);
         exit();
+    }
+
+    public function spotlightToggle()
+    {
+        // must be logged in and have spotlight_manager=1
+        if (empty($this->_current_member) || empty($this->_current_member['spotlight_manager'])) {
+            return response()->json(['status' => 403, 'message' => 'Not authorised.'], 403);
+        }
+
+        $posts_id = (int)request()->input('posts_id', 0);
+        if ($posts_id <= 0) {
+            return response()->json(['status' => 400, 'message' => 'Invalid post.'], 400);
+        }
+
+        $end_date  = request()->input('end_date', null);
+        $posts_model = $this->loadModel('posts');
+        $result = $posts_model->doFeature($posts_id, $end_date);
+
+        return response()->json([
+            'status'  => $result ? 200 : 500,
+            'message' => $result ? 'ok' : $posts_model->getResultMessage(),
+        ]);
+    }
+
+    public function spotlightAdminCancel()
+    {
+        if (empty($this->_current_member) || empty($this->_current_member['spotlight_manager'])) {
+            return response()->json(['status' => 403, 'message' => 'Not authorised.'], 403);
+        }
+
+        $sq_id = (int)request()->input('sq_id', 0);
+        if ($sq_id < 1) {
+            return response()->json(['status' => 400, 'message' => 'Invalid entry.'], 400);
+        }
+
+        $sq = $this->loadModel('spotlight_queue');
+        $ok = $sq->adminCancel($sq_id);
+
+        return response()->json([
+            'status'  => $ok ? 200 : 404,
+            'message' => $ok ? 'Cancelled.' : 'Entry not found.',
+        ]);
     }
 
     public function chat($init = 0)

@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\Posts as WebPosts;
 use App\Http\Controllers\Web\Agent_Chat as AgentChatController;
 use App\Http\Controllers\Web\Account_Login as AccountLoginController;
 use App\Http\Controllers\Web\Upgrade as UpgradeController;
+use App\Http\Controllers\Web\Account as AccountController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
@@ -45,6 +46,15 @@ Route::get('/local/wealthskey-agent-login', [AccountLoginController::class, 'loc
 
 // Upgrade / subscription management
 Route::post('/upgrade/cancel-renewal', [UpgradeController::class, 'cancelRenewal']);
+
+// Spotlight manager (agent with spotlight_manager=1 can toggle featured posts)
+Route::post('/spotlight/toggle',        [HomeController::class, 'spotlightToggle'])->name('spotlight.toggle');
+Route::post('/spotlight/admin_cancel',  [HomeController::class, 'spotlightAdminCancel'])->name('spotlight.admin_cancel');
+
+// Spotlight subscription checkout (POST form with Laravel _token CSRF)
+Route::post('/account/spotlight_checkout', [AccountController::class, 'spotlight_checkout'])->name('spotlight.checkout');
+Route::post('/account/spotlight_cancel',   [AccountController::class, 'spotlight_cancel'])->name('spotlight.cancel');
+Route::post('/account/spotlight_retry',    [AccountController::class, 'spotlight_retry'])->name('spotlight.retry');
 
 /*
 |--------------------------------------------------------------------------

@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Support\CountriesPhoneCodes;
 use App\Support\DestinationsServing;
+use Stripe\Stripe;
+use Stripe\Checkout\Session as StripeCheckoutSession;
 
 class Account extends WebController {
     
@@ -612,5 +614,274 @@ class Account extends WebController {
             ]);
         });
     }
-    
+
+    // ── Spotlight subscription ────────────────────────────────────────────
+
+    public function spotlight()
+    {
+        if (!in_array((int)$this->_show_current_member['type'], [2, 3])) {
+            $this->doRedirect($this->toURL([$this->_mapping_data['class'], 'posts']));
+        }
+
+        $sq = $this->loadModel('spotlight_queue');
+
+        // Lazy-expire finished slots and activate next queued ones
+        $sq->expireActive();
+        $sq->activateNext();
+
+        $member_id = (int)$this->_show_current_member['id'];
+        $isSelf    = isset($this->_current_member['id'])
+                  && (int)$this->_current_member['id'] === $member_id;
+
+        // My published posts (all, unfiltered — we show status in the UI)
+        $my_posts_result = $this->loadModel('posts')->getAll([
+            'member_id'      => $member_id,
+            'show_page_size' => 50,
+        ]);
+        $my_posts = $my_posts_result['data'] ?? [];
+
+        // Extract text titles
+        foreach ($my_posts as &$p) {
+            if (empty($p['title'])) {
+                $p['title'] = mb_substr($this->toPlainText($p['content']), 0, 60);
+            }
+        }
+        unset($p);
+
+        // My queue entries (active + queued + pending)
+        $my_queue = $sq->getQueuedForMember($member_id);
+
+        // IDs already in active/queued/pending (so we don't offer them in basket)
+        $occupied_post_ids = array_column($my_queue, 'posts_id');
+
+        // Posts available for purchase (not already in spotlight)
+        $available_posts = array_values(array_filter($my_posts, function ($p) use ($occupied_post_ids) {
+            return !in_array((int)$p['id'], array_map('intval', $occupied_post_ids));
+        }));
+
+        // How many slots are globally free right now
+        $active_count  = $sq->getActiveCount();
+        $free_slots    = max(0, \App\Models\Spotlight_Queue::SLOT_LIMIT - $active_count);
+
+        // Schedule preview for up to 3 new purchases
+        $schedule_preview = $sq->getSchedulePreview(min(3, max(1, count($available_posts))));
+
+        // Flash messages from redirect
+        $payment_status = request()->query('payment', '');
+
+        $institution_profile = null;
+        if ((int)$this->_show_current_member['type'] === 3) {
+            $det = DB::table('member_details')->where('member_id', $member_id)->first();
+            if ($det && (int)$det->institution_type === 2) {
+                $institution_profile = DB::table('institution_profiles')
+                    ->where('member_id', $member_id)
+                    ->first();
+            }
+        }
+
+        return $this->pageData([
+            'is_readonly'           => !$isSelf,
+            'show_current_member'   => $this->_show_current_member,
+            'current_member_details'=> $this->_member_model->getDetailsByID($member_id),
+            'current_member_agent'  => $this->_member_model->getAgentByID($member_id),
+            'current_member_lawfirm'=> $this->_member_model->getLawFirmByID($member_id),
+            'institution_profile'   => $institution_profile ? (array)$institution_profile : null,
+            'my_queue'              => $my_queue,
+            'available_posts'       => $available_posts,
+            'total_my_posts'        => count($my_posts),
+            'active_count'          => $active_count,
+            'free_slots'            => $free_slots,
+            'schedule_preview'      => $schedule_preview,
+            'slot_price_cents'      => 10000,  // $100 in cents
+            'payment_status'        => $payment_status,
+        ])->pageView('account_spotlight', false, false);
+    }
+
+    public function spotlight_cancel()
+    {
+        $member = $this->_current_member;
+        if (empty($member)) {
+            return redirect()->to($this->toURL('account_login'));
+        }
+
+        $sq_id = (int)request()->input('sq_id', 0);
+        if ($sq_id < 1) {
+            return redirect()->to($this->toURL('account/spotlight'));
+        }
+
+        $sq = $this->loadModel('spotlight_queue');
+        $sq->cancelPending((int)$member['id'], $sq_id);
+
+        return redirect()->to($this->toURL('account/spotlight'))
+            ->with('info', 'Spotlight entry cancelled. The post is now available to select again.');
+    }
+
+    public function spotlight_retry()
+    {
+        $member = $this->_current_member;
+        if (empty($member)) {
+            return redirect()->to($this->toURL('account_login'));
+        }
+
+        if (!in_array((int)$member['type'], [2, 3])) {
+            return redirect()->to($this->toURL('account/spotlight'));
+        }
+
+        $sq_id = (int)request()->input('sq_id', 0);
+        if ($sq_id < 1) {
+            return redirect()->to($this->toURL('account/spotlight'));
+        }
+
+        $sq    = $this->loadModel('spotlight_queue');
+        $entry = $sq->getPendingEntry((int)$member['id'], $sq_id);
+
+        if (!$entry) {
+            return redirect()->to($this->toURL('account/spotlight'))
+                ->with('error', 'Entry not found or already paid.');
+        }
+
+        // Cancel the old pending row first
+        $sq->cancelPending((int)$member['id'], $sq_id);
+
+        $post_id = (int)$entry['posts_id'];
+
+        // Verify the post still belongs to the member and is published
+        $post = DB::table('member_posts')
+            ->where('id', $post_id)
+            ->where('member_id', $member['id'])
+            ->where('status', '>', 0)
+            ->first();
+
+        if (!$post) {
+            return redirect()->to($this->toURL('account/spotlight'))
+                ->with('error', 'Post not found or unpublished.');
+        }
+
+        Stripe::setApiKey(config('services.stripe.secret'));
+
+        try {
+            $success_url = $this->toURL('account/spotlight') . '?payment=success';
+            $cancel_url  = $this->toURL('account/spotlight') . '?payment=cancel';
+
+            $session = StripeCheckoutSession::create([
+                'mode'       => 'payment',
+                'line_items' => [[
+                    'price'    => \App\Models\Spotlight_Queue::PRICE_ID,
+                    'quantity' => 1,
+                ]],
+                'success_url'         => $success_url,
+                'cancel_url'          => $cancel_url,
+                'client_reference_id' => (string)$member['id'],
+                'customer_email'      => (string)$member['email'],
+                'metadata'            => [
+                    'member_id' => (string)$member['id'],
+                    'post_ids'  => (string)$post_id,
+                    'source'    => 'spotlight',
+                ],
+            ]);
+
+            $sq->createPending((int)$member['id'], $post_id, $session->id);
+
+            return redirect()->away($session->url);
+
+        } catch (\Throwable $e) {
+            Log::error('spotlight_retry failed', [
+                'member_id' => $member['id'],
+                'sq_id'     => $sq_id,
+                'post_id'   => $post_id,
+                'error'     => $e->getMessage(),
+            ]);
+            return redirect()->to($this->toURL('account/spotlight'))
+                ->with('error', 'Unable to start payment right now. Please try again.');
+        }
+    }
+
+    public function spotlight_checkout()
+    {
+        $member = $this->_current_member;
+        if (empty($member)) {
+            return redirect()->to($this->toURL('account_login'));
+        }
+
+        if (!in_array((int)$member['type'], [2, 3])) {
+            return redirect()->to($this->toURL('account/spotlight'));
+        }
+
+        // Validate post_ids (comma-separated or array)
+        $raw_ids = request()->input('post_ids', '');
+        if (is_array($raw_ids)) {
+            $post_ids = array_map('intval', $raw_ids);
+        } else {
+            $post_ids = array_map('intval', array_filter(explode(',', (string)$raw_ids)));
+        }
+
+        // Deduplicate and constrain to max 3
+        $post_ids = array_values(array_unique($post_ids));
+        $post_ids = array_slice($post_ids, 0, 3);
+
+        if (empty($post_ids)) {
+            return redirect()->to($this->toURL('account/spotlight'))->with('error', 'No posts selected.');
+        }
+
+        $sq = $this->loadModel('spotlight_queue');
+
+        // Validate: each post must belong to the member and not already spotlighted
+        $valid_ids = [];
+        foreach ($post_ids as $pid) {
+            $post = DB::table('member_posts')
+                ->where('id', $pid)
+                ->where('member_id', $member['id'])
+                ->where('status', '>', 0)
+                ->first();
+            if (!$post) continue;
+            if ($sq->isAlreadySpotlighted($pid)) continue;
+            $valid_ids[] = $pid;
+        }
+
+        if (empty($valid_ids)) {
+            return redirect()->to($this->toURL('account/spotlight'))->with('error', 'Selected posts are not eligible for spotlight.');
+        }
+
+        $qty = count($valid_ids);
+
+        Stripe::setApiKey(config('services.stripe.secret'));
+
+        try {
+            $success_url = $this->toURL('account/spotlight') . '?payment=success';
+            $cancel_url  = $this->toURL('account/spotlight') . '?payment=cancel';
+
+            $session = StripeCheckoutSession::create([
+                'mode'       => 'payment',
+                'line_items' => [[
+                    'price'    => \App\Models\Spotlight_Queue::PRICE_ID,
+                    'quantity' => $qty,
+                ]],
+                'success_url'          => $success_url,
+                'cancel_url'           => $cancel_url,
+                'client_reference_id'  => (string)$member['id'],
+                'customer_email'       => (string)$member['email'],
+                'metadata'             => [
+                    'member_id' => (string)$member['id'],
+                    'post_ids'  => implode(',', $valid_ids),
+                    'source'    => 'spotlight',
+                ],
+            ]);
+
+            // Create pending_payment records (one per post)
+            foreach ($valid_ids as $pid) {
+                $sq->createPending((int)$member['id'], $pid, $session->id);
+            }
+
+            return redirect()->away($session->url);
+
+        } catch (\Throwable $e) {
+            Log::error('spotlight_checkout failed', [
+                'member_id' => $member['id'],
+                'post_ids'  => $valid_ids,
+                'error'     => $e->getMessage(),
+            ]);
+            return redirect()->to($this->toURL('account/spotlight'))->with('error', 'Unable to start payment right now. Please try again.');
+        }
+    }
+
 }
