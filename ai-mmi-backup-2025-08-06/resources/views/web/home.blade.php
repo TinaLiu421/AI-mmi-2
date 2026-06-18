@@ -12,8 +12,9 @@
         <div class="banner-logo-row">
             <img src="/asset/image/logo.png" alt="AI-mmi" class="banner-logo"/>
         </div>
-        <h1 class="banner-title">Your AI-Powered Study &amp; Migration Guide</h1>
-        <p class="banner-sub">Get instant guidance in your language on visas, study, scholarships, and more — with access to qualified experts when you need them.</p>
+        <p class="banner-eyebrow">The Smartest Way to</p>
+        <h1 class="banner-title">Study, Work and Migrate Overseas</h1>
+        <p class="banner-sub">Find the best-fit opportunities based on your goals, budget and profile.<br>Get instant AI guidance and expert support every step of the way.</p>
         <div class="banner-cta-row">
             <a class="banner-cta-btn primary do-toapply" data-sector="migration" data-action-url="<?php echo $_page_base_url.'/agent_chat'; ?>" href="javascript:void(0);">Talk to AI-mmi</a>
             <?php if(empty($_current_member) || (int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false): ?>
@@ -26,7 +27,7 @@
 
 <!-- Service Frames -->
 <div class="home-service-frames">
-    <a class="home-service-frame" href="<?php echo $_page_base_url.'/study'; ?>">
+    <a class="home-service-frame" href="<?php echo $_page_base_url.'/study_plans'; ?>">
         <div class="home-service-frame-thumb">
             <img src="/asset/image/service-study.jpg" alt="Study Applications"/>
         </div>
@@ -53,7 +54,7 @@
             <img src="/asset/image/service-institution.jpg" alt="Institution Hub"/>
         </div>
         <div class="home-service-frame-text">
-            <span class="home-service-frame-title">Institution Hub</span>
+            <span class="home-service-frame-title">College Hub</span>
             <span class="home-service-frame-divider"></span>
             <span class="home-service-frame-tagline">Connect with global qualified applicants, faster!</span>
         </div>
@@ -67,68 +68,103 @@ $_member_has_featured = $_page_data['member_has_featured'] ?? false;
 $_is_spotlight_manager = !empty($_page_data['is_spotlight_manager']);
 $_spotlight_queue_overview = $_page_data['spotlight_queue_overview'] ?? [];
 $_member_type      = (int)($_current_member['type'] ?? 0);
-// Show upgrade CTA to logged-in agents/institutions who haven't featured a post yet
-$_show_upgrade_cta = !empty($_current_member) && in_array($_member_type, [2, 3]) && !$_member_has_featured && !$_is_spotlight_manager;
+// Show upgrade CTA to logged-in agents/institutions (always visible so they can easily access Spotlight)
+$_show_upgrade_cta = !empty($_current_member) && in_array($_member_type, [2, 3]) && !$_is_spotlight_manager;
 ?>
 
 <?php if (!empty($_featured_posts)): ?>
-<!-- Featured Posts Section -->
-<div class="home-featured-section">
-    <div class="home-featured-inner">
-        <div class="home-featured-header">
+<!-- Featured Posts Carousel -->
+<div class="home-spotlight-section">
+    <div class="home-spotlight-carousel" id="home-spotlight-carousel">
+        <div class="home-spotlight-header">
             <div class="home-featured-badge"><i class="fa fa-star"></i> Featured</div>
-            <h2 class="home-featured-title">Spotlight from Our Agents</h2>
-            <p class="home-featured-subtitle">Expert insights and updates from verified education &amp; migration professionals.</p>
         </div>
-        <div class="home-featured-cards">
-            <?php foreach ($_featured_posts as $_fp): ?>
-            <?php if ($_is_spotlight_manager): ?>
-            <div class="home-featured-card home-featured-card--manage">
-            <?php else: ?>
-            <a class="home-featured-card" href="<?php echo htmlspecialchars($_fp['url'], ENT_QUOTES, 'UTF-8'); ?>">
-            <?php endif; ?>
-                <div class="home-featured-card-thumb">
-                    <?php if (!empty($_fp['thumbnail'])): ?>
-                    <img src="<?php echo htmlspecialchars($_fp['thumbnail'], ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($_fp['title'], ENT_QUOTES, 'UTF-8'); ?>"/>
-                    <?php else: ?>
-                    <div class="home-featured-card-thumb-placeholder"></div>
-                    <?php endif; ?>
-                    <span class="home-featured-card-badge"><i class="fa fa-star"></i> Featured</span>
-                    <?php if ($_is_spotlight_manager): ?>
-                    <button class="spotlight-remove-btn" data-posts-id="<?php echo (int)$_fp['id']; ?>" title="Remove from Spotlight"><i class="fa fa-times"></i> Remove</button>
-                    <?php endif; ?>
-                </div>
-                <div class="home-featured-card-body">
-                    <?php if ($_is_spotlight_manager): ?>
-                    <a href="<?php echo htmlspecialchars($_fp['url'], ENT_QUOTES, 'UTF-8'); ?>" class="home-featured-card-title-link">
-                    <h3 class="home-featured-card-title"><?php echo htmlspecialchars($_fp['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
-                    </a>
-                    <?php else: ?>
-                    <h3 class="home-featured-card-title"><?php echo htmlspecialchars($_fp['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
-                    <?php endif; ?>
-                    <p class="home-featured-card-excerpt"><?php echo htmlspecialchars($_fp['excerpt'], ENT_QUOTES, 'UTF-8'); ?></p>
-                    <div class="home-featured-card-meta">
-                        <span class="home-featured-card-author"><i class="fa fa-user-circle"></i> <?php echo htmlspecialchars($_fp['alias_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
-                        <span class="home-featured-card-date"><?php echo date('d M Y', strtotime($_fp['created_at'])); ?></span>
+        <div class="home-spotlight-track" id="home-spotlight-track">
+            <?php foreach ($_featured_posts as $_fpi => $_fp): ?>
+            <div class="home-spotlight-slide<?php echo $_fpi === 0 ? ' active' : ''; ?>" data-index="<?php echo (int)$_fpi; ?>">
+                <div class="home-spotlight-slide-inner">
+                    <div class="home-spotlight-slide-img">
+                        <?php if (!empty($_fp['thumbnail'])): ?>
+                        <img src="<?php echo htmlspecialchars($_fp['thumbnail'], ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($_fp['title'], ENT_QUOTES, 'UTF-8'); ?>"/>
+                        <?php else: ?>
+                        <div class="home-spotlight-img-placeholder"></div>
+                        <?php endif; ?>
+                        <span class="home-spotlight-slide-badge"><i class="fa fa-star"></i> Featured</span>
+                        <?php if ($_is_spotlight_manager): ?>
+                        <button class="spotlight-remove-btn" data-posts-id="<?php echo (int)$_fp['id']; ?>" title="Remove from Spotlight"><i class="fa fa-times"></i> Remove</button>
+                        <?php endif; ?>
+                    </div>
+                    <div class="home-spotlight-slide-content">
+                        <div class="home-spotlight-slide-author-row">
+                            <div class="home-spotlight-slide-avatar">
+                                <img src="asset/image/icon-member.png" alt=""/>
+                                <?php if (!empty($_fp['avatar'])): ?>
+                                <?php if (file_exists(public_path('upload/member_avatar/'.$_fp['avatar']))): ?>
+                                <div style="background-image:url('<?php echo 'upload/member_avatar/'.$_fp['avatar']; ?>')"></div>
+                                <?php elseif (file_exists(public_path('upload/member_logo/'.$_fp['avatar']))): ?>
+                                <div style="background-image:url('<?php echo 'upload/member_logo/'.$_fp['avatar']; ?>')"></div>
+                                <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
+                            <div class="home-spotlight-slide-author-info">
+                                <span class="home-spotlight-slide-author-name"><?php echo htmlspecialchars($_fp['alias_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
+                                <span class="home-spotlight-slide-date-text"><?php echo date('d M Y', strtotime($_fp['created_at'])); ?></span>
+                            </div>
+                        </div>
+                        <a href="<?php echo htmlspecialchars($_fp['url'], ENT_QUOTES, 'UTF-8'); ?>" class="home-spotlight-title-link">
+                        <h2 class="home-spotlight-slide-title"><?php echo htmlspecialchars($_fp['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
+                        </a>
+                        <p class="home-spotlight-slide-excerpt"><?php echo htmlspecialchars(mb_substr($_fp['excerpt'], 0, 350), ENT_QUOTES, 'UTF-8'); ?></p>
+                        <div class="home-spotlight-slide-cta">
+                            <?php $spSector = $_fp['sector'] ?? 'migration'; ?>
+                            <?php if ($spSector === 'migration'): ?>
+                            <a class="home-spotlight-cta-btn home-spotlight-cta-btn--ai do-toapply" data-id="<?php echo (int)($_fp['id'] ?? 0); ?>" data-post-title="<?php echo htmlspecialchars($_fp['title'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" data-post-summary="<?php echo htmlspecialchars($_fp['excerpt'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" data-sector="migration" data-action-url="<?php echo $_page_base_url.'/agent_chat'; ?>" href="javascript:void(0);"><i class="fa fa-robot"></i>&nbsp;Talk to AI-mmi</a>
+                            <?php else: ?>
+                            <a class="home-spotlight-cta-btn home-spotlight-cta-btn--ai do-toapply" data-sector="<?php echo htmlspecialchars($spSector, ENT_QUOTES, 'UTF-8'); ?>" data-action-url="<?php echo $_page_base_url.'/apply'; ?>" href="javascript:void(0);"><i class="fa fa-paper-plane"></i>&nbsp;Apply Now</a>
+                            <?php endif; ?>
+                            <a class="home-spotlight-cta-btn home-spotlight-cta-btn--read" href="<?php echo htmlspecialchars($_fp['url'], ENT_QUOTES, 'UTF-8'); ?>">View Full Post &rarr;</a>
+                        </div>
                     </div>
                 </div>
-            <?php if ($_is_spotlight_manager): ?>
             </div>
-            <?php else: ?>
-            </a>
+            <?php endforeach; ?>
+            <?php if (count($_featured_posts) > 1): ?>
+            <button class="home-spotlight-prev" id="home-spotlight-prev" aria-label="Previous"><i class="fa fa-chevron-left"></i></button>
+            <button class="home-spotlight-next" id="home-spotlight-next" aria-label="Next"><i class="fa fa-chevron-right"></i></button>
             <?php endif; ?>
+        </div>
+        <?php if (count($_featured_posts) > 1): ?>
+        <div class="home-spotlight-dots" id="home-spotlight-dots">
+            <?php foreach ($_featured_posts as $_fpi => $_fp): ?>
+            <button class="home-spotlight-dot<?php echo $_fpi === 0 ? ' active' : ''; ?>" data-index="<?php echo (int)$_fpi; ?>"></button>
             <?php endforeach; ?>
         </div>
-
-        <?php if ($_show_upgrade_cta): ?>
+        <?php endif; ?>
+    </div>
+    <?php if ($_show_upgrade_cta): ?>
+    <div class="home-spotlight-upgrade-wrap">
         <div class="home-featured-upgrade-cta">
             <div class="home-featured-upgrade-cta-text">
                 <i class="fa fa-bolt"></i>
-                <span>Want your post featured here? <strong>$100 / week per post</strong> — up to 3 spotlight slots available. Join the waitlist if full.</span>
+                <span>Feature your post for just <strong>US$100 a week</strong></span>
             </div>
-            <a class="home-featured-upgrade-btn" href="<?php echo $_page_base_url; ?>/account/spotlight">Spotlight My Post &rarr;</a>
+            <a class="home-featured-upgrade-btn" href="<?php echo $_page_base_url; ?>/account/spotlight">Feature &rarr;</a>
         </div>
-        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<?php if (empty($_featured_posts) && $_show_upgrade_cta): ?>
+<div class="home-spotlight-section" style="padding: 24px 52px;">
+    <div class="home-spotlight-upgrade-wrap">
+        <div class="home-featured-upgrade-cta">
+            <div class="home-featured-upgrade-cta-text">
+                <i class="fa fa-bolt"></i>
+                <span>Be the first to feature your post &mdash; just <strong>US$100 a week</strong></span>
+            </div>
+            <a class="home-featured-upgrade-btn" href="<?php echo $_page_base_url; ?>/account/spotlight">Feature Now &rarr;</a>
+        </div>
     </div>
 </div>
 <?php endif; ?>
@@ -242,7 +278,7 @@ $_show_upgrade_cta = !empty($_current_member) && in_array($_member_type, [2, 3])
     </div>
     @endif
 
-    <?php if(!empty($_page_data['list_news'])) { ?>
+    <?php if(!empty($_page_data['list_news']) && $_is_spotlight_manager) { ?>
     <div class="news-event">
         <div id="hslider-news" class="hslider">
             <?php foreach ($_page_data['list_news'] as $news_key => $news) { ?>
@@ -267,7 +303,7 @@ $_show_upgrade_cta = !empty($_current_member) && in_array($_member_type, [2, 3])
     </div>
     <?php } ?>
     
-    <?php if(!empty($_page_data['list_events'])) { ?>
+    <?php if(!empty($_page_data['list_events']) && $_is_spotlight_manager) { ?>
     <div class="news-event">
         <div id="hslider-events" class="hslider">
             <?php foreach ($_page_data['list_events'] as $events_key => $events) { ?>
@@ -291,8 +327,29 @@ $_show_upgrade_cta = !empty($_current_member) && in_array($_member_type, [2, 3])
         </div>
     </div>
     <?php } ?>
-    
-    <div class="article-list" data-mid="0"></div>
+
+    <!-- Posts: Study (left) + Migration (right) side by side -->
+    <div class="home-posts-columns">
+
+        <!-- Study Column -->
+        <div class="home-posts-section">
+            <div class="home-posts-section-header">
+                <span class="home-posts-section-icon">🎓</span>
+                <h2 class="home-posts-section-title">Study</h2>
+            </div>
+            <div class="article-list" data-mid="0" data-sector="study" data-page="1"></div>
+        </div>
+
+        <!-- Migration Column -->
+        <div class="home-posts-section">
+            <div class="home-posts-section-header">
+                <span class="home-posts-section-icon">✈️</span>
+                <h2 class="home-posts-section-title">Migration</h2>
+            </div>
+            <div class="article-list" data-mid="0" data-sector="migration" data-page="1"></div>
+        </div>
+
+    </div>
 </div>
 
 <script>
