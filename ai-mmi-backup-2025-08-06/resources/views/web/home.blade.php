@@ -38,6 +38,17 @@
         </div>
         <span class="home-service-frame-arrow">&#8594;</span>
     </a>
+    <a class="home-service-frame" href="<?php echo $_page_base_url.'/job_applications'; ?>">
+        <div class="home-service-frame-thumb">
+            <img src="/asset/image/service-jobs.jpg" alt="Job Applications"/>
+        </div>
+        <div class="home-service-frame-text">
+            <span class="home-service-frame-title">Job Applications</span>
+            <span class="home-service-frame-divider"></span>
+            <span class="home-service-frame-tagline">Find remote or overseas jobs</span>
+        </div>
+        <span class="home-service-frame-arrow">&#8594;</span>
+    </a>
     <a class="home-service-frame" href="<?php echo $_page_base_url.'/migration'; ?>">
         <div class="home-service-frame-thumb">
             <img src="/asset/image/service-migration.jpg" alt="Migration Applications"/>
