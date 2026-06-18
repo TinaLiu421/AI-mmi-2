@@ -28,6 +28,13 @@
     <h1 class="title"><?php echo $_page_lang['create_your_account']; ?></h1>
     <div class="underline"></div>
     <div class="clearboth"></div>
+    <?php if (!empty($_current_member) && (int)($_current_member['type'] ?? 0) === 1): ?>
+    <div style="margin:16px 0;padding:14px 16px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;font-size:0.92rem;line-height:1.5;">
+        You are signed in as a personal account (<strong><?php echo htmlspecialchars($_current_member['email'] ?? '', ENT_QUOTES); ?></strong>).
+        To register as a service provider, use a <strong>different email</strong> or
+        <a href="<?php echo htmlspecialchars($_page_base_url.'/account/logout', ENT_QUOTES); ?>"><u>sign out</u></a> first.
+    </div>
+    <?php endif; ?>
 
     <div class="institution-type-selector">
         <p class="institution-type-label">Select Institution Type <span style="color:red;">*</span></p>
@@ -67,7 +74,7 @@
                         <?php } ?>
                     </div>
                     <div class="select">
-                        <input type="file" id="mylogo" name="mylogo" accept="image/*">
+                        <input type="file" id="mylogo" name="mylogo" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg">
                     </div>
                 </div>
             </div>

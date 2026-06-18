@@ -1,6 +1,18 @@
 @extends('web.common')
 @section('content')
 <link href="/asset/css/web/service_provider_info.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
+<?php
+$_sp_member_type = (int)($_current_member['type'] ?? 0);
+$_sp_is_logged_in = !empty($_current_member);
+$_sp_join_url = $_page_base_url.'/account_registration/service_provider';
+$_sp_join_label = $_page_lang['service_provider_info.join_button'];
+if ($_sp_is_logged_in && in_array($_sp_member_type, [2, 3], true)) {
+    $_sp_join_url = $_page_base_url.'/job_applications';
+    $_sp_join_label = 'Post a job — you\'re already registered';
+} elseif ($_sp_is_logged_in && $_sp_member_type === 1) {
+    $_sp_join_label = 'Register as a service provider (sign out of your personal account first)';
+}
+?>
 
 <div class="inner-panel">
     <h1 class="title"><?php echo $_page_lang['service_provider_info.title']; ?></h1>
@@ -66,7 +78,7 @@
             </ul>
         </div>
         <div class="shorcut">
-            <a href="<?php echo $_page_base_url.'/account_registration/service_provider'; ?>"><?php echo $_page_lang['service_provider_info.join_button']; ?></a>
+            <a href="<?php echo htmlspecialchars($_sp_join_url, ENT_QUOTES); ?>"><?php echo htmlspecialchars($_sp_join_label, ENT_QUOTES); ?></a>
         </div>
     </div>
 
@@ -158,7 +170,7 @@
     <div class="form">
         <p><?php echo $_page_lang['service_provider_info.cta_text']; ?></p>
         <div class="shorcut">
-            <a href="<?php echo $_page_base_url.'/account_registration/service_provider'; ?>"><?php echo $_page_lang['service_provider_info.join_button']; ?></a>
+            <a href="<?php echo htmlspecialchars($_sp_join_url, ENT_QUOTES); ?>"><?php echo htmlspecialchars($_sp_join_label, ENT_QUOTES); ?></a>
         </div>
     </div>
 </div>

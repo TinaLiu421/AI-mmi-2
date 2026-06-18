@@ -6,14 +6,39 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use App\Support\CountriesPhoneCodes;
 use App\Support\DestinationsServing;
+use App\Services\TokenService;
 
 class Account_Registration extends WebController {
     
     public function __construct($data) {
         parent::__construct($data);
-        if(!empty($this->_current_member)) {
-            $this->doRedirect($this->toURL('home'));
+        if (empty($this->_current_member)) {
+            return;
         }
+
+        $action = strtolower((string) ($this->_mapping_data['function'] ?? 'index'));
+        $passthrough = ['verification', 'resend_verification', 'paypal_feedback_account'];
+        if (in_array($action, $passthrough, true)) {
+            return;
+        }
+
+        $type = (int) ($this->_current_member['type'] ?? 0);
+
+        // Institution hubs & service providers → job board, not home
+        if (in_array($type, [2, 3], true)) {
+            $target = in_array($action, ['service_provider', 'migration_agent'], true)
+                ? 'job_applications'
+                : 'home';
+            $this->doRedirect($this->toURL($target));
+            return;
+        }
+
+        // Logged-in individuals may open the service-provider signup form (shown sign-out notice)
+        if ($action === 'service_provider') {
+            return;
+        }
+
+        $this->doRedirect($this->toURL('home'));
     }
     
     public function index() {
@@ -51,7 +76,7 @@ class Account_Registration extends WebController {
                     'last_name'         =>  'required',
                     'email'             =>  'required|email',
                     'password'          =>  'required|regex:/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}$/',
-                    'repeat_password'   =>  'required|same:repeat_password'
+                    'repeat_password'   =>  'required|same:password'
                 ]);
                 
                 // save data into session
@@ -90,6 +115,14 @@ class Account_Registration extends WebController {
                         }
 
                         if($result = $this->_member_model->doSave($new_member, 0, true)) {
+                            // Award signup tokens
+                            $tokenService = new TokenService();
+                            $tokenService->earn((int)$result, TokenService::AMOUNT_SIGNUP, TokenService::EARN_SIGNUP, 'member', (int)$result, 'Sign up bonus');
+                            $tokenService->generateReferralCode((int)$result);
+                            // Process referral if code was provided
+                            if (!empty($this->_page_post_data['ref'])) {
+                                $tokenService->processReferral((int)$result, trim($this->_page_post_data['ref']));
+                            }
                             // Paid plan path: auto-login and redirect to Stripe checkout
                             if(!empty($selectedPlan)) {
                                 $loginToken = $this->_member_model->doLogin($new_member['email'], $new_member['password']);
@@ -307,7 +340,7 @@ class Account_Registration extends WebController {
                         'telephone_code'    =>  'required',
                         'telephone_num'     =>  'required',
                         'password'          =>  'required|regex:/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}$/',
-                        'repeat_password'   =>  'required|same:repeat_password'
+                        'repeat_password'   =>  'required|same:password'
                     ]);
 
                     if(!$validator->fails()) {
@@ -330,10 +363,15 @@ class Account_Registration extends WebController {
                                 // move & resize
                                 if($file->move(public_path($location), $file_name)) {
                                     if(file_exists(public_path($location.'/'.$file_name))) {
-                                        \Intervention\Image\Facades\Image::make(public_path($location.'/'.$file_name))->resize(400, 400, function ($constraint) {
-                                            $constraint->aspectRatio();
-                                            $constraint->upsize();
-                                        })->save(public_path($location.'/'.$file_name));
+                                        $isSvg = strtolower($file_extension) === 'svg';
+                                        if (!$isSvg) {
+                                            try {
+                                                \Intervention\Image\Facades\Image::make(public_path($location.'/'.$file_name))->resize(400, 400, function ($constraint) {
+                                                    $constraint->aspectRatio();
+                                                    $constraint->upsize();
+                                                })->save(public_path($location.'/'.$file_name));
+                                            } catch (\Throwable $e) { /* keep original if resize fails */ }
+                                        }
                                     }
                                     $this->_page_post_data['logo'] = $file_name;
                                     $this->setSession(['temp_agent_account_logo' => $file_name]);
@@ -383,6 +421,10 @@ class Account_Registration extends WebController {
 
                                 // try to save into db
                                 if($new_member_id = $this->_member_model->doSave($new_member, 0, true)) {
+                                    // Award signup tokens
+                                    $tokenService = new TokenService();
+                                    $tokenService->earn((int)$new_member_id, TokenService::AMOUNT_SIGNUP, TokenService::EARN_SIGNUP, 'member', (int)$new_member_id, 'Sign up bonus');
+                                    $tokenService->generateReferralCode((int)$new_member_id);
                                     // reset
                                     $this->delSession('temp_agent_account');
                                     $this->delSession('temp_agent_account_logo');
@@ -488,6 +530,10 @@ class Account_Registration extends WebController {
 
                         // try to save into db
                         if($new_member_id = $this->_member_model->doSave($new_member, 0, true)) {
+                            // Award signup tokens
+                            $tokenService = new TokenService();
+                            $tokenService->earn((int)$new_member_id, TokenService::AMOUNT_SIGNUP, TokenService::EARN_SIGNUP, 'member', (int)$new_member_id, 'Sign up bonus');
+                            $tokenService->generateReferralCode((int)$new_member_id);
                             $item = 
                             [
                                 [
@@ -654,10 +700,15 @@ class Account_Registration extends WebController {
                                 // move & resize
                                 if($file->move(public_path($location), $file_name)) {
                                     if(file_exists(public_path($location.'/'.$file_name))) {
-                                        \Intervention\Image\Facades\Image::make(public_path($location.'/'.$file_name))->resize(400, 400, function ($constraint) {
-                                            $constraint->aspectRatio();
-                                            $constraint->upsize();
-                                        })->save(public_path($location.'/'.$file_name));
+                                        $isSvg = strtolower($file_extension) === 'svg';
+                                        if (!$isSvg) {
+                                            try {
+                                                \Intervention\Image\Facades\Image::make(public_path($location.'/'.$file_name))->resize(400, 400, function ($constraint) {
+                                                    $constraint->aspectRatio();
+                                                    $constraint->upsize();
+                                                })->save(public_path($location.'/'.$file_name));
+                                            } catch (\Throwable $e) { /* keep original if resize fails */ }
+                                        }
                                     }
                                     $this->_page_post_data['logo'] = $file_name;
                                     $this->setSession(['temp_service_provider_account_logo' => $file_name]);
@@ -741,12 +792,41 @@ class Account_Registration extends WebController {
 
                                 // Create institution profile row for education institutions
                                 if((int)(isset($this->_page_post_data['institution_type']) ? $this->_page_post_data['institution_type'] : 1) === 2) {
-                                    DB::table('institution_profiles')->insert([
-                                        'member_id'  => $new_member_id,
-                                        'status'     => 1,
-                                        'created_at' => now(),
-                                        'updated_at' => now()
-                                    ]);
+                                    // Check if claim_profile param is set (from "Claim this profile" button)
+                                    $claimProfileId = (int)($this->_page_post_data['claim_profile'] ?? request()->query('claim_profile', 0));
+                                    $claimedExisting = false;
+
+                                    if ($claimProfileId > 0) {
+                                        // Try to link the existing profile to this new member
+                                        $existingProfile = DB::table('institution_profiles')
+                                            ->where('id', $claimProfileId)
+                                            ->whereNull('claimed_at')
+                                            ->first();
+                                        if ($existingProfile) {
+                                            DB::table('institution_profiles')
+                                                ->where('id', $claimProfileId)
+                                                ->update([
+                                                    'member_id'  => $new_member_id,
+                                                    'claimed_at' => now(),
+                                                    'updated_at' => now(),
+                                                ]);
+                                            // Mark the grant as claimed if one exists
+                                            DB::table('edu_agent_grants')
+                                                ->where('member_id', $existingProfile->member_id)
+                                                ->where('status', 0)
+                                                ->update(['status' => 1, 'claimed_at' => now(), 'updated_at' => now()]);
+                                            $claimedExisting = true;
+                                        }
+                                    }
+
+                                    if (!$claimedExisting) {
+                                        DB::table('institution_profiles')->insert([
+                                            'member_id'  => $new_member_id,
+                                            'status'     => 1,
+                                            'created_at' => now(),
+                                            'updated_at' => now()
+                                        ]);
+                                    }
                                 }
 
                                 // email verification if need
@@ -835,6 +915,53 @@ class Account_Registration extends WebController {
         ])->pageView();
     }
     
+    public function resend_verification() {
+        $this->pageAction(function() {
+            $email = trim($this->postParamValue('email', ''));
+
+            if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->pageResult(['status' => 400, 'message' => 'Please enter a valid email address.']);
+                return;
+            }
+
+            // Look for an unverified member with this email
+            $member = $this->_member_model->getByEmail($email, 0);
+
+            if (empty($member)) {
+                // Check if already verified
+                $verified = $this->_member_model->getByEmail($email, 1);
+                if (!empty($verified)) {
+                    $this->pageResult(['status' => 400, 'message' => 'This email address is already verified. Please sign in.']);
+                } else {
+                    $this->pageResult(['status' => 400, 'message' => 'No account found with that email address.']);
+                }
+                return;
+            }
+
+            // Social-login accounts (method > 1) are auto-verified; no email needed
+            if ((int)$member['method'] > 1) {
+                $this->pageResult(['status' => 400, 'message' => 'This account uses social login and does not require email verification.']);
+                return;
+            }
+
+            $link = $this->toURL('account_registration/verification') . '?token=' . $member['verified_token'];
+            $subject = 'Email Verification – Resent';
+            $body  = '<p>Hello ' . htmlspecialchars($member['full_name'], ENT_QUOTES) . ',</p>';
+            $body .= '<p>You requested a new verification link for your AI-mmi account. Please click the link below to verify your email address:</p>';
+            $body .= '<p><a href="' . $link . '" target="_blank">' . $link . '</a></p>';
+            $body .= '<p>If you did not request this, you can safely ignore this email.</p>';
+            $body .= '<p>Kind Regards,<br>AI-mmi Team</p>';
+            $this->sendEmail($member['email'], $subject, $body);
+
+            $this->pageResult([
+                'status'  => 200,
+                'message' => 'Verification email sent. Please check your inbox (and spam folder).'
+            ]);
+        });
+
+        return $this->pageData([])->pageView();
+    }
+
     public function verification() {
         return $this->pageData(
         [
