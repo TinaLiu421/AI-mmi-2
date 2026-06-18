@@ -235,16 +235,40 @@ body.page-job_applications { background: #f3f2ef !important; }
 .jp-detail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #ebebeb; }
 .jp-detail-actions .jp-btn-primary, .jp-detail-actions .jp-btn-ghost { width: 100%; justify-content: center; text-align: center; }
 
-/* Modals */
+/* Modals — must beat main.page-body .info-area > div { position: relative } */
+main.page-body .info-area > .jp-modal-bg,
 .jp-modal-bg {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;
-    display: flex; align-items: center; justify-content: center; padding: 20px;
+    position: fixed !important; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    overflow-y: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box;
 }
 .jp-modal {
-    background: #fff; border-radius: 10px; padding: 24px; width: 100%; max-width: 460px;
-    max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    background: #fff; border-radius: 10px; padding: 0; width: 100%; max-width: 460px;
+    max-height: none; margin: auto 0; position: relative;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    display: flex; flex-direction: column; flex-shrink: 0;
 }
 .jp-modal-lg { max-width: 580px; }
+.jp-modal.jp-modal-post { max-height: min(92vh, 920px); }
+.jp-modal.jp-modal-simple {
+    padding: 24px; max-height: min(90vh, 640px); overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.jp-modal.jp-modal-post .jp-post-form {
+    display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+}
+.jp-modal-head {
+    padding: 24px 24px 0; flex-shrink: 0; position: relative;
+}
+.jp-modal-scroll {
+    padding: 8px 24px 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0;
+    -webkit-overflow-scrolling: touch;
+}
+.jp-modal-foot {
+    padding: 16px 24px 24px; flex-shrink: 0; border-top: 1px solid #ebebeb;
+    background: #fff; border-radius: 0 0 10px 10px;
+}
 .jp-modal h3 { margin: 0 0 4px; color: rgba(0,0,0,0.9); font-size: 1.15rem; }
 .jp-modal-job-title { font-weight: 700; color: #0a66c2; margin: 0 0 8px; font-size: 0.95rem; }
 .jp-modal-sub { font-size: 0.86rem; color: rgba(0,0,0,0.55); margin: 0 0 16px; line-height: 1.45; }
@@ -252,7 +276,7 @@ body.page-job_applications { background: #f3f2ef !important; }
 .jp-modal-label span { font-weight: 400; color: rgba(0,0,0,0.45); }
 .jp-modal-close {
     position: absolute; top: 12px; right: 14px; border: none; background: none;
-    font-size: 1.5rem; color: rgba(0,0,0,0.5); cursor: pointer; line-height: 1;
+    font-size: 1.5rem; color: rgba(0,0,0,0.5); cursor: pointer; line-height: 1; z-index: 2;
 }
 .jp-modal textarea, .jp-post-form input, .jp-post-form select, .jp-post-form textarea {
     width: 100%; box-sizing: border-box; padding: 10px 12px; margin-top: 4px;
@@ -282,7 +306,7 @@ body.page-job_applications { background: #f3f2ef !important; }
 .jp-form-row label { flex: 1; min-width: 140px; }
 .jp-check { font-weight: 500 !important; display: flex !important; align-items: center; gap: 8px; }
 .jp-check input { width: auto !important; margin: 0; }
-.jp-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.jp-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 0; }
 
 .jp-toast {
     position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);

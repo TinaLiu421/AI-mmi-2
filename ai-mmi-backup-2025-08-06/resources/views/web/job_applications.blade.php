@@ -300,7 +300,7 @@ function jp_logo_url($job) {
 </div>
 
 <div class="jp-modal-bg" id="jp-apply-modal" style="display:none;" role="dialog" aria-modal="true">
-    <div class="jp-modal">
+    <div class="jp-modal jp-modal-simple">
         <button type="button" class="jp-modal-close" data-close-modal aria-label="Close">&times;</button>
         <h3>Easy Apply</h3>
         <p class="jp-modal-job-title" id="jp-apply-job-title"></p>
@@ -317,11 +317,14 @@ function jp_logo_url($job) {
 
 <?php if ($isJobAdmin): ?>
 <div class="jp-modal-bg" id="jp-post-modal" style="display:none;" role="dialog" aria-modal="true">
-    <div class="jp-modal jp-modal-lg">
-        <button type="button" class="jp-modal-close" data-close-modal aria-label="Close">&times;</button>
-        <h3>Post a new job</h3>
-        <p class="jp-modal-sub">Jobs appear immediately in the job search feed.</p>
+    <div class="jp-modal jp-modal-lg jp-modal-post">
+        <div class="jp-modal-head">
+            <button type="button" class="jp-modal-close" data-close-modal aria-label="Close">&times;</button>
+            <h3>Post a new job</h3>
+            <p class="jp-modal-sub">Jobs appear immediately in the job search feed.</p>
+        </div>
         <form id="jp-post-form" class="jp-post-form" novalidate>
+            <div class="jp-modal-scroll">
             <label>Job title *<input type="text" name="title" required maxlength="300" placeholder="e.g. Software Engineer (Graduate)"></label>
             <label>Company *<input type="text" name="company_name" id="jp-company-name" required maxlength="200" placeholder="Company name"></label>
             <label>Company website <span class="jp-label-hint">(helps auto-fetch the correct logo)</span>
@@ -373,9 +376,12 @@ function jp_logo_url($job) {
             <label>External apply URL <span class="jp-label-hint">(optional — opens company site instead of Easy Apply)</span>
                 <input type="url" name="application_url" placeholder="https://company.com/careers/apply">
             </label>
-            <div class="jp-modal-actions">
-                <button type="button" class="jp-btn-ghost" data-close-modal>Cancel</button>
-                <button type="submit" class="jp-btn-primary" id="jp-post-submit">Publish job</button>
+            </div>
+            <div class="jp-modal-foot">
+                <div class="jp-modal-actions">
+                    <button type="button" class="jp-btn-ghost" data-close-modal>Cancel</button>
+                    <button type="submit" class="jp-btn-primary" id="jp-post-submit">Publish job</button>
+                </div>
             </div>
         </form>
     </div>

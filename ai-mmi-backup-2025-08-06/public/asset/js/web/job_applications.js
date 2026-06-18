@@ -43,14 +43,20 @@
 
     function openModal(id) {
         var m = document.getElementById(id);
-        if (m) {
-            m.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+        if (!m) return;
+        if (m.parentNode !== document.body) {
+            document.body.appendChild(m);
         }
+        m.style.display = 'flex';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+        var scrollEl = m.querySelector('.jp-modal-scroll');
+        if (scrollEl) scrollEl.scrollTop = 0;
     }
 
     function closeModals() {
         $all('.jp-modal-bg').forEach(function (m) { m.style.display = 'none'; });
+        document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
         pendingJobId = null;
         pendingJobTitle = '';
