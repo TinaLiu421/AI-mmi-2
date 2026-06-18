@@ -7,7 +7,7 @@ return
     'if_applicable'             =>  'if applicable',
     'sign_in'                   =>  'Sign In',
     'sign_out'                  =>  'Sign Out',
-    'service_provider'          =>  'Institution Hub',
+    'service_provider'          =>  'List Programs or Jobs',
     'about_us'                  =>  'About Us',
     'visa_options'              =>  'Visa Options',
     'faqs'                      =>  'FAQS',
@@ -260,7 +260,7 @@ return
 
     'service_provider_info'     =>
     [
-        'title'                 =>  'Institution Hub',
+        'title'                 =>  'List Programs or Jobs',
         'headline'              =>  'Join the AI-mmi Global Network of Institutions',
         'subheadline'           =>  'Connect directly with migrants, students, and global movers — all in one smart platform',
         'intro_1'               =>  'AI-mmi is one of the world\'s first AI-driven migration and education platforms, connecting millions of global movers — from aspiring students to skilled professionals and families — with trusted institutions like you.',

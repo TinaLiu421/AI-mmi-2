@@ -60,14 +60,20 @@
         </div>
         <span class="home-service-frame-arrow">&#8594;</span>
     </a>
-    <a class="home-service-frame" href="<?php echo $_page_base_url.'/service_provider_info'; ?>">
+<?php
+$_list_hub_url = $_page_base_url.'/service_provider_info';
+if (!empty($_current_member) && in_array((int)($_current_member['type'] ?? 0), [2, 3], true) && (int)($_current_member['status'] ?? 0) === 1) {
+    $_list_hub_url = $_page_base_url.'/job_applications';
+}
+?>
+    <a class="home-service-frame" href="<?php echo $_list_hub_url; ?>">
         <div class="home-service-frame-thumb">
-            <img src="/asset/image/service-institution.jpg" alt="For Colleges and Employers"/>
+            <img src="/asset/image/service-institution.jpg" alt="List Programs or Jobs"/>
         </div>
         <div class="home-service-frame-text">
-            <span class="home-service-frame-title">For Colleges &amp; Employers</span>
+            <span class="home-service-frame-title">List Programs or Jobs</span>
             <span class="home-service-frame-divider"></span>
-            <span class="home-service-frame-tagline">List your programs or jobs</span>
+            <span class="home-service-frame-tagline">Colleges, employers &amp; service providers</span>
         </div>
         <span class="home-service-frame-arrow">&#8594;</span>
     </a>

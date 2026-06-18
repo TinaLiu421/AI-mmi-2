@@ -6,6 +6,13 @@ use App\Http\Controllers\WebController;
 class Service_Provider_Info extends WebController {
 
     public function index() {
+        $member = $this->_current_member;
+        if (!empty($member)
+            && in_array((int) ($member['type'] ?? 0), [2, 3], true)
+            && (int) ($member['status'] ?? 0) === 1) {
+            return redirect($this->toURL('job_applications'));
+        }
+
         // set meta
         $this->pageMeta(
         [

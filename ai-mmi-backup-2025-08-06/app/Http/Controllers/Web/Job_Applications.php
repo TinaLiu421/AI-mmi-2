@@ -81,6 +81,8 @@ class Job_Applications extends WebController
             $profileCompleteness = $this->_calcProfileCompleteness($profile);
         }
 
+        $companyPrefill = $this->_memberCompanyPrefill($memberId, $memberType);
+
         return $this->pageData([
             'jobs'                   => $jobs,
             'job_count'              => count($jobs),
@@ -91,7 +93,11 @@ class Job_Applications extends WebController
             'search_q'               => $query,
             'search_country'         => $country,
             'search_type'            => $type,
-            'is_job_admin'           => $this->isJobAdmin(),
+            'can_post_jobs'          => $this->canPostJobs(),
+            'is_job_moderator'       => $this->isWealthskeyJobAdmin(),
+            'member_id'              => $memberId,
+            'company_prefill'        => $companyPrefill,
+            'is_job_admin'           => $this->canPostJobs(),
             'is_guest'               => empty($member),
             'can_apply'              => $memberId > 0 && $memberType === 1,
             'member_type'            => $memberType,
@@ -190,8 +196,8 @@ class Job_Applications extends WebController
             return response()->json(['status' => 405, 'message' => 'Method not allowed']);
         }
 
-        if (!$this->isJobAdmin()) {
-            return response()->json(['status' => 403, 'message' => 'Only the admin can post jobs.']);
+        if (!$this->canPostJobs()) {
+            return response()->json(['status' => 403, 'message' => 'Only verified institutions and service providers can post jobs.']);
         }
 
         $title = mb_substr(strip_tags((string) request()->input('title', '')), 0, 300);
@@ -275,13 +281,17 @@ class Job_Applications extends WebController
             return response()->json(['status' => 405, 'message' => 'Method not allowed']);
         }
 
-        if (!$this->isJobAdmin()) {
-            return response()->json(['status' => 403, 'message' => 'Unauthorized']);
-        }
-
         $jobId = (int) request()->input('job_id', 0);
         if ($jobId <= 0) {
             return response()->json(['status' => 400, 'message' => 'Invalid job.']);
+        }
+
+        $job = DB::table('job_postings')->where('id', $jobId)->whereNull('deleted_at')->first();
+        if (!$job) {
+            return response()->json(['status' => 404, 'message' => 'Job not found.']);
+        }
+        if (!$this->canManageJob($job)) {
+            return response()->json(['status' => 403, 'message' => 'Unauthorized']);
         }
 
         $adminId = (int) ($this->_current_member['id'] ?? 0);
@@ -307,7 +317,7 @@ class Job_Applications extends WebController
         if (!request()->isMethod('POST')) {
             return response()->json(['status' => 405, 'message' => 'Method not allowed']);
         }
-        if (!$this->isJobAdmin()) {
+        if (!$this->canPostJobs()) {
             return response()->json(['status' => 403, 'message' => 'Unauthorized']);
         }
 
@@ -337,7 +347,7 @@ class Job_Applications extends WebController
     }
 
     /**
-     * Manual company logo upload (admin only).
+     * Manual company logo upload (job poster).
      * POST /{lang}/job_applications/upload_company_logo  (multipart)
      */
     public function upload_company_logo()
@@ -345,7 +355,7 @@ class Job_Applications extends WebController
         if (!request()->isMethod('POST')) {
             return response()->json(['status' => 405, 'message' => 'Method not allowed']);
         }
-        if (!$this->isJobAdmin()) {
+        if (!$this->canPostJobs()) {
             return response()->json(['status' => 403, 'message' => 'Unauthorized']);
         }
 
@@ -422,7 +432,7 @@ class Job_Applications extends WebController
         }
     }
 
-    private function isJobAdmin(): bool
+    private function isWealthskeyJobAdmin(): bool
     {
         $email = mb_strtolower(trim((string) ($this->_current_member['email'] ?? '')), 'UTF-8');
         if ($email === self::JOB_ADMIN_EMAIL) {
@@ -430,6 +440,59 @@ class Job_Applications extends WebController
         }
         $realEmail = mb_strtolower(trim((string) $this->getSession('admin_real_email')), 'UTF-8');
         return $realEmail === self::JOB_ADMIN_EMAIL;
+    }
+
+    private function canPostJobs(): bool
+    {
+        if ($this->isWealthskeyJobAdmin()) {
+            return true;
+        }
+        $member = $this->_current_member;
+        if (empty($member)) {
+            return false;
+        }
+        $type = (int) ($member['type'] ?? 0);
+        if (!in_array($type, [2, 3], true)) {
+            return false;
+        }
+        return (int) ($member['status'] ?? 0) === 1;
+    }
+
+    private function canManageJob($job): bool
+    {
+        if ($this->isWealthskeyJobAdmin()) {
+            return true;
+        }
+        $memberId = (int) ($this->_current_member['id'] ?? 0);
+        if ($memberId <= 0 || !$job) {
+            return false;
+        }
+        return (int) ($job->posted_by ?? 0) === $memberId;
+    }
+
+    /** @return array{name:string,website:string} */
+    private function _memberCompanyPrefill(int $memberId, int $memberType): array
+    {
+        $out = ['name' => '', 'website' => ''];
+        if ($memberId <= 0 || !in_array($memberType, [2, 3], true)) {
+            return $out;
+        }
+        $details = DB::table('member_details')->where('member_id', $memberId)->first(['company_name', 'company_website']);
+        if ($details) {
+            $out['name'] = trim((string) ($details->company_name ?? ''));
+            $out['website'] = trim((string) ($details->company_website ?? ''));
+        }
+        if ($out['name'] === '') {
+            $member = $this->_current_member;
+            $out['name'] = trim((string) ($member['alias_name'] ?? ''));
+        }
+        return $out;
+    }
+
+    /** @deprecated Use isWealthskeyJobAdmin() or canPostJobs() */
+    private function isJobAdmin(): bool
+    {
+        return $this->canPostJobs();
     }
 
     private function _calcProfileCompleteness($profile): int

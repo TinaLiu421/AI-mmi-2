@@ -1,6 +1,6 @@
 @extends('web.common')
 @section('content')
-<link href="asset/css/web/service_provider_info.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
+<link href="/asset/css/web/service_provider_info.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
 
 <div class="inner-panel">
     <h1 class="title"><?php echo $_page_lang['service_provider_info.title']; ?></h1>

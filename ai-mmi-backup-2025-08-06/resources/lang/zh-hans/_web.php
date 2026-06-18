@@ -7,7 +7,7 @@ return
     'if_applicable'             =>  '(如适用)',
     'sign_in'                   =>  '登入',
     'sign_out'                  =>  '登出',
-    'service_provider'          =>  '机构中心',
+    'service_provider'          =>  '发布课程或职位',
     'about_us'                  =>  '关於我们',
     'visa_options'              =>  '签证选择',
     'faqs'                      =>  '常见问题',
@@ -260,7 +260,7 @@ return
 
     'service_provider_info'     =>
     [
-        'title'                 =>  '机构中心',
+        'title'                 =>  '发布课程或职位',
         'headline'              =>  '加入AI-mmi全球机构网络',
         'subheadline'           =>  '在一个智能平台上直接连接移民者、学生和全球流动者',
         'intro_1'               =>  'AI-mmi是全球首批人工智能驱动的移民和教育平台之一，连接数百万全球流动者——从有抱负的学生到熟练专业人士和家庭——与像您这样值得信赖的服务提供者。',

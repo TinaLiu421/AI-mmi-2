@@ -339,6 +339,15 @@
             if (postFormEl) postFormEl.reset();
             var autoCb = document.getElementById('jp-auto-fetch-logo');
             if (autoCb) autoCb.checked = true;
+            var prefill = cfg.companyPrefill || {};
+            var companyInput = document.getElementById('jp-company-name');
+            var websiteInput = document.getElementById('jp-company-website');
+            if (companyInput && prefill.name && !companyInput.value) {
+                companyInput.value = prefill.name;
+            }
+            if (websiteInput && prefill.website && !websiteInput.value) {
+                websiteInput.value = prefill.website;
+            }
             openModal('jp-post-modal');
         });
     }

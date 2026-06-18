@@ -15,7 +15,10 @@ $completeness   = (int)($_page_data['profile_completeness'] ?? 0);
 $searchQ        = $_page_data['search_q'] ?? '';
 $searchCountry  = $_page_data['search_country'] ?? '';
 $searchType     = $_page_data['search_type'] ?? '';
-$isJobAdmin     = !empty($_page_data['is_job_admin']);
+$isJobAdmin     = !empty($_page_data['can_post_jobs']);
+$isJobModerator = !empty($_page_data['is_job_moderator']);
+$memberId       = (int)($_page_data['member_id'] ?? 0);
+$companyPrefill = $_page_data['company_prefill'] ?? ['name' => '', 'website' => ''];
 $isGuest        = !empty($_page_data['is_guest']);
 $canApply       = !empty($_page_data['can_apply']);
 $memberType     = (int)($_page_data['member_type'] ?? 0);
@@ -218,6 +221,7 @@ function jp_logo_url($job) {
                         'posted' => jp_time_ago($job['created_at'] ?? ''),
                         'applied' => $applied,
                         'has_external' => $hasExternal,
+                        'posted_by' => (int)($job['posted_by'] ?? 0),
                     ]), ENT_QUOTES); ?>">
                         <button type="button" class="jp-job-select" aria-label="View job details">
                             <?php if ($logoUrl): ?>
@@ -254,7 +258,7 @@ function jp_logo_url($job) {
                             <button type="button" class="jp-btn-primary jp-btn-sm jp-apply-btn" data-job-id="<?php echo $jid; ?>" data-job-title="<?php echo htmlspecialchars($job['title'] ?? '', ENT_QUOTES); ?>">Easy Apply</button>
                             <?php endif; ?>
                             <button type="button" class="jp-btn-ghost jp-btn-sm jp-view-detail" data-job-id="<?php echo $jid; ?>">View job</button>
-                            <?php if ($isJobAdmin): ?>
+                            <?php if ($isJobModerator || ((int)($job['posted_by'] ?? 0) === $memberId && $memberId > 0)): ?>
                             <button type="button" class="jp-btn-danger jp-btn-sm jp-delete-job" data-job-id="<?php echo $jid; ?>">Remove</button>
                             <?php endif; ?>
                         </div>
@@ -396,6 +400,9 @@ window.jpConfig = {
     baseUrl: <?php echo json_encode($base); ?>,
     isGuest: <?php echo $isGuest ? 'true' : 'false'; ?>,
     isAdmin: <?php echo $isJobAdmin ? 'true' : 'false'; ?>,
+    isModerator: <?php echo $isJobModerator ? 'true' : 'false'; ?>,
+    memberId: <?php echo (int)$memberId; ?>,
+    companyPrefill: <?php echo json_encode($companyPrefill); ?>,
     canApply: <?php echo $canApply ? 'true' : 'false'; ?>
 };
 </script>

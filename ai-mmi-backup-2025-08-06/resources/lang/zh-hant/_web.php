@@ -7,7 +7,7 @@ return
     'if_applicable'             =>  '(如適用)',
     'sign_in'                   =>  '登入',
     'sign_out'                  =>  '登出',
-    'service_provider'          =>  '機構中心',
+    'service_provider'          =>  '發布課程或職位',
     'about_us'                  =>  '關於我們',
     'visa_options'              =>  '簽證選擇',
     'faqs'                      =>  '常見問題',
@@ -261,7 +261,7 @@ return
 
     'service_provider_info'     =>
     [
-        'title'                 =>  '機構中心',
+        'title'                 =>  '發布課程或職位',
         'headline'              =>  '加入AI-mmi全球機構網絡',
         'subheadline'           =>  '在一個智能平台上直接連接移民者、學生和全球流動者',
         'intro_1'               =>  'AI-mmi是全球首批人工智能驅動的移民和教育平台之一，連接數百萬全球流動者——從有抱負的學生到熟練專業人士和家庭——與像您這樣值得信賴的服務提供者。',

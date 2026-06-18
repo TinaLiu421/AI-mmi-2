@@ -31,8 +31,38 @@
         <link href="/asset/lib/icon/css/font-awesome.min.css" rel="stylesheet" type="text/css"/>
         <link href="asset/lib/base/iweb.min.css" rel="stylesheet" type="text/css">
         <?php if(!empty($_page_css_files)) { foreach ($_page_css_files as $css_file) { ?>
-        <link href="<?php echo $css_file; ?>?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
+        <link href="<?php echo $css_file; ?>?v=<?php echo date('YmdHis'); ?>" rel="stylesheet" type="text/css">
         <?php }} ?>
+        @stack('css')
+        <style>
+        /* ── Navbar Token Balance Badge ── */
+        .nav-token-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(245,158,11,0.14);
+            border: 1.5px solid rgba(245,158,11,0.55);
+            color: #f59e0b;
+            border-radius: 100px;
+            padding: 5px 12px 5px 10px;
+            font-size: 13px; font-weight: 700;
+            text-decoration: none;
+            transition: background .2s, border-color .2s;
+            white-space: nowrap;
+            line-height: 1;
+        }
+        .nav-token-badge:hover {
+            background: rgba(245,158,11,0.26);
+            border-color: rgba(245,158,11,0.8);
+            color: #f59e0b;
+            text-decoration: none;
+        }
+        .nav-token-icon { font-size: 12px; line-height: 1; }
+        .nav-token-count { font-size: 13px; font-weight: 800; }
+        .nav-token-label { font-size: 12px; font-weight: 600; opacity: 0.85; letter-spacing: 0.2px; }
+        @media (max-width: 700px) {
+            .nav-token-badge { padding: 4px 9px; }
+            .nav-token-label { display: none; }
+        }
+        </style>
 
         <script src="asset/lib/base/jquery.min.js" type="text/javascript"></script>
         <script src="asset/lib/base/iweb.min.js" type="text/javascript"></script>
@@ -461,6 +491,109 @@
     <body class="page-<?php echo $_mapping_data['class']; ?>">
         <?php
             $autoLang = !empty($_page_get_data['autolang']) ? $_page_get_data['autolang'] : session('autolang', '');
+            $_adminToolbarEmails = ['admin@wealthskey.com', 'info@ai-mmi.com'];
+            $_currentMemberEmailLower2 = mb_strtolower(trim((string)($_current_member['email'] ?? '')), 'UTF-8');
+            $_showAdminToolbar = !empty($_current_member) && in_array($_currentMemberEmailLower2, $_adminToolbarEmails, true);
+        ?>
+        <?php if($_showAdminToolbar): ?>
+        <style>
+        #frontend-admin-toolbar{position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a1a2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;height:40px;display:flex;align-items:center;padding:0 12px;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.35);}
+        #frontend-admin-toolbar .fat-label{font-weight:700;color:#a78bfa;margin-right:8px;font-size:12px;white-space:nowrap;letter-spacing:.5px;}
+        #frontend-admin-toolbar .fat-label i{margin-right:4px;}
+        #frontend-admin-toolbar .fat-sep{width:1px;height:22px;background:rgba(255,255,255,.15);margin:0 4px;}
+        .fat-item{position:relative;}
+        .fat-item > a{display:flex;align-items:center;gap:5px;color:#d1d5db;text-decoration:none;padding:0 9px;height:40px;font-size:12.5px;white-space:nowrap;transition:background .15s,color .15s;border-radius:0;}
+        .fat-item > a:hover,.fat-item:hover > a{background:rgba(255,255,255,.1);color:#fff;}
+        .fat-item > a i{font-size:12px;opacity:.8;}
+        .fat-item > a .fat-caret{font-size:9px;margin-left:2px;opacity:.6;}
+        .fat-dropdown{display:none;position:absolute;top:40px;left:0;background:#1e1e3a;border:1px solid rgba(255,255,255,.12);border-radius:6px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:4px 0;z-index:100000;}
+        .fat-dropdown.right{left:auto;right:0;}
+        .fat-item:hover .fat-dropdown{display:block;}
+        .fat-dropdown a{display:flex;align-items:center;gap:8px;padding:8px 14px;color:#c4c9d4;text-decoration:none;font-size:12px;transition:background .12s,color .12s;}
+        .fat-dropdown a:hover{background:rgba(167,139,250,.15);color:#a78bfa;}
+        .fat-dropdown a i{width:14px;text-align:center;opacity:.75;}
+        .fat-dropdown .fat-dd-sep{height:1px;background:rgba(255,255,255,.08);margin:4px 0;}
+        .fat-item.fat-highlight > a{color:#fbbf24;}
+        .fat-item.fat-highlight > a:hover{background:rgba(251,191,36,.1);color:#fcd34d;}
+        body.page-header-offset{padding-top:40px;}
+        </style>
+        <div id="frontend-admin-toolbar">
+            <span class="fat-label"><i class="fa fa-shield"></i> Admin</span>
+            <div class="fat-sep"></div>
+
+            <div class="fat-item">
+                <a href="/admin/home"><i class="fa fa-tachometer"></i> Dashboard</a>
+            </div>
+
+            <div class="fat-item fat-highlight">
+                <a href="/admin/nextgen_challenge"><i class="fa fa-trophy"></i> NextGen <i class="fa fa-caret-down fat-caret"></i></a>
+                <div class="fat-dropdown">
+                    <a href="/admin/nextgen_challenge"><i class="fa fa-list"></i> All Submissions</a>
+                </div>
+            </div>
+
+            <div class="fat-item fat-highlight">
+                <a href="/admin/institution_partner"><i class="fa fa-university"></i> Institution Enquiries <i class="fa fa-caret-down fat-caret"></i></a>
+                <div class="fat-dropdown">
+                    <a href="/admin/institution_partner"><i class="fa fa-list"></i> All Enquiries</a>
+                </div>
+            </div>
+
+            <div class="fat-item">
+                <a href="/admin/members"><i class="fa fa-users"></i> Members <i class="fa fa-caret-down fat-caret"></i></a>
+                <div class="fat-dropdown">
+                    <a href="/admin/members"><i class="fa fa-user"></i> All Members</a>
+                    <a href="/admin/posts"><i class="fa fa-rss"></i> Member Posts</a>
+                    <a href="/admin/forum"><i class="fa fa-podcast"></i> Forum</a>
+                </div>
+            </div>
+
+            <div class="fat-item">
+                <a href="/admin/plans/account"><i class="fa fa-leaf"></i> Plans <i class="fa fa-caret-down fat-caret"></i></a>
+                <div class="fat-dropdown">
+                    <a href="/admin/plans/account"><i class="fa fa-user"></i> Account Plans</a>
+                    <a href="/admin/plans/visa_submission"><i class="fa fa-gavel"></i> Visa Submission Plans</a>
+                </div>
+            </div>
+
+            <div class="fat-item">
+                <a href="/admin/pages"><i class="fa fa-file-text-o"></i> Content <i class="fa fa-caret-down fat-caret"></i></a>
+                <div class="fat-dropdown">
+                    <a href="/admin/pages"><i class="fa fa-book"></i> Pages</a>
+                    <a href="/admin/visa"><i class="fa fa-ticket"></i> Visa Options</a>
+                    <a href="/admin/faqs"><i class="fa fa-commenting"></i> FAQs</a>
+                    <a href="/admin/events"><i class="fa fa-calendar-o"></i> Events</a>
+                </div>
+            </div>
+
+            <div class="fat-item">
+                <a href="/admin/options/countries"><i class="fa fa-filter"></i> Options <i class="fa fa-caret-down fat-caret"></i></a>
+                <div class="fat-dropdown">
+                    <a href="/admin/options/countries"><i class="fa fa-globe"></i> Countries</a>
+                    <a href="/admin/options/organization_type"><i class="fa fa-tag"></i> Organization Types</a>
+                    <a href="/admin/options/interest_visas"><i class="fa fa-address-card-o"></i> Interest Visas</a>
+                    <a href="/admin/options/interest_topics"><i class="fa fa-coffee"></i> Interest Topics</a>
+                </div>
+            </div>
+
+            <div class="fat-item">
+                <a href="/admin/media_files"><i class="fa fa-cloud-upload"></i> Media</a>
+            </div>
+
+            <div class="fat-item">
+                <a href="/admin/profile"><i class="fa fa-info-circle"></i> Settings <i class="fa fa-caret-down fat-caret"></i></a>
+                <div class="fat-dropdown right">
+                    <a href="/admin/profile"><i class="fa fa-user-circle-o"></i> Admin Profile</a>
+                    <a href="/admin/setting/general"><i class="fa fa-gears"></i> Site Settings</a>
+                    <a href="/admin/setting/email"><i class="fa fa-envelope-o"></i> Email Settings</a>
+                    <div class="fat-dd-sep"></div>
+                    <a href="/admin/authn/logout"><i class="fa fa-sign-out"></i> Admin Logout</a>
+                </div>
+            </div>
+        </div>
+        <script>document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('page-header-offset');});</script>
+        <?php endif; ?>
+        <?php
             $logoHomeUrl = url('/en');
             $appendAutoLang = function ($url) use ($autoLang) {
                 if(empty($autoLang)) {
@@ -469,6 +602,19 @@
 
                 return $url.((strpos($url, '?') !== false) ? '&' : '?').'autolang='.urlencode($autoLang);
             };
+
+            $_adminEmails = ['admin@wealthskey.com', 'info@ai-mmi.com'];
+            $_currentEmailLower = mb_strtolower(trim((string)($_current_member['email'] ?? '')), 'UTF-8');
+            $_isProxyMode = !empty($_page_data['admin_proxy_mode']);
+            $_realAdminEmailLower = mb_strtolower(trim((string)($_page_data['admin_real_member']['email'] ?? '')), 'UTF-8');
+            $_isAdminHeader = in_array($_currentEmailLower, $_adminEmails, true)
+                || ($_isProxyMode && in_array($_realAdminEmailLower, $_adminEmails, true));
+            $_memberTypeHeader = (int)($_current_member['type'] ?? 0);
+            $_memberStatusHeader = (int)($_current_member['status'] ?? 0);
+            $_listProgramsJobsUrl = $_page_base_url.'/service_provider_info';
+            if (!empty($_current_member) && in_array($_memberTypeHeader, [2, 3], true) && $_memberStatusHeader === 1) {
+                $_listProgramsJobsUrl = $_page_base_url.'/job_applications';
+            }
         ?>
         <?php if(!empty($_included_header_footer)) { ?>
         <header class="page-header">
@@ -478,14 +624,33 @@
                 </a>
 
                 <div class="controls">
-                     <div class="upgrade_link">
-                        <a href="/upgrade">
-                            <i class="fa fa-star"></i>
-                            <span>Upgrade</span>
+                    <?php if($_isProxyMode && !empty($_page_data['admin_proxy_target'])) { ?>
+                    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;margin-right:10px;max-width:360px;">
+                        <div style="font-size:0.8em;color:#92400e;font-weight:600;">Admin Full-Access Mode</div>
+                        <div style="font-size:0.75em;color:#92400e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            <?php echo htmlspecialchars($_page_data['admin_proxy_target']['alias_name'] ?? $_page_data['admin_proxy_target']['full_name'] ?? ('Member #' . ($_page_data['admin_proxy_target']['id'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>
+                        </div>
+                    </div>
+                    <?php } ?>
+                    <!-- Upgrade button moved to token guide page -->
+                    <?php if($_isAdminHeader) { ?>
+                    <div class="upgrade_link" style="background:#e0f2fe;">
+                        <a href="<?php echo $appendAutoLang($_page_base_url.'/Admin_Edu_Agents'); ?>" style="color:#075985;">
+                            <i class="fa fa-users"></i>
+                            <span>Edu Agent Mgmt</span>
                         </a>
                     </div>
+                    <?php if($_isProxyMode) { ?>
+                    <div class="upgrade_link" style="background:#fef3c7;">
+                        <a href="<?php echo $appendAutoLang($_page_base_url.'/Admin_Edu_Agents/stop_access'); ?>" style="color:#92400e;">
+                            <i class="fa fa-sign-out"></i>
+                            <span>Exit Full Access</span>
+                        </a>
+                    </div>
+                    <?php } ?>
+                    <?php } ?>
                      <div class="service_provider_info">
-                        <a href="<?php echo $appendAutoLang($_page_base_url.'/service_provider_info'); ?>">
+                        <a href="<?php echo $appendAutoLang($_listProgramsJobsUrl); ?>">
                             <img src="asset/image/service_provider.png" alt="icon-service-provider"/>
                             <span><?php echo $_page_lang['service_provider']; ?></span>
                         </a>
@@ -546,13 +711,22 @@
                     </div>
                     <?php } ?>
                     <?php if(!empty($_current_member)) { ?>
+                    <?php
+                        // Token balance navbar widget
+                        $_nav_token_balance = (int) \DB::table('member')->where('id', (int)$_current_member['id'])->value('token_balance');
+                    ?>
+                    <a href="<?php echo $appendAutoLang($_page_base_url.'/token_guide'); ?>" class="nav-token-badge" title="AI-mmi Tokens — click to manage">
+                        <span class="nav-token-icon"><i class="fa fa-bolt"></i></span>
+                        <span class="nav-token-count" id="nav-token-count"><?php echo number_format($_nav_token_balance); ?></span>
+                        <span class="nav-token-label">Tokens</span>
+                    </a>
                     <div class="member large">
                         <a href="<?php echo $appendAutoLang(($_current_member['type'] == 1)?($_page_base_url.'/account/profile'):($_page_base_url.'/account/posts')); ?>">
                             <?php if(!empty($_current_member['avatar'])) { ?>
                             <?php if(file_exists(public_path('upload/member_avatar/'.$_current_member['avatar']))) { ?>
                             <div class="avatar" style="background-image:url('<?php echo 'upload/member_avatar/'.$_current_member['avatar']; ?>')"></div>
                             <?php } elseif(file_exists(public_path('upload/member_logo/'.$_current_member['avatar']))) { ?>
-                            <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_current_member['avatar']; ?>')"></div>
+                            <div class="avatar" style="background-image:url('<?php echo 'upload/member_logo/'.$_current_member['avatar']; ?>');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#fff;padding:3px;"></div>
                             <?php } else { ?>
                             <div class="avatar" style="background-image:url('asset/image/icon-member.png')"></div>
                             <?php } ?>
@@ -582,37 +756,120 @@
                     <div class="menu">
                         <a class="open-menu show"><img src="asset/image/icon-menu.png" alt="icon-menu"/></a>
                         <a class="close-menu"><img src="asset/image/icon-close.png" alt="icon-close"/></a>
-                        <ul class="header-dropdown">
-                            <?php if(!empty($_page_data['visa_countries'])) { ?>
-                            <li>
-                                <a href="#" class="parent-node"><?php echo $_page_lang['countries']; ?></a>
-                                <ol>
-                                <?php foreach ($_page_data['visa_countries'] as $vc) { ?>
-                                <li>
-                                    <a href="<?php echo $vc['url']; ?>">
-                                        <img src="<?php echo $vc['photo_flag']; ?>">
-                                        <span><?php echo $vc['title']; ?></span>
+                        <ul class="header-dropdown<?php if(empty($_current_member)): ?> hd-no-auth<?php endif; ?>">
+                            <!-- STUDY -->
+                            <li class="hd-section">
+                                <div class="hd-section-label hd-section-label--study">
+                                    <i class="fa fa-graduation-cap"></i><span>Study</span>
+                                </div>
+                                <div class="hd-section-items">
+                                    <?php if(empty($_current_member) || (int)($_current_member['type'] ?? 0) === 1): ?>
+                                    <a href="<?php echo $appendAutoLang($_page_base_url.'/student_profile'); ?>" class="hd-item">
+                                        <i class="fa fa-id-card hd-item-icon"></i><span>My Academic Profile</span>
                                     </a>
-                                </li>
-                                <?php } ?>
-                                </ol>
+                                    <?php endif; ?>
+                                    <a href="<?php echo $appendAutoLang($_page_base_url.'/study_plans'); ?>" class="hd-item">
+                                        <i class="fa fa-star hd-item-icon"></i><span>Dreams</span>
+                                    </a>
+                                    <?php if(empty($_current_member) || in_array((int)($_current_member['type'] ?? 0), [1, 2])): ?>
+                                    <a href="<?php echo $appendAutoLang($_page_base_url.'/study_college_match'); ?>" class="hd-item hd-item--gated">
+                                        <i class="fa fa-graduation-cap hd-item-icon"></i><span>Matches</span>
+                                    </a>
+                                    <?php endif; ?>
+                                    <a href="<?php echo $appendAutoLang($_page_base_url.'/nextgen_challenge'); ?>" class="hd-item">
+                                        <i class="fa fa-trophy hd-item-icon"></i><span>NextGen AI &amp; Talent Challenge</span>
+                                    </a>
+                                    <?php if(empty($_current_member) || in_array((int)($_current_member['type'] ?? 0), [1, 2])): ?>
+                                    <a href="<?php echo $appendAutoLang($_page_base_url.'/institution_explore'); ?>" class="hd-item">
+                                        <i class="fa fa-building hd-item-icon"></i><span>Explore Colleges</span>
+                                    </a>
+                                    <?php endif; ?>
+                                    <?php if(!empty($_current_member) && (int)($_current_member['type'] ?? 0) === 3): ?>
+                                    <a href="<?php echo $appendAutoLang($_page_base_url.'/student_explore'); ?>" class="hd-item">
+                                        <i class="fa fa-users hd-item-icon"></i><span>Explore Students</span>
+                                    </a>
+                                    <a href="<?php echo $appendAutoLang($_page_base_url.'/student_explore/my_interests'); ?>" class="hd-item">
+                                        <i class="fa fa-heart hd-item-icon"></i><span>My Interest List</span>
+                                    </a>
+                                    <?php endif; ?>
+                                </div>
                             </li>
-                            <?php } ?>
-                            <li>
-                                <a href="<?php echo $appendAutoLang($_page_base_url.'/forum'); ?>"><?php echo $_page_lang['forum']; ?></a>
+                            <!-- MIGRATE -->
+                            <li class="hd-section">
+                                <div class="hd-section-label hd-section-label--migrate">
+                                    <i class="fa fa-plane"></i><span>Migrate</span>
+                                </div>
+                                <div class="hd-section-items">
+                                    <a href="<?php echo $appendAutoLang($_page_base_url.'/migration'); ?>" class="hd-item">
+                                        <i class="fa fa-compass hd-item-icon"></i><span>Migration Applications</span>
+                                    </a>
+                                    <a href="<?php echo $appendAutoLang($_listProgramsJobsUrl); ?>" class="hd-item">
+                                        <i class="fa fa-briefcase hd-item-icon"></i><span>Find a Migration Agent</span>
+                                    </a>
+                                </div>
                             </li>
-                            <li>
-                                <a href="<?php echo $appendAutoLang($_page_base_url.'/about_us'); ?>"><?php echo $_page_lang['about_us']; ?></a>
+                            <!-- COUNTRIES -->
+                            <?php if(!empty($_page_data['visa_countries'])): ?>
+                            <li class="hd-section">
+                                <div class="hd-section-label hd-section-label--countries">
+                                    <i class="fa fa-globe"></i><span>Countries</span>
+                                </div>
+                                <div class="hd-section-items">
+                                    <?php foreach($_page_data['visa_countries'] as $vc): ?>
+                                    <a href="<?php echo $vc['url']; ?>" class="hd-item hd-item--flag">
+                                        <img src="<?php echo $vc['photo_flag']; ?>" class="hd-flag-img"><span><?php echo $vc['title']; ?></span>
+                                    </a>
+                                    <?php endforeach; ?>
+                                </div>
                             </li>
-                            <?php if(!empty($_current_member)) { ?>
-                            <li>
-                                <a href="<?php echo $appendAutoLang($_page_base_url.'/account_logout'); ?>"><?php echo $_page_lang['sign_out']; ?></a>
+                            <?php endif; ?>
+                            <!-- ABOUT US -->
+                            <li class="hd-flat-li">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/about_us'); ?>" class="hd-item hd-item--about">
+                                    <i class="fa fa-info-circle hd-item-icon"></i><span><?php echo $_page_lang['about_us']; ?></span>
+                                </a>
                             </li>
-                            <?php } else { ?>
-                            <li>
-                                <a href="<?php echo $appendAutoLang($_page_base_url.'/account_login'); ?>"><?php echo $_page_lang['sign_in']; ?></a>
+                            <!-- TOKENS (always free, no guest gate) -->
+                            <li class="hd-flat-li">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/token_guide'); ?>" class="hd-item hd-item--tokens">
+                                    <i class="fa fa-bolt hd-item-icon"></i><span>Tokens</span>
+                                </a>
                             </li>
-                            <?php } ?>
+                            <!-- ADMIN -->
+                            <?php if($_isAdminHeader): ?>
+                            <li class="hd-flat-li">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/Admin_Edu_Agents'); ?>" class="hd-item hd-item--admin">
+                                    <i class="fa fa-cog hd-item-icon"></i><span>Education Agent Management</span>
+                                </a>
+                            </li>
+                            <?php if($_isProxyMode): ?>
+                            <li class="hd-flat-li">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/Admin_Edu_Agents/stop_access'); ?>" class="hd-item hd-item--admin">
+                                    <i class="fa fa-times-circle hd-item-icon"></i><span>Exit Full Access Mode</span>
+                                </a>
+                            </li>
+                            <?php endif; ?>
+                            <?php endif; ?>
+                            <!-- ACCOUNT -->
+                            <li class="hd-divider-line"></li>
+                            <?php if(!empty($_current_member)): ?>
+                            <li class="hd-flat-li">
+                                <a href="<?php echo $appendAutoLang(((int)($_current_member['type'] ?? 0) === 1) ? $_page_base_url.'/account/profile' : $_page_base_url.'/account/posts'); ?>" class="hd-item hd-item--profile">
+                                    <i class="fa fa-user-circle hd-item-icon"></i><span>My Account</span>
+                                </a>
+                            </li>
+                            <li class="hd-flat-li">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/account_logout'); ?>" class="hd-item hd-item--signout">
+                                    <i class="fa fa-sign-out hd-item-icon"></i><span><?php echo $_page_lang['sign_out']; ?></span>
+                                </a>
+                            </li>
+                            <?php else: ?>
+                            <li class="hd-flat-li">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/account_login'); ?>" class="hd-item hd-item--signin">
+                                    <i class="fa fa-sign-in hd-item-icon"></i><span><?php echo $_page_lang['sign_in']; ?></span>
+                                </a>
+                            </li>
+                            <?php endif; ?>
                         </ul>
                     </div>
                 </div>
@@ -635,7 +892,7 @@
 
                             <!-- Chat Action Buttons -->
                             <div class="chat-action-buttons" style="display: none">
-                                <a href="<?php echo $appendAutoLang($_page_base_url.'/study'); ?>" class="chat-action-btn chat-action-btn--study" title="Study">
+                                <a href="<?php echo $appendAutoLang($_page_base_url.'/study_plans'); ?>" class="chat-action-btn chat-action-btn--study" title="Study">
                                     <span class="chat-action-btn-text">Study</span>
                                 </a>
                                 <a href="<?php echo $appendAutoLang($_page_base_url.'/migration'); ?>" class="chat-action-btn chat-action-btn--migration" title="Migration">
@@ -733,5 +990,42 @@
 
     <!-- Document Upload Handler -->
     <script src="asset/js/web/document-upload.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
+    @stack('scripts')
+    <?php if(empty($_current_member)): ?>
+    <!-- Guest gate modal -->
+    <div id="gg-modal" class="gg-overlay" role="dialog" aria-modal="true">
+        <div class="gg-box">
+            <div class="gg-icon"><i class="fa fa-lock"></i></div>
+            <h3 class="gg-title">Sign in to continue</h3>
+            <p class="gg-desc">Create a free account or sign in to access this feature.</p>
+            <div class="gg-token-bonus"><i class="fa fa-bolt"></i> Sign up &amp; earn <strong>20 tokens</strong> instantly — free!</div>
+            <div class="gg-actions">
+                <a href="<?php echo $appendAutoLang($_page_base_url.'/account_login'); ?>" class="gg-btn gg-btn--signin">Sign In</a>
+                <a href="<?php echo $_page_base_url.'/account_registration'; ?>" class="gg-btn gg-btn--signup">Sign Up Free</a>
+            </div>
+            <button class="gg-later" id="gg-close">Maybe later</button>
+        </div>
+    </div>
+    <script>
+    (function(){
+        var modal = document.getElementById('gg-modal');
+        if (!modal) return;
+        document.addEventListener('click', function(e){
+            var link = e.target.closest('ul.hd-no-auth .hd-item');
+            if (!link) return;
+            // Only gate items explicitly marked as requiring login
+            if (!link.classList.contains('hd-item--gated')) return;
+            e.preventDefault();
+            modal.style.display = 'flex';
+        });
+        modal.addEventListener('click', function(e){
+            if (e.target === modal) modal.style.display = 'none';
+        });
+        document.getElementById('gg-close').addEventListener('click', function(){
+            modal.style.display = 'none';
+        });
+    })();
+    </script>
+    <?php endif; ?>
     </body>
 </html>
