@@ -267,12 +267,22 @@ function jp_logo_url($job) {
                     <?php endif; ?>
                 </div>
 
-                <?php if (!empty($myApplications)): ?>
                 <div class="jp-tracker" id="jp-tracker">
                     <div class="jp-tracker-head">
                         <h2><i class="fa fa-bookmark"></i> Your applications</h2>
                         <span><?php echo count($myApplications); ?> total</span>
                     </div>
+                    <?php if (empty($myApplications)): ?>
+                    <p style="font-size:0.86rem;color:rgba(0,0,0,0.45);margin:0;padding:4px 0 8px;">
+                        <?php if ($isGuest): ?>
+                        <a href="<?php echo htmlspecialchars($base.'/account_login?redirect='.urlencode($base.'/job_applications'), ENT_QUOTES); ?>">Sign in</a> to track your applications.
+                        <?php elseif ($canApply): ?>
+                        No applications yet — apply to a job above to track it here.
+                        <?php else: ?>
+                        Applications are available for individual accounts.
+                        <?php endif; ?>
+                    </p>
+                    <?php else: ?>
                     <?php foreach ($myApplications as $app):
                         $status = $app['status'] ?? 'submitted';
                         $locApp = trim(($app['job_city'] ?? '') . (($app['job_city'] && $app['job_country']) ? ', ' : '') . ($app['job_country'] ?? ''));
@@ -286,8 +296,8 @@ function jp_logo_url($job) {
                         <span class="jp-time"><?php echo jp_time_ago($app['submitted_at'] ?? ''); ?></span>
                     </div>
                     <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
-                <?php endif; ?>
             </main>
 
             <aside class="jp-detail-panel" id="jp-detail-panel" aria-hidden="true">
