@@ -34,7 +34,7 @@
         <div class="home-service-frame-text">
             <span class="home-service-frame-title">Study Applications</span>
             <span class="home-service-frame-divider"></span>
-            <span class="home-service-frame-tagline">Don't search for universities &mdash; Let them find you</span>
+            <span class="home-service-frame-tagline">Find programs &amp; institutes</span>
         </div>
         <span class="home-service-frame-arrow">&#8594;</span>
     </a>
@@ -56,18 +56,18 @@
         <div class="home-service-frame-text">
             <span class="home-service-frame-title">Migration Applications</span>
             <span class="home-service-frame-divider"></span>
-            <span class="home-service-frame-tagline">Expert migration support, without the high fees</span>
+            <span class="home-service-frame-tagline">Get migration support</span>
         </div>
         <span class="home-service-frame-arrow">&#8594;</span>
     </a>
     <a class="home-service-frame" href="<?php echo $_page_base_url.'/service_provider_info'; ?>">
         <div class="home-service-frame-thumb">
-            <img src="/asset/image/service-institution.jpg" alt="Institution Hub"/>
+            <img src="/asset/image/service-institution.jpg" alt="For Colleges and Employers"/>
         </div>
         <div class="home-service-frame-text">
-            <span class="home-service-frame-title">College Hub</span>
+            <span class="home-service-frame-title">For Colleges &amp; Employers</span>
             <span class="home-service-frame-divider"></span>
-            <span class="home-service-frame-tagline">Connect with global qualified applicants, faster!</span>
+            <span class="home-service-frame-tagline">List your programs or jobs</span>
         </div>
         <span class="home-service-frame-arrow">&#8594;</span>
     </a>
