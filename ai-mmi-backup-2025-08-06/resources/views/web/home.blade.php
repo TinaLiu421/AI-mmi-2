@@ -9,9 +9,6 @@
     </video>
     <div class="banner-blur-overlay"></div>
     <div class="banner-content">
-        <div class="banner-logo-row">
-            <img src="/asset/image/logo.png" alt="AI-mmi" class="banner-logo"/>
-        </div>
         <p class="banner-eyebrow">The Smartest Way to</p>
         <h1 class="banner-title">Study, Work and Migrate Overseas</h1>
         <p class="banner-sub">Find the best-fit opportunities based on your goals, budget and profile.<br>Get instant AI guidance and expert support every step of the way.</p>
