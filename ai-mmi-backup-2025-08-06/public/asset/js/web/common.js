@@ -83,11 +83,17 @@ $(document).ajaxComplete(function (_, xhr, settings) {
 });*/
 
 
+function applyHighlightSyntax(md) {
+    // ==text== → <mark>text</mark>
+    return String(md || "").replace(/==([^=\n]+)==/g, '<mark>$1</mark>');
+}
+
 function mdToSafeHtml(md) {
   try {
     marked.setOptions({ gfm: true, breaks: true });
-    const dirty = marked.parse(String(md || ""));
-    return DOMPurify.sanitize(dirty);
+    const withHighlights = applyHighlightSyntax(String(md || ""));
+    const dirty = marked.parse(withHighlights);
+    return DOMPurify.sanitize(dirty, { ADD_TAGS: ['mark'] });
   } catch (e) {
     // 解析失败就退回纯文本（转义）
     return escapeHtml(md || "");
@@ -762,7 +768,11 @@ function iweb_global_func() {
                             null,
                             function (response_data) {
                                 if (iweb.isMatch(response_data.status, 200)) {
-                                    window.location.reload();
+                                    if (response_data.redirect_url) {
+                                        window.location.href = response_data.redirect_url;
+                                    } else {
+                                        window.location.reload();
+                                    }
                                 } else {
                                     iweb.alert(response_data.message);
                                 }
@@ -908,6 +918,8 @@ function iweb_global_func() {
                                 $("div.postsphoto-file > div.preview").html("");
                             }
                         });
+                        // Init markdown toolbar after dialog renders
+                        initPostEditorToolbar();
                     },
                     null,
                     "publish"
@@ -919,6 +931,59 @@ function iweb_global_func() {
                 }
                 iweb.alert(message);
             });
+    }
+
+    function initPostEditorToolbar() {
+        var toolbar = document.getElementById('post-editor-toolbar');
+        if (!toolbar || toolbar._petInit) return;
+        toolbar._petInit = true;
+        var ta = document.getElementById('content');
+        if (!ta) return;
+
+        function wrapSel(before, after) {
+            var s = ta.selectionStart, e = ta.selectionEnd;
+            var sel = ta.value.substring(s, e) || 'text';
+            ta.value = ta.value.substring(0, s) + before + sel + after + ta.value.substring(e);
+            ta.focus(); ta.setSelectionRange(s + before.length, s + before.length + sel.length);
+        }
+        function insertBullets() {
+            var s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.substring(s, e);
+            if (sel) {
+                var r = sel.split('\n').map(function(l){return '- '+l;}).join('\n');
+                ta.value = ta.value.substring(0,s)+r+ta.value.substring(e);
+                ta.focus(); ta.setSelectionRange(s, s+r.length);
+            } else {
+                var ins = '\n- '; ta.value = ta.value.substring(0,s)+ins+ta.value.substring(e);
+                ta.focus(); ta.setSelectionRange(s+ins.length, s+ins.length);
+            }
+        }
+        function insertNumbered() {
+            var s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.substring(s, e);
+            if (sel) {
+                var r = sel.split('\n').map(function(l,i){return (i+1)+'. '+l;}).join('\n');
+                ta.value = ta.value.substring(0,s)+r+ta.value.substring(e);
+                ta.focus(); ta.setSelectionRange(s, s+r.length);
+            } else {
+                var ins = '\n1. '; ta.value = ta.value.substring(0,s)+ins+ta.value.substring(e);
+                ta.focus(); ta.setSelectionRange(s+ins.length, s+ins.length);
+            }
+        }
+
+        toolbar.addEventListener('click', function(ev) {
+            var btn = ev.target.closest('button[data-fmt],button[data-emoji]');
+            if (!btn) return; ev.preventDefault();
+            var fmt = btn.getAttribute('data-fmt'), emoji = btn.getAttribute('data-emoji');
+            if (emoji) {
+                var p = ta.selectionStart;
+                ta.value = ta.value.substring(0,p)+emoji+ta.value.substring(ta.selectionEnd);
+                ta.focus(); ta.setSelectionRange(p+emoji.length, p+emoji.length);
+                return;
+            }
+            if (fmt === 'bold')      wrapSel('**','**');
+            if (fmt === 'bullet')    insertBullets();
+            if (fmt === 'numbered')  insertNumbered();
+            if (fmt === 'highlight') wrapSel('==','==');
+        });
     }
 
     $(document).on("click", "#edit-publish-posts", function (e) {
@@ -958,10 +1023,132 @@ function iweb_global_func() {
         );
     });
 
+    function buildPostContextQuestion(object) {
+        if (!object || !object.length) return "";
+
+        var $postRoot = object.closest(".post, .home-spotlight-slide, .home-post-card");
+        var sector = String(object.data("sector") || "").toLowerCase();
+        if ((!$postRoot || !$postRoot.length) && object.closest(".home-spotlight-slide-inner").length) {
+            $postRoot = object.closest(".home-spotlight-slide-inner");
+        }
+        var title = cleanText(object.data("post-title")) || "";
+        var snippet = cleanText(object.data("post-summary")) || "";
+
+        function cleanText(text) {
+            if (!text) return "";
+            return $.trim(String(text).replace(/\s+/g, " "));
+        }
+
+        function isGenericTitle(text) {
+            if (!text) return true;
+            var t = cleanText(text).toLowerCase();
+            return /^(breaking\s*news|news|update|announcement|important\s*update|latest\s*news|notice)$/.test(t);
+        }
+
+        function summarizeFromContent(text) {
+            var normalized = cleanText(text);
+            if (!normalized) return "";
+
+            // Keep first meaningful sentence/chunk from content.
+            var sentence = normalized.split(/(?<=[.!?])\s+/)[0] || normalized;
+            sentence = cleanText(sentence);
+
+            // Avoid overly long prompts.
+            if (sentence.length > 180) {
+                sentence = sentence.substring(0, 180).trim();
+                sentence = sentence.replace(/[,:;\-\s]+$/g, "");
+            }
+
+            return sentence;
+        }
+
+        function compactLabel(text, maxLen) {
+            var normalized = cleanText(text);
+            if (!normalized) return "";
+            if (normalized.length <= maxLen) return normalized;
+            return normalized.substring(0, maxLen).trim().replace(/[,:;\-\s]+$/g, "") + "...";
+        }
+
+        function extractCountryNames(text) {
+            var normalized = " " + cleanText(text).toLowerCase() + " ";
+            if (!normalized.trim()) return [];
+
+            var countryPatterns = [
+                { re: /\bnew\s+zealand\b/, label: "New Zealand" },
+                { re: /\baustralia\b/, label: "Australia" },
+                { re: /\bcanada\b/, label: "Canada" },
+                { re: /\bunited\s+states\b|\busa\b|\bu\.s\.a\b/, label: "United States" },
+                { re: /\bunited\s+kingdom\b|\buk\b|\bu\.k\.\b/, label: "United Kingdom" },
+                { re: /\bireland\b/, label: "Ireland" },
+                { re: /\bsingapore\b/, label: "Singapore" },
+                { re: /\bmalaysia\b/, label: "Malaysia" },
+                { re: /\bthailand\b/, label: "Thailand" },
+                { re: /\buae\b|\bunited\s+arab\s+emirates\b/, label: "United Arab Emirates" },
+                { re: /\bdubai\b/, label: "Dubai" }
+            ];
+
+            var found = [];
+            for (var i = 0; i < countryPatterns.length; i++) {
+                if (countryPatterns[i].re.test(normalized)) {
+                    found.push(countryPatterns[i].label);
+                }
+            }
+
+            return found;
+        }
+
+        // Fallback: try common title locations used across post cards/details/spotlight.
+        if (!title && $postRoot.length) {
+            title = $.trim($postRoot.find(".home-spotlight-slide-title").first().text());
+            if (!title) title = $.trim($postRoot.find(".home-post-card-title").first().text());
+            if (!title) title = $.trim($postRoot.find(".title-link h3").first().text());
+            if (!title) title = $.trim($postRoot.find("h3").first().text());
+            if (!title) title = $.trim($postRoot.find("h2").first().text());
+        }
+
+        // Fallback: try common content/excerpt locations.
+        if (!snippet && $postRoot.length) {
+            snippet = $.trim($postRoot.find(".home-spotlight-slide-excerpt").first().text());
+            if (!snippet) snippet = $.trim($postRoot.find(".home-post-card-excerpt").first().text());
+            if (!snippet) snippet = $.trim($postRoot.find(".article-short-content").first().text());
+            if (!snippet) snippet = $.trim($postRoot.find(".iweb-editor p").first().text());
+        }
+
+        // Prefer content summary over title to avoid weak titles like "Breaking News".
+        var contentSummary = summarizeFromContent(snippet);
+        var titleSummary = isGenericTitle(title) ? "" : summarizeFromContent(title);
+        var subject = compactLabel(titleSummary || title, 140);
+        var summary = compactLabel(contentSummary || snippet, 180);
+        var combinedContext = (title + " " + snippet).trim();
+
+        if (!subject && !summary) return "";
+
+        if (sector === "migration") {
+            var countries = extractCountryNames(combinedContext);
+            var isNzPost = /\bnew zealand\b/i.test(combinedContext) || /\baotearoa\b/i.test(combinedContext) || /\bnz\b/i.test(combinedContext);
+
+            if (isNzPost) {
+                return 'Hi, I need information only about New Zealand Business Investor Work Visa. Please use only https://www.immigration.govt.nz/visas/business-investor-work-visa/ and explain eligibility, required documents, process, timeline, and next steps.';
+            }
+
+            var countryText = countries.length ? countries.slice(0, 2).join(" and ") : "the destination country in this post";
+
+            if (subject && summary) {
+                return 'Hi, I am interested in migration to ' + countryText + '. Subject: "' + subject + '". Summary: "' + summary + '". Can you explain eligibility, process, timeline, cost, and next steps?';
+            }
+
+            return 'Hi, I am interested in migration to ' + countryText + '. Based on this post, can you explain eligibility, process, timeline, cost, and next steps?';
+        }
+
+        var context = summary || subject;
+        return 'Hi, based on this post: "' + context + '", can you explain the key details and what steps I should take next?';
+    }
+
     $(document).on("click", "a.do-toapply", function () {
         var object = $(this);
         var sector = object.data("sector");
         var actionUrl = object.data("action-url");
+        var postId = object.data("id");
 
         if (sector === "migration") {
             // Require sign-in for migration AI chat entry point
@@ -970,8 +1157,10 @@ function iweb_global_func() {
                 return;
             }
 
-            // Auto-send a short greeting to open the AI chat session
-            var presetMsg = "Hi!";
+            // Priority: explicit preset (e.g. NZ special case) -> dynamic post-based question -> generic fallback.
+            var presetMsg = object.data("preset-msg")
+                || buildPostContextQuestion(object)
+                || "Hi, can you help me with education and migration queries?";
             var $input = $("#ask_question");
             var $form  = $("#ask-form");
 
@@ -979,6 +1168,16 @@ function iweb_global_func() {
                 // On mobile: open the chat panel first if it isn't already open
                 if ($(window).width() <= 700 && !$("main.page-body div.chat-area").hasClass("show-mobile")) {
                     toggleMobileChat();
+                }
+
+                // If post_id is available, add it as a hidden form field
+                if (postId) {
+                    var $postIdField = $form.find('input[name="post_id"]');
+                    if ($postIdField.length === 0) {
+                        $form.append('<input type="hidden" name="post_id" value="' + parseInt(postId) + '">');
+                    } else {
+                        $postIdField.val(parseInt(postId));
+                    }
                 }
 
                 // Scroll the chat input into view
@@ -992,10 +1191,12 @@ function iweb_global_func() {
                     }, 150);
                 });
             } else {
-                // Fallback: navigate to the chat page
-                window.location.href = iweb.isValue(actionUrl)
-                    ? actionUrl
-                    : (_page_base_url + "/agent_chat");
+                // Fallback: navigate to the chat page with post_id if available
+                var chatUrl = iweb.isValue(actionUrl) ? actionUrl : (_page_base_url + "/agent_chat");
+                if (postId) {
+                    chatUrl += "?post_id=" + postId;
+                }
+                window.location.href = chatUrl;
             }
             return;
         }
@@ -1003,6 +1204,10 @@ function iweb_global_func() {
         window.location.href = iweb.isValue(actionUrl)
             ? actionUrl
             : (_page_base_url + "/apply");
+    });
+
+    $(document).on("click", "a.do-post-talk-agent", function () {
+        window.location.href = getTalkToAgentCTAUrl();
     });
 
     $(document).on("click", "a.do-qanda", function () {
@@ -1472,33 +1677,29 @@ function resetPageView() {
 }
 
 function loadArticle() {
-    if ($("div.article-list").length > 0) {
-        if (!article_loading && article_loading_enable) {
-            article_loading = true;
-            $.get(
-                _page_base_url +
-                    "/account_article?mid=" +
-                    parseInt($("div.article-list").data("mid")) +
-                    "&page=" +
-                    article_page,
-                function (html) {
-                    if (iweb.isValue(html)) {
-                        $("div.article-list")
-                            .append(html)
-                            .each(function () {
-                                iweb.responsive();
-                                article_page = article_page + 1;
-                                setTimeout(function () {
-                                    article_loading = false;
-                                }, 500);
-                            });
-                    } else {
-                        article_loading_enable = false;
-                    }
-                }
-            );
-        }
-    }
+    $("div.article-list").each(function () {
+        var container = $(this);
+        if (container.data("loading") || container.data("done")) return;
+        var mid = parseInt(container.data("mid") || 0);
+        var sector = container.data("sector") || "";
+        var page = parseInt(container.data("page") || 1);
+        var url = _page_base_url + "/account_article?mid=" + mid + "&page=" + page;
+        if (sector) url += "&sector=" + encodeURIComponent(sector);
+        container.data("loading", true);
+        $.get(url, function (html) {
+            if (iweb.isValue(html)) {
+                container.append(html);
+                container.data("page", page + 1);
+                iweb.responsive();
+                setTimeout(function () {
+                    container.data("loading", false);
+                }, 500);
+            } else {
+                container.data("done", true);
+                container.data("loading", false);
+            }
+        });
+    });
 }
 
 function loadChatMessage(init) {
@@ -1649,4 +1850,233 @@ $(document).ready(function () {
             $(".chat-action-buttons").show();
         }
     }, 500);
+});
+
+// ── Home Spotlight Carousel ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    (function () {
+        var carousel = document.getElementById('home-spotlight-carousel');
+        if (!carousel) return;
+
+        var slides  = carousel.querySelectorAll('.home-spotlight-slide');
+        var dots    = carousel.querySelectorAll('.home-spotlight-dot');
+        var prevBtn = document.getElementById('home-spotlight-prev');
+        var nextBtn = document.getElementById('home-spotlight-next');
+        var total   = slides.length;
+        if (total <= 1) return;
+
+        var current     = 0;
+        var timer       = null;
+        var isAnimating = false;
+
+        function goTo(idx) {
+            idx = ((idx % total) + total) % total;
+            if (isAnimating || idx === current) return;
+            isAnimating = true;
+
+            slides[current].classList.remove('active');
+            if (dots[current]) dots[current].classList.remove('active');
+
+            current = idx;
+            slides[current].classList.add('active');
+            if (dots[current]) dots[current].classList.add('active');
+
+            // Unlock after the CSS transition finishes (0.6s + small buffer)
+            setTimeout(function () { isAnimating = false; }, 660);
+        }
+
+        function goNext() { goTo(current + 1); }
+        function goPrev() { goTo(current - 1); }
+
+        function startAuto() {
+            stopAuto();
+            timer = setInterval(goNext, 10000);
+        }
+
+        function stopAuto() {
+            if (timer) { clearInterval(timer); timer = null; }
+        }
+
+        if (nextBtn) nextBtn.addEventListener('click', function () { goNext(); startAuto(); });
+        if (prevBtn) prevBtn.addEventListener('click', function () { goPrev(); startAuto(); });
+
+        dots.forEach(function (d) {
+            d.addEventListener('click', function () {
+                goTo(parseInt(d.getAttribute('data-index'), 10));
+                startAuto();
+            });
+        });
+
+        // Touch swipe support
+        var touchStartX = 0;
+        carousel.addEventListener('touchstart', function (e) {
+            touchStartX = e.changedTouches[0].clientX;
+        }, { passive: true });
+        carousel.addEventListener('touchend', function (e) {
+            var dx = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(dx) > 48) {
+                if (dx < 0) goNext(); else goPrev();
+                startAuto();
+            }
+        }, { passive: true });
+
+        // Pause on hover (desktop)
+        carousel.addEventListener('mouseenter', stopAuto);
+        carousel.addEventListener('mouseleave', startAuto);
+
+        startAuto();
+    })();
+
+    // ── Spotlight "Read More" → modal (injected directly into body) ───────
+    var spModal = null;
+
+    function buildSpModal() {
+        if (spModal) return;
+        spModal = document.createElement('div');
+        spModal.id = 'home-spotlight-modal';
+        spModal.className = 'home-spotlight-modal-overlay';
+        spModal.setAttribute('role', 'dialog');
+        spModal.setAttribute('aria-modal', 'true');
+        spModal.innerHTML =
+            '<div class="home-spotlight-modal-box">' +
+            '<button class="home-spotlight-modal-close" aria-label="Close">&times;</button>' +
+            '<h3 class="home-spotlight-modal-title"></h3>' +
+            '<div class="home-spotlight-modal-body"></div>' +
+            '</div>';
+        document.body.appendChild(spModal);
+
+        spModal.querySelector('.home-spotlight-modal-close').addEventListener('click', closeSpModal);
+        spModal.addEventListener('click', function (e) {
+            if (e.target === spModal) closeSpModal();
+        });
+    }
+
+    function openSpModal(title, text) {
+        buildSpModal();
+        spModal.querySelector('.home-spotlight-modal-title').textContent = title;
+        spModal.querySelector('.home-spotlight-modal-body').textContent  = text;
+        spModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeSpModal() {
+        if (!spModal) return;
+        spModal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.home-spotlight-read-more-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var slide   = btn.closest('.home-spotlight-slide');
+            var title   = slide ? (slide.querySelector('.home-spotlight-slide-title') || {}).textContent || '' : '';
+            var excerpt = slide ? (slide.querySelector('.home-spotlight-slide-excerpt') || {}).textContent || '' : '';
+            openSpModal(title.trim(), excerpt.trim());
+        });
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeSpModal();
+    });
+})();
+
+// ── Render post-md-body elements ─────────────────────────────────────────
+function renderPostMdBodies() {
+    document.querySelectorAll('.post-md-body[data-md]').forEach(function (el) {
+        if (el._mdRendered) return;
+        el._mdRendered = true;
+        try {
+            var md = el.getAttribute('data-md') || '';
+            if (typeof mdToSafeHtml === 'function') {
+                el.innerHTML = mdToSafeHtml(md);
+            } else if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                marked.setOptions({ gfm: true, breaks: true });
+                el.innerHTML = DOMPurify.sanitize(marked.parse(md), { ADD_TAGS: ['mark'] });
+            } else {
+                el.textContent = md;
+            }
+        } catch (e) {
+            el.textContent = el.getAttribute('data-md') || '';
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', renderPostMdBodies);
+window.addEventListener('load', renderPostMdBodies);
+
+// ── Post editor markdown toolbar ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    var toolbar = document.getElementById('post-editor-toolbar');
+    if (!toolbar) return;
+    var ta = document.getElementById('content');
+    if (!ta) return;
+
+    function wrapSelection(before, after) {
+        var start = ta.selectionStart;
+        var end   = ta.selectionEnd;
+        var sel   = ta.value.substring(start, end);
+        var replacement = before + (sel || 'text') + after;
+        ta.value = ta.value.substring(0, start) + replacement + ta.value.substring(end);
+        ta.focus();
+        ta.setSelectionRange(start + before.length, start + before.length + (sel || 'text').length);
+    }
+
+    function insertAtLineStart(prefix) {
+        var start = ta.selectionStart;
+        var end   = ta.selectionEnd;
+        var lines = ta.value.substring(start, end).split('\n');
+        var replaced = lines.map(function (l) { return prefix + l; }).join('\n');
+        ta.value = ta.value.substring(0, start) + replaced + ta.value.substring(end);
+        ta.focus();
+        ta.setSelectionRange(start, start + replaced.length);
+    }
+
+    function insertBullets() {
+        var start = ta.selectionStart;
+        var end   = ta.selectionEnd;
+        var sel   = ta.value.substring(start, end);
+        if (sel) {
+            insertAtLineStart('- ');
+        } else {
+            var ins = '\n- ';
+            ta.value = ta.value.substring(0, start) + ins + ta.value.substring(end);
+            ta.focus();
+            ta.setSelectionRange(start + ins.length, start + ins.length);
+        }
+    }
+
+    function insertNumbered() {
+        var start = ta.selectionStart;
+        var end   = ta.selectionEnd;
+        var sel   = ta.value.substring(start, end);
+        if (sel) {
+            var lines = sel.split('\n');
+            var replaced = lines.map(function (l, i) { return (i + 1) + '. ' + l; }).join('\n');
+            ta.value = ta.value.substring(0, start) + replaced + ta.value.substring(end);
+            ta.focus();
+            ta.setSelectionRange(start, start + replaced.length);
+        } else {
+            var ins = '\n1. ';
+            ta.value = ta.value.substring(0, start) + ins + ta.value.substring(end);
+            ta.focus();
+            ta.setSelectionRange(start + ins.length, start + ins.length);
+        }
+    }
+
+    toolbar.addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-fmt], button[data-emoji]');
+        if (!btn) return;
+        e.preventDefault();
+        var fmt   = btn.getAttribute('data-fmt');
+        var emoji = btn.getAttribute('data-emoji');
+        if (emoji) {
+            var pos = ta.selectionStart;
+            ta.value = ta.value.substring(0, pos) + emoji + ta.value.substring(ta.selectionEnd);
+            ta.focus();
+            ta.setSelectionRange(pos + emoji.length, pos + emoji.length);
+            return;
+        }
+        if (fmt === 'bold')      wrapSelection('**', '**');
+        if (fmt === 'bullet')    insertBullets();
+        if (fmt === 'numbered')  insertNumbered();
+        if (fmt === 'highlight') wrapSelection('==', '==');
+    });
 });

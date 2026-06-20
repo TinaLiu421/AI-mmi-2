@@ -1,6 +1,11 @@
 <?php
 $posts = $_page_data['details'];
 $qa = $_page_data['qa'] ?? [];
+$postSector = (!empty($posts['sector']) && in_array($posts['sector'], ['study', 'migration'], true)) ? $posts['sector'] : 'study';
+$postActionLabel = ($postSector === 'migration')
+    ? ($_page_lang['chat_robot.talk_to_ai_mmi'] ?? 'Talk to AI-mmi')
+    : ($_page_lang['apply'] ?? 'Apply Now !');
+$postActionUrl = ($postSector === 'migration') ? ($_page_base_url.'/agent_chat') : ($_page_base_url.'/apply');
 $qa = array_merge([
     'items'          => [],
     'can_ask'        => false,
@@ -8,6 +13,23 @@ $qa = array_merge([
     'guest_text'     => 'Please log in to ask a question.',
     'placeholder'    => 'Ask AI-mmi anything about this post...',
 ], $qa);
+
+if (!function_exists('getYoutubeEmbedUrl')) {
+function getYoutubeEmbedUrl($url) {
+    $shortUrlRegex = '/youtu.be\/([a-zA-Z0-9_-]+)\??/i';
+    $longUrlRegex = '/youtube.com\/((?:embed)|(?:watch))((?:\?v\=)|(?:\/))([a-zA-Z0-9_-]+)/i';
+
+    $youtube_id = '';
+    if (preg_match($longUrlRegex, (string)$url, $matches)) {
+        $youtube_id = $matches[count($matches) - 1];
+    }
+    if ($youtube_id === '' && preg_match($shortUrlRegex, (string)$url, $matches)) {
+        $youtube_id = $matches[count($matches) - 1];
+    }
+
+    return 'https://www.youtube.com/embed/' . $youtube_id;
+}
+}
 ?>
 @extends('web.common')
 @section('content')
@@ -42,7 +64,7 @@ $qa = array_merge([
 @media (max-width: 640px){.qa-section{padding:12px;}.qa-answer{padding-left:32px;}}
 </style>
 <div class="inner-panel">
-    <div class="article-list">
+    <div class="article-list" data-done="true">
         <div class="post">
             <div>
                 <div class="author">
@@ -83,7 +105,7 @@ $qa = array_merge([
                     <h3><?php echo nl2br($posts['title']); ?></h3>
                     <?php } ?>
                     <div class="iweb-editor">
-                        <p><?php echo nl2br($posts['content']); ?></p>
+                        <div class="post-md-body" data-md="<?php echo htmlspecialchars($posts['content'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
 
                         <?php if(!empty($posts['photo']) && file_exists('upload/member_posts/'.$posts['photo'])) { ?>
                         <p style="text-align:center;"><img src="<?php echo 'upload/member_posts/'.$posts['photo'];?>"></p>
@@ -102,24 +124,26 @@ $qa = array_merge([
                 <div class="clearboth"></div>
 
                 <div class="summary">
-                    <div class="total">
-                        <div class="like">
-                            <img src="asset/image/icon-like-blue.png" alt="icon-like-blue"/>
-                            <span><?php echo number_format((int)$posts['total_like']); ?></span>
-                        </div>
-                        <div class="comment">
-                            <?php echo str_replace('{num}', '<span>'.number_format((int)$posts['total_comment']).'</span>', $_page_lang['total_comments']); ?>
-                        </div>
-                    </div>
                     <div class="actions">
-                        <a class="do-like" data-id="<?php echo $posts['id']; ?>">
-                            <img src="asset/image/icon-like.png" alt="icon-like"/>
-                            <span><?php echo $_page_lang['like']; ?></span>
+                        <?php
+                        $_postPresetMsg = '';
+                        if (!empty($posts['title'])) {
+                            if (stripos($posts['title'], 'NZ as Business Investor') !== false) {
+                                $_postPresetMsg = 'Hi, I am interested in moving to NZ as a business investor. Can you let me know more details?';
+                            } elseif (stripos($posts['title'], 'New Zealand') !== false) {
+                                $_postPresetMsg = 'How can I migrate to New Zealand as a business investor?';
+                            }
+                        }
+                        ?>
+                        <a class="do-toapply" data-id="<?php echo $posts['id']; ?>" data-post-title="<?php echo htmlspecialchars($posts['title'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" data-post-summary="<?php echo htmlspecialchars(strip_tags((string)($posts['content'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>" data-action-url="<?php echo $postActionUrl; ?>" data-sector="<?php echo $postSector; ?>"<?php if ($_postPresetMsg) echo ' data-preset-msg="'.htmlspecialchars($_postPresetMsg, ENT_QUOTES, 'UTF-8').'"'; ?>>
+                            <img src="asset/image/icon-apply.png" alt="icon-action"/>
+                            <span><?php echo $postActionLabel; ?></span>
                         </a>
-                        <a class="do-comment" data-id="<?php echo $posts['id']; ?>">
-                            <img src="asset/image/icon-comment.png" alt="icon-comment"/>
-                            <span><?php echo $_page_lang['comment']; ?></span>
+                        <?php if (!empty($_current_member) && ((int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false)): ?>
+                        <a class="do-post-talk-agent" href="javascript:void(0);">
+                            <span>Talk to Registered Agent</span>
                         </a>
+                        <?php endif; ?>
                         <a class="do-share">
                             <img src="asset/image/icon-share.png" alt="icon-share"/>
                             <span><?php echo $_page_lang['share']; ?></span>
@@ -138,7 +162,7 @@ $qa = array_merge([
                 </div>
                 <div class="clearboth"></div>
 
-                <div class="qa-section" id="qa-section">
+                <div class="qa-section" id="qa-section" style="display:none;">
                     <div class="qa-header">
                         <div>
                             <div class="qa-title">Q&amp;A</div>
@@ -324,12 +348,40 @@ $qa = array_merge([
         </div>
     </div>
 </div>
+@push('scripts')
+<script>
+(function() {
+    function render() {
+        document.querySelectorAll('.post-md-body[data-md]').forEach(function(el) {
+            if (el._mdRendered) return;
+            el._mdRendered = true;
+            try {
+                var md = el.getAttribute('data-md') || '';
+                if (typeof mdToSafeHtml === 'function') {
+                    el.innerHTML = mdToSafeHtml(md);
+                } else if (typeof marked !== 'undefined') {
+                    marked.setOptions({ gfm: true, breaks: true });
+                    var html = marked.parse(md);
+                    el.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html, {ADD_TAGS:['mark']}) : html;
+                } else { el.textContent = md; }
+            } catch(e) { el.textContent = el.getAttribute('data-md') || ''; }
+        });
+    }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', render); }
+    else { render(); }
+})();
+</script>
+@endpush
+
 @endsection
 <?php
+if (!function_exists('qa_nl2br')) {
 function qa_nl2br($text) {
     return nl2br(htmlspecialchars((string)$text, ENT_QUOTES, 'UTF-8'));
 }
+}
 
+if (!function_exists('time2Units')) {
 function time2Units($time, $lang = 1) {
     $year = floor($time / 60 / 60 / 24 / 365);
     $time -= $year * 60 * 60 * 24 * 365;
@@ -386,18 +438,6 @@ function time2Units($time, $lang = 1) {
     }
     return $elapse;
 }
-
-function getYoutubeEmbedUrl($url) {
-     $shortUrlRegex = '/youtu.be\/([a-zA-Z0-9_-]+)\??/i';
-     $longUrlRegex = '/youtube.com\/((?:embed)|(?:watch))((?:\?v\=)|(?:\/))([a-zA-Z0-9_-]+)/i';
-
-    if (preg_match($longUrlRegex, $url, $matches)) {
-        $youtube_id = $matches[count($matches) - 1];
-    }
-
-    if (preg_match($shortUrlRegex, $url, $matches)) {
-        $youtube_id = $matches[count($matches) - 1];
-    }
-    return 'https://www.youtube.com/embed/' . $youtube_id ;
 }
+
 ?>

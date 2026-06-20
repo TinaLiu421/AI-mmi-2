@@ -52,15 +52,6 @@ $_itoken_value = base64_encode(md5($_itoken_seed.'#dt'.$_itoken_timestamp).'%'.$
                     </div>
 
                     <div class="dropdown">
-                        <select id="category_lang" name="category_lang" data-validation="required">
-                            <option value=""><?php echo $_page_lang['language']; ?></option>
-                            <option value="1"<?php echo ($_show_posts['category_lang']==1)?'selected':''; ?>>English</option>
-                            <option value="2"<?php echo ($_show_posts['category_lang']==2)?'selected':''; ?>>繁體中文</option>
-                            <option value="3"<?php echo ($_show_posts['category_lang']==3)?'selected':''; ?>>简体中文</option>
-                        </select>
-                    </div>
-
-                    <div class="dropdown">
                         <select id="category_country" name="category_country" data-validation="required">
                             <option value=""><?php echo $_page_lang['country']; ?></option>
                             <option value="0"<?php echo ($_show_posts['category_country']==0)?'selected':''; ?>><?php echo $_page_lang['all_country']; ?></option>
@@ -77,6 +68,18 @@ $_itoken_value = base64_encode(md5($_itoken_seed.'#dt'.$_itoken_timestamp).'%'.$
                             <option value="migration"<?php echo ($_show_posts['sector']==='migration')?'selected':''; ?>><?php echo $_page_lang['posts.sector_migration']; ?></option>
                         </select>
                     </div>
+                    <?php
+                    $_post_featured_eligible = in_array((int)($_show_current_member['type'] ?? 0), [2, 3])
+                        && !in_array(strtolower(trim($_show_current_member['email'] ?? '')), ['admin@wealthskey.com', 'info@ai-mmi.com']);
+                    ?>
+                    <?php if ($_post_featured_eligible): ?>
+                    <div class="dropdown">
+                        <select id="post_as_featured" name="post_as_featured">
+                            <option value="0">Regular</option>
+                            <option value="1">&#11088; Featured (US$100/week)</option>
+                        </select>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 
                 <div class="clearboth"></div>
@@ -87,6 +90,22 @@ $_itoken_value = base64_encode(md5($_itoken_seed.'#dt'.$_itoken_timestamp).'%'.$
             </div>
 
             <div class="row">
+                <div class="post-editor-toolbar" id="post-editor-toolbar">
+                    <button type="button" data-fmt="bold"      title="Bold"><b>B</b></button>
+                    <button type="button" data-fmt="bullet"    title="Bullet list">&#8226; List</button>
+                    <button type="button" data-fmt="numbered"  title="Numbered list">1. List</button>
+                    <button type="button" data-fmt="highlight" title="Highlight"><mark style="padding:0 3px;">HL</mark></button>
+                    <span class="pet-sep"></span>
+                    <button type="button" data-emoji="😊" title="Emoji">😊</button>
+                    <button type="button" data-emoji="👍" title="Emoji">👍</button>
+                    <button type="button" data-emoji="🎯" title="Emoji">🎯</button>
+                    <button type="button" data-emoji="✅" title="Emoji">✅</button>
+                    <button type="button" data-emoji="⭐" title="Emoji">⭐</button>
+                    <button type="button" data-emoji="🔥" title="Emoji">🔥</button>
+                    <button type="button" data-emoji="📌" title="Emoji">📌</button>
+                    <button type="button" data-emoji="💡" title="Emoji">💡</button>
+                    <button type="button" data-emoji="🇦🇺" title="Emoji">🇦🇺</button>
+                </div>
                 <textarea id="content" name="content" placeholder="<?php echo $_page_lang['posts.enter_content']; ?>" data-validation="required"><?php echo $_show_posts['content']; ?></textarea>
             </div>
             <div class="clearboth"></div>
