@@ -186,7 +186,7 @@ function jp_logo_url($job) {
                     <span class="jp-result-count"><?php echo $jobCount; ?> result<?php echo $jobCount === 1 ? '' : 's'; ?></span>
                 </div>
 
-                <div class="jp-job-list" id="jp-job-list">
+                <div class="jp-job-list-wrap jp-job-list" id="jp-job-list">
                     <?php if (empty($jobs)): ?>
                     <div class="jp-empty">
                         <div class="jp-empty-icon"><i class="fa fa-briefcase"></i></div>
