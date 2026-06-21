@@ -922,8 +922,11 @@ function iweb_global_func() {
                         initPostEditorToolbar();
 
                         // ── Job Post toggle logic ──────────────────────────
+                        var _defaultContentPlaceholder = $("#content").attr("placeholder") || "";
+                        var _jobContentPlaceholder = "Describe the role, key responsibilities, qualifications required, and how to apply...";
+
                         function syncJobPostUI() {
-                            var sector = $("#sector").val();
+                            var sector    = $("#sector").val();
                             var isJobPost = $("#is_job_post").is(":checked");
 
                             // Show/hide job-post option block
@@ -939,14 +942,16 @@ function iweb_global_func() {
                             if (isJobPost) {
                                 $("#photo-optional-badge").show();
                                 $("#job-post-hint").slideDown(200);
-                                // Make photo not required
-                                $("#mypostsphoto").removeAttr("data-validation");
                                 $("#show-publish-photo").addClass("jp-optional");
+                                // Help users know content is separate from title
+                                if ($("#content").val().trim() === "") {
+                                    $("#content").attr("placeholder", _jobContentPlaceholder);
+                                }
                             } else {
                                 $("#photo-optional-badge").hide();
                                 $("#job-post-hint").slideUp(200);
-                                $("#mypostsphoto").removeAttr("data-validation");
                                 $("#show-publish-photo").removeClass("jp-optional");
+                                $("#content").attr("placeholder", _defaultContentPlaceholder);
                             }
                         }
 

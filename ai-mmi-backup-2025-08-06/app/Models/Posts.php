@@ -262,6 +262,8 @@ class Posts extends BaseModel {
 
     /**
      * Generate a professional job-post template image using GD.
+     * 1200×900 (4:3) — matches the home-post-card-thumb-wrap aspect-ratio so
+     * the card image fills with no letterbox gap.
      * Returns the saved filename on success, empty string on failure.
      */
     private function generateJobPostTemplate(string $title): string {
@@ -269,165 +271,194 @@ class Posts extends BaseModel {
             return '';
         }
 
-        $width  = 1200;
-        $height = 630;
+        $w = 1200;
+        $h = 900;   // 4:3 to match card container
 
-        $img = imagecreatetruecolor($width, $height);
+        $img = imagecreatetruecolor($w, $h);
         if (!$img) return '';
 
-        // ── Background gradient: dark navy (#0b2d6f) → vivid blue (#1d4ed8) ──
-        for ($y = 0; $y < $height; $y++) {
-            $ratio = $y / ($height - 1);
-            $r = (int)(11  + (29  - 11)  * $ratio);
-            $g = (int)(45  + (78  - 45)  * $ratio);
-            $b = (int)(111 + (216 - 111) * $ratio);
-            $line_color = imagecolorallocate($img, $r, $g, $b);
-            imageline($img, 0, $y, $width - 1, $y, $line_color);
+        imagesavealpha($img, true);
+        imagealphablending($img, true);
+
+        // ── Background: deep navy top (#0c1a35) → rich dark blue bottom (#0f2555) ──
+        for ($y = 0; $y < $h; $y++) {
+            $t = $y / ($h - 1);
+            $c = imagecolorallocate($img,
+                (int)(12  + (15  - 12)  * $t),
+                (int)(26  + (37  - 26)  * $t),
+                (int)(53  + (85  - 53)  * $t)
+            );
+            imageline($img, 0, $y, $w - 1, $y, $c);
         }
 
-        // ── Decorative diagonal stripe accent (top-right area) ──
-        $stripe = imagecolorallocatealpha($img, 255, 255, 255, 118); // ~7% opacity
-        for ($i = 0; $i < 6; $i++) {
-            $ox = 900 + $i * 40;
-            $pts = [$ox, 0, $ox + 200, 0, $ox + 200 - $height, $height, $ox - $height, $height];
-            if (count($pts) === 8) {
-                imagefilledpolygon($img, $pts, 4, $stripe);
-            }
-        }
-
-        // ── Horizontal rule ──
-        $rule = imagecolorallocatealpha($img, 255, 255, 255, 90);
+        // ── Subtle large circle watermark (bottom-right, very faint) ──
+        $circle_c = imagecolorallocatealpha($img, 255, 255, 255, 120);
         imagesetthickness($img, 2);
-        imageline($img, 60, 160, $width - 60, 160, $rule);
-        imageline($img, 60, $height - 100, $width - 60, $height - 100, $rule);
+        imagearc($img, $w + 80, $h + 80, 680, 680, 0, 360, $circle_c);
+        imagearc($img, $w + 80, $h + 80, 500, 500, 0, 360, $circle_c);
         imagesetthickness($img, 1);
 
-        // ── Colour palette ──
-        $white      = imagecolorallocate($img, 255, 255, 255);
-        $pale       = imagecolorallocatealpha($img, 255, 255, 255, 60);  // ~53% opacity
-        $gold       = imagecolorallocate($img, 255, 200, 50);
+        // ── Left accent bar: 6px wide, vivid blue, full height ──
+        $accent = imagecolorallocate($img, 59, 130, 246);  // #3b82f6
+        imagefilledrectangle($img, 0, 0, 5, $h - 1, $accent);
 
-        // ── Font paths (try bundled font first, then common system paths) ──
+        // ── Font candidates ──
         $font_candidates = [
             base_path('app/Libraries/pdf/ttfonts/DejaVuSansCondensed-Bold.ttf'),
             '/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
             '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
             '/Library/Fonts/Arial Bold.ttf',
-            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+        ];
+        $font_reg_candidates = [
+            base_path('app/Libraries/pdf/ttfonts/DejaVuSansCondensed.ttf'),
+            '/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
         ];
         $font = '';
-        foreach ($font_candidates as $candidate) {
-            if (file_exists($candidate)) {
-                $font = $candidate;
-                break;
-            }
-        }
+        foreach ($font_candidates as $c) { if (file_exists($c)) { $font = $c; break; } }
+        $font_reg = '';
+        foreach ($font_reg_candidates as $c) { if (file_exists($c)) { $font_reg = $c; break; } }
+        if ($font_reg === '') $font_reg = $font;
 
-        // ── Label: "JOB OPPORTUNITY" ──
+        // ── Colours ──
+        $white     = imagecolorallocate($img, 255, 255, 255);
+        $off_white = imagecolorallocate($img, 200, 215, 245);  // muted blue-white
+        $gold      = imagecolorallocate($img, 255, 190, 50);
+        $rule_c    = imagecolorallocatealpha($img, 255, 255, 255, 100); // subtle rule
+        $label_bg  = imagecolorallocate($img, 59, 130, 246);            // #3b82f6 pill bg
+
+        $pad = 72; // left/right text padding (after 6px bar)
+
+        // ── "JOB OPPORTUNITY" pill badge ──
+        $badge_y   = 68;
+        $badge_h   = 34;
+        $badge_label = 'JOB OPPORTUNITY';
         if ($font) {
-            $label = 'JOB OPPORTUNITY';
-            imagettftext($img, 17, 0, 62, 110, $pale, $font, $label);
-
-            // ── Branding dot ──
-            imagefilledellipse($img, 49, 96, 14, 14, $gold);
+            $bb = imagettfbbox(13, 0, $font, $badge_label);
+            $badge_text_w = abs($bb[2] - $bb[0]);
         } else {
-            // Fallback: built-in GD font
-            imagestring($img, 5, 62, 90, 'JOB OPPORTUNITY', $white);
+            $badge_text_w = strlen($badge_label) * 8;
+        }
+        $badge_x1 = $pad;
+        $badge_x2 = $pad + $badge_text_w + 28;
+
+        // Pill background (rounded via stacked rects + circles)
+        $r = (int)($badge_h / 2);
+        imagefilledrectangle($img, $badge_x1 + $r, $badge_y, $badge_x2 - $r, $badge_y + $badge_h, $label_bg);
+        imagefilledrectangle($img, $badge_x1, $badge_y + $r, $badge_x2, $badge_y + $badge_h - $r, $label_bg);
+        imagefilledellipse($img, $badge_x1 + $r, $badge_y + $r, $r * 2, $r * 2, $label_bg);
+        imagefilledellipse($img, $badge_x2 - $r, $badge_y + $r, $r * 2, $r * 2, $label_bg);
+        imagefilledellipse($img, $badge_x1 + $r, $badge_y + $badge_h - $r, $r * 2, $r * 2, $label_bg);
+        imagefilledellipse($img, $badge_x2 - $r, $badge_y + $badge_h - $r, $r * 2, $r * 2, $label_bg);
+
+        if ($font) {
+            imagettftext($img, 13, 0, $badge_x1 + 14, $badge_y + $badge_h - 10, $white, $font, $badge_label);
+        } else {
+            imagestring($img, 3, $badge_x1 + 14, $badge_y + 8, $badge_label, $white);
         }
 
-        // ── Job title (auto-size + word-wrap) ──
+        // ── Thin rule below badge ──
+        $rule_y = $badge_y + $badge_h + 28;
+        imagesetthickness($img, 1);
+        imageline($img, $pad, $rule_y, $w - $pad, $rule_y, $rule_c);
+
+        // ── Job title: auto-size + up to 3 lines ──
+        $title = trim($title);
+        if ($title === '') $title = 'Job Opportunity';
+
+        $title_zone_top = $rule_y + 40;
+        $title_zone_bot = $h - 160;
+        $title_zone_h   = $title_zone_bot - $title_zone_top;
+        $max_width      = $w - $pad * 2;
+
+        $wrapped   = [];
+        $font_size = 80;
+        $min_size  = 30;
+
         if ($font) {
-            $title = trim($title);
-            if ($title === '') $title = 'Job Opportunity';
-
-            // Determine font size: start at 68, shrink until it fits one line or wrap
-            $max_width   = $width - 120;
-            $font_size   = 68;
-            $min_size    = 28;
-            $wrapped     = [];
-
             while ($font_size >= $min_size) {
-                // Try single line
-                $bbox = imagettfbbox($font_size, 0, $font, $title);
-                $text_w = abs($bbox[2] - $bbox[0]);
-                if ($text_w <= $max_width) {
-                    $wrapped = [$title];
-                    break;
-                }
-                // Try word-wrapping into 2 lines
-                $words   = explode(' ', $title);
-                $line1   = '';
-                $line2   = '';
-                $split   = false;
-                $tmp     = '';
+                $words = preg_split('/\s+/', $title);
+                $lines = [];
+                $cur   = '';
                 foreach ($words as $word) {
-                    $test = $tmp === '' ? $word : $tmp . ' ' . $word;
-                    $b    = imagettfbbox($font_size, 0, $font, $test);
-                    if (abs($b[2] - $b[0]) > $max_width && $tmp !== '') {
-                        $line1 = $tmp;
-                        $line2 = implode(' ', array_slice($words, count(explode(' ', $tmp))));
-                        $split = true;
-                        break;
+                    $test = $cur === '' ? $word : $cur . ' ' . $word;
+                    $bb   = imagettfbbox($font_size, 0, $font, $test);
+                    if (abs($bb[2] - $bb[0]) > $max_width && $cur !== '') {
+                        $lines[] = $cur;
+                        $cur     = $word;
+                    } else {
+                        $cur = $test;
                     }
-                    $tmp = $test;
                 }
-                if ($split) {
-                    // Check line2 width
-                    $b2 = imagettfbbox($font_size, 0, $font, $line2);
-                    if (abs($b2[2] - $b2[0]) <= $max_width) {
-                        $wrapped = [$line1, $line2];
-                        break;
-                    }
+                if ($cur !== '') $lines[] = $cur;
+
+                $line_h  = (int)($font_size * 1.3);
+                $block_h = count($lines) * $line_h;
+
+                // Accept if ≤3 lines and fits vertically
+                if (count($lines) <= 3 && $block_h <= $title_zone_h) {
+                    $wrapped   = $lines;
+                    break;
                 }
                 $font_size -= 4;
             }
-            if (empty($wrapped)) $wrapped = [$title];
+            if (empty($wrapped)) $wrapped = [mb_substr($title, 0, 30)];
+        }
 
-            // Vertical centering between the two rules
-            $text_zone_top    = 175;
-            $text_zone_bottom = $height - 115;
-            $text_zone_h      = $text_zone_bottom - $text_zone_top;
-
-            $line_h = (int)($font_size * 1.25);
+        if ($font && !empty($wrapped)) {
+            $line_h  = (int)($font_size * 1.3);
             $block_h = count($wrapped) * $line_h;
-            $start_y = $text_zone_top + (int)(($text_zone_h - $block_h) / 2) + $font_size;
+            $start_y = $title_zone_top + (int)(($title_zone_h - $block_h) / 2) + $font_size;
 
             foreach ($wrapped as $i => $line) {
-                $bbox = imagettfbbox($font_size, 0, $font, $line);
-                $lw   = abs($bbox[2] - $bbox[0]);
-                $lx   = (int)(($width - $lw) / 2);
-                $ly   = $start_y + $i * $line_h;
+                $bb = imagettfbbox($font_size, 0, $font, $line);
+                $lw = abs($bb[2] - $bb[0]);
+                $lx = (int)(($w - $lw) / 2);
+                $ly = $start_y + $i * $line_h;
                 imagettftext($img, $font_size, 0, $lx, $ly, $white, $font, $line);
             }
         } else {
-            // GD fallback
-            $lines = str_split($title, 30);
-            $y0 = 240;
-            foreach ($lines as $line) {
-                imagestring($img, 5, 60, $y0, $line, $white);
-                $y0 += 20;
+            // GD built-in fallback
+            $lines = str_split($title, 28);
+            $y0    = 340;
+            foreach (array_slice($lines, 0, 3) as $line) {
+                imagestring($img, 5, $pad, $y0, $line, $white);
+                $y0 += 22;
             }
         }
 
-        // ── Footer branding ──
-        if ($font) {
-            $brand = 'AI-mmi  |  ai-mmi.com';
-            $bbox  = imagettfbbox(14, 0, $font, $brand);
-            $bw    = abs($bbox[2] - $bbox[0]);
-            imagettftext($img, 14, 0, $width - $bw - 60, $height - 30, $pale, $font, $brand);
+        // ── Rule above footer ──
+        $footer_rule_y = $h - 110;
+        imageline($img, $pad, $footer_rule_y, $w - $pad, $footer_rule_y, $rule_c);
+
+        // ── Footer: left = "Hiring Now" tag, right = AI-mmi brand ──
+        $footer_text_y = $h - 62;
+        if ($font && $font_reg) {
+            $tag  = 'Hiring Now';
+            $brand = 'AI-mmi  ·  ai-mmi.com';
+
+            // Left tag with gold dot
+            imagefilledellipse($img, $pad, $footer_text_y - 6, 10, 10, $gold);
+            imagettftext($img, 15, 0, $pad + 16, $footer_text_y, $off_white, $font_reg, $tag);
+
+            // Right brand
+            $bb = imagettfbbox(15, 0, $font_reg, $brand);
+            $bw = abs($bb[2] - $bb[0]);
+            imagettftext($img, 15, 0, $w - $bw - $pad, $footer_text_y, $off_white, $font_reg, $brand);
         } else {
-            imagestring($img, 3, 60, $height - 30, 'AI-mmi | ai-mmi.com', $pale);
+            imagestring($img, 3, $pad, $footer_text_y - 10, 'AI-mmi | ai-mmi.com', $off_white);
         }
 
         // ── Save ──
-        $location  = 'upload/member_posts';
-        $full_dir  = public_path($location);
+        $location = 'upload/member_posts';
+        $full_dir = public_path($location);
         if (!file_exists($full_dir)) {
             @mkdir($full_dir, 0755, true);
         }
 
         $file_name = 'job_' . md5(uniqid((string)rand(), true)) . '.jpg';
-        $saved = imagejpeg($img, $full_dir . '/' . $file_name, 92);
+        $saved = imagejpeg($img, $full_dir . '/' . $file_name, 93);
         imagedestroy($img);
 
         return $saved ? $file_name : '';
