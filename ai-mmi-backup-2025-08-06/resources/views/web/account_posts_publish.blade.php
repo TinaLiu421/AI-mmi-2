@@ -68,6 +68,16 @@ $_itoken_value = base64_encode(md5($_itoken_seed.'#dt'.$_itoken_timestamp).'%'.$
                             <option value="migration"<?php echo ($_show_posts['sector']==='migration')?'selected':''; ?>><?php echo $_page_lang['posts.sector_migration']; ?></option>
                         </select>
                     </div>
+
+                    <div class="job-post-option" id="job-post-option" style="display:none;">
+                        <label class="job-post-toggle-label">
+                            <input type="checkbox" id="is_job_post" name="is_job_post" value="1">
+                            <span>This is a Job Advertisement</span>
+                        </label>
+                        <div class="job-post-hint" id="job-post-hint" style="display:none;">
+                            <i class="fa fa-info-circle"></i> No photo needed — a branded job card will be generated using your title.
+                        </div>
+                    </div>
                     <?php
                     $_post_featured_eligible = in_array((int)($_show_current_member['type'] ?? 0), [2, 3])
                         && !in_array(strtolower(trim($_show_current_member['email'] ?? '')), ['admin@wealthskey.com', 'info@ai-mmi.com']);
@@ -111,7 +121,10 @@ $_itoken_value = base64_encode(md5($_itoken_seed.'#dt'.$_itoken_timestamp).'%'.$
             <div class="clearboth"></div>
 
             <div class="row border">
-                <div class="media-title"><?php echo $_page_lang['posts.add_to_post']; ?></div>
+                <div class="media-title">
+                    <?php echo $_page_lang['posts.add_to_post']; ?>
+                    <span class="photo-optional-badge" id="photo-optional-badge" style="display:none;">Photo Optional</span>
+                </div>
                 <div class="media">
                     <a id="show-publish-photo">
                         <i class="fa fa-picture-o"></i>

@@ -920,6 +920,49 @@ function iweb_global_func() {
                         });
                         // Init markdown toolbar after dialog renders
                         initPostEditorToolbar();
+
+                        // ── Job Post toggle logic ──────────────────────────
+                        function syncJobPostUI() {
+                            var sector = $("#sector").val();
+                            var isJobPost = $("#is_job_post").is(":checked");
+
+                            // Show/hide job-post option block
+                            if (sector === "migration") {
+                                $("#job-post-option").slideDown(200);
+                            } else {
+                                $("#job-post-option").slideUp(200);
+                                $("#is_job_post").prop("checked", false);
+                                isJobPost = false;
+                            }
+
+                            // Toggle photo-optional state
+                            if (isJobPost) {
+                                $("#photo-optional-badge").show();
+                                $("#job-post-hint").slideDown(200);
+                                // Make photo not required
+                                $("#mypostsphoto").removeAttr("data-validation");
+                                $("#show-publish-photo").addClass("jp-optional");
+                            } else {
+                                $("#photo-optional-badge").hide();
+                                $("#job-post-hint").slideUp(200);
+                                $("#mypostsphoto").removeAttr("data-validation");
+                                $("#show-publish-photo").removeClass("jp-optional");
+                            }
+                        }
+
+                        // Run on load (e.g. editing an existing migration post)
+                        syncJobPostUI();
+
+                        $(document).off("change", "#sector");
+                        $(document).on("change", "#sector", function () {
+                            syncJobPostUI();
+                        });
+
+                        $(document).off("change", "#is_job_post");
+                        $(document).on("change", "#is_job_post", function () {
+                            syncJobPostUI();
+                        });
+                        // ─────────────────────────────────────────────────
                     },
                     null,
                     "publish"
