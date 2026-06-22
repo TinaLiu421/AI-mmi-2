@@ -99,12 +99,15 @@
         const _page_has_agent_access = <?php echo $_page_has_agent_access ? 'true' : 'false'; ?>;
         const _page_agent_cta_url = '<?php echo htmlspecialchars($_page_base_url . $_page_agent_cta_path, ENT_QUOTES, 'UTF-8'); ?>';
         </script>
-        <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) { ?>
-        <script src="<?php echo $js_file; ?>?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
+        <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) {
+            // Use filemtime for local files so browsers pick up changes immediately
+            $js_ver = (strpos($js_file, 'http') === 0) ? date('Ymd') : @filemtime(public_path($js_file)) ?: date('Ymd');
+        ?>
+        <script src="<?php echo $js_file; ?>?v=<?php echo $js_ver; ?>" type="text/javascript"></script>
         <?php }} ?>
         <!-- Welcome message module (must load before common.js) -->
-        <link href="asset/css/web/welcome_message.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
-        <script src="asset/js/web/welcome_message.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
+        <link href="asset/css/web/welcome_message.css?v=<?php echo @filemtime(public_path('asset/css/web/welcome_message.css')) ?: date('Ymd'); ?>" rel="stylesheet" type="text/css">
+        <script src="asset/js/web/welcome_message.js?v=<?php echo @filemtime(public_path('asset/js/web/welcome_message.js')) ?: date('Ymd'); ?>" type="text/javascript"></script>
         <!-- Conversation flow styles -->
         <link href="asset/css/web/conversation_flow.css?v=<?php echo date('Ymd'); ?>" rel="stylesheet" type="text/css">
         <!-- Document Upload styles -->
@@ -112,7 +115,6 @@
 
         <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-        <script src="asset/js/web/common.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
 
         <?php
             $googleTranslatePageLang = 'en';
@@ -913,19 +915,19 @@
                                 <input type="hidden" id="question_number" name="question_number" value="1">
                                 <div class="input-question show">
                                     <div class="robot-container">
-                                        <div class="robot" id="chat-robot-inner" style="display:none;">
+                                        <div class="robot" id="chat-robot-inner">
                                             {{-- D-ID live avatar video (hidden until WebRTC connects) --}}
                                             <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
                                             {{-- Fallback looping robot video (shown while avatar loads or not configured) --}}
                                             <video id="chat-robot-video" autoplay loop muted playsinline>
                                                 <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
                                             </video>
-                                            <a id="sound-control" href="javascript:void(0);" title="Avatar sound">
-                                                <i class="fa fa-microphone"></i>
+                                            <a id="sound-control" href="javascript:void(0);" title="Unmute avatar">
+                                                <i class="fa fa-microphone-slash"></i>
                                             </a>
                                         </div>
                                         <?php if(!empty($_current_member) && ((int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false)): ?>
-                                        <div id="talk-agent-cta" class="visible">
+                                        <div id="talk-agent-cta" style="display:none;">
                                             <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.'/agent_chat', ENT_QUOTES, 'UTF-8'); ?>">
                                                 <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
                                                 <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Registered Agent</span></span>

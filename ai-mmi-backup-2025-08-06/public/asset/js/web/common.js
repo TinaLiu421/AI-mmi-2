@@ -172,12 +172,12 @@ function showTalkToAgentCTA() {
         return;
     }
 
-    _talkAgentCtaShown = true;
-
     if (!$robot.is(':visible')) {
         $cta.show().addClass('visible');
         return;
     }
+
+    _talkAgentCtaShown = true;
 
     // Fade out the robot video, then swap in the CTA with a pop animation
     $robot.css({ transition: 'opacity 0.28s ease', opacity: '0' });
@@ -197,8 +197,10 @@ function bindBannerTalkAgentCtaUrl() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    showTalkToAgentCTA();
     bindBannerTalkAgentCtaUrl();
+    // Note: showTalkToAgentCTA() is intentionally NOT called here.
+    // It is only called after the avatar finishes speaking a response,
+    // so the robot/avatar stays visible until the user receives their first answer.
 });
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -503,11 +505,13 @@ function streamResponse(question, bubbleId) {
                             renderMode = 'markdown';
                             renderMarkdown();
                             renderUpgradeButton();
-                            showTalkToAgentCTA();
                             $bubble.removeClass('streaming');
                             // Trigger D-ID avatar to speak the full AI reply
-                            if (fullText.trim()) {
+                            // If avatar will speak, defer the CTA until after speaking
+                            if (fullText.trim() && typeof avatarSpeak === 'function') {
                                 avatarSpeak(fullText);
+                            } else {
+                                showTalkToAgentCTA();
                             }
                             return;
                         }
@@ -2029,7 +2033,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closeSpModal();
     });
-})();
+});
 
 // ── Render post-md-body elements ─────────────────────────────────────────
 function renderPostMdBodies() {
@@ -2141,14 +2145,15 @@ document.addEventListener('DOMContentLoaded', function () {
 (function () {
     'use strict';
 
-    var _streamId   = null;
-    var _sessionId  = null;
-    var _pc         = null;          // RTCPeerConnection
-    var _ready      = false;         // WebRTC video track is flowing
-    var _speaking   = false;
-    var _muted      = true;          // avatar starts muted (user must unmute)
-    var _initCalled = false;
-    var _pendingText = null;         // text queued while connecting
+    var _streamId    = null;
+    var _sessionId   = null;
+    var _pc          = null;          // RTCPeerConnection
+    var _ready       = false;         // WebRTC video track is flowing
+    var _speaking    = false;
+    var _muted       = true;          // avatar starts muted (user must unmute)
+    var _initCalled  = false;
+    var _initFailed  = false;         // set true when D-ID fails to connect
+    var _pendingText = null;          // text queued while connecting
 
     function didPost(path, body) {
         return fetch((_page_base_url || '') + path, {
@@ -2165,8 +2170,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function showAvatarVideo() {
         var av = document.getElementById('did-avatar-video');
         var rv = document.getElementById('chat-robot-video');
+        var rc = document.getElementById('chat-robot-inner');
         if (av) { av.style.display = ''; }
         if (rv) { rv.style.display = 'none'; }
+        // Ensure the robot container is visible
+        if (rc) { rc.style.display = ''; rc.style.opacity = '1'; rc.style.transition = ''; }
         _ready = true;
     }
 
@@ -2225,7 +2233,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 _pc.addEventListener('iceconnectionstatechange', function () {
                     if (_pc.iceConnectionState === 'failed' ||
-                        _pc.iceConnectionState === 'disconnected') {
+                        _pc.iceConnectionState === 'disconnected' ||
+                        _pc.iceConnectionState === 'closed') {
                         hideAvatarVideo();
                     }
                 });
@@ -2247,14 +2256,34 @@ document.addEventListener('DOMContentLoaded', function () {
             .catch(function (err) {
                 // Graceful degradation – robot video stays visible, no crash
                 console.warn('D-ID Avatar not available:', err.message || err);
+                _initFailed = true;
+                // If we had queued text, fall back to showing the CTA
+                _pendingText = null;
+                if (typeof showTalkToAgentCTA === 'function') {
+                    showTalkToAgentCTA();
+                }
             });
     }
 
     function speakNow(text) {
         if (!_streamId || !_sessionId) return;
-        var speakText = text.replace(/[#*`_~\[\]>]/g, '').trim();
+        // Strip markdown so the TTS voice reads cleanly
+        var speakText = text
+            .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold**
+            .replace(/\*(.+?)\*/g, '$1')         // *italic*
+            .replace(/`[^`]+`/g, '')             // inline code
+            .replace(/```[\s\S]*?```/g, '')      // code blocks
+            .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1') // [link](url) → link text
+            .replace(/[#>|_~\[\]\\]/g, ' ')     // remaining special chars
+            .replace(/\s{2,}/g, ' ')
+            .trim();
         if (!speakText) return;
         if (speakText.length > 500) { speakText = speakText.substring(0, 497) + '...'; }
+        // Show the avatar container and hide the CTA for the duration of speaking
+        var rc  = document.getElementById('chat-robot-inner');
+        var cta = document.getElementById('talk-agent-cta');
+        if (rc)  { rc.style.display = ''; rc.style.opacity = '1'; rc.style.transition = ''; }
+        if (cta) { cta.style.display = 'none'; }
         _speaking = true;
         // Add speaking animation to the robot container
         $('#chat-robot-inner').addClass('did-speaking');
@@ -2268,16 +2297,31 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(function () {
                 _speaking = false;
                 $('#chat-robot-inner').removeClass('did-speaking');
+                // Show the agent CTA after avatar finishes speaking
+                if (typeof showTalkToAgentCTA === 'function') {
+                    showTalkToAgentCTA();
+                }
             }, estimatedMs);
         }).catch(function () {
             _speaking = false;
             $('#chat-robot-inner').removeClass('did-speaking');
+            if (typeof showTalkToAgentCTA === 'function') {
+                showTalkToAgentCTA();
+            }
         });
     }
 
     // Public: called from streamResponse() when [DONE] arrives
     window.avatarSpeak = function (text) {
-        if (!text || !text.trim()) return;
+        if (!text || !text.trim()) {
+            if (typeof showTalkToAgentCTA === 'function') { showTalkToAgentCTA(); }
+            return;
+        }
+        // If init already failed, fall back to CTA immediately
+        if (_initFailed) {
+            if (typeof showTalkToAgentCTA === 'function') { showTalkToAgentCTA(); }
+            return;
+        }
         if (!_initCalled) { initDIDAvatar(); }
         if (!_ready) {
             // Still connecting – queue the text; it will be spoken on 'track'
@@ -2327,8 +2371,8 @@ document.addEventListener('DOMContentLoaded', function () {
         $(window).on('beforeunload', function () {
             if (_streamId && _sessionId) {
                 var data = JSON.stringify({ session_id: _sessionId });
-                var url  = (_page_base_url || '') + '/home/avatar/stream/' + _streamId;
-                // Use sendBeacon for reliable delivery on page unload
+                // Use the POST /close route — sendBeacon only supports POST
+                var url  = (_page_base_url || '') + '/home/avatar/stream/' + _streamId + '/close';
                 if (navigator.sendBeacon) {
                     var blob = new Blob([data], { type: 'application/json' });
                     navigator.sendBeacon(url, blob);

@@ -24,6 +24,7 @@ Route::post('/home/avatar/stream/{id}/sdp',      [HomeController::class, 'avatar
 Route::post('/home/avatar/stream/{id}/ice',      [HomeController::class, 'avatarStreamIce']);
 Route::post('/home/avatar/stream/{id}/speak',    [HomeController::class, 'avatarSpeak']);
 Route::delete('/home/avatar/stream/{id}',        [HomeController::class, 'avatarStreamClose']);
+Route::post('/home/avatar/stream/{id}/close',    [HomeController::class, 'avatarStreamClose']); // POST alias for sendBeacon on page unload
 
 // Agent chat routes
 Route::get('/agent_chat', [AgentChatController::class, 'index']);
