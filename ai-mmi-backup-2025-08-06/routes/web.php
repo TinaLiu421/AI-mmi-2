@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\Agent_Chat as AgentChatController;
 use App\Http\Controllers\Web\Account_Login as AccountLoginController;
 use App\Http\Controllers\Web\Upgrade as UpgradeController;
 use App\Http\Controllers\Web\Account as AccountController;
+use App\Http\Controllers\Web\Wallet as WalletController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
@@ -16,6 +17,13 @@ Route::post('/posts/{postId}/qa-ask', [WebPosts::class, 'qaAsk']);
 // Streaming endpoint for AI responses handled by controller
 use App\Http\Controllers\Web\Home as HomeController;
 Route::post('/chat/stream', [HomeController::class, 'chatStream'])->name('chat.stream');
+
+// D-ID Avatar proxy routes (API key never exposed to browser)
+Route::post('/home/avatar/stream',               [HomeController::class, 'avatarStream']);
+Route::post('/home/avatar/stream/{id}/sdp',      [HomeController::class, 'avatarStreamSdp']);
+Route::post('/home/avatar/stream/{id}/ice',      [HomeController::class, 'avatarStreamIce']);
+Route::post('/home/avatar/stream/{id}/speak',    [HomeController::class, 'avatarSpeak']);
+Route::delete('/home/avatar/stream/{id}',        [HomeController::class, 'avatarStreamClose']);
 
 // Agent chat routes
 Route::get('/agent_chat', [AgentChatController::class, 'index']);
@@ -47,6 +55,18 @@ Route::get('/local/wealthskey-agent-login', [AccountLoginController::class, 'loc
 // Upgrade / subscription management
 Route::post('/upgrade/cancel-renewal', [UpgradeController::class, 'cancelRenewal']);
 
+// Token Wallet routes
+Route::get('/wallet',              [WalletController::class, 'index'])->name('wallet.index');
+Route::get('/{lang}/wallet',       [WalletController::class, 'index']);
+Route::post('/wallet/buy',         [WalletController::class, 'buy'])->name('wallet.buy');
+Route::post('/{lang}/wallet/buy',  [WalletController::class, 'buy']);
+Route::post('/wallet/transfer',    [WalletController::class, 'transfer'])->name('wallet.transfer');
+Route::post('/{lang}/wallet/transfer', [WalletController::class, 'transfer']);
+Route::post('/wallet/share',       [WalletController::class, 'share'])->name('wallet.share');
+Route::post('/{lang}/wallet/share',[WalletController::class, 'share']);
+Route::get('/wallet/balance',      [WalletController::class, 'balance'])->name('wallet.balance');
+Route::get('/{lang}/wallet/balance',[WalletController::class, 'balance']);
+
 // Spotlight manager (agent with spotlight_manager=1 can toggle featured posts)
 Route::post('/spotlight/toggle',        [HomeController::class, 'spotlightToggle'])->name('spotlight.toggle');
 Route::post('/spotlight/admin_cancel',  [HomeController::class, 'spotlightAdminCancel'])->name('spotlight.admin_cancel');
@@ -66,6 +86,12 @@ Route::post('/account/spotlight_retry',    [AccountController::class, 'spotlight
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+use App\Http\Controllers\Web\Claim_Edu_Account as ClaimEduController;
+
+// Education agent account claim flow
+Route::get('/claim_edu_account/{token}',  [ClaimEduController::class, 'index']);
+Route::post('/claim_edu_account/{token}', [ClaimEduController::class, 'submit']);
 
 Route::any('{segments?}', [App\Http\Controllers\RouteMapping::class, 'index'])->where('segments', '^(?!stripe)([0-9a-zA-Z_\-\/]+)?$');
 

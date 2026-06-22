@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Services\ConversationFlowService;
+use App\Services\TokenService;
 use Illuminate\Support\Facades\Schema;
 
 class Home extends WebController {
@@ -36,7 +37,8 @@ class Home extends WebController {
             'show_type'         =>  1,
             'show_lang'         =>  $this->_current_lang_index,
             'show_page_size'    =>  10,
-            'show_highlight'    =>  1
+            'show_highlight'    =>  1,
+            'exclude_featured'  =>  true
         ]);
 
         if (empty($list_news['data'])) {
@@ -44,7 +46,8 @@ class Home extends WebController {
             [
                 'show_type'         =>  1,
                 'show_page_size'    =>  10,
-                'show_highlight'    =>  1
+                'show_highlight'    =>  1,
+                'exclude_featured'  =>  true
             ]);
         }
 
@@ -81,7 +84,8 @@ class Home extends WebController {
             'show_type'         =>  2,
             'show_lang'         =>  $this->_current_lang_index,
             'show_page_size'    =>  10,
-            'show_highlight'    =>  1
+            'show_highlight'    =>  1,
+            'exclude_featured'  =>  true
         ]);
 
         if (empty($list_events['data'])) {
@@ -89,7 +93,8 @@ class Home extends WebController {
             [
                 'show_type'         =>  2,
                 'show_page_size'    =>  10,
-                'show_highlight'    =>  1
+                'show_highlight'    =>  1,
+                'exclude_featured'  =>  true
             ]);
         }
 
@@ -128,24 +133,23 @@ class Home extends WebController {
         $currentEmail = mb_strtolower(trim((string)($this->_current_member['email'] ?? '')), 'UTF-8');
         $showAgentHomeLayout = in_array($currentEmail, $agentLayoutAllowedEmails, true);
 
-        // featured posts (max 3, active featured_until > now)
-        $featured_posts_raw = $this->loadModel('posts')->getFeatured(3);
+        // featured posts — no slot limit, show all with featured_until > now
+        $featured_posts_raw = $this->loadModel('posts')->getFeatured(50);
+        $featured_is_fallback = false;
+        if (empty($featured_posts_raw)) {
+            $featured_posts_raw = $this->loadModel('posts')->getFeaturedFallback(10, 365);
+            $featured_is_fallback = !empty($featured_posts_raw);
+        }
         $featured_posts = [];
         if (!empty($featured_posts_raw)) {
             foreach ($featured_posts_raw as $fp) {
                 if (empty($fp['title'])) {
                     $fp['title'] = mb_substr($this->toPlainText($fp['content']), 0, 40);
                 }
-                $fp['excerpt'] = mb_substr($this->toPlainText($fp['content']), 0, 100);
-                if (mb_strlen($this->toPlainText($fp['content']), 'UTF-8') > 100) {
-                    $fp['excerpt'] .= '…';
-                }
+                $fp['excerpt'] = $this->toPlainText($fp['content']);
                 $fp['url'] = $this->toURL('posts/details/' . $fp['id']);
                 if (!empty($fp['photo'])) {
-                    $fp['thumbnail'] = $this->generateImage([
-                        'absolute_path' => 'upload/member_posts/' . $fp['photo'],
-                        'file_path'     => 'upload/member_posts/' . $fp['photo'],
-                    ], 600, 380, true);
+                    $fp['thumbnail'] = 'upload/member_posts/' . $fp['photo'];
                 } elseif (!empty($fp['youtube_url'])) {
                     // extract YouTube video ID and use its thumbnail
                     $yt_short = '/youtu\.be\/([a-zA-Z0-9_-]+)\??/i';
@@ -163,6 +167,7 @@ class Home extends WebController {
                     $fp['thumbnail'] = $this->generateImage(null, 600, 380, true);
                 }
                 $fp['youtube_url'] = $this->getYoutubeEmbedUrl($fp['youtube_url']);
+                $fp['is_featured_fallback'] = $featured_is_fallback;
                 $featured_posts[] = $fp;
             }
         }
@@ -196,12 +201,13 @@ class Home extends WebController {
             }
         }
 
+        $sq = $this->loadModel('spotlight_queue');
+        $sq->expireActive();
+        $sq->activateNext();
+
         $is_spotlight_manager = !empty($this->_current_member['spotlight_manager']);
         $spotlight_queue_overview = [];
         if ($is_spotlight_manager) {
-            $sq = $this->loadModel('spotlight_queue');
-            $sq->expireActive();
-            $sq->activateNext();
             $spotlight_queue_overview = $sq->getAdminOverview();
         }
 
@@ -286,6 +292,28 @@ class Home extends WebController {
                 'source'            => $chatSource,
             ];
 
+            // Extract post_id if provided (from migration post with context)
+            $postId = request()->input('post_id');
+            $postContext = null;
+            if (!empty($postId) && is_numeric($postId) && !$isFromQa) {
+                $postData = \DB::table('member_posts')
+                    ->where('id', (int)$postId)
+                    ->where('status', '>', 0)
+                    ->first(['id', 'title', 'content', 'sector']);
+                
+                if ($postData) {
+                    $postContext = [
+                        'id' => $postData->id,
+                        'title' => $postData->title,
+                        'content' => $postData->content,
+                        'sector' => $postData->sector,
+                    ];
+                }
+            }
+
+            $nzBusinessInvestorUrl = 'https://www.immigration.govt.nz/visas/business-investor-work-visa/';
+            $forceNzBusinessInvestorMode = !$isFromQa && $this->shouldForceNzBusinessInvestorVisa($postContext);
+
             if (is_array($question)) {
                 $question = json_encode($question, JSON_UNESCAPED_UNICODE);
             } elseif (!is_string($question)) {
@@ -311,6 +339,15 @@ class Home extends WebController {
             $memberId  = $member['id'] ?? null;
             $guestId   = $this->getMyCookie('guest_id');
             $sessionId = session()->getId();
+
+            // === Greeting messages: always return fixed greeting, no AI call or promotion ===
+            // EXCEPTION: If post context exists, skip the fixed greeting and let AI generate contextual response
+            if (!$isFromQa && $this->isGreetingOnlyMessage((string)$rawQuestion) && empty($postContext)) {
+                $_fixedGreeting = "Hi, this is AI-mmi, your smart study, migration and visa assistant. How can I help you today?";
+                $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $_fixedGreeting, 'first-greeting', 'AI-mmi', $storeChatConfig);
+                $this->jsonReply($rawQuestion, $_fixedGreeting, 'first-greeting', $member);
+                return;
+            }
 
             // === ②.5 问题分类：教育免费；移民/签证计入免费额度 ===
             $domain           = $this->classifyQuestionDomain($rawQuestion);
@@ -351,6 +388,12 @@ class Home extends WebController {
                             && $this->shouldApplyUpgradeNudgeForMember((int)$memberId);
                     }
                 }
+            }
+
+            // Zero-token mode: free plan user with no tokens → basic answer mode
+            $hasZeroBalance = false;
+            if (!empty($member) && $activePlanCode === 'free') {
+                $hasZeroBalance = ((new TokenService())->getBalance((int) $memberId) <= 0);
             }
 
             // === ③ 生成回复：不做任何“Agent 限制/语言判断/历史读取”===
@@ -475,18 +518,53 @@ Rules:
                         $systemParts[] = $this->buildBrevityConstraintNote();
                     }
                 }
+                if ($hasZeroBalance) {
+                    $systemParts[] = "\n\nIMPORTANT CONSTRAINT: This user has used all their AI-mmi tokens. Provide only a very brief, basic answer — maximum 2-3 short sentences. Do not elaborate, list steps, or give detailed guidance. At the end of your reply, add one short friendly sentence in the user's language gently suggesting they top up tokens in their wallet to unlock full AI assistance.";
+                }
                 $systemPromptBase = implode('', $systemParts);
 
-                // Free/DIY plan speed optimisation:
-                // Skip live web search for off-topic questions (not visa or education)
-                // so the AI can reply from its own knowledge immediately.
-                $freeEnableSearch = !($isLimitedPlanUser && $domain === 'other');
+                // Inject post context if available
+                if (!empty($postContext)) {
+                    $postTitle = trim((string)($postContext['title'] ?? ''));
+                    $postContent = trim((string)($postContext['content'] ?? ''));
+                    
+                    if (!empty($postTitle) || !empty($postContent)) {
+                        $postContextPrompt = "
+
+## User Context: Migration Post Information
+The user is reading and asking about this migration/visa post:
+
+**Title:** {$postTitle}
+
+**Content:**
+{$postContent}
+
+---
+
+When responding, consider the context of this post. Use it as reference material and ask the user a thoughtful follow-up question to deepen the conversation about their specific situation based on this post's topic.
+";
+                        $systemPromptBase .= $postContextPrompt;
+                    }
+                }
+
+                // Always use live search for AI chat answers to improve freshness and accuracy.
+                $freeEnableSearch = true;
+
+                if ($forceNzBusinessInvestorMode) {
+                    $systemPromptBase .= $this->buildNzBusinessInvestorSystemPrompt($nzBusinessInvestorUrl);
+                    $questionForModel = $this->buildNzBusinessInvestorUserQuery($questionForModel, $nzBusinessInvestorUrl);
+                }
+
+                $forcedAllowedDomains = $forceNzBusinessInvestorMode
+                    ? ['www.immigration.govt.nz', 'immigration.govt.nz']
+                    : [];
 
                 $x = $this->callXaiResponses($questionForModel, [
-                    'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
-                    'max_output_tokens' => $isLimitedPlanUser ? 1024 : 2048,
+                    'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.40),
+                    'max_output_tokens' => $hasZeroBalance ? 300 : ($isLimitedPlanUser ? 900 : 1300),
                     'model' => 'grok-4-1-fast-reasoning',
                     'enable_search'     => $freeEnableSearch,
+                    'allowed_domains'   => $forcedAllowedDomains,
                     'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
                     'vector_store_ids' => [],
                     'system' => $systemPromptBase . "
@@ -518,6 +596,7 @@ Rules:
 
                     ### INTERNAL KNOWLEDGE RULES
                     - When internal collections are available, you MUST first attempt to retrieve internal policy files.
+                    - For migration/visa rules or any date-sensitive facts, always perform live web search and prioritize the most recent official government guidance.
                     - If you used internal collections, you may add one natural-language sentence such as: 
                     'The above information is based on data retrieved from AI-mmi's internal repository.' 
                     or equivalent wording in the user's language.
@@ -532,7 +611,14 @@ Rules:
                     - They MUST NOT appear in user-visible output.
                     - Do NOT output bracketed reference markers like [1], [2], [1][2] in the final answer.
 
+                    ### NEW ZEALAND VISA (CRITICAL RULE)
+                    - If the user asks about migrating to New Zealand (NZ / Aotearoa) as a business person, investor, or entrepreneur, ONLY discuss the **Business Investor Work Visa**.
+                    - Do NOT mention, recommend, or compare the Active Investor Plus Visa or any other NZ investor visa category.
+                    - The Business Investor Work Visa is the ONLY pathway to present for NZ business/investor migration.
+                    - Always source information from: https://www.immigration.govt.nz/visas/business-investor-work-visa/
+
                     ### SPECIALIZED SERVICES & AGENTS
+                    - CRITICAL: NEVER mention \"X free chats left\", \"chat limit\", \"chats remaining\", or any quota/counter numbers. The system handles this separately.
                     - If user asks about migration agents or visa specialists, mention that AI-mmi has access to vetted, specialized migration agents.
                     - For free plan users asking about agents: This service is available when they Upgrade.
                     - Suggest upgrading to access agent matching/recommendations.
@@ -540,44 +626,29 @@ Rules:
                     - Never direct free users to external agent registries as the primary path—emphasize our specialists instead.
 
                     ### RESPONSE STYLE & PERSONALITY
-                    - Be human, warm, and genuinely conversational (not robotic or template-y).
-                    - Sound like a smart, practical person explaining things clearly, not like a marketing brochure or a scripted chatbot.
-                    - Prefer plain everyday English over dramatic, salesy, or over-polished phrasing.
-                    - Avoid hypey lines like \"golden ticket\", \"game-changer\", \"massive win\", or other canned AI-style phrases.
-                    - Mirror the user's energy: if they're casual, be casual; if they're stressed, be reassuring but still friendly.
-                    - For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
-                    - Always end with a clear next action and make them feel supported.
-                    - Address the user directly using \"you\" and \"your\" — make it personal, not generic.
-                    - Reflect their specific situation back to them in simple terms.
-                    - Make the user feel heard: acknowledge their situation before jumping into the answer.
-                    - If you use a technical immigration term, explain it briefly in simple words.
+                    - Be human, warm, and genuinely conversational — not robotic, not a brochure.
+                    - Sound like a knowledgeable friend explaining things clearly and simply.
+                    - Avoid salesy phrases: no \"golden ticket\", \"game-changer\", \"massive win\".
+                    - Mirror the user's tone: casual if they're casual, calm and reassuring if they're stressed.
+                    - Address the user directly: \"you\" and \"your\". Make it personal.
+                    - If you use a technical term, explain it in one simple phrase right after.
+
+                    ### RESPONSE LENGTH (CRITICAL)
+                    - Keep answers SHORT and focused. Aim for 120–200 words maximum unless the user explicitly asks for more detail.
+                    - Do NOT explain everything at once. Give the key facts, then ask ONE follow-up question to go deeper.
+                    - Think: a smart agent giving a quick, confident answer — not writing an essay.
+                    - If there are multiple requirements, pick the 3–4 most important ones. Do not list every single detail.
 
                     ### VISUAL ENGAGEMENT & FORMATTING
-                    - Default to a natural, paragraph-first style.
-                    - Open with 1 short paragraph that directly answers the user's situation before listing details.
-                    - Use emojis lightly: usually 0-2 per reply section, only where they genuinely help readability.
-                    - Do NOT over-decorate the answer with too many icons, symbols, or visual gimmicks.
-                    - Avoid divider lines unless the answer is long and truly needs them.
-                    - **Bold** only the most important visa names, requirements, or warning points.
-                    - When asking a clarifying question, always **bold** the question so it stands out clearly.
-                    - Use bullets only when they make the answer clearer; do not turn every answer into a dense checklist.
-
-                    ### READABILITY FORMAT (important)
-                    - Keep answers easy to scan on mobile.
-                    - Always leave a blank line between paragraphs and sections.
-                    - Prefer short paragraphs of 1-3 sentences.
-                    - After a bullet list, add a short natural transition or explanation instead of jumping abruptly.
-                    - If there are several facts, break them into small groups instead of one dense block.
-                    - Prefer plain-text bullets like: •  -  ✅  👉  ↳, but keep lists short.
-                    - Do NOT use markdown tables.
-                    - Do NOT put the whole answer in one long paragraph.
-                    - Do NOT stack too many bullets back-to-back without a normal sentence in between.
-                    - For visa explanations, use this order when relevant:
-                        1) Short direct answer in paragraph form
-                        2) Main options or pathways
-                        3) Key requirements or risks
-                        4) Clear next step
-                    - Keep the flow conversational and human, not like a brochure or lecture.
+                    - Start with 1 short direct sentence answering the question.
+                    - Use 3–5 tight bullet points for key facts, not full sentences.
+                    - End with ONE clear next step or question in bold.
+                    - Use emojis sparingly: max 1–2 total, only where genuinely helpful.
+                    - NO markdown tables. NO divider lines. NO walls of text.
+                    - Bold only visa names or the most critical requirement.
+                    - Leave a blank line between paragraphs/sections.
+                    - Bullets: use • or ✅ but keep each bullet to 1 line.
+                    - Do NOT stack 8+ bullets in a row without a sentence in between.
                                         " . $this->buildStrictLanguageInstruction($nonQaLang),
 
                 ]);
@@ -604,7 +675,12 @@ Rules:
                 $aiOwnerName = 'AI-mmi';
             }
 
-            if (!$isFromQa && !empty($member)) {
+            // === ④ 入库 + 返回 ===
+            // Store the clean AI reply first so token deduction runs before we read the balance for the nudge.
+            $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
+
+            // Append nudge AFTER storeChat so the displayed balance is the post-deduction value.
+            if (!$isFromQa && !empty($member) && !$this->isGreetingOnlyMessage((string)$rawQuestion)) {
                 $reply = $this->appendPlanPromotionNudge(
                     (string)$reply,
                     (string)$rawQuestion,
@@ -614,9 +690,6 @@ Rules:
                     (int)$memberId
                 );
             }
-
-            // === ④ 入库 + 返回 ===
-            $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
             $extraReplyMeta = [];
             if (!$isFromQa && $shouldRedirectToUpgrade) {
                 $extraReplyMeta = [
@@ -627,6 +700,10 @@ Rules:
                     'show_upgrade' => true,
                     'upgrade_url' => $upgradeRedirectUrl,
                 ];
+            }
+            if (!$isFromQa && $hasZeroBalance && !$shouldRedirectToUpgrade) {
+                $extraReplyMeta['tokens_depleted'] = true;
+                $extraReplyMeta['wallet_url'] = $this->toURL('wallet');
             }
 
             $this->jsonReply($rawQuestion, $reply, $replySource, $member, $extraReplyMeta);
@@ -754,6 +831,15 @@ Rules:
             \DB::table('chat_log')->insert($replyPayload);
 
             \DB::commit();
+
+            // Deduct tokens for chat usage (1 chat = 1 token, logged-in members only)
+            // Premium and VIP plan holders get AI chat included — no deduction.
+            if (!empty($memberId)) {
+                $hasPlanAccess = (new TokenService())->hasPlanAccess((int) $memberId, 'premium', 'vip', 'agent_call');
+                if (!$hasPlanAccess) {
+                    (new TokenService())->onChatSent((int) $memberId);
+                }
+            }
         } catch (\Throwable $e) {
             \DB::rollBack();
             \Log::error('CHAT DB INSERT FAIL: ' . $e->getMessage());
@@ -1442,6 +1528,58 @@ Rules:
         $sessionId = session()->getId();
         $lang = $this->detectLangZhOrEn($question);
 
+        // Extract post context if provided
+        $postContextInput = request()->input('post_context');
+        $postContext = null;
+        if (!empty($postContextInput)) {
+            if (is_string($postContextInput)) {
+                $postContext = json_decode($postContextInput, true);
+            } elseif (is_array($postContextInput)) {
+                $postContext = $postContextInput;
+            }
+        }
+        
+        // Also check for post_id (from form submission)
+        if (empty($postContext)) {
+            $postId = request()->input('post_id');
+            if (!empty($postId) && is_numeric($postId)) {
+                $postData = DB::table('member_posts')
+                    ->where('id', (int)$postId)
+                    ->where('status', '>', 0)
+                    ->first(['id', 'title', 'content', 'sector']);
+                
+                if ($postData) {
+                    $postContext = [
+                        'id' => $postData->id,
+                        'title' => $postData->title,
+                        'content' => $postData->content,
+                        'sector' => $postData->sector,
+                    ];
+                }
+            }
+        }
+
+        $nzBusinessInvestorUrl = 'https://www.immigration.govt.nz/visas/business-investor-work-visa/';
+        $forceNzBusinessInvestorMode = $this->shouldForceNzBusinessInvestorVisa($postContext);
+
+        // === Greeting messages: return fixed greeting immediately, no AI call or promotion ===
+        // EXCEPTION: If post context exists, skip the fixed greeting and let AI generate contextual response
+        if ($this->isGreetingOnlyMessage((string)$question) && empty($postContext)) {
+            $_fixedGreeting = "Hi, this is AI-mmi, your smart study, migration and visa assistant. How can I help you today?";
+            $this->storeChat(
+                $memberId,
+                $guestId,
+                $sessionId,
+                (string)$question,
+                $_fixedGreeting,
+                'first-greeting',
+                'AI-mmi',
+                ['log_to_chat_table' => true, 'source' => 'chat']
+            );
+            $this->streamMessage($_fixedGreeting, ['reply_source' => 'first-greeting']);
+            return;
+        }
+
         if ($this->shouldRedirectToAgentChat((string)$question)) {
             $redirectMsg = $this->buildAgentRedirectMessage($lang);
             $this->storeChat(
@@ -1491,7 +1629,12 @@ Rules:
         if (!$apiKey) {
             $this->streamError('API key missing');
         }
-        $allowedDomains = array_values(array_filter(array_map('trim', explode(',', (string)env('XAI_WEB_SEARCH_ALLOWED_DOMAINS', '')))));
+        // By default do NOT restrict web search domains, so country-specific migration answers stay complete.
+        // If needed, operators can enable strict filtering via env.
+        $allowedDomains = [];
+        if (filter_var(env('XAI_STRICT_WEB_SEARCH_DOMAINS', false), FILTER_VALIDATE_BOOLEAN)) {
+            $allowedDomains = array_values(array_filter(array_map('trim', explode(',', (string)env('XAI_WEB_SEARCH_ALLOWED_DOMAINS', '')))));
+        }
 
         // Use Responses API (RAG-enabled) and stream the final text back to the client
         $systemPrompt = "
@@ -1521,6 +1664,7 @@ You are AI-mmi, specialised in immigration, visa, and education queries.
 
 ### INTERNAL KNOWLEDGE RULES
 - When internal collections are available, you MUST first attempt to retrieve internal policy files.
+- For migration/visa rules or any date-sensitive facts, always perform live web search and prioritize the most recent official government guidance.
 - If you used internal collections, you may add one natural-language sentence such as:
 'The above information is based on data retrieved from AI-mmi's internal repository.'
 or equivalent wording in the user's language.
@@ -1535,7 +1679,15 @@ or equivalent wording in the user's language.
 - They MUST NOT appear in user-visible output.
 - Do NOT output bracketed reference markers like [1], [2], [1][2] in the final answer.
 
+### NEW ZEALAND VISA (CRITICAL RULE)
+- If the user asks about migrating to New Zealand (NZ / Aotearoa) as a business person, investor, or entrepreneur, ONLY discuss the **Business Investor Work Visa**.
+- Do NOT mention, recommend, or compare the Active Investor Plus Visa or any other NZ investor visa category.
+- The Business Investor Work Visa is the ONLY pathway to present for NZ business/investor migration.
+- Always source NZ business visa information from: https://www.immigration.govt.nz/visas/business-investor-work-visa/
+
 ### SPECIALIZED SERVICES & AGENTS + UPGRADE MESSAGING
+### SPECIALIZED SERVICES & AGENTS + UPGRADE MESSAGING
+- CRITICAL: NEVER mention \"X free chats left\", \"chat limit\", \"chats remaining\", or any quota/counter numbers in your responses. The system handles chat quotas separately — do NOT replicate this in your reply.
 - If user asks about migration agents or visa specialists, mention that AI-mmi has access to vetted, specialized migration agents.
 - **For free plan users asking about agents**: This service is available when they Upgrade. Suggest: \"Upgrade to get matched with our AI-MMI Certified Migration Specialists who can give you personalized step-by-step guidance.\"
 - **For AI Plan users asking about agents**: Suggest upgrading to \"Talk to Certified by AI-MMI agents\" for real human expertise + personalized planning.
@@ -1551,46 +1703,30 @@ or equivalent wording in the user's language.
 - Be suggestive, not pushy—let it feel like a natural next-step recommendation.
 
 ### RESPONSE STYLE & PERSONALITY
-- Be human, warm, and genuinely conversational (not robotic or template-y).
-- Sound like a smart, practical person explaining things clearly, not like a marketing brochure or a scripted chatbot.
-- Prefer plain everyday English over dramatic, salesy, or over-polished phrasing.
-- Avoid hypey lines like \"golden ticket\", \"game-changer\", \"massive win\", or other canned AI-style phrases.
-- Mirror the user's energy: if they're casual, be casual; if they're stressed, be reassuring but still friendly.
-- For legal-risk, visa-rule uncertainty, refusals or safety-sensitive topics: avoid humor and stay clear, calm and factual.
-- Always end with a clear next action and make them feel supported.
-- Address the user directly using \"you\" and \"your\" — make it personal, not generic.
-- Reflect their specific situation back to them in simple terms.
-- Make the user feel heard: acknowledge their situation before jumping into the answer.
-- If you use a technical immigration term, explain it briefly in simple words.
+- Be human, warm, and genuinely conversational — not robotic, not a brochure.
+- Sound like a knowledgeable friend explaining things clearly and simply.
+- Avoid salesy phrases: no \"golden ticket\", \"game-changer\", \"massive win\".
+- Mirror the user's tone: casual if they're casual, calm and reassuring if they're stressed.
+- Address the user directly: \"you\" and \"your\". Make it personal.
+- If you use a technical term, explain it in one simple phrase right after.
+
+### RESPONSE LENGTH (CRITICAL)
+- Keep answers SHORT and focused. Aim for 120–200 words maximum unless the user explicitly asks for more detail.
+- Do NOT explain everything at once. Give the key facts, then ask ONE follow-up question to go deeper.
+- Think: a smart agent giving a quick, confident answer — not writing an essay.
+- If there are multiple requirements, pick the 3–4 most important ones. Do not list every single detail.
 
 ### VISUAL ENGAGEMENT & FORMATTING
-- Default to a natural, paragraph-first style.
-- Open with 1 short paragraph that directly answers the user's situation before listing details.
-- Use emojis lightly: usually 0-2 per reply section, only where they genuinely help readability.
-- Do NOT over-decorate the answer with too many icons, symbols, or visual gimmicks.
-- Avoid divider lines unless the answer is long and truly needs them.
+- Start with 1 short direct sentence answering the question.
+- Use 3–5 tight bullet points for key facts, not full sentences.
+- End with ONE clear next step or question in bold.
+- Use emojis sparingly: max 1–2 total, only where genuinely helpful.
+- NO markdown tables. NO divider lines. NO walls of text.
+- Bold only visa names or the most critical requirement.
+- Leave a blank line between paragraphs/sections.
+- Bullets: use • or ✅ but keep each bullet to 1 line.
+- Do NOT stack 8+ bullets in a row without a sentence in between.
 - Ask only one focused clarifying question at the end.
-- Avoid absolute statements; use context-aware phrasing like usually / often / depends on stream or country when needed.
-- **Bold** only the most important visa names, requirements, or warning points.
-- When asking the user a clarifying question, always **bold** the question so it stands out clearly.
-- Use bullets only when they make the answer clearer; do not turn every answer into a dense checklist.
-
-### READABILITY FORMAT (important)
-- Keep answers easy to scan on mobile.
-- Always leave a blank line between paragraphs and sections.
-- Prefer short paragraphs of 1-3 sentences.
-- After a bullet list, add a short natural transition or explanation instead of jumping abruptly.
-- If there are several facts, break them into small groups instead of one dense block.
-- Prefer plain-text bullets like: •  -  ✅  👉, but keep lists short.
-- Do NOT use markdown tables.
-- Do NOT put the whole answer in one long paragraph.
-- Do NOT stack too many bullets back-to-back without a normal sentence in between.
-- For visa explanations, use this order when relevant:
-    1) Short direct answer in paragraph form
-    2) Main options or pathways
-    3) Key requirements or risks
-    4) Clear next step
-- Keep the flow conversational and human, not like a brochure or lecture.
 " . $this->buildStrictLanguageInstruction($lang);
 
         $systemPromptParts = [];
@@ -1612,6 +1748,35 @@ or equivalent wording in the user's language.
             $systemPrompt = implode('', $systemPromptParts) . $systemPrompt;
         }
 
+        // Inject post context into system prompt if available (already extracted at top of function)
+        if (!empty($postContext) && is_array($postContext)) {
+            $postTitle = trim((string)($postContext['title'] ?? ''));
+            $postContent = trim((string)($postContext['content'] ?? ''));
+            
+            if (!empty($postTitle) || !empty($postContent)) {
+                $postContextPrompt = "
+
+## User Context: Migration Post Information
+The user is reading and asking about this migration/visa post:
+
+**Title:** {$postTitle}
+
+**Content:**
+{$postContent}
+
+---
+
+When responding, consider the context of this post. If the user's question relates to this content, use it as reference material and ask the user a thoughtful follow-up question to deepen the conversation about their specific situation based on this post's topic.
+";
+                $systemPrompt .= $postContextPrompt;
+            }
+        }
+
+        if ($forceNzBusinessInvestorMode) {
+            $systemPrompt .= $this->buildNzBusinessInvestorSystemPrompt($nzBusinessInvestorUrl);
+            $allowedDomains = ['www.immigration.govt.nz', 'immigration.govt.nz'];
+        }
+
         $cacheTtl = (int)env('XAI_CHAT_CACHE_TTL', 600);
             $cacheQuestion = $this->normalizeQuestionForCache((string)$question);
             $cacheMode = $isOverLimit ? 'brevity' : 'full';
@@ -1631,17 +1796,7 @@ or equivalent wording in the user's language.
             if (trim($cachedReply) !== '') {
                 if (!($lang === 'en' && $this->containsCjk($cachedReply))) {
                     $replyForCurrentUser = $this->processFinalText($cachedReply, false, $lang);
-                    if ($memberId > 0) {
-                        $replyForCurrentUser = $this->appendPlanPromotionNudge(
-                            (string)$replyForCurrentUser,
-                            (string)$question,
-                            (string)$activePlanCode,
-                            $memberAskCount + 1,
-                            $freeLimit,
-                            (int)$memberId
-                        );
-                    }
-
+                    // Store first so token deduction runs, then build nudge with post-deduction balance.
                     $this->storeChat(
                         $memberId,
                         $guestId,
@@ -1652,6 +1807,16 @@ or equivalent wording in the user's language.
                         'AI-mmi',
                         ['log_to_chat_table' => true, 'source' => 'chat']
                     );
+                    if ($memberId > 0 && !$this->isGreetingOnlyMessage((string)$question)) {
+                        $replyForCurrentUser = $this->appendPlanPromotionNudge(
+                            (string)$replyForCurrentUser,
+                            (string)$question,
+                            (string)$activePlanCode,
+                            $memberAskCount + 1,
+                            $freeLimit,
+                            (int)$memberId
+                        );
+                    }
                     $streamMeta = ['reply_source' => 'model'];
                     if ($shouldRedirectToUpgrade) {
                         $streamMeta = array_merge($streamMeta, [
@@ -1686,30 +1851,25 @@ or equivalent wording in the user's language.
             (string)$sessionId
         );
 
-        $x = $this->callXaiResponses($questionForModel, [
-            'resume_thread'      => true,
-            'temperature' => (float)env('XAI_CHAT_TEMPERATURE', 0.45),
-            'max_output_tokens' => (int)env('XAI_MAX_OUTPUT_TOKENS', 1024),
-            'model' => 'grok-4-1-fast-reasoning',
-            // Free/DIY plan speed optimisation: skip live web search for off-topic questions
-            'enable_search'     => ($isLimitedPlanUser && $domain === 'other')
-                ? false
-                : filter_var(env('XAI_ENABLE_WEB_SEARCH', true), FILTER_VALIDATE_BOOLEAN),
-            'allowed_domains'   => $allowedDomains,
-            'file_search_max'   => (int)env('XAI_FILE_SEARCH_MAX', 8),
-            'collection_ids'   => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
-            'vector_store_ids' => [],
-            'system' => $finalSystemPrompt,
-        ]);
-
-        $reply = '';
-        if (!is_array($x) || empty($x['text'])) {
-            $reply = is_array($x) ? ($x['text'] ?? '') : (string)$x;
-        } else {
-            $reply = $x['text'];
+        if ($forceNzBusinessInvestorMode) {
+            $questionForModel = $this->buildNzBusinessInvestorUserQuery($questionForModel, $nzBusinessInvestorUrl);
         }
 
-        $reply = $this->processFinalText($reply, false, $lang);
+        // Use true xAI SSE streaming — forwards tokens to browser in real-time
+        $xStream = $this->callXaiResponsesStream($questionForModel, [
+            'resume_thread'      => true,
+            'temperature'        => (float)env('XAI_CHAT_TEMPERATURE', 0.40),
+            'max_output_tokens'  => (int)env('XAI_MAX_OUTPUT_TOKENS', 900),
+            'model'              => 'grok-4-1-fast-reasoning',
+            'enable_search'      => true,
+            'allowed_domains'    => $allowedDomains,
+            'file_search_max'    => (int)env('XAI_FILE_SEARCH_MAX', 5),
+            'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+            'vector_store_ids'   => [],
+            'system'             => $finalSystemPrompt,
+        ]);
+
+        $reply = $this->processFinalText((string)($xStream['text'] ?? ''), false, $lang);
 
         if (trim($reply) === '') {
             $this->streamError('Upstream empty response');
@@ -1720,17 +1880,7 @@ or equivalent wording in the user's language.
         }
 
         $replyForCurrentUser = $reply;
-        if ($memberId > 0) {
-            $replyForCurrentUser = $this->appendPlanPromotionNudge(
-                (string)$replyForCurrentUser,
-                (string)$question,
-                (string)$activePlanCode,
-                $memberAskCount + 1,
-                $freeLimit,
-                (int)$memberId
-            );
-        }
-
+        // Store the clean AI reply first so token deduction runs before we read the balance for the nudge.
         $this->storeChat(
             $memberId,
             $guestId,
@@ -1741,6 +1891,24 @@ or equivalent wording in the user's language.
             'AI-mmi',
             ['log_to_chat_table' => true, 'source' => 'chat']
         );
+        // Append nudge AFTER storeChat so the displayed balance is the post-deduction value.
+        if ($memberId > 0 && !$this->isGreetingOnlyMessage((string)$question)) {
+            $replyForCurrentUser = $this->appendPlanPromotionNudge(
+                (string)$replyForCurrentUser,
+                (string)$question,
+                (string)$activePlanCode,
+                $memberAskCount + 1,
+                $freeLimit,
+                (int)$memberId
+            );
+        }
+
+        // Stream the promotion nudge and meta (the core answer was already streamed live)
+        $suffix = '';
+        if ($replyForCurrentUser !== $reply) {
+            // The nudge text was appended — stream just the delta suffix
+            $suffix = substr($replyForCurrentUser, strlen($reply));
+        }
 
         $streamMeta = ['reply_source' => 'model'];
         if ($shouldRedirectToUpgrade) {
@@ -1754,7 +1922,7 @@ or equivalent wording in the user's language.
                     ? '🔓 解锁完整指导 → 升级'
                     : '🔓 Unlock Full Guidance → Upgrade',
             ]);
-        } elseif ($isLimitedPlanUser) {
+        } elseif ($isLimitedPlanUser && !$this->isGreetingOnlyMessage((string)$question)) {
             // Show upgrade CTA on every free/DIY reply to drive conversions
             $streamMeta = array_merge($streamMeta, [
                 'show_upgrade'  => true,
@@ -1765,7 +1933,19 @@ or equivalent wording in the user's language.
             ]);
         }
 
-        $this->streamMessage($replyForCurrentUser, $streamMeta);
+        // Stream only the suffix (nudge text) — core answer was already streamed live
+        if ($suffix !== '') {
+            echo "data: " . json_encode([
+                'choices' => [['delta' => ['content' => $suffix]]]
+            ]) . "\n\n";
+            @flush();
+        }
+        if (!empty($streamMeta)) {
+            echo "data: " . json_encode(['meta' => $streamMeta]) . "\n\n";
+            @flush();
+        }
+        echo "data: [DONE]\n\n";
+        @flush();
     }, 200, [
         'Content-Type' => 'text/event-stream',
         'Cache-Control' => 'no-cache',
@@ -1774,8 +1954,209 @@ or equivalent wording in the user's language.
     ]);
 }
 
+// === TRUE xAI STREAMING (SSE proxy) ===
+/**
+ * Calls the xAI Responses API with stream:true and immediately forwards
+ * text-delta events to the browser via SSE. Returns the full text after
+ * streaming is complete (for caching / post-processing).
+ *
+ * @param string $question
+ * @param array  $opts   Same options as callXaiResponses()
+ * @return array ['text'=>string, 'ok'=>bool]
+ */
+private function callXaiResponsesStream(string $question, array $opts = []): array
+{
+    $apiKey = (string)env('XAI_API_KEY', '');
+    if (empty($apiKey)) {
+        return ['ok' => false, 'text' => ''];
+    }
+
+    $url     = rtrim(env('XAI_API_BASE', 'https://api.x.ai'), '/') . '/v1/responses';
+    $model   = $opts['model'] ?? 'grok-4-1-fast-reasoning';
+    $system  = $opts['system'] ?? null;
+
+    $input = [];
+    if ($system) {
+        $input[] = ['role' => 'system', 'content' => [['type' => 'input_text', 'text' => $system]]];
+    }
+    $input[] = ['role' => 'user', 'content' => [['type' => 'input_text', 'text' => (string)$question]]];
+
+    $payload = [
+        'model'             => $model,
+        'input'             => $input,
+        'max_output_tokens' => $opts['max_output_tokens'] ?? 900,
+        'temperature'       => (float)($opts['temperature'] ?? 0.40),
+        'stream'            => true,
+    ];
+
+    // Previous response thread
+    $useThread = !array_key_exists('resume_thread', $opts) || (bool)$opts['resume_thread'];
+    if ($useThread) {
+        $prevId = $this->getXaiPrevResponseId();
+        if (!empty($prevId)) {
+            $payload['previous_response_id'] = $prevId;
+        }
+    }
+
+    // Tools
+    $tools = [];
+    $collectionIds = isset($opts['collection_ids']) && is_array($opts['collection_ids']) ? $opts['collection_ids'] : [];
+    $envVectorStores = array_filter(array_map('trim', explode(',', (string)env('XAI_VECTOR_STORE_IDS', ''))));
+    $vectorStoreIds = isset($opts['vector_store_ids']) && is_array($opts['vector_store_ids'])
+        ? array_values(array_filter($opts['vector_store_ids'])) : [];
+    if (empty($vectorStoreIds) && !empty($envVectorStores)) {
+        $vectorStoreIds = array_values($envVectorStores);
+    }
+    $allowCollectionIds = filter_var(env('XAI_ALLOW_COLLECTION_IDS', false), FILTER_VALIDATE_BOOLEAN);
+    if (empty($vectorStoreIds) && $allowCollectionIds && !empty($collectionIds)) {
+        $vectorStoreIds = $collectionIds;
+    }
+    if (!empty($vectorStoreIds)) {
+        $tools[] = [
+            'type'             => 'file_search',
+            'vector_store_ids' => $vectorStoreIds,
+            'max_num_results'  => (int)($opts['file_search_max'] ?? 5),
+        ];
+    }
+
+    $enableSearch = array_key_exists('enable_search', $opts)
+        ? (bool)$opts['enable_search']
+        : (empty($vectorStoreIds) ? true : (bool)env('XAI_ENABLE_WEB_SEARCH', false));
+    if ($enableSearch) {
+        $webArgs = [];
+        if (!empty($opts['allowed_domains']) && is_array($opts['allowed_domains'])) {
+            $webArgs['allowed_domains'] = array_values(array_filter(array_map('strval', $opts['allowed_domains'])));
+        }
+        $webArgs['excluded_domains'] = array_values(array_unique(array_merge(
+            ['edvisehub.com'], (array)($opts['excluded_domains'] ?? [])
+        )));
+        $tools[] = !empty($webArgs)
+            ? ['type' => 'web_search', 'arguments' => $webArgs]
+            : ['type' => 'web_search'];
+    }
+    if (!empty($tools)) {
+        $payload['tools'] = $tools;
+        $payload['tool_choice'] = 'auto';
+    }
+
+    $fullText    = '';
+    $responseId  = null;
+    $buffer      = '';
+
+    // Ensure SSE headers are set
+    if (!headers_sent()) {
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('X-Accel-Buffering: no');
+    }
+    while (ob_get_level()) { @ob_end_flush(); }
+    @ob_implicit_flush(true);
+
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL            => $url,
+        CURLOPT_POST           => true,
+        CURLOPT_HTTPHEADER     => [
+            'Authorization: Bearer ' . $apiKey,
+            'Content-Type: application/json',
+            'Accept: text/event-stream',
+        ],
+        CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        CURLOPT_RETURNTRANSFER => false,
+        CURLOPT_TIMEOUT        => (int)env('XAI_TIMEOUT', 60),
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_WRITEFUNCTION  => function($ch, $chunk) use (&$fullText, &$responseId, &$buffer) {
+            $buffer .= $chunk;
+
+            // SSE lines come as: "data: {...}\n\n"
+            while (($pos = strpos($buffer, "\n")) !== false) {
+                $line   = substr($buffer, 0, $pos);
+                $buffer = substr($buffer, $pos + 1);
+                $line   = trim($line);
+
+                if ($line === '' || $line === 'data: [DONE]') {
+                    continue;
+                }
+                if (strpos($line, 'data: ') === 0) {
+                    $jsonStr = substr($line, 6);
+                    $event   = json_decode($jsonStr, true);
+                    if (!is_array($event)) continue;
+
+                    // Capture response ID for thread continuation
+                    if (empty($responseId) && !empty($event['response']['id'])) {
+                        $responseId = $event['response']['id'];
+                    }
+                    if (empty($responseId) && !empty($event['id'])) {
+                        $responseId = $event['id'];
+                    }
+
+                    // Extract text delta from streaming events
+                    $delta = '';
+                    // response.output_text.delta event
+                    if (isset($event['delta']) && is_string($event['delta'])) {
+                        $delta = $event['delta'];
+                    }
+                    // choices[].delta.content (Chat Completions style)
+                    if ($delta === '' && isset($event['choices'][0]['delta']['content'])) {
+                        $delta = (string)$event['choices'][0]['delta']['content'];
+                    }
+
+                    if ($delta !== '') {
+                        $fullText .= $delta;
+                        // Strip inline citation markers like [1][2] before sending to browser
+                        $cleanDelta = preg_replace('/\[\[?\d+\]?\]\([^\)]*\)/u', '', $delta);
+                        $cleanDelta = preg_replace('/\[\d+\]/u', '', (string)$cleanDelta);
+                        if ($cleanDelta !== '') {
+                            // Forward delta to browser immediately
+                            echo "data: " . json_encode([
+                                'choices' => [['delta' => ['content' => $cleanDelta]]]
+                            ]) . "\n\n";
+                            @flush();
+                        }
+                    }
+
+                    // Also capture full text from non-streaming output (fallback)
+                    if ($delta === '' && !empty($event['output'])) {
+                        foreach ((array)$event['output'] as $outputItem) {
+                            if (isset($outputItem['content']) && is_array($outputItem['content'])) {
+                                foreach ($outputItem['content'] as $part) {
+                                    if (isset($part['text']) && is_string($part['text']) && $fullText === '') {
+                                        $fullText = $part['text'];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return strlen($chunk);
+        },
+    ]);
+
+    curl_exec($ch);
+    $curlErrno = curl_errno($ch);
+    $curlError = curl_error($ch);
+    $httpCode  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($curlErrno !== 0) {
+        \Log::error('xAI curl error', ['errno' => $curlErrno, 'error' => $curlError, 'http_code' => $httpCode]);
+    } elseif (empty($fullText)) {
+        \Log::warning('xAI returned empty response', ['http_code' => $httpCode, 'model' => $model, 'buffer_remaining' => strlen($buffer)]);
+    }
+
+    if ($responseId && $useThread) {
+        $this->saveXaiPrevResponseId($responseId);
+    }
+
+    return ['ok' => !empty($fullText), 'text' => $fullText];
+}
+
 // === STREAMING HELPER METHODS ===
 private function streamError($message) {
+    \Log::error('chatStream error: ' . $message);
     if (!headers_sent()) {
         header('Content-Type: text/event-stream');
         header('Cache-Control: no-cache');
@@ -1937,7 +2318,7 @@ private function isAiFreeFlowPlan(int $memberId): bool
             ->join('plans', 'plans.id', '=', 'subscriptions.plan_id')
             ->where('subscriptions.member_id', $memberId)
             ->where('subscriptions.status', 'active')
-            ->whereIn('plans.code', ['all_ai', 'hybrid', 'vip'])
+            ->whereIn('plans.code', ['all_ai', 'hybrid', 'vip', 'agent_call'])
             ->where(function ($q) {
                 $q->whereNull('subscriptions.ends_at')
                   ->orWhere('subscriptions.ends_at', '>', now());
@@ -1953,7 +2334,7 @@ private function isAiFreeFlowPlan(int $memberId): bool
             ->where('member_id', $memberId)
             ->where('status', 'active')
             ->whereIn('plan_id', function ($q) {
-                $q->select('id')->from('plans')->whereIn('code', ['all_ai', 'hybrid', 'vip']);
+                $q->select('id')->from('plans')->whereIn('code', ['all_ai', 'hybrid', 'vip', 'agent_call']);
             })
             ->where(function ($q) {
                 $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
@@ -2174,6 +2555,60 @@ private function getLatestUserAskBeforeCurrent(int $memberId, string $sessionId 
     }
 }
 
+private function shouldForceNzBusinessInvestorVisa($postContext): bool
+{
+    if (empty($postContext) || !is_array($postContext)) {
+        return false;
+    }
+
+    $sector = strtolower(trim((string)($postContext['sector'] ?? '')));
+    if ($sector !== '' && $sector !== 'migration') {
+        return false;
+    }
+
+    $title = strtolower((string)($postContext['title'] ?? ''));
+    $content = strtolower((string)($postContext['content'] ?? ''));
+    $haystack = trim($title . ' ' . $content);
+
+    if ($haystack === '') {
+        return false;
+    }
+
+    if (strpos($haystack, 'new zealand') !== false) {
+        return true;
+    }
+
+    if (strpos($haystack, 'aotearoa') !== false) {
+        return true;
+    }
+
+    return preg_match('/\bnz\b/u', $haystack) === 1;
+}
+
+private function buildNzBusinessInvestorSystemPrompt(string $sourceUrl): string
+{
+    return "
+
+### MANDATORY COUNTRY-SPECIFIC OVERRIDE (HIGHEST PRIORITY)
+- The user is asking about New Zealand business/investor migration.
+- You MUST answer ONLY about the New Zealand **Business Investor Work Visa**.
+- Do NOT mention the Active Investor Plus Visa or any other NZ visa category.
+- Use ONLY this official source URL: {$sourceUrl}
+- If a detail is not on that page, clearly say it cannot be confirmed.
+- Keep the answer SHORT: 120–180 words max. Give the essentials, then ask one follow-up.
+- Format: 1 short opening sentence → 3–4 key bullet points → 1 bold follow-up question.
+- Do NOT write paragraphs of dense text. Scannable and mobile-friendly only.
+";
+}
+
+private function buildNzBusinessInvestorUserQuery(string $question, string $sourceUrl): string
+{
+    return "New Zealand post override is active.\n"
+        . "Answer ONLY about New Zealand Business Investor Work Visa using ONLY this page: {$sourceUrl}\n"
+        . "If information is missing from that page, clearly say it cannot be confirmed from that page.\n\n"
+        . "User message: {$question}";
+}
+
 private function buildRecentConversationContext(int $memberId, string $guestId = '', string $sessionId = '', int $limit = 6): string
 {
     if ($memberId <= 0) {
@@ -2203,6 +2638,16 @@ private function buildRecentConversationContext(int $memberId, string $guestId =
             $text = trim((string)($row->content ?? ''));
             if ($text === '') {
                 continue;
+            }
+
+            // Strip promotional nudge from AI replies before passing to context
+            // to prevent the AI from mimicking old nudge messages.
+            if ($role === 'AI') {
+                $text = preg_replace('/\s*(Quick heads-up|FYI 😊|小提醒🙂|FYI\s*😊)[\s\S]*/u', '', $text);
+                $text = trim($text);
+                if ($text === '') {
+                    continue;
+                }
             }
 
             $text = preg_replace('/\s+/u', ' ', $text);
@@ -2444,121 +2889,87 @@ private function getPromotionPlanNames(): array
     return $names;
 }
 
+private function isGreetingOnlyMessage(string $question): bool
+{
+    $q = trim(mb_strtolower($question));
+    // Remove punctuation and extra whitespace
+    $q = preg_replace('/[!?.,;:\r\n，。！？、…]/u', '', $q);
+    $q = trim(preg_replace('/\s+/', ' ', $q));
+
+    if ($q === '') {
+        return true;
+    }
+
+    $patterns = [
+        // Pure greetings (with optional target like "ai-mmi")
+        '/^(hi|hey|hello|howdy|greetings|good morning|good afternoon|good evening|good day|yo)(\s+(there|ai-?mmi|everyone|friend|assistant))?$/i',
+        // Chinese greetings
+        '/^(你好|您好|嗨|哈喽|早上好|下午好|晚上好|大家好|hi|hello)$/u',
+        // "hi/hello/hey, can you help [me]?"
+        '/^(hi|hey|hello)[,\s]+(can you help( me)?|help me|i need help|assist me|are you there)$/i',
+        // Standalone help requests without any topic
+        '/^(can you help( me)?|help me please|please help me|help please|are you there|你能帮我吗|能帮我吗|请问|在吗)$/iu',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $q)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 private function appendPlanPromotionNudge(string $reply, string $question, string $planCode, int $currentAskNumber, int $limit, int $memberId = 0): string
 {
-    $normalizedPlan = strtolower(trim($planCode));
-
-    if ($normalizedPlan === 'vip') {
-        return trim($reply);
-    }
-
-    if (in_array($normalizedPlan, ['free', 'premium'], true)) {
-        return $this->appendSoftUpgradeNudge($reply, $question, $currentAskNumber, $limit, $memberId, $normalizedPlan);
-    }
-
     $reply = trim((string)$reply);
-    if ($reply === '') {
+    if ($reply === '' || $memberId <= 0) {
+        return $reply;
+    }
+
+    // Paid plan members get unlimited AI chat — token balance is irrelevant, never show nudge.
+    $paidPlans = ['premium', 'vip', 'agent_call'];
+    if (in_array(strtolower(trim($planCode)), $paidPlans, true)) {
+        return $reply;
+    }
+
+    // Show a low-token reminder when balance drops below 10.
+    // No subscription-plan upsell — just a friendly token top-up nudge.
+    try {
+        $tokenBalance = (int) \DB::table('member')->where('id', $memberId)->value('token_balance');
+    } catch (\Throwable $e) {
+        return $reply;
+    }
+
+    if ($tokenBalance >= 10) {
         return $reply;
     }
 
     $lang = $this->detectLangZhOrEn($question);
-    $planNames = $this->getPromotionPlanNames();
-    $diyPlanName = $planNames['premium'];
-    $hybridPlanName = $planNames['hybrid'];
-    $vipPlanName = $planNames['vip'];
-    if ($normalizedPlan === 'all_ai') {
-        $nudge = ($lang === 'zh')
-            ? "如果您想要真人顾问帮您逐步看路径、分数和材料，可升级到 **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}**，直接对接 AI-mmi 认证移民顾问。[👉 立即升级](" . $this->toURL('upgrade') . ")"
-            : "If you want a real person to walk through your pathway, points, and documents with you, upgrade to **{$hybridPlanName} / {$diyPlanName} / {$vipPlanName}** to connect with an AI-mmi Registered Agent. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
-        return $reply . "\n\n" . $nudge;
+    $walletUrl = $this->toURL('wallet');
+    $plural = $tokenBalance === 1 ? '' : 's';
+
+    if ($lang === 'zh') {
+        $nudge = ($tokenBalance <= 0)
+            ? "⚡ 您的 Token 已用完，请 [立即充值]({$walletUrl}) 以继续使用 AI 功能。"
+            : "⚡ 温馨提示：您还剩 **{$tokenBalance} 个 Token**，每次 AI 对话消耗 1 个。[立即充值]({$walletUrl}) 以继续畅聊。";
+    } elseif ($lang === 'vi') {
+        $nudge = ($tokenBalance <= 0)
+            ? "⚡ Bạn đã dùng hết token — [nạp thêm token]({$walletUrl}) để tiếp tục trò chuyện."
+            : "⚡ Lưu ý: bạn còn **{$tokenBalance} token**. Mỗi cuộc trò chuyện dùng 1 token. [Nạp thêm tại đây]({$walletUrl}) để tiếp tục.";
+    } else {
+        $nudge = ($tokenBalance <= 0)
+            ? "⚡ You've used your last token — [top up your balance]({$walletUrl}) to keep the conversation going."
+            : "⚡ Heads up — you have **{$tokenBalance} token{$plural} left**. Each AI chat uses 1 token. [Top up here]({$walletUrl}) to keep the answers flowing.";
     }
 
-    if ($normalizedPlan === 'hybrid') {
-        $nudge = ($lang === 'zh')
-            ? "如果您想要更完整、更省心的全程代办与优先跟进，可升级到 **{$vipPlanName}**，由 AI-mmi 认证移民顾问提供更深入支持。[👉 立即升级](" . $this->toURL('upgrade') . ")"
-            : "If you want more complete end-to-end handling and priority support, upgrading to **{$vipPlanName}** is the next step. That gives you deeper help from an AI-mmi Registered Agent. [👉 Upgrade Now](" . $this->toURL('upgrade') . ")";
-        return $reply . "\n\n" . $nudge;
-    }
-
-    return $reply;
+    return $reply . "\n\n&nbsp;\n\n" . $nudge;
 }
 
 private function appendSoftUpgradeNudge(string $reply, string $question, int $currentAskNumber, int $limit, int $memberId = 0, string $planCode = 'free'): string
 {
-    $reply = trim($reply);
-    if ($reply === '' || $limit <= 0) {
-        return $reply;
-    }
-
-    // Hard safety guard: only free/premium users should ever see upgrade nudges.
-    if ($memberId > 0 && !$this->shouldApplyUpgradeNudgeForMember($memberId)) {
-        return $reply;
-    }
-
-    $triggerAt = 1;
-    if ($currentAskNumber < $triggerAt) {
-        return $reply;
-    }
-
-    $remaining = max(0, $limit - $currentAskNumber);
-    $lang = $this->detectLangZhOrEn($question);
-    $isOverLimitNudge = ($currentAskNumber >= $limit);
-    $normalizedPlan = strtolower(trim($planCode));
-    $upgradeUrl = $this->toURL('upgrade');
-    $planNames = $this->getPromotionPlanNames();
-    $aiPlanName = $planNames['all_ai'];
-    $diyPlanName = $planNames['premium'];
-    $hybridPlanName = $planNames['hybrid'];
-    $vipPlanName = $planNames['vip'];
-    $nudge = '';
-
-    if ($lang === 'zh') {
-        $upgradeLink = "[👉 立即升级]({$upgradeUrl})";
-        if ($normalizedPlan === 'premium') {
-            if ($isOverLimitNudge) {
-                $nudge = "提示😊：您当前 **{$diyPlanName}** 已进入简答模式。"
-                    . "升级至 **{$hybridPlanName}** 或 **{$vipPlanName}**，可让 AI-mmi 认证移民顾问亲自为您提供一对一深度规划。{$upgradeLink}";
-            } else {
-                $nudge = "小提醒🙂：**{$diyPlanName}** 已覆盖基础指引。如需更全方位的一对一顾问支持，可随时升级至 **{$hybridPlanName}** 或 **{$vipPlanName}** 直接对接 AI-mmi 认证顾问。{$upgradeLink}";
-            }
-        } else {
-            if ($isOverLimitNudge) {
-                $nudge = "温馨提示😊：您的免费额度已用完，我仍可给您简短回答。"
-                    . "升级至 **{$aiPlanName}** 可获得更详尽、更完整的 AI 深度规划；升级至 **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}**，还可直接对接 AI-mmi **认证移民顾问**，获得专属移民路径支持。{$upgradeLink}";
-            } else {
-                $nudge = "小提醒🙂：您还剩 **{$remaining}** 次免费对话。"
-                    . "升级 **{$aiPlanName}** 享无限 AI 深度解析，或选 **{$diyPlanName} / {$hybridPlanName} / {$vipPlanName}** 直接与 AI-mmi **认证移民顾问** 一对一咨询——点击 {$upgradeLink} 随时开始。";
-            }
-        }
-    } else {
-        $upgradeLink = "[👉 Upgrade Now]({$upgradeUrl})";
-        if ($normalizedPlan === 'premium') {
-            if ($isOverLimitNudge) {
-                $nudge = "Quick note 😊 Your **{$diyPlanName}** is now in short-answer mode. "
-                    . "Upgrade to **{$hybridPlanName}** or **{$vipPlanName}** to get direct 1-on-1 support from an AI-mmi Registered Agent. {$upgradeLink}";
-            } else {
-                $nudge = "Quick tip 🙂 **{$diyPlanName}** covers the basics — but for fuller personalised agent support, "
-                    . "**{$hybridPlanName}** or **{$vipPlanName}** connects you directly with an AI-mmi Registered Agent. {$upgradeLink}";
-            }
-        } else {
-            if ($isOverLimitNudge) {
-                $nudge = "FYI 😊 Your free chats are used up — I'm still here for quick answers. "
-                    . "Upgrade to **{$aiPlanName}** for unlimited detailed AI guidance, or jump to **{$hybridPlanName} / {$diyPlanName} / {$vipPlanName}** "
-                    . "to get 1-on-1 support from a real AI-mmi **Registered Agent**. {$upgradeLink}";
-            } else {
-                $nudge = "Quick heads-up 🙂 You have **{$remaining}** free chats left. "
-                    . "Upgrade to **{$aiPlanName}** for deeper step-by-step AI guidance, or choose **{$hybridPlanName} / {$diyPlanName} / {$vipPlanName}** "
-                    . "to work directly with an AI-mmi **Registered Agent** — tap {$upgradeLink} anytime.";
-            }
-        }
-    }
-
-    $parts = [$nudge];
-    if ($this->shouldAppendMicroHook($currentAskNumber, $limit)) {
-        $parts[] = $this->buildMicroHookEnding($lang, $currentAskNumber);
-    }
-
-    return $reply . "\n\n" . implode("\n", array_filter($parts));
+    // Superseded by token-balance nudge in appendPlanPromotionNudge.
+    return trim($reply);
 }
 
 private function shouldApplyUpgradeNudgeForMember(int $memberId): bool
@@ -2597,6 +3008,8 @@ private function buildTierUpgradeSystemNote(string $planCode): string
 ## TIER UPGRADE CONTEXT (FREE PLAN)
 "
                 . "The user is on the FREE plan.
+"
+                . "CRITICAL RULE: NEVER mention chat counts, 'X free chats left', 'chat limit', or any quota numbers in your reply. The system handles that separately.
 "
                 . "Throughout the conversation, NATURALLY and SMOOTHLY weave in the following upgrade paths (do NOT be pushy — feel like a helpful friend):
 "
@@ -2813,26 +3226,84 @@ private function classifyQuestionDomain(string $question): string
 
 private function detectLangZhOrEn(string $q): string
 {
-    return preg_match('/[\x{4e00}-\x{9fff}]/u', $q) ? 'zh' : 'en';
+    // Chinese (Simplified/Traditional)
+    if (preg_match('/[\x{4e00}-\x{9fff}\x{3400}-\x{4dbf}]/u', $q)) {
+        return 'zh';
+    }
+    // Vietnamese — unique diacritics not found in other Latin-script languages
+    if (preg_match('/[ắặẳẵặăắặẳẵđ]/u', $q) ||
+        preg_match('/[àáâãèéêìíòóôõùúăđÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐ]/u', $q)) {
+        // Narrow it to Vietnamese by checking for Vietnamese-specific combos
+        if (preg_match('/[ắặẳẵắặẳẵ]/u', $q) ||
+            preg_match('/[ộổỗởợọốồổỗộ]/u', $q) ||
+            preg_match('/[ừứửữựưừứửữự]/u', $q) ||
+            preg_match('/[ệểễếề]/u', $q) ||
+            preg_match('/[ịỉĩ]/u', $q) ||
+            preg_match('/[ọỏõ]/u', $q) ||
+            preg_match('/[ầấẩẫậ]/u', $q) ||
+            preg_match('/[đ]/u', $q)) {
+            return 'vi';
+        }
+    }
+    // Japanese (Hiragana / Katakana)
+    if (preg_match('/[\x{3040}-\x{30ff}]/u', $q)) {
+        return 'ja';
+    }
+    // Korean (Hangul)
+    if (preg_match('/[\x{ac00}-\x{d7af}]/u', $q)) {
+        return 'ko';
+    }
+    return 'en';
 }
 
 private function buildStrictLanguageInstruction(string $lang): string
 {
+    // For Chinese: enforce Chinese reply (common use case for this platform).
     if ($lang === 'zh') {
         return "
 
-## STRICT LANGUAGE LOCK
-- You MUST reply ONLY in Chinese for this turn.
+## Language Rule
+- The user wrote in Chinese. Reply ONLY in Chinese.
 - Do NOT switch to English unless the user explicitly asks in English.
 ";
     }
 
+    // For Vietnamese: explicitly tell the model to respond in Vietnamese.
+    if ($lang === 'vi') {
+        return "
+
+## Language Rule
+- The user wrote in Vietnamese. Reply ONLY in Vietnamese.
+- Do NOT switch to English or any other language.
+";
+    }
+
+    // For Japanese.
+    if ($lang === 'ja') {
+        return "
+
+## Language Rule
+- The user wrote in Japanese. Reply ONLY in Japanese.
+";
+    }
+
+    // For Korean.
+    if ($lang === 'ko') {
+        return "
+
+## Language Rule
+- The user wrote in Korean. Reply ONLY in Korean.
+";
+    }
+
+    // For all other languages (English, French, Spanish, etc.):
+    // Do NOT force English — let the model mirror the user's language naturally,
+    // as the main system prompt's Language Behaviour section already instructs.
     return "
 
-## STRICT LANGUAGE LOCK
-- You MUST reply ONLY in English for this turn.
-- Do NOT include Chinese sentences unless the user explicitly asks for Chinese.
-- If source material contains Chinese text, translate it to English before replying.
+## Language Rule
+- Detect the language the user wrote in and reply in that exact same language.
+- Do NOT default to English if the user wrote in a different language.
 ";
 }
 
@@ -2901,6 +3372,116 @@ private function appendQaCta(string $answer, string $lang): string
 
     $trimmed = rtrim($answer);
     return $trimmed === '' ? $cta : $trimmed . "\n" . $cta;
- }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// D-ID Avatar – server-side proxy (keeps the API key out of the browser)
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Proxy a D-ID REST call; returns ['code' => int, 'body' => string] */
+private function didApiCall(string $method, string $path, array $body = []): array
+{
+    $apiKey = env('DID_API_KEY', '');
+    if (empty($apiKey)) {
+        return ['code' => 503, 'body' => json_encode(['error' => 'Avatar not configured'])];
+    }
+
+    $ch = curl_init('https://api.d-id.com' . $path);
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST  => strtoupper($method),
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Authorization: Basic ' . $apiKey,
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+
+    if (!empty($body) || in_array(strtoupper($method), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+    }
+
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    return ['code' => $httpCode, 'body' => (string) $response];
+}
+
+/** POST /home/avatar/stream  – create a new D-ID WebRTC stream session */
+public function avatarStream(\Illuminate\Http\Request $request)
+{
+    $presenterImg = env(
+        'DID_PRESENTER_IMG',
+        'https://create-images-results.d-id.com/DefaultPresenters/Noelle_f/image.jpeg'
+    );
+
+    $result = $this->didApiCall('POST', '/talks/streams', [
+        'source_url'         => $presenterImg,
+        'compatibility_mode' => 'on',
+    ]);
+
+    return response($result['body'], $result['code'])
+        ->header('Content-Type', 'application/json');
+}
+
+/** POST /home/avatar/stream/{id}/sdp  – forward WebRTC SDP answer */
+public function avatarStreamSdp(\Illuminate\Http\Request $request, string $streamId)
+{
+    $result = $this->didApiCall('POST', "/talks/streams/{$streamId}/sdp", [
+        'answer'     => $request->input('answer'),
+        'session_id' => $request->input('session_id'),
+    ]);
+
+    return response($result['body'], $result['code'])
+        ->header('Content-Type', 'application/json');
+}
+
+/** POST /home/avatar/stream/{id}/ice  – forward ICE candidate */
+public function avatarStreamIce(\Illuminate\Http\Request $request, string $streamId)
+{
+    $result = $this->didApiCall('POST', "/talks/streams/{$streamId}/ice", [
+        'candidate'  => $request->input('candidate'),
+        'session_id' => $request->input('session_id'),
+    ]);
+
+    return response($result['body'], $result['code'])
+        ->header('Content-Type', 'application/json');
+}
+
+/** POST /home/avatar/stream/{id}/speak  – make the avatar say text */
+public function avatarSpeak(\Illuminate\Http\Request $request, string $streamId)
+{
+    $text      = mb_substr((string) $request->input('text', ''), 0, 500);
+    $sessionId = (string) $request->input('session_id', '');
+
+    $result = $this->didApiCall('POST', "/talks/streams/{$streamId}", [
+        'script' => [
+            'type'     => 'text',
+            'input'    => $text,
+            'provider' => [
+                'type'     => 'microsoft',
+                'voice_id' => env('DID_VOICE_ID', 'en-US-JennyNeural'),
+            ],
+        ],
+        'config'     => ['stitch' => false],
+        'session_id' => $sessionId,
+    ]);
+
+    return response($result['body'], $result['code'])
+        ->header('Content-Type', 'application/json');
+}
+
+/** DELETE /home/avatar/stream/{id}  – close the stream session */
+public function avatarStreamClose(\Illuminate\Http\Request $request, string $streamId)
+{
+    $result = $this->didApiCall('DELETE', "/talks/streams/{$streamId}", [
+        'session_id' => $request->input('session_id', ''),
+    ]);
+
+    return response($result['body'], $result['code'])
+        ->header('Content-Type', 'application/json');
+}
 }
  // ← ADD THIS CLOSING BRACE FOR THE CLASS!

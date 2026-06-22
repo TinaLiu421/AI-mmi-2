@@ -7,7 +7,7 @@ Options are dynamically rendered from the welcome_message.js configuration.
 
 <div class="welcome-message">
     <div class="welcome-message__buttons">
-        <a href="<?php echo $_page_base_url.'/study'; ?>" class="welcome-message__button welcome-message__button--study" data-mode="study">
+        <a href="<?php echo $_page_base_url.'/study_plans'; ?>" class="welcome-message__button welcome-message__button--study" data-mode="study">
             <span class="welcome-message__button-text">Study</span>
         </a>
         <a href="<?php echo $_page_base_url.'/migration'; ?>" class="welcome-message__button welcome-message__button--migration" data-mode="migration">

@@ -505,6 +505,10 @@ function streamResponse(question, bubbleId) {
                             renderUpgradeButton();
                             showTalkToAgentCTA();
                             $bubble.removeClass('streaming');
+                            // Trigger D-ID avatar to speak the full AI reply
+                            if (fullText.trim()) {
+                                avatarSpeak(fullText);
+                            }
                             return;
                         }
                         
@@ -2128,3 +2132,208 @@ document.addEventListener('DOMContentLoaded', function () {
         if (fmt === 'highlight') wrapSelection('==', '==');
     });
 });
+
+// ============================================================
+//  D-ID Avatar  –  WebRTC real-time lip-sync integration
+//  Connects once per page session; proxies all API calls
+//  through the Laravel backend so the API key stays server-side
+// ============================================================
+(function () {
+    'use strict';
+
+    var _streamId   = null;
+    var _sessionId  = null;
+    var _pc         = null;          // RTCPeerConnection
+    var _ready      = false;         // WebRTC video track is flowing
+    var _speaking   = false;
+    var _muted      = true;          // avatar starts muted (user must unmute)
+    var _initCalled = false;
+    var _pendingText = null;         // text queued while connecting
+
+    function didPost(path, body) {
+        return fetch((_page_base_url || '') + path, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': (window.csrfToken || (document.querySelector('meta[name=csrf-token]') || {}).content || '')
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(body)
+        });
+    }
+
+    function showAvatarVideo() {
+        var av = document.getElementById('did-avatar-video');
+        var rv = document.getElementById('chat-robot-video');
+        if (av) { av.style.display = ''; }
+        if (rv) { rv.style.display = 'none'; }
+        _ready = true;
+    }
+
+    function hideAvatarVideo() {
+        var av = document.getElementById('did-avatar-video');
+        var rv = document.getElementById('chat-robot-video');
+        if (av) { av.style.display = 'none'; }
+        if (rv) { rv.style.display = ''; }
+        _ready = false;
+    }
+
+    function initDIDAvatar() {
+        if (_initCalled) return;
+        _initCalled = true;
+
+        didPost('/home/avatar/stream', {})
+            .then(function (res) {
+                if (!res.ok) { throw new Error('Avatar not configured (HTTP ' + res.status + ')'); }
+                return res.json();
+            })
+            .then(function (data) {
+                if (!data || !data.id || !data.offer) {
+                    throw new Error('D-ID stream response missing id/offer');
+                }
+                _streamId  = data.id;
+                _sessionId = data.session_id;
+
+                var iceConfig = { iceServers: data.ice_servers || [] };
+                _pc = new RTCPeerConnection(iceConfig);
+
+                // When video track arrives, attach to the video element
+                _pc.addEventListener('track', function (event) {
+                    var av = document.getElementById('did-avatar-video');
+                    if (av && event.streams && event.streams[0]) {
+                        av.srcObject = event.streams[0];
+                        av.muted = _muted;
+                        av.play().catch(function () {});
+                        showAvatarVideo();
+                        // If text was queued while connecting, speak it now
+                        if (_pendingText) {
+                            var t = _pendingText;
+                            _pendingText = null;
+                            speakNow(t);
+                        }
+                    }
+                });
+
+                // Forward ICE candidates to D-ID via our proxy
+                _pc.addEventListener('icecandidate', function (event) {
+                    if (!event.candidate) return;
+                    didPost('/home/avatar/stream/' + _streamId + '/ice', {
+                        candidate:  event.candidate,
+                        session_id: _sessionId
+                    }).catch(function () {});
+                });
+
+                _pc.addEventListener('iceconnectionstatechange', function () {
+                    if (_pc.iceConnectionState === 'failed' ||
+                        _pc.iceConnectionState === 'disconnected') {
+                        hideAvatarVideo();
+                    }
+                });
+
+                // Complete WebRTC handshake
+                return _pc.setRemoteDescription(new RTCSessionDescription(data.offer))
+                    .then(function () { return _pc.createAnswer(); })
+                    .then(function (answer) {
+                        return _pc.setLocalDescription(answer)
+                            .then(function () { return answer; });
+                    })
+                    .then(function (answer) {
+                        return didPost('/home/avatar/stream/' + _streamId + '/sdp', {
+                            answer:     answer,
+                            session_id: _sessionId
+                        });
+                    });
+            })
+            .catch(function (err) {
+                // Graceful degradation – robot video stays visible, no crash
+                console.warn('D-ID Avatar not available:', err.message || err);
+            });
+    }
+
+    function speakNow(text) {
+        if (!_streamId || !_sessionId) return;
+        var speakText = text.replace(/[#*`_~\[\]>]/g, '').trim();
+        if (!speakText) return;
+        if (speakText.length > 500) { speakText = speakText.substring(0, 497) + '...'; }
+        _speaking = true;
+        // Add speaking animation to the robot container
+        $('#chat-robot-inner').addClass('did-speaking');
+        didPost('/home/avatar/stream/' + _streamId + '/speak', {
+            text:       speakText,
+            session_id: _sessionId
+        }).then(function () {
+            // D-ID speaks for roughly 1 word per 200ms; estimate duration and clear pulse
+            var wordCount = speakText.split(/\s+/).length;
+            var estimatedMs = Math.min(Math.max(wordCount * 220, 1500), 20000);
+            setTimeout(function () {
+                _speaking = false;
+                $('#chat-robot-inner').removeClass('did-speaking');
+            }, estimatedMs);
+        }).catch(function () {
+            _speaking = false;
+            $('#chat-robot-inner').removeClass('did-speaking');
+        });
+    }
+
+    // Public: called from streamResponse() when [DONE] arrives
+    window.avatarSpeak = function (text) {
+        if (!text || !text.trim()) return;
+        if (!_initCalled) { initDIDAvatar(); }
+        if (!_ready) {
+            // Still connecting – queue the text; it will be spoken on 'track'
+            _pendingText = text;
+            return;
+        }
+        speakNow(text);
+    };
+
+    // Wire mute/unmute to the existing #sound-control button
+    $(document).ready(function () {
+        // Initialize avatar when the robot container first becomes visible
+        // (i.e. when the user starts chatting)
+        var _avatarInitOnChat = false;
+        $(document).on('click', '#ask-form button[type=submit]', function () {
+            if (!_avatarInitOnChat) {
+                _avatarInitOnChat = true;
+                initDIDAvatar();
+            }
+        });
+        $(document).on('keydown', '#ask_question', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey && !_avatarInitOnChat) {
+                _avatarInitOnChat = true;
+                initDIDAvatar();
+            }
+        });
+
+        // Mute / unmute sound-control toggles the avatar audio
+        $(document).on('click', '#sound-control', function () {
+            var av = document.getElementById('did-avatar-video');
+            if ($(this).hasClass('opened')) {
+                $(this).removeClass('opened');
+                $(this).attr('title', 'Unmute avatar');
+                $(this).find('i').removeClass('fa-microphone').addClass('fa-microphone-slash');
+                if (av) av.muted = true;
+                _muted = true;
+            } else {
+                $(this).addClass('opened');
+                $(this).attr('title', 'Mute avatar');
+                $(this).find('i').removeClass('fa-microphone-slash').addClass('fa-microphone');
+                if (av) av.muted = false;
+                _muted = false;
+            }
+        });
+
+        // Clean up the stream on page unload
+        $(window).on('beforeunload', function () {
+            if (_streamId && _sessionId) {
+                var data = JSON.stringify({ session_id: _sessionId });
+                var url  = (_page_base_url || '') + '/home/avatar/stream/' + _streamId;
+                // Use sendBeacon for reliable delivery on page unload
+                if (navigator.sendBeacon) {
+                    var blob = new Blob([data], { type: 'application/json' });
+                    navigator.sendBeacon(url, blob);
+                }
+            }
+        });
+    });
+}());

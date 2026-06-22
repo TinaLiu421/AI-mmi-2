@@ -151,8 +151,8 @@ header.page-header .controls {
     position: absolute;
     top: calc(100% + var(--space-2));
     right: 0;
-    min-width: 140px;
-    max-height: min(70vh, 420px);
+    min-width: 260px;
+    max-height: min(70vh, 480px);
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -246,6 +246,243 @@ body {
     flex: 1;
 }
 
+/* ========================================
+   HEADER DROPDOWN — TWO-LEVEL MENU
+   ======================================== */
+
+.hd-section {
+    margin-bottom: 4px;
+}
+
+/* Coloured section label pill (Study / Migrate / Countries) */
+.hd-section-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 10px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-radius: 6px;
+    color: #fff;
+    pointer-events: none;
+    user-select: none;
+    margin-bottom: 2px;
+}
+
+.hd-section-label i {
+    font-size: 0.72rem;
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.hd-section-label--study {
+    background: linear-gradient(135deg, #0055d4, #6366f1);
+}
+
+.hd-section-label--migrate {
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+}
+
+.hd-section-label--countries {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+/* Sub-item container (indented under each section) */
+.hd-section-items {
+    padding: 2px 0 4px 6px;
+}
+
+/* Sub-item link */
+.header-dropdown .hd-item {
+    font-size: 0.875rem;
+    padding: 6px 10px;
+    gap: 8px;
+}
+
+.hd-item-icon {
+    width: 14px;
+    text-align: center;
+    color: var(--neutral-500);
+    font-size: 0.78rem;
+    flex-shrink: 0;
+    transition: color 0.15s ease;
+}
+
+.header-dropdown .hd-item:hover .hd-item-icon {
+    color: var(--primary-blue);
+}
+
+/* Flag image inside Countries list */
+.hd-flag-img {
+    width: 20px !important;
+    height: 14px !important;
+    object-fit: cover;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* Flat item (About Us level) */
+.hd-flat-li {
+    margin-top: 1px;
+}
+
+/* Divider rule */
+.hd-divider-line {
+    height: 1px;
+    background: var(--neutral-200);
+    margin: 6px 2px;
+    pointer-events: none;
+    list-style: none;
+}
+
+/* About Us */
+.header-dropdown .hd-item--about {
+    font-weight: 600;
+    color: var(--neutral-800);
+}
+.header-dropdown .hd-item--about .hd-item-icon {
+    color: var(--neutral-600);
+}
+
+/* My Account */
+.header-dropdown .hd-item--profile {
+    font-weight: 600;
+    color: var(--primary-blue-dark);
+}
+.header-dropdown .hd-item--profile .hd-item-icon {
+    color: var(--primary-blue);
+}
+
+/* Sign Out */
+.header-dropdown .hd-item--signout {
+    color: #dc2626;
+}
+.header-dropdown .hd-item--signout .hd-item-icon {
+    color: #dc2626;
+}
+.header-dropdown .hd-item--signout:hover {
+    background: #fff5f5 !important;
+    color: #dc2626 !important;
+}
+.header-dropdown .hd-item--signout:hover .hd-item-icon {
+    color: #dc2626 !important;
+}
+
+/* Sign In */
+.header-dropdown .hd-item--signin {
+    font-weight: 600;
+    color: var(--primary-blue);
+}
+.header-dropdown .hd-item--signin .hd-item-icon {
+    color: var(--primary-blue);
+}
+.header-dropdown .hd-item--signin:hover {
+    background: rgba(0, 102, 255, 0.06) !important;
+}
+.header-dropdown .hd-item--tokens {
+    font-weight: 600;
+    color: #c45c00;
+}
+.header-dropdown .hd-item--tokens .hd-item-icon {
+    color: #f59e0b;
+}
+
+/* GUEST GATE MODAL */
+.gg-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+.gg-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 36px 32px 28px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+}
+.gg-icon {
+    font-size: 2.2rem;
+    color: var(--primary-blue);
+    margin-bottom: 14px;
+}
+.gg-title {
+    margin: 0 0 8px;
+    color: var(--primary-blue-dark);
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+.gg-desc {
+    color: #555;
+    margin: 0 0 14px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.gg-token-bonus {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fef9c3;
+    color: #854d0e;
+    border: 1.5px solid #fde68a;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+.gg-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 14px;
+}
+.gg-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+.gg-btn:hover { opacity: 0.85; text-decoration: none; }
+.gg-btn--signin {
+    background: var(--primary-blue);
+    color: #fff;
+}
+.gg-btn--signup {
+    background: #f0f4ff;
+    color: var(--primary-blue);
+    border: 1.5px solid var(--primary-blue);
+}
+.gg-later {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 4px 0;
+    text-decoration: underline;
+}
+.gg-later:hover { color: #666; }
+
+/* Admin items */
+.header-dropdown .hd-item--admin {
+    font-size: 0.82rem;
+    color: var(--neutral-600);
+}
+
 /* Unified header control styles (lang, member, menu, sp) */
 header.page-header .controls .lang,
 header.page-header .controls .member,
@@ -330,7 +567,9 @@ header.page-header .controls .member .avatar {
     border-radius: var(--radius-full);
     background-size: cover;
     background-position: center;
-    border: 2px solid rgba(255, 255, 255, 0.12);
+    background-color: #fff;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 /* Ensure each control wrapper aligns consistently */
@@ -570,6 +809,24 @@ main.page-body .chat-area .input-question .robot video {
     left: 0;
 }
 
+/* D-ID avatar video – sits on top of the fallback robot video */
+#did-avatar-video {
+    z-index: 1;
+}
+#chat-robot-video {
+    z-index: 0;
+}
+
+/* Pulse ring while D-ID avatar is speaking */
+@keyframes did-speaking-pulse {
+    0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 0 rgba(99,102,241,0.55), var(--shadow-glow); }
+    50%       { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 7px rgba(99,102,241,0), var(--shadow-glow); }
+}
+main.page-body .chat-area .input-question .robot.did-speaking {
+    animation: did-speaking-pulse 1.1s ease-in-out infinite;
+    border-color: #6366f1;
+}
+
 main.page-body .chat-area .input-question .robot a#sound-control {
     position: absolute;
     bottom: 4px;
@@ -642,6 +899,52 @@ main.page-body .chat-area .box > a.btn-close-mobile {
     left: var(--space-2);
     display: none;
     z-index: 10;
+}
+
+/* Show close button whenever chat is expanded full-screen (any device) */
+main.page-body .chat-area.show-mobile .box > a.btn-close-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    cursor: pointer;
+}
+main.page-body .chat-area.show-mobile .box > a.btn-close-mobile img {
+    width: 20px;
+    height: 20px;
+    margin-left: 0;
+}
+
+/* Back button style when opened from Study page */
+main.page-body .chat-area.chat-from-study .box > a.btn-close-mobile {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    height: auto;
+    padding: 6px 14px 6px 10px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    top: 12px;
+    left: 12px;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+main.page-body .chat-area.chat-from-study .box > a.btn-close-mobile:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+main.page-body .chat-area.chat-from-study .box > a.btn-close-mobile img {
+    display: none;
+}
+main.page-body .chat-area.chat-from-study .box > a.btn-close-mobile::before {
+    content: "\2190  Back";
+    white-space: nowrap;
 }
 
 @keyframes slideInDown {
@@ -1653,13 +1956,32 @@ footer.page-footer a:hover {
         height: 32px;
     }
 
-    header.page-header .controls {
-        gap: 8px;
-    }
-
     /* Hide service provider button on very small screens to prevent overflow */
     header.page-header .controls .service_provider_info {
         display: none;
+    }
+
+    /* Hide "Upgrade" text label — keep only the star icon to save space */
+    header.page-header .controls .upgrade_link > a span {
+        display: none;
+    }
+    /* Make upgrade button same compact size as other icon buttons */
+    header.page-header .controls .upgrade_link > a {
+        padding: 0;
+        min-width: var(--header-control-size, 36px);
+        justify-content: center;
+    }
+
+    /* Compact token balance badge — tighter padding, smaller font */
+    .nav-token-badge {
+        padding: 2px 6px !important;
+        font-size: 11px !important;
+        gap: 2px !important;
+    }
+
+    /* Tighten controls gap to fit everything */
+    header.page-header .controls {
+        gap: 6px;
     }
 
     /* mobile header control sizes */

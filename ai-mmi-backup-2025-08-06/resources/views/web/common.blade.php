@@ -914,10 +914,13 @@
                                 <div class="input-question show">
                                     <div class="robot-container">
                                         <div class="robot" id="chat-robot-inner" style="display:none;">
+                                            {{-- D-ID live avatar video (hidden until WebRTC connects) --}}
+                                            <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
+                                            {{-- Fallback looping robot video (shown while avatar loads or not configured) --}}
                                             <video id="chat-robot-video" autoplay loop muted playsinline>
                                                 <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
                                             </video>
-                                            <a id="sound-control" href="javascript:void(0);">
+                                            <a id="sound-control" href="javascript:void(0);" title="Avatar sound">
                                                 <i class="fa fa-microphone"></i>
                                             </a>
                                         </div>
