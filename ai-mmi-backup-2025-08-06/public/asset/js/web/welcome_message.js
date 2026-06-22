@@ -67,7 +67,8 @@ function removeWelcomeAndShowChat() {
     // Remove welcome message and show chat UI
     $(".welcome-message").removeClass("show").hide();
     $(".input-question").addClass("show").show();
-    // Show the large avatar panel (avatar moved above chat messages)
+    // Show mode tabs + avatar panel
+    $("#chat-mode-tabs").show();
     $(".chat-avatar-panel").show();
     $("#chat-robot-inner").show().css({ opacity: 1, transition: '' });
     $("#ask_question").prop("disabled", false);

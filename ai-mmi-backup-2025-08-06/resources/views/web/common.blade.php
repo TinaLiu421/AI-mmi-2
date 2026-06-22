@@ -902,33 +902,52 @@
                                 </a>
                             </div>
 
-                            {{-- Large avatar panel – hidden while welcome message shows, revealed when chat starts --}}
-                                <div class="chat-avatar-panel" style="display:none;">
-                                    <div class="robot-container">
-                                        <div class="robot" id="chat-robot-inner">
-                                            {{-- Static presenter image – shown by default as fallback --}}
-                                            <?php $didImg = env('DID_PRESENTER_IMG', ''); ?>
-                                            @if($didImg)
-                                            <img id="avatar-presenter-img" src="{{ $didImg }}" alt="AI Avatar">
-                                            @endif
-                                            {{-- D-ID live WebRTC video – shown when stream connects --}}
-                                            <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
-                                            <a id="sound-control" href="javascript:void(0);" title="Click to unmute avatar">
-                                                <i class="fa fa-microphone-slash"></i>
-                                            </a>
+                            {{-- Mode tabs: Chat | Voice --}}
+                            <div class="chat-mode-tabs" style="display:none;" id="chat-mode-tabs">
+                                <button class="chat-mode-tab active" id="mode-tab-chat" data-mode="chat">
+                                    <i class="fa fa-comment-alt"></i> Chat
+                                </button>
+                                <button class="chat-mode-tab" id="mode-tab-voice" data-mode="voice">
+                                    <i class="fa fa-microphone"></i> Voice
+                                </button>
+                            </div>
+
+                            {{-- Avatar panel – hidden while welcome message shows, revealed when chat starts --}}
+                            <div class="chat-avatar-panel" style="display:none;">
+                                <div class="robot-container">
+                                    <div class="robot" id="chat-robot-inner">
+                                        {{-- Static presenter image – always shown as fallback --}}
+                                        <?php $didImg = env('DID_PRESENTER_IMG', ''); ?>
+                                        @if($didImg)
+                                        <img id="avatar-presenter-img" src="{{ $didImg }}" alt="AI Avatar">
+                                        @endif
+                                        {{-- D-ID live WebRTC video – shown when stream connects --}}
+                                        <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
+                                        {{-- Tap to hear overlay (shown after D-ID connects) --}}
+                                        <div id="avatar-tap-hear" class="avatar-tap-hear" style="display:none;">
+                                            <i class="fa fa-volume-up"></i>
+                                            <span>Tap to hear</span>
                                         </div>
-                                    </div>
-                                    <div class="chat-avatar-caption" id="chat-avatar-caption"></div>
-                                    <?php if(!empty($_current_member) && ((int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false)): ?>
-                                    <div id="talk-agent-cta" style="display:none;">
-                                        <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.'/agent_chat', ENT_QUOTES, 'UTF-8'); ?>">
-                                            <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
-                                            <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Registered Agent</span></span>
+                                        <a id="sound-control" href="javascript:void(0);" title="Mute avatar" style="display:none;">
+                                            <i class="fa fa-microphone"></i>
                                         </a>
                                     </div>
-                                    <?php endif; ?>
-                                    <div class="chat-avatar-footer"><?php echo $_page_lang['chat_robot.welcome_footer'] ?? 'AI-powered Migration &amp; Study Support'; ?></div>
+                                    <div class="chat-avatar-status" id="chat-avatar-status" style="display:none;">
+                                        <span class="avatar-status-dot"></span>
+                                        <span id="chat-avatar-status-text">Ready</span>
+                                    </div>
                                 </div>
+                                <div class="chat-avatar-caption" id="chat-avatar-caption"></div>
+                                <?php if(!empty($_current_member) && ((int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false)): ?>
+                                <div id="talk-agent-cta" style="display:none;">
+                                    <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.'/agent_chat', ENT_QUOTES, 'UTF-8'); ?>">
+                                        <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
+                                        <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Registered Agent</span></span>
+                                    </a>
+                                </div>
+                                <?php endif; ?>
+                                <div class="chat-avatar-footer"><?php echo $_page_lang['chat_robot.welcome_footer'] ?? 'AI-powered Migration &amp; Study Support'; ?></div>
+                            </div>
 
                             <div class="show-message">
                                 <!-- Welcome Message Component -->
@@ -942,7 +961,8 @@
                                 <?php } ?>
                                 <input type="hidden" id="question_number" name="question_number" value="1">
                                 <div class="input-question show">
-                                    <div class="input-wrapper">
+                                    {{-- Text input (chat mode) --}}
+                                    <div class="input-wrapper" id="text-input-wrapper">
                                         <input type="text" id="ask_question" name="question" placeholder="Ask about study, migration or life overseas..."/>
                                         <div class="input-buttons-group">
                                             <button type="button" id="doc-upload-btn" class="btn-document-upload" onclick="document.getElementById('doc-file-input').click();" title="Upload documents">
@@ -953,6 +973,13 @@
                                                 <img src="asset/image/icon-send.png" alt="icon-send"/>
                                             </button>
                                         </div>
+                                    </div>
+                                    {{-- Voice mic button (voice mode) --}}
+                                    <div id="voice-mode-input" style="display:none;" class="voice-mode-input">
+                                        <button id="voice-mic-btn" type="button" class="voice-mic-btn" title="Tap to speak">
+                                            <i class="fa fa-microphone"></i>
+                                        </button>
+                                        <div class="voice-mic-hint" id="voice-mic-hint">Tap to speak to Alyssa</div>
                                     </div>
                                 </div>
                             </form>
