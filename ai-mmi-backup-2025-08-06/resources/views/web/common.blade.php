@@ -903,19 +903,22 @@
                             </div>
 
                             {{-- Large avatar panel – hidden while welcome message shows, revealed when chat starts --}}
-                            <div class="chat-avatar-panel" style="display:none;">
-                                <div class="robot-container">
-                                    <div class="robot" id="chat-robot-inner">
-                                        {{-- D-ID live avatar video (hidden until WebRTC connects) --}}
-                                        <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
-                                        {{-- Fallback looping robot video --}}
-                                        <video id="chat-robot-video" autoplay loop muted playsinline>
-                                            <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
-                                        </video>
-                                        <a id="sound-control" href="javascript:void(0);" title="Unmute avatar">
-                                            <i class="fa fa-microphone-slash"></i>
-                                        </a>
+                                <div class="chat-avatar-panel" style="display:none;">
+                                    <div class="robot-container">
+                                        <div class="robot" id="chat-robot-inner">
+                                            {{-- Static presenter image – shown by default as fallback --}}
+                                            <?php $didImg = env('DID_PRESENTER_IMG', ''); ?>
+                                            @if($didImg)
+                                            <img id="avatar-presenter-img" src="{{ $didImg }}" alt="AI Avatar">
+                                            @endif
+                                            {{-- D-ID live WebRTC video – shown when stream connects --}}
+                                            <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
+                                            <a id="sound-control" href="javascript:void(0);" title="Click to unmute avatar">
+                                                <i class="fa fa-microphone-slash"></i>
+                                            </a>
+                                        </div>
                                     </div>
+                                    <div class="chat-avatar-caption" id="chat-avatar-caption"></div>
                                     <?php if(!empty($_current_member) && ((int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false)): ?>
                                     <div id="talk-agent-cta" style="display:none;">
                                         <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.'/agent_chat', ENT_QUOTES, 'UTF-8'); ?>">
@@ -924,10 +927,8 @@
                                         </a>
                                     </div>
                                     <?php endif; ?>
+                                    <div class="chat-avatar-footer"><?php echo $_page_lang['chat_robot.welcome_footer'] ?? 'AI-powered Migration &amp; Study Support'; ?></div>
                                 </div>
-                                <div class="chat-avatar-caption" id="chat-avatar-caption"></div>
-                                <div class="chat-avatar-footer"><?php echo $_page_lang['chat_robot.welcome_footer'] ?? 'AI-powered Migration &amp; Study Support'; ?></div>
-                            </div>
 
                             <div class="show-message">
                                 <!-- Welcome Message Component -->

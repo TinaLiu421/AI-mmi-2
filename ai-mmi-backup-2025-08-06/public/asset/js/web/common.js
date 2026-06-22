@@ -160,34 +160,20 @@ function getTalkToAgentCTAUrl() {
 }
 
 function showTalkToAgentCTA() {
-    var $robot = $('#chat-robot-inner');
-    var $cta   = $('#talk-agent-cta');
+    var $cta = $('#talk-agent-cta');
     if (!$cta.length) return;
 
     $('#talk-agent-cta-link').attr('href', getTalkToAgentCTAUrl());
 
     if (_talkAgentCtaShown) {
-        $robot.hide();
-        $cta.show().addClass('visible');
-        return;
-    }
-
-    if (!$robot.is(':visible')) {
         $cta.show().addClass('visible');
         return;
     }
 
     _talkAgentCtaShown = true;
 
-    // Fade out the robot video, then swap in the CTA with a pop animation
-    $robot.css({ transition: 'opacity 0.28s ease', opacity: '0' });
-    setTimeout(function () {
-        $robot.hide();
-        $cta.css({ display: 'block', opacity: '0' });
-        requestAnimationFrame(function () {
-            $cta.addClass('visible');
-        });
-    }, 300);
+    // Show the CTA below the avatar – never hide the avatar itself
+    $cta.show().addClass('visible');
 }
 
 function bindBannerTalkAgentCtaUrl() {
@@ -2169,11 +2155,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function showAvatarVideo() {
         var av = document.getElementById('did-avatar-video');
-        var rv = document.getElementById('chat-robot-video');
         var rc = document.getElementById('chat-robot-inner');
+        // Show the live D-ID video (presenter image stays as background layer)
         if (av) { av.style.display = ''; }
-        if (rv) { rv.style.display = 'none'; }
-        // Ensure the robot container and avatar panel are visible
         if (rc) { rc.style.display = ''; rc.style.opacity = '1'; rc.style.transition = ''; }
         var panel = document.querySelector('.chat-avatar-panel');
         if (panel && panel.style.display === 'none') { panel.style.display = ''; }
@@ -2182,9 +2166,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function hideAvatarVideo() {
         var av = document.getElementById('did-avatar-video');
-        var rv = document.getElementById('chat-robot-video');
         if (av) { av.style.display = 'none'; }
-        if (rv) { rv.style.display = ''; }
         _ready = false;
     }
 
@@ -2212,8 +2194,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     var av = document.getElementById('did-avatar-video');
                     if (av && event.streams && event.streams[0]) {
                         av.srcObject = event.streams[0];
-                        av.muted = _muted;
-                        av.play().catch(function () {});
+                        // Auto-unmute on first connection so user hears without clicking
+                        av.muted = false;
+                        _muted = false;
+                        // Update the sound button to show unmuted state
+                        var btn = document.getElementById('sound-control');
+                        if (btn) {
+                            btn.classList.add('opened');
+                            btn.title = 'Mute avatar';
+                            var icon = btn.querySelector('i');
+                            if (icon) { icon.className = 'fa fa-microphone'; }
+                        }
+                        av.play().catch(function () { av.muted = true; _muted = true; });
                         showAvatarVideo();
                         // If text was queued while connecting, speak it now
                         if (_pendingText) {
