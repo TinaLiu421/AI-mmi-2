@@ -902,6 +902,33 @@
                                 </a>
                             </div>
 
+                            {{-- Large avatar panel – hidden while welcome message shows, revealed when chat starts --}}
+                            <div class="chat-avatar-panel" style="display:none;">
+                                <div class="robot-container">
+                                    <div class="robot" id="chat-robot-inner">
+                                        {{-- D-ID live avatar video (hidden until WebRTC connects) --}}
+                                        <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
+                                        {{-- Fallback looping robot video --}}
+                                        <video id="chat-robot-video" autoplay loop muted playsinline>
+                                            <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
+                                        </video>
+                                        <a id="sound-control" href="javascript:void(0);" title="Unmute avatar">
+                                            <i class="fa fa-microphone-slash"></i>
+                                        </a>
+                                    </div>
+                                    <?php if(!empty($_current_member) && ((int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false)): ?>
+                                    <div id="talk-agent-cta" style="display:none;">
+                                        <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.'/agent_chat', ENT_QUOTES, 'UTF-8'); ?>">
+                                            <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
+                                            <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Registered Agent</span></span>
+                                        </a>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="chat-avatar-caption" id="chat-avatar-caption"></div>
+                                <div class="chat-avatar-footer"><?php echo $_page_lang['chat_robot.welcome_footer'] ?? 'AI-powered Migration &amp; Study Support'; ?></div>
+                            </div>
+
                             <div class="show-message">
                                 <!-- Welcome Message Component -->
                                 @include('components.welcome-message')
@@ -914,27 +941,6 @@
                                 <?php } ?>
                                 <input type="hidden" id="question_number" name="question_number" value="1">
                                 <div class="input-question show">
-                                    <div class="robot-container">
-                                        <div class="robot" id="chat-robot-inner">
-                                            {{-- D-ID live avatar video (hidden until WebRTC connects) --}}
-                                            <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
-                                            {{-- Fallback looping robot video (shown while avatar loads or not configured) --}}
-                                            <video id="chat-robot-video" autoplay loop muted playsinline>
-                                                <source src="asset/image/ai-robot-video.mp4" type="video/mp4">
-                                            </video>
-                                            <a id="sound-control" href="javascript:void(0);" title="Unmute avatar">
-                                                <i class="fa fa-microphone-slash"></i>
-                                            </a>
-                                        </div>
-                                        <?php if(!empty($_current_member) && ((int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false)): ?>
-                                        <div id="talk-agent-cta" style="display:none;">
-                                            <a id="talk-agent-cta-link" href="<?php echo htmlspecialchars($_page_base_url.'/agent_chat', ENT_QUOTES, 'UTF-8'); ?>">
-                                                <span class="tac-icon"><i class="fa fa-user-tie"></i></span>
-                                                <span class="tac-label"><span class="tac-line1">Talk to</span><span class="tac-line2">Registered Agent</span></span>
-                                            </a>
-                                        </div>
-                                        <?php endif; ?>
-                                    </div>
                                     <div class="input-wrapper">
                                         <input type="text" id="ask_question" name="question" placeholder="Ask about study, migration or life overseas..."/>
                                         <div class="input-buttons-group">

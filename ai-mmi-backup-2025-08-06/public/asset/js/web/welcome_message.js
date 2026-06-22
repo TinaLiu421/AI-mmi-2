@@ -67,7 +67,9 @@ function removeWelcomeAndShowChat() {
     // Remove welcome message and show chat UI
     $(".welcome-message").removeClass("show").hide();
     $(".input-question").addClass("show").show();
-    $(".robot-container").show();
+    // Show the large avatar panel (avatar moved above chat messages)
+    $(".chat-avatar-panel").show();
+    $("#chat-robot-inner").show().css({ opacity: 1, transition: '' });
     $("#ask_question").prop("disabled", false);
 
     // Show chat action buttons
@@ -111,6 +113,7 @@ function displayWelcomeMessage() {
     }
 
     $(".robot-container").hide();
+    $(".chat-avatar-panel").hide();
     $(".input-question").addClass("show").show();
     $("#ask_question").prop("disabled", false);
     $(".welcome-message").addClass("show").show();

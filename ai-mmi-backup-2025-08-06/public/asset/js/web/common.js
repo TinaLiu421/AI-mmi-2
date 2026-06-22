@@ -2173,8 +2173,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var rc = document.getElementById('chat-robot-inner');
         if (av) { av.style.display = ''; }
         if (rv) { rv.style.display = 'none'; }
-        // Ensure the robot container is visible
+        // Ensure the robot container and avatar panel are visible
         if (rc) { rc.style.display = ''; rc.style.opacity = '1'; rc.style.transition = ''; }
+        var panel = document.querySelector('.chat-avatar-panel');
+        if (panel && panel.style.display === 'none') { panel.style.display = ''; }
         _ready = true;
     }
 
@@ -2284,6 +2286,13 @@ document.addEventListener('DOMContentLoaded', function () {
         var cta = document.getElementById('talk-agent-cta');
         if (rc)  { rc.style.display = ''; rc.style.opacity = '1'; rc.style.transition = ''; }
         if (cta) { cta.style.display = 'none'; }
+        // Show a short caption of what the avatar is saying
+        var caption = document.getElementById('chat-avatar-caption');
+        if (caption) {
+            var shortCaption = speakText.length > 80 ? speakText.substring(0, 77) + '...' : speakText;
+            caption.textContent = shortCaption;
+            caption.style.opacity = '1';
+        }
         _speaking = true;
         // Add speaking animation to the robot container
         $('#chat-robot-inner').addClass('did-speaking');
@@ -2297,6 +2306,8 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(function () {
                 _speaking = false;
                 $('#chat-robot-inner').removeClass('did-speaking');
+                var caption = document.getElementById('chat-avatar-caption');
+                if (caption) { caption.style.opacity = '0'; }
                 // Show the agent CTA after avatar finishes speaking
                 if (typeof showTalkToAgentCTA === 'function') {
                     showTalkToAgentCTA();
@@ -2305,6 +2316,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }).catch(function () {
             _speaking = false;
             $('#chat-robot-inner').removeClass('did-speaking');
+            var caption = document.getElementById('chat-avatar-caption');
+            if (caption) { caption.style.opacity = '0'; }
             if (typeof showTalkToAgentCTA === 'function') {
                 showTalkToAgentCTA();
             }
