@@ -2133,18 +2133,20 @@ document.addEventListener('DOMContentLoaded', function () {
 (function () {
     'use strict';
 
-    var _streamId    = null;
-    var _sessionId   = null;
-    var _pc          = null;
-    var _ready       = false;
-    var _speaking    = false;
-    var _muted       = true;
-    var _initCalled  = false;
-    var _initFailed  = false;
-    var _pendingText = null;
-    var _mode        = 'chat';      // 'chat' | 'voice'
-    var _recognition = null;
-    var _listening   = false;
+    var _streamId         = null;
+    var _sessionId        = null;
+    var _pc               = null;
+    var _ready            = false;
+    var _speaking         = false;
+    var _muted            = true;
+    var _initCalled       = false;
+    var _initFailed       = false;
+    var _pendingText      = null;
+    var _mode             = 'chat';
+    var _recognition      = null;
+    var _listening        = false;
+    var _shouldAutoUnmute = false;  // set true on mic click → unmute D-ID as soon as it connects
+    var _audioCtx         = null;   // AudioContext used to unlock browser audio policy
 
     function didPost(path, body) {
         return fetch((_page_base_url || '') + path, {
@@ -2158,14 +2160,52 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // ── Status helper ──────────────────────────────────────────
+    // ── Status indicator ──────────────────────────────────────
     function setAvatarStatus(text, dotClass) {
         var el   = document.getElementById('chat-avatar-status-text');
         var dot  = document.querySelector('.avatar-status-dot');
         var wrap = document.getElementById('chat-avatar-status');
         if (el)   el.textContent = text;
-        if (dot)  { dot.className = 'avatar-status-dot' + (dotClass ? ' ' + dotClass : ''); }
+        if (dot)  dot.className  = 'avatar-status-dot' + (dotClass ? ' ' + dotClass : '');
         if (wrap) wrap.style.display = '';
+    }
+
+    // ── AudioContext unlock (must be called inside a user-gesture handler) ──
+    // This "activates" the browser's audio output so that later async calls
+    // to video.play() with muted=false are allowed.
+    function unlockAudio() {
+        try {
+            var AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            if (!_audioCtx) _audioCtx = new AC();
+            if (_audioCtx.state === 'suspended') _audioCtx.resume();
+            var buf    = _audioCtx.createBuffer(1, 1, 22050);
+            var source = _audioCtx.createBufferSource();
+            source.buffer = buf;
+            source.connect(_audioCtx.destination);
+            source.start(0);
+        } catch (e) {}
+    }
+
+    // ── Unmute the D-ID video (always call inside a user gesture or after unlockAudio) ──
+    function unmuteDID() {
+        var av = document.getElementById('did-avatar-video');
+        if (!av) return;
+        av.muted = false;
+        _muted   = false;
+        av.play().catch(function () {});
+        // Hide tap-to-hear overlay
+        var tapHear = document.getElementById('avatar-tap-hear');
+        if (tapHear) tapHear.style.display = 'none';
+        // Show the small mute toggle button
+        var sc = document.getElementById('sound-control');
+        if (sc) {
+            sc.style.display = '';
+            sc.classList.add('opened');
+            sc.title = 'Mute avatar';
+            var icon = sc.querySelector('i');
+            if (icon) icon.className = 'fa fa-microphone';
+        }
     }
 
     // ── Show / hide D-ID live video ───────────────────────────
@@ -2195,7 +2235,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return res.json();
             })
             .then(function (data) {
-                if (!data || !data.id || !data.offer) throw new Error('Bad response from D-ID');
+                if (!data || !data.id || !data.offer) throw new Error('Bad D-ID response');
                 _streamId  = data.id;
                 _sessionId = data.session_id;
 
@@ -2205,14 +2245,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     var av = document.getElementById('did-avatar-video');
                     if (!av || !event.streams || !event.streams[0]) return;
                     av.srcObject = event.streams[0];
-                    // Start muted – browser autoplay policy requires muted for auto-play
-                    av.muted = true;
-                    _muted   = true;
-                    av.play().catch(function () {});
+
+                    if (_shouldAutoUnmute) {
+                        // User already clicked mic → their gesture unlocked audio → unmute now
+                        av.muted = false;
+                        _muted   = false;
+                        av.play().catch(function () {});
+                        var tapHear = document.getElementById('avatar-tap-hear');
+                        if (tapHear) tapHear.style.display = 'none';
+                        var sc = document.getElementById('sound-control');
+                        if (sc) { sc.style.display = ''; sc.classList.add('opened'); }
+                    } else {
+                        // Not yet clicked → start muted, show tap-to-hear overlay
+                        av.muted = true;
+                        av.play().catch(function () {});
+                        var tapHear2 = document.getElementById('avatar-tap-hear');
+                        if (tapHear2) tapHear2.style.display = '';
+                    }
+
                     showAvatarVideo();
-                    // Show "tap to hear" overlay so user can unmute with a click
-                    var tapHear = document.getElementById('avatar-tap-hear');
-                    if (tapHear) tapHear.style.display = '';
                     setAvatarStatus('Ready', '');
                     if (_pendingText) {
                         var t = _pendingText;
@@ -2250,7 +2301,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(function (err) {
                 console.warn('D-ID Avatar not available:', err.message || err);
-                _initFailed = true;
+                _initFailed  = true;
                 _pendingText = null;
                 setAvatarStatus('Voice unavailable', '');
                 if (typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
@@ -2281,6 +2332,11 @@ document.addEventListener('DOMContentLoaded', function () {
         setAvatarStatus('Speaking…', 'speaking');
         $('#chat-robot-inner').addClass('did-speaking');
 
+        // In voice mode, show the AI response in the voice history
+        if (_mode === 'voice') {
+            addVoiceHistory('ai', speakText.length > 120 ? speakText.substring(0, 117) + '...' : speakText);
+        }
+
         didPost('/home/avatar/stream/' + _streamId + '/speak', {
             text: speakText, session_id: _sessionId
         }).then(function () {
@@ -2291,7 +2347,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 $('#chat-robot-inner').removeClass('did-speaking');
                 if (caption) caption.style.opacity = '0';
                 setAvatarStatus('Ready', '');
-                if (typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
+                if (_mode === 'chat' && typeof showTalkToAgentCTA === 'function') {
+                    showTalkToAgentCTA();
+                }
             }, estimatedMs);
         }).catch(function () {
             _speaking = false;
@@ -2301,13 +2359,32 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // ── Voice history (mini chat in voice mode) ───────────────
+    function addVoiceHistory(who, text) {
+        var $h = $('#voice-chat-history');
+        if (!$h.length) return;
+        var cls = who === 'user' ? 'vch-user' : 'vch-ai';
+        var prefix = who === 'ai' ? '<strong>Alyssa:</strong> ' : '';
+        $h.append('<div class="' + cls + '">' + prefix + $('<span>').text(text).html() + '</div>');
+        $h.scrollTop($h[0].scrollHeight);
+    }
+
     // ── Voice mode: speech recognition ───────────────────────
     function startListening() {
         var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) {
-            alert('Voice input is not supported in this browser. Please use Chrome or Edge.');
+            alert('Voice input requires Chrome or Edge browser.');
             return;
         }
+
+        // CRITICAL: unlock browser audio with this user-gesture
+        unlockAudio();
+        _shouldAutoUnmute = true;
+
+        // If D-ID is already connected, unmute it immediately (we have the user gesture)
+        var av = document.getElementById('did-avatar-video');
+        if (av && av.srcObject) unmuteDID();
+
         _recognition = new SR();
         _recognition.lang = 'en-US';
         _recognition.continuous = false;
@@ -2317,20 +2394,34 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#voice-mic-btn').addClass('listening').attr('title', 'Tap to stop');
         $('#voice-mic-btn i').removeClass('fa-microphone').addClass('fa-stop');
         setAvatarStatus('Listening…', 'listening');
-        $('#voice-mic-hint').text('Listening… tap to stop');
+        $('#voice-mic-hint').text('Listening… speak now');
+        $('#voice-transcript-box').show();
+        $('#voice-transcript-text').text('');
 
         _recognition.onresult = function (e) {
-            var transcript = Array.from(e.results).map(function (r) { return r[0].transcript; }).join('');
-            if (e.results[e.results.length - 1].isFinal) {
+            var interim = '';
+            var final   = '';
+            for (var i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) final   += e.results[i][0].transcript;
+                else                      interim += e.results[i][0].transcript;
+            }
+            // Show live transcript
+            $('#voice-transcript-text').text((final || interim) || '');
+            if (final.trim()) {
+                // Final result – submit to AI
+                var question = final.trim();
                 stopListening();
-                if (transcript.trim()) {
-                    $('#ask_question').val(transcript.trim());
-                    $('#ask-form').submit();
-                }
+                addVoiceHistory('user', question);
+                // Submit via the hidden chat form (this triggers AI + avatarSpeak)
+                $('#ask_question').val(question);
+                $('#ask-form').submit();
             }
         };
-        _recognition.onerror = function () { stopListening(); };
-        _recognition.onend   = function () { if (_listening) stopListening(); };
+        _recognition.onerror = function (e) {
+            console.warn('Speech recognition error:', e.error);
+            stopListening();
+        };
+        _recognition.onend = function () { if (_listening) stopListening(); };
         _recognition.start();
     }
 
@@ -2340,7 +2431,8 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#voice-mic-btn').removeClass('listening').attr('title', 'Tap to speak');
         $('#voice-mic-btn i').removeClass('fa-stop').addClass('fa-microphone');
         setAvatarStatus('Ready', '');
-        $('#voice-mic-hint').text('Tap to speak to Alyssa');
+        $('#voice-mic-hint').text('Tap mic to speak to Alyssa');
+        setTimeout(function () { $('#voice-transcript-box').hide(); }, 1500);
     }
 
     // ── Mode switching ────────────────────────────────────────
@@ -2354,7 +2446,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (mode === 'voice') {
             $('#text-input-wrapper').hide();
             $('#voice-mode-input').show();
-            // Init D-ID immediately when entering voice mode
             if (!_initCalled) initDIDAvatar();
         } else {
             $('#text-input-wrapper').show();
@@ -2363,14 +2454,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ── Public entry ──────────────────────────────────────────
+    // ── Public entry point (called by streamResponse on [DONE]) ──
     window.avatarSpeak = function (text) {
         if (!text || !text.trim()) {
-            if (typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
+            if (_mode === 'chat' && typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
             return;
         }
         if (_initFailed) {
-            if (typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
+            if (_mode === 'chat' && typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
             return;
         }
         if (!_initCalled) initDIDAvatar();
@@ -2379,7 +2470,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     $(document).ready(function () {
-        // Init D-ID when user first submits a chat message
+        // Init D-ID on first chat form submission
         var _avatarInitOnChat = false;
         function maybeInitAvatar() {
             if (!_avatarInitOnChat) {
@@ -2392,25 +2483,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (e.key === 'Enter' && !e.shiftKey) maybeInitAvatar();
         });
 
-        // Tap to hear: unmute with user gesture (browser requires it)
+        // Tap to hear (chat mode: overlay on avatar circle)
         $(document).on('click', '#avatar-tap-hear', function () {
-            var av = document.getElementById('did-avatar-video');
-            if (av) { av.muted = false; av.play().catch(function () {}); }
-            _muted = false;
-            $(this).hide();
-            // Show sound-control mute button
-            var sc = document.getElementById('sound-control');
-            if (sc) {
-                sc.style.display = '';
-                sc.classList.add('opened');
-                sc.title = 'Mute avatar';
-                var icon = sc.querySelector('i');
-                if (icon) icon.className = 'fa fa-microphone';
-            }
+            unlockAudio();
+            unmuteDID();
+            _shouldAutoUnmute = true;
             setAvatarStatus('Ready', '');
         });
 
-        // Sound control mute toggle
+        // Sound control mute toggle (small button on avatar)
         $(document).on('click', '#sound-control', function () {
             var av = document.getElementById('did-avatar-video');
             if ($(this).hasClass('opened')) {
@@ -2419,10 +2500,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (av) av.muted = true;
                 _muted = true;
             } else {
+                unlockAudio();
                 $(this).addClass('opened').attr('title', 'Mute avatar');
                 $(this).find('i').removeClass('fa-microphone-slash').addClass('fa-microphone');
-                if (av) av.muted = false;
+                if (av) { av.muted = false; av.play().catch(function(){}); }
                 _muted = false;
+                _shouldAutoUnmute = true;
             }
         });
 

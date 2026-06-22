@@ -976,10 +976,17 @@
                                     </div>
                                     {{-- Voice mic button (voice mode) --}}
                                     <div id="voice-mode-input" style="display:none;" class="voice-mode-input">
+                                        {{-- Voice conversation history (mini) --}}
+                                        <div id="voice-chat-history" class="voice-chat-history"></div>
+                                        {{-- Live transcript box --}}
+                                        <div id="voice-transcript-box" class="voice-transcript-box" style="display:none;">
+                                            <div id="voice-transcript-text" class="voice-transcript-text"></div>
+                                        </div>
+                                        {{-- Mic button --}}
                                         <button id="voice-mic-btn" type="button" class="voice-mic-btn" title="Tap to speak">
                                             <i class="fa fa-microphone"></i>
                                         </button>
-                                        <div class="voice-mic-hint" id="voice-mic-hint">Tap to speak to Alyssa</div>
+                                        <div class="voice-mic-hint" id="voice-mic-hint">Tap mic to speak to Alyssa</div>
                                     </div>
                                 </div>
                             </form>
