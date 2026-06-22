@@ -2067,6 +2067,7 @@ private function callXaiResponsesStream(string $question, array $opts = []): arr
         CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_PROXY          => '',
         CURLOPT_WRITEFUNCTION  => function($ch, $chunk) use (&$fullText, &$responseId, &$buffer) {
             $buffer .= $chunk;
 
@@ -2093,15 +2094,18 @@ private function callXaiResponsesStream(string $question, array $opts = []): arr
                     }
 
                     // Extract text delta from streaming events
-                    $delta = '';
-                    // response.output_text.delta event
-                    if (isset($event['delta']) && is_string($event['delta'])) {
+                    $delta    = '';
+                    $evtType  = (string)($event['type'] ?? '');
+                    // response.output_text.delta → actual answer token
+                    if ($evtType === 'response.output_text.delta'
+                        && isset($event['delta']) && is_string($event['delta'])) {
                         $delta = $event['delta'];
                     }
-                    // choices[].delta.content (Chat Completions style)
+                    // choices[].delta.content (Chat Completions / non-Responses style)
                     if ($delta === '' && isset($event['choices'][0]['delta']['content'])) {
                         $delta = (string)$event['choices'][0]['delta']['content'];
                     }
+                    // Ignore reasoning_summary_text.delta — these are internal thinking tokens
 
                     if ($delta !== '') {
                         $fullText .= $delta;
@@ -3387,15 +3391,20 @@ private function didApiCall(string $method, string $path, array $body = []): arr
     }
 
     $ch = curl_init('https://api.d-id.com' . $path);
+    // D-ID API key is {base64(email)}:{secret} — needs one more base64 encoding for Basic auth
+    $authValue = (strpos($apiKey, ':') !== false)
+        ? base64_encode($apiKey)
+        : $apiKey;
     curl_setopt_array($ch, [
         CURLOPT_CUSTOMREQUEST  => strtoupper($method),
         CURLOPT_HTTPHEADER     => [
             'Content-Type: application/json',
-            'Authorization: Basic ' . $apiKey,
+            'Authorization: Basic ' . $authValue,
         ],
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 20,
         CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_PROXY          => '',
     ]);
 
     if (!empty($body) || in_array(strtoupper($method), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
