@@ -58,6 +58,13 @@ pids
 /public/cache
 /public/cache/*
 /dist
+
+# Large media files (too big for GitHub)
+*.mp4
+*.mov
+*.avi
+*.wmv
+*.original.*
 /build
 
 # Cache directories and files
