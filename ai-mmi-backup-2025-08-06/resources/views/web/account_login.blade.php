@@ -28,6 +28,8 @@
             
             <div class="row" style="text-align:right;">
                 <a href="<?php echo $_page_base_url.'/account_forgot' ;?>"><u><?php echo $_page_lang['forgot_password']; ?>?</u></a>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <a href="<?php echo $_page_base_url.'/account_registration/resend_verification'; ?>"><u>Resend verification email</u></a>
             </div>
             
             

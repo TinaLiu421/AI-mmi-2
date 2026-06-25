@@ -27,22 +27,29 @@ class Spotlight_Queue extends BaseModel
     // Read helpers
     // ------------------------------------------------------------------ //
 
-    /** Count posts currently live in spotlight. */
+    /**
+     * Count posts currently live in spotlight.
+     * Uses member_posts.featured_until as the ground truth so that both
+     * admin-toggled posts and paid queue entries are counted correctly.
+     */
     public function getActiveCount(): int
     {
-        return (int) DB::table($this->_table)
-            ->where('status', 'active')
-            ->where('scheduled_end', '>', now())
+        return (int) DB::table($this->_posts_table)
+            ->whereNotNull('featured_until')
+            ->where('featured_until', '>', now())
             ->count();
     }
 
-    /** IDs of posts currently in active spotlight (still on the clock). */
+    /**
+     * IDs of posts currently in active spotlight (still on the clock).
+     * Uses member_posts.featured_until as the ground truth.
+     */
     public function getActivePostIds(): array
     {
-        return DB::table($this->_table)
-            ->where('status', 'active')
-            ->where('scheduled_end', '>', now())
-            ->pluck('posts_id')
+        return DB::table($this->_posts_table)
+            ->whereNotNull('featured_until')
+            ->where('featured_until', '>', now())
+            ->pluck('id')
             ->map(fn($v) => (int)$v)
             ->toArray();
     }
@@ -96,71 +103,19 @@ class Spotlight_Queue extends BaseModel
     }
 
     /**
-     * Preview: when would $qty new slots open up?
+     * Preview: all selected posts activate immediately after payment.
      * Returns array like [['start'=>timestamp,'end'=>timestamp], ...]
      */
     public function getSchedulePreview(int $qty): array
     {
-        // Active entries ordered by soonest expiry
-        $active = DB::table($this->_table)
-            ->where('status', 'active')
-            ->where('scheduled_end', '>', now())
-            ->orderBy('scheduled_end', 'asc')
-            ->pluck('scheduled_end')
-            ->toArray();
-
-        // Build a timeline of when slots become available
-        // Available slots = SLOT_LIMIT − active_count
-        $slot_times = []; // unix timestamps when a slot opens
-
         $now_ts = time();
-
-        // Fill array with expiry times of active slots
-        $slot_pool = array_map('strtotime', $active);
-        // Sort ascending (soonest first)
-        sort($slot_pool);
-
-        // For each queued entry (in order), the slot they will take opens when
-        // the earliest currently-free + earliest future slot becomes free.
-        // Simple model: we "allocate" starting from free slots.
-        $free_slots = max(0, self::SLOT_LIMIT - count($active));
-        $upcoming_openings = array_values($slot_pool); // expiry times of active slots
-
-        // Combine with queued scheduled_ends (they don't exist yet, so ignore)
-        // We only simulate from free_slots + upcoming_openings
-        $timeline = [];
-        // First $free_slots slots are available immediately (now)
-        for ($i = 0; $i < $free_slots; $i++) {
-            $timeline[] = $now_ts;
-        }
-        // Then each active slot frees up at its scheduled_end
-        foreach ($upcoming_openings as $expiry_ts) {
-            $timeline[] = max($expiry_ts, $now_ts);
-        }
-        // Then any queued-ahead slots (they block our $qty slots by their 7-day term)
-        $queued_count = count(DB::table($this->_table)
-            ->where('status', 'queued')
-            ->orderBy('paid_at', 'asc')
-            ->get()
-            ->toArray());
-
-        // For each queued ahead, extend timeline by SLOT_DAYS after their predicted start
-        // Recompute from scratch for clarity
-        $full_timeline = array_slice($timeline, 0, self::SLOT_LIMIT + $queued_count + $qty + 10);
-        while (count($full_timeline) < self::SLOT_LIMIT + $queued_count + $qty + 1) {
-            // If more needed, assume last expiry + SLOT_DAYS
-            $last = !empty($full_timeline) ? end($full_timeline) : $now_ts;
-            $full_timeline[] = $last + self::SLOT_DAYS * 86400;
-        }
-
         $result = [];
         for ($i = 0; $i < $qty; $i++) {
-            $idx = $queued_count + $i;
-            $start = isset($full_timeline[$idx]) ? (int)$full_timeline[$idx] : $now_ts;
-            $end   = $start + self::SLOT_DAYS * 86400;
-            $result[] = ['start' => $start, 'end' => $end];
+            $result[] = [
+                'start' => $now_ts,
+                'end'   => $now_ts + self::SLOT_DAYS * 86400,
+            ];
         }
-
         return $result;
     }
 
@@ -196,21 +151,13 @@ class Spotlight_Queue extends BaseModel
     }
 
     /**
-     * Activate the next queued entries to fill open slots.
+     * Activate ALL queued entries immediately — no slot limit.
      */
     public function activateNext(): void
     {
-        $active_count = $this->getActiveCount();
-        $open_slots   = self::SLOT_LIMIT - $active_count;
-
-        if ($open_slots <= 0) {
-            return;
-        }
-
         $next_entries = DB::table($this->_table)
             ->where('status', 'queued')
             ->orderBy('paid_at', 'asc')
-            ->limit($open_slots)
             ->get();
 
         foreach ($next_entries as $entry) {

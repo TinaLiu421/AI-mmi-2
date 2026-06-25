@@ -100,8 +100,16 @@
         const _page_agent_cta_url = '<?php echo htmlspecialchars($_page_base_url . $_page_agent_cta_path, ENT_QUOTES, 'UTF-8'); ?>';
         </script>
         <?php if(!empty($_page_js_files)) { foreach ($_page_js_files as $js_file) {
-            // Use filemtime for local files so browsers pick up changes immediately
-            $js_ver = (strpos($js_file, 'http') === 0) ? date('Ymd') : @filemtime(public_path($js_file)) ?: date('Ymd');
+            // Use filemtime for local files so browsers pick up changes immediately.
+            // common.js uses time() so it is NEVER served from cache — ensures latest
+            // avatar/voice code is always active after any deploy.
+            if (strpos($js_file, 'http') === 0) {
+                $js_ver = date('Ymd');
+            } elseif (strpos($js_file, 'common.js') !== false) {
+                $js_ver = time(); // always fresh
+            } else {
+                $js_ver = @filemtime(public_path($js_file)) ?: date('Ymd');
+            }
         ?>
         <script src="<?php echo $js_file; ?>?v=<?php echo $js_ver; ?>" type="text/javascript"></script>
         <?php }} ?>
@@ -717,10 +725,10 @@
                         // Token balance navbar widget
                         $_nav_token_balance = (int) \DB::table('member')->where('id', (int)$_current_member['id'])->value('token_balance');
                     ?>
-                    <a href="<?php echo $appendAutoLang($_page_base_url.'/token_guide'); ?>" class="nav-token-badge" title="AI-mmi Tokens — click to manage">
-                        <span class="nav-token-icon"><i class="fa fa-bolt"></i></span>
+                    <a href="<?php echo $appendAutoLang($_page_base_url.'/token_guide'); ?>" class="nav-token-badge" title="AI-mmi Credits — click to manage">
+                        <span class="nav-token-icon"><i class="fa fa-star"></i></span>
                         <span class="nav-token-count" id="nav-token-count"><?php echo number_format($_nav_token_balance); ?></span>
-                        <span class="nav-token-label">Tokens</span>
+                        <span class="nav-token-label">Credits</span>
                     </a>
                     <div class="member large">
                         <a href="<?php echo $appendAutoLang(($_current_member['type'] == 1)?($_page_base_url.'/account/profile'):($_page_base_url.'/account/posts')); ?>">
@@ -834,7 +842,7 @@
                             <!-- TOKENS (always free, no guest gate) -->
                             <li class="hd-flat-li">
                                 <a href="<?php echo $appendAutoLang($_page_base_url.'/token_guide'); ?>" class="hd-item hd-item--tokens">
-                                    <i class="fa fa-bolt hd-item-icon"></i><span>Tokens</span>
+                                    <i class="fa fa-star hd-item-icon"></i><span>Credits</span>
                                 </a>
                             </li>
                             <!-- ADMIN -->
@@ -922,7 +930,8 @@
                                         <img id="avatar-presenter-img" src="{{ $didImg }}" alt="AI Avatar">
                                         @endif
                                         {{-- D-ID live WebRTC video – shown when stream connects --}}
-                                        <video id="did-avatar-video" autoplay playsinline style="display:none;"></video>
+                                        {{-- muted attribute is required for iOS Safari to autoplay WebRTC video --}}
+                                        <video id="did-avatar-video" autoplay playsinline muted style="display:none;"></video>
                                         {{-- Tap to hear overlay (shown after D-ID connects) --}}
                                         <div id="avatar-tap-hear" class="avatar-tap-hear" style="display:none;">
                                             <i class="fa fa-volume-up"></i>
@@ -931,6 +940,10 @@
                                         <a id="sound-control" href="javascript:void(0);" title="Mute avatar" style="display:none;">
                                             <i class="fa fa-microphone"></i>
                                         </a>
+                                    </div>
+                                    {{-- Animated sound bars – always visible while avatar is speaking --}}
+                                    <div id="avatar-sound-bars" class="avatar-sound-bars" style="display:none;">
+                                        <span></span><span></span><span></span><span></span><span></span>
                                     </div>
                                     <div class="chat-avatar-status" id="chat-avatar-status" style="display:none;">
                                         <span class="avatar-status-dot"></span>
@@ -960,6 +973,9 @@
                                 <input type="hidden" name="autolang" value="<?php echo htmlspecialchars($autoLang, ENT_QUOTES, 'UTF-8'); ?>">
                                 <?php } ?>
                                 <input type="hidden" id="question_number" name="question_number" value="1">
+                                <?php if(empty($_current_member)): ?>
+                                <div id="guest-chat-badge" class="guest-chat-badge"></div>
+                                <?php endif; ?>
                                 <div class="input-question show">
                                     {{-- Text input (chat mode) --}}
                                     <div class="input-wrapper" id="text-input-wrapper">
@@ -1038,13 +1054,223 @@
     <script src="asset/js/web/document-upload.js?v=<?php echo date('Ymd'); ?>" type="text/javascript"></script>
     @stack('scripts')
     <?php if(empty($_current_member)): ?>
+    <!-- ── Guest 5-free-chats signup modal ── -->
+    <style>
+    /* Guest badge above chat input */
+    .guest-chat-badge {
+        font-size: 12.5px;
+        color: #445;
+        padding: 5px 12px 4px;
+        background: #f0f6ff;
+        border-top: 1px solid #dde8ff;
+        border-bottom: 1px solid #dde8ff;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        line-height: 1.5;
+    }
+    /* Guest signup overlay */
+    .guest-signup-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: rgba(0,10,40,0.62);
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+    .guest-signup-overlay.open { display: flex; }
+    .guest-signup-box {
+        background: #fff;
+        border-radius: 20px;
+        padding: 36px 32px 32px;
+        max-width: 420px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 24px 80px rgba(0,20,80,0.28);
+        position: relative;
+        animation: gsb-in 0.22s ease;
+    }
+    @keyframes gsb-in {
+        from { opacity:0; transform: translateY(24px) scale(0.97); }
+        to   { opacity:1; transform: translateY(0) scale(1); }
+    }
+    .guest-signup-close {
+        position: absolute;
+        top: 14px; right: 18px;
+        background: none; border: none;
+        font-size: 22px; color: #aaa;
+        cursor: pointer; line-height: 1;
+        padding: 2px 6px;
+        border-radius: 6px;
+        transition: color 0.12s, background 0.12s;
+    }
+    .guest-signup-close:hover { color: #333; background: #f0f0f0; }
+    .guest-signup-emoji  { font-size: 2.6rem; margin-bottom: 10px; line-height: 1; }
+    .guest-signup-title  { font-size: 1.5rem; font-weight: 900; color: #001540; margin: 0 0 10px; }
+    .guest-signup-desc   { font-size: 0.97rem; color: #445; line-height: 1.65; margin: 0 0 20px; }
+    .guest-signup-bonus  {
+        display: inline-flex; align-items: center; gap: 7px;
+        background: linear-gradient(135deg,#fffbe6,#fff3b8);
+        border: 1.5px solid #f0c940;
+        border-radius: 10px;
+        padding: 8px 16px;
+        font-size: 0.9rem; font-weight: 700; color: #7a5500;
+        margin-bottom: 22px;
+    }
+    .guest-signup-actions { display: flex; flex-direction: column; gap: 10px; }
+    .guest-signup-btn-primary {
+        display: block;
+        background: linear-gradient(135deg, #0044cc, #0062ff);
+        color: #fff;
+        font-size: 1.02rem; font-weight: 800;
+        padding: 14px 24px;
+        border-radius: 12px;
+        text-decoration: none;
+        box-shadow: 0 6px 22px rgba(0,80,220,0.28);
+        transition: filter 0.15s, transform 0.15s;
+    }
+    .guest-signup-btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); text-decoration: none; color: #fff; }
+    .guest-signup-btn-secondary {
+        display: block;
+        background: #f0f4ff;
+        color: #0044cc;
+        font-size: 0.95rem; font-weight: 700;
+        padding: 11px 20px;
+        border-radius: 10px;
+        text-decoration: none;
+        border: 1.5px solid #c6d9ff;
+        transition: background 0.15s;
+    }
+    .guest-signup-btn-secondary:hover { background: #dce9ff; text-decoration: none; }
+    .guest-signup-later {
+        background: none; border: none;
+        color: #999; font-size: 0.84rem;
+        cursor: pointer; margin-top: 8px;
+        padding: 4px 8px;
+    }
+    .guest-signup-later:hover { color: #555; }
+    /* In-chat nudge card after last free chat */
+    .guest-signup-nudge {
+        display: flex; align-items: flex-start; gap: 14px;
+        background: linear-gradient(135deg, #0d2470 0%, #1a3fcc 100%);
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin: 10px 0 6px;
+        color: #fff;
+        animation: gsb-in 0.3s ease;
+    }
+    .gsn-icon { font-size: 2rem; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+    .gsn-title { font-size: 1.02rem; font-weight: 800; margin: 0 0 5px; color: #fff; }
+    .gsn-sub   { font-size: 0.88rem; opacity: 0.88; margin: 0 0 12px; line-height: 1.5; }
+    .gsn-btns  { display: flex; gap: 10px; flex-wrap: wrap; }
+    .gsn-btn-primary {
+        display: inline-block;
+        background: #fff; color: #0022a0;
+        font-weight: 800; font-size: 0.88rem;
+        padding: 8px 18px; border-radius: 8px;
+        text-decoration: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    }
+    .gsn-btn-primary:hover { color: #0022a0; text-decoration: none; opacity: 0.92; }
+    .gsn-btn-secondary {
+        display: inline-block;
+        background: rgba(255,255,255,0.15);
+        color: #fff; font-weight: 600; font-size: 0.88rem;
+        padding: 8px 16px; border-radius: 8px;
+        text-decoration: none;
+        border: 1.5px solid rgba(255,255,255,0.4);
+    }
+    .gsn-btn-secondary:hover { background: rgba(255,255,255,0.25); text-decoration: none; color: #fff; }
+
+    /* ── Quick-reply choice chips ─────────────────────────────────── */
+    .qr-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+        padding-bottom: 2px;
+        animation: qr-pop-in 0.22s ease;
+    }
+    @keyframes qr-pop-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .qr-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #ffffff;
+        border: 1.5px solid #c5d8ff;
+        color: #1040c0;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        padding: 7px 15px;
+        border-radius: 22px;
+        cursor: pointer;
+        line-height: 1.3;
+        white-space: nowrap;
+        box-shadow: 0 1px 5px rgba(30, 80, 220, 0.09);
+        transition: background 0.14s, border-color 0.14s, box-shadow 0.14s, transform 0.1s;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .qr-chip:hover {
+        background: #e6eeff;
+        border-color: #5580f0;
+        box-shadow: 0 3px 12px rgba(30, 80, 220, 0.18);
+        transform: translateY(-1px);
+    }
+    .qr-chip:active {
+        transform: translateY(0px);
+        background: #ccd9ff;
+        border-color: #3358d4;
+    }
+    .qr-chip--other {
+        background: #f7f7f8;
+        border-color: #d8d8db;
+        color: #555;
+        font-weight: 500;
+        box-shadow: none;
+    }
+    .qr-chip--other:hover {
+        background: #eeeeef;
+        border-color: #bbbbc0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        transform: translateY(-1px);
+    }
+    /* Slightly smaller on mobile */
+    @media (max-width: 480px) {
+        .qr-chip { font-size: 12px; padding: 6px 13px; }
+    }
+    </style>
+    <div id="guest-signup-overlay" class="guest-signup-overlay" role="dialog" aria-modal="true">
+        <div class="guest-signup-box">
+            <button class="guest-signup-close" onclick="_guestHideSignupModal()" aria-label="Close">&times;</button>
+            <div class="guest-signup-emoji">🎯</div>
+            <h3 class="guest-signup-title">You're on a roll!</h3>
+            <p class="guest-signup-desc">You've used all 5 free AI chats. Create a free account to keep chatting — AI-mmi is your smart guide for study, visa &amp; migration.</p>
+            <div class="guest-signup-bonus"><i class="fa fa-star" style="color:#f0c940;"></i> Sign up &amp; get <strong>20 Credits instantly</strong> — free!</div>
+            <div class="guest-signup-actions">
+                <a href="<?php echo $_page_base_url.'/account_registration'; ?>" class="guest-signup-btn-primary">
+                    Create Free Account
+                </a>
+                <a href="<?php echo $appendAutoLang($_page_base_url.'/account_login'); ?>" class="guest-signup-btn-secondary">
+                    Already have an account? Sign In
+                </a>
+                <button class="guest-signup-later" onclick="_guestHideSignupModal()">Maybe later</button>
+            </div>
+        </div>
+    </div>
     <!-- Guest gate modal -->
     <div id="gg-modal" class="gg-overlay" role="dialog" aria-modal="true">
         <div class="gg-box">
             <div class="gg-icon"><i class="fa fa-lock"></i></div>
             <h3 class="gg-title">Sign in to continue</h3>
             <p class="gg-desc">Create a free account or sign in to access this feature.</p>
-            <div class="gg-token-bonus"><i class="fa fa-bolt"></i> Sign up &amp; earn <strong>20 tokens</strong> instantly — free!</div>
+            <div class="gg-token-bonus"><i class="fa fa-star"></i> Sign up &amp; earn <strong>20 credits</strong> instantly — free!</div>
             <div class="gg-actions">
                 <a href="<?php echo $appendAutoLang($_page_base_url.'/account_login'); ?>" class="gg-btn gg-btn--signin">Sign In</a>
                 <a href="<?php echo $_page_base_url.'/account_registration'; ?>" class="gg-btn gg-btn--signup">Sign Up Free</a>

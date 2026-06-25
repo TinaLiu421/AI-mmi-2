@@ -46,9 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const requiredDocuments = [
-        { key: 'passport_copy', label: 'Copy of your passport' },
-        { key: 'education_certificate', label: 'Copy of your education certificate' },
-        { key: 'financial_statement', label: 'Copy of your or sponsor’s bank statement' },
+        { key: 'education_certificate', label: 'School result / academic transcript' },
     ];
 
     const englishTestLimits = {
@@ -303,6 +301,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Sync the institution select dropdown when hydrating from a draft
+        const _instSel = document.getElementById('target_institution_select');
+        const _instVal = application.target_institution || '';
+        if (_instSel && _instVal) {
+            let found = false;
+            for (let i = 0; i < _instSel.options.length; i++) {
+                if (_instSel.options[i].value === _instVal) {
+                    _instSel.selectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                _instSel.value = '__other__';
+                const _instIn = document.getElementById('target_institution');
+                if (_instIn) { _instIn.style.display = ''; _instIn.required = true; }
+            }
+        }
+
         if (dobInput) {
             dobInput.value = formatDateForDisplay(application.date_of_birth);
         }
@@ -337,45 +354,6 @@ document.addEventListener('DOMContentLoaded', () => {
         syncScholarshipState();
 
         updateDocumentsUI(application.documents || {});
-        renderPaymentWidget(application);
-    };
-
-    const renderPaymentWidget = (application) => {
-        if (!paymentWidget) {
-            return;
-        }
-        if (!application || application.status !== 'submitted') {
-            paymentWidget.classList.add('is-locked');
-            paymentWidget.innerHTML = `
-                <div class="payment-placeholder">
-                    <strong>Submit your application details first.</strong>
-                    <p>The payment button appears once the form and documents are saved.</p>
-                </div>
-            `;
-            return;
-        }
-
-        const pricingTableId = paymentConfig.pricingTableId;
-        const stripeKey = paymentConfig.stripeKey;
-        if (!pricingTableId || !stripeKey) {
-            paymentWidget.innerHTML = '<p class="payment-placeholder">Stripe configuration missing.</p>';
-            return;
-        }
-
-        paymentWidget.classList.remove('is-locked');
-        paymentWidget.innerHTML = '';
-
-        const element = document.createElement('stripe-pricing-table');
-        element.setAttribute('pricing-table-id', pricingTableId);
-        element.setAttribute('publishable-key', stripeKey);
-        const memberRef = application.member_id || paymentConfig.memberId || '';
-        const clientReference = memberRef ? `${memberRef}|APP-${application.id}` : `APP-${application.id}`;
-        element.setAttribute('client-reference-id', clientReference);
-        const email = application.email_address || paymentConfig.defaultEmail || '';
-        if (email) {
-            element.setAttribute('customer-email', email);
-        }
-        paymentWidget.appendChild(element);
     };
 
     const submitApplication = async (intent) => {
@@ -461,6 +439,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!data.application) {
                 console.error('No application in response:', data);
                 showStatus('error', 'Missing application data from server.');
+                return;
+            }
+
+            if (intent === 'submit') {
+                // Hide form, show sidebar success panel
+                const applyMain = form.closest('.apply-main');
+                if (applyMain) applyMain.style.display = 'none';
+                const successPanel = document.getElementById('application-success');
+                if (successPanel) successPanel.style.display = '';
+                const sidebarDefault = document.getElementById('apply-sidebar-default');
+                if (sidebarDefault) sidebarDefault.style.display = 'none';
                 return;
             }
 
@@ -640,6 +629,51 @@ document.addEventListener('DOMContentLoaded', () => {
     docInputs.forEach((input) => {
         input.addEventListener('change', () => updateDocPreview(input));
     });
+
+    // --- Institution dropdown logic ---
+    const instSelect = document.getElementById('target_institution_select');
+    const instInput  = document.getElementById('target_institution');
+
+    const applyInstSelection = (value) => {
+        if (!instInput) return;
+        if (value === '__other__' || value === '') {
+            instInput.style.display = value === '__other__' ? '' : 'none';
+            instInput.required = value === '__other__';
+            if (value !== '__other__') instInput.value = '';
+        } else {
+            instInput.style.display = 'none';
+            instInput.required = false;
+            instInput.value = value;
+        }
+    };
+
+    if (instSelect && instInput) {
+        // Pre-fill from URL param (data-prefill attribute set by Blade)
+        const prefill = (instSelect.dataset.prefill || '').trim();
+        if (prefill) {
+            // Try to find an exact match in options
+            let matched = false;
+            for (let i = 0; i < instSelect.options.length; i++) {
+                if (instSelect.options[i].value === prefill) {
+                    instSelect.selectedIndex = i;
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                // Fall back to "Other" and fill text input
+                instSelect.value = '__other__';
+                instInput.value = prefill;
+                instInput.style.display = '';
+                instInput.required = true;
+            } else {
+                instInput.value = prefill;
+            }
+        }
+
+        instSelect.addEventListener('change', () => applyInstSelection(instSelect.value));
+    }
+    // --- End institution dropdown logic ---
 
     fetchLatestApplication();
 });

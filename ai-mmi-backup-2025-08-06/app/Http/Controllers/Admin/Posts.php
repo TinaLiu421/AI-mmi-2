@@ -43,6 +43,15 @@ class Posts extends AdminController {
                         'message'   =>  $this->_posts_model->getResultMessage()
                     ], ((!empty($result))?true:false));
                     break;
+                case 'feature':
+                    $end_date = $this->postParamValue('end_date', null);
+                    $result = $this->_posts_model->doFeature($this->postParamValue('id', 0), $end_date);
+                    $this->pageResult(
+                    [
+                        'status'    =>  $this->_posts_model->getResultCode(),
+                        'message'   =>  $this->_posts_model->getResultMessage()
+                    ], ((!empty($result))?true:false));
+                    break;
             }
         });
 
@@ -117,6 +126,22 @@ class Posts extends AdminController {
                     else {
                         $list_posts['data'][$data_key]['highlight'] = '<a class="set-highlight" data-id="'.$data['id'].'"><i class="fa fa-ban" style="font-size:18px;color:lightpink"></i></a>';
                     }
+
+                    // featured status
+                    $fu = $data['featured_until'] ?? null;
+                    $now = date('Y-m-d H:i:s');
+                    if (!empty($fu) && $fu > $now) {
+                        $list_posts['data'][$data_key]['featured_until'] =
+                            '<a class="set-feature" data-id="'.$data['id'].'" title="Featured until '.$fu.' — click to unfeature">'
+                            .'<i class="fa fa-star" style="font-size:18px;color:gold"></i>'
+                            .'<br><small style="font-size:10px;color:#888;">until '.date('d/m/y', strtotime($fu)).'</small>'
+                            .'</a>';
+                    } else {
+                        $list_posts['data'][$data_key]['featured_until'] =
+                            '<a class="set-feature" data-id="'.$data['id'].'" title="Click to feature for 7 days">'
+                            .'<i class="fa fa-star-o" style="font-size:18px;color:#ccc"></i>'
+                            .'</a>';
+                    }
                 }
             }
 
@@ -176,6 +201,11 @@ class Posts extends AdminController {
                         'name'          =>  'highlight',            
                         'alias'         =>  'Highlight',
                         'style'         =>  'width:80px;text-align:center;'
+                    ],
+                    [
+                        'name'          =>  'featured_until',
+                        'alias'         =>  'Featured',
+                        'style'         =>  'width:90px;text-align:center;'
                     ]
                 ]
             ], $list_posts);

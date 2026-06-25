@@ -18,6 +18,19 @@ Route::post('/posts/{postId}/qa-ask', [WebPosts::class, 'qaAsk']);
 use App\Http\Controllers\Web\Home as HomeController;
 Route::post('/chat/stream', [HomeController::class, 'chatStream'])->name('chat.stream');
 
+// Serve avatar video clips — nginx blocks .mp4 by extension so we use /avatar/clip/{name}
+Route::get('/avatar/clip/{name}', function ($name) {
+    $allowed = ['alyssa_idle', 'alyssa_speaking'];
+    if (!in_array($name, $allowed)) abort(404);
+    $path = public_path('asset/video/' . $name . '.mp4');
+    if (!file_exists($path)) abort(404);
+    return response()->file($path, [
+        'Content-Type'  => 'video/mp4',
+        'Accept-Ranges' => 'bytes',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->where('name', '[a-zA-Z0-9_\-]+');
+
 // D-ID Avatar proxy routes (API key never exposed to browser)
 Route::post('/home/avatar/stream',               [HomeController::class, 'avatarStream']);
 Route::post('/home/avatar/stream/{id}/sdp',      [HomeController::class, 'avatarStreamSdp']);

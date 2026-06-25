@@ -277,30 +277,48 @@ class Posts extends BaseModel {
         $img = imagecreatetruecolor($w, $h);
         if (!$img) return '';
 
-        imagesavealpha($img, true);
         imagealphablending($img, true);
+        imagesavealpha($img, false);
 
-        // ── Background: deep navy top (#0c1a35) → rich dark blue bottom (#0f2555) ──
-        for ($y = 0; $y < $h; $y++) {
-            $t = $y / ($h - 1);
-            $c = imagecolorallocate($img,
-                (int)(12  + (15  - 12)  * $t),
-                (int)(26  + (37  - 26)  * $t),
-                (int)(53  + (85  - 53)  * $t)
-            );
-            imageline($img, 0, $y, $w - 1, $y, $c);
+        // ── Background: try branded silhouette image, fall back to navy gradient ──
+        $bg_path = public_path('asset/image/job_card_bg.png');
+        $bg_loaded = false;
+        if (file_exists($bg_path)) {
+            $bg_src = @imagecreatefromjpeg($bg_path);
+            if (!$bg_src) $bg_src = @imagecreatefrompng($bg_path);
+            if ($bg_src) {
+                $src_w = imagesx($bg_src);
+                $src_h = imagesy($bg_src);
+                imagecopyresampled($img, $bg_src, 0, 0, 0, 0, $w, $h, $src_w, $src_h);
+                imagedestroy($bg_src);
+                $bg_loaded = true;
+            }
+        }
+        if (!$bg_loaded) {
+            // Fallback: deep navy gradient
+            for ($y = 0; $y < $h; $y++) {
+                $t = $y / ($h - 1);
+                $c = imagecolorallocate($img,
+                    (int)(12  + (15  - 12)  * $t),
+                    (int)(26  + (37  - 26)  * $t),
+                    (int)(53  + (85  - 53)  * $t)
+                );
+                imageline($img, 0, $y, $w - 1, $y, $c);
+            }
         }
 
-        // ── Subtle large circle watermark (bottom-right, very faint) ──
-        $circle_c = imagecolorallocatealpha($img, 255, 255, 255, 120);
-        imagesetthickness($img, 2);
-        imagearc($img, $w + 80, $h + 80, 680, 680, 0, 360, $circle_c);
-        imagearc($img, $w + 80, $h + 80, 500, 500, 0, 360, $circle_c);
-        imagesetthickness($img, 1);
+        // ── Dark semi-transparent overlay so white text is always readable ──
+        // Build a separate overlay image and merge it onto the background
+        $overlay = imagecreatetruecolor($w, $h);
+        imagealphablending($overlay, false);
+        $ov_fill = imagecolorallocate($overlay, 10, 20, 55);   // deep navy
+        imagefilledrectangle($overlay, 0, 0, $w - 1, $h - 1, $ov_fill);
+        imagecopymerge($img, $overlay, 0, 0, 0, 0, $w, $h, 62); // 62% opacity overlay
+        imagedestroy($overlay);
 
-        // ── Left accent bar: 6px wide, vivid blue, full height ──
+        // ── Left accent bar: 7px wide, vivid blue, full height ──
         $accent = imagecolorallocate($img, 59, 130, 246);  // #3b82f6
-        imagefilledrectangle($img, 0, 0, 5, $h - 1, $accent);
+        imagefilledrectangle($img, 0, 0, 6, $h - 1, $accent);
 
         // ── Font candidates ──
         $font_candidates = [

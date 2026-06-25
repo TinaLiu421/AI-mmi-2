@@ -71,32 +71,6 @@
         </div>
 
         <div class="study-option-card">
-            <div class="study-option-title">What to study?</div>
-            <div class="study-option-question">
-                Which programs, fields of study, or courses would you recommend as the best match for my academic history, career aspirations, and long-term objectives?
-            </div>
-            <a href="javascript:void(0);" class="study-option-button" data-action="program-finder">
-                Program Finder
-            </a>
-            <form class="study-option-form" data-question="Which programs, fields of study, or courses would you recommend as the best match for my academic history, career aspirations, and long-term objectives?">
-                <div class="study-form-row">
-                    <input type="text" data-label="Academic background" placeholder="Academic background">
-                    <input type="text" data-label="Career goal" placeholder="Career goal">
-                </div>
-                <div class="study-form-row">
-                    <input type="text" data-label="Interests" placeholder="Interests">
-                    <input type="text" data-label="Study level" placeholder="Study level">
-                </div>
-                <div class="study-form-row">
-                    <input type="text" data-label="Preferred countries" placeholder="Preferred countries">
-                    <input type="text" data-label="Budget range" placeholder="Budget range">
-                </div>
-                <textarea data-label="Long-term objectives" placeholder="Long-term objectives"></textarea>
-                <button type="submit" class="study-form-submit">Submit to AI</button>
-            </form>
-        </div>
-
-        <div class="study-option-card">
             <div class="study-option-title">How much?</div>
             <div class="study-option-question">
                 What are the estimated total costs (tuition, living expenses, visa/application fees, etc.)?
@@ -122,84 +96,6 @@
             </form>
         </div>
 
-        <div class="study-option-card">
-            <div class="study-option-title">How to get in?</div>
-            <div class="study-option-question">
-                The major outline of the key admission and visa requirements, along with the step-by-step application process.
-            </div>
-            <a href="javascript:void(0);" class="study-option-button" data-action="admission-plan">
-                Admission Plan
-            </a>
-            <form class="study-option-form" data-question="Could you please outline the key admission and visa requirements, along with the step-by-step application process?">
-                <div class="study-form-row">
-                    <input type="text" data-label="Target country" placeholder="Target country">
-                    <input type="text" data-label="Study level" placeholder="Study level">
-                </div>
-                <div class="study-form-row">
-                    <input type="text" data-label="English test status" placeholder="English test status">
-                    <input type="text" data-label="GPA/Grades" placeholder="GPA/Grades">
-                </div>
-                <div class="study-form-row">
-                    <input type="text" data-label="Intake" placeholder="Intake (e.g. Feb/Jul)">
-                    <input type="text" data-label="Timeline" placeholder="Target application timeline">
-                </div>
-                <textarea data-label="Academic background" placeholder="Academic background"></textarea>
-                <button type="submit" class="study-form-submit">Submit to AI</button>
-            </form>
-        </div>
-
-        <div class="study-option-card">
-            <div class="study-option-title">Scholarship?</div>
-            <div class="study-option-question">
-                What scholarships, bursaries, grants, or other forms of financial assistance are available for international students / applicants in my situation, and what are the eligibility requirements and application deadlines?
-            </div>
-            <a href="javascript:void(0);" class="study-option-button" data-action="scholarship-search">
-                Scholarship Search
-            </a>
-            <form class="study-option-form" data-question="What scholarships, bursaries, grants, or other forms of financial assistance are available for international students / applicants in my situation, and what are the eligibility requirements and application deadlines?">
-                <div class="study-form-row">
-                    <input type="text" data-label="Nationality" placeholder="Nationality">
-                    <input type="text" data-label="Target country" placeholder="Target country">
-                </div>
-                <div class="study-form-row">
-                    <input type="text" data-label="Study level" placeholder="Study level">
-                    <input type="text" data-label="GPA/Grades" placeholder="GPA/Grades">
-                </div>
-                <div class="study-form-row">
-                    <input type="text" data-label="Field of study" placeholder="Field of study">
-                    <input type="text" data-label="Financial need" placeholder="Financial need (yes/no)">
-                </div>
-                <textarea data-label="Achievements" placeholder="Achievements / awards / extracurricular"></textarea>
-                <button type="submit" class="study-form-submit">Submit to AI</button>
-            </form>
-        </div>
-
-        <div class="study-option-card">
-            <div class="study-option-title">When to start?</div>
-            <div class="study-option-question">
-                What are the available intake periods / commencement dates for the recommended programs, and what are the corresponding application submission deadlines?
-            </div>
-            <a href="javascript:void(0);" class="study-option-button" data-action="timeline-actions">
-                Timeline Actions
-            </a>
-            <form class="study-option-form" data-question="What are the available intake periods / commencement dates for the recommended programs, and what are the corresponding application submission deadlines? Please make a timeline for me.">
-                <div class="study-form-row">
-                    <input type="text" data-label="Target country" placeholder="Target country">
-                    <input type="text" data-label="Preferred intake" placeholder="Preferred intake">
-                </div>
-                <div class="study-form-row">
-                    <input type="text" data-label="Study level" placeholder="Study level">
-                    <input type="text" data-label="Program length" placeholder="Program length">
-                </div>
-                <div class="study-form-row">
-                    <input type="text" data-label="English test date" placeholder="English test date">
-                    <input type="text" data-label="Current stage" placeholder="Current stage">
-                </div>
-                <textarea data-label="Notes" placeholder="Notes / constraints"></textarea>
-                <button type="submit" class="study-form-submit">Submit to AI</button>
-            </form>
-        </div>
-
         <?php if(empty($_current_member) || (int)($_current_member['type'] ?? 0) !== 3 || strpos(mb_strtolower(trim($_current_member['email'] ?? ''), 'UTF-8'), '@wealthskey.com') !== false): ?>
         <div class="study-option-card">
             <div class="study-option-title">Talk to agent</div>
@@ -213,14 +109,162 @@
         <?php endif; ?>
     </div>
 </div>
-@endsection
 
-@push('js')
-<script src="/asset/js/web/study.js?v={{ date('Ymd') }}"></script>
+<?php
+// ── Course Listings (ApplyBoard-style) ────────────────────────────────────
+$_institutions = $_page_data['institutions'] ?? [];
+$_all_courses = [];
+foreach ($_institutions as $inst) {
+    $decoded = @json_decode($inst['courses_json'] ?? '', true);
+    if (!is_array($decoded)) continue;
+    foreach ($decoded as $course) {
+        if (empty($course['name'])) continue;
+        $course['_inst_id']        = $inst['id'];
+        $course['_inst_member_id'] = $inst['member_id'];
+        $course['_inst_name']      = $inst['institute_name'] ?: ($inst['alias_name'] ?: 'Institution');
+        $course['_inst_avatar']    = $inst['avatar'] ?? '';
+        $course['_inst_summary']   = $inst['summary'] ?? '';
+        $_all_courses[] = $course;
+    }
+}
+
+// Helper: derive a human-readable study level from course name
+if (!function_exists('studyLevelFromName')) {
+    function studyLevelFromName(string $name): string {
+        $n = strtolower($name);
+        if (strpos($n, 'doctor') !== false || strpos($n, 'phd') !== false) return 'Doctoral Degree';
+        if (strpos($n, 'master') !== false || strpos($n, 'graduate diploma') !== false || strpos($n, 'graduate cert') !== false) return 'Postgraduate';
+        if (strpos($n, 'bachelor') !== false || strpos($n, 'b.sc') !== false || strpos($n, 'b.eng') !== false) return 'Bachelor\'s Degree';
+        if (strpos($n, 'advanced diploma') !== false) return 'Advanced Diploma';
+        if (strpos($n, 'diploma') !== false) return 'Diploma';
+        if (strpos($n, 'certificate iv') !== false || strpos($n, 'cert iv') !== false) return 'Certificate IV';
+        if (strpos($n, 'certificate iii') !== false || strpos($n, 'cert iii') !== false) return 'Certificate III';
+        if (strpos($n, 'certificate ii') !== false) return 'Certificate II';
+        if (strpos($n, 'certificate') !== false) return 'Certificate';
+        return 'Program';
+    }
+}
+?>
+
+@if(!empty($_all_courses))
+<section class="programs-section">
+    <div class="programs-section-header">
+        <div>
+            <h2 class="programs-title">Programs in Our Platform</h2>
+            <p class="programs-subtitle"><?php echo count($_all_courses); ?> program<?php echo count($_all_courses) !== 1 ? 's' : ''; ?> from <?php echo count($_institutions); ?> institution<?php echo count($_institutions) !== 1 ? 's' : ''; ?></p>
+        </div>
+        <div class="programs-search-wrap">
+            <input type="text" id="program-search" class="programs-search" placeholder="Search programs or institutions…">
+            <button type="button" id="program-search-clear" class="programs-search-clear" aria-label="Clear search">Clear</button>
+        </div>
+    </div>
+
+    <div class="programs-slider-controls" id="programs-slider-controls" style="display:none;">
+        <button type="button" id="programs-slide-prev" class="programs-slide-btn" aria-label="Previous programs">&larr; Prev</button>
+        <span id="programs-slide-indicator" class="programs-slide-indicator">1 / 1</span>
+        <button type="button" id="programs-slide-next" class="programs-slide-btn" aria-label="Next programs">Next &rarr;</button>
+    </div>
+
+    <div class="programs-grid-wrap" id="programs-grid-wrap">
+    <div class="programs-grid" id="programs-grid">
+        <?php foreach ($_all_courses as $ci => $course): ?>
+        <?php
+            $instId    = (int)($course['_inst_id'] ?? 0);
+            $instMemberId = (int)($course['_inst_member_id'] ?? 0);
+            $instName  = htmlspecialchars($course['_inst_name'] ?? '', ENT_QUOTES);
+            $avatar    = htmlspecialchars($course['_inst_avatar'] ?? '', ENT_QUOTES);
+            $courseName = htmlspecialchars($course['name'] ?? '', ENT_QUOTES);
+            $level     = studyLevelFromName($course['name'] ?? '');
+            $delivery  = htmlspecialchars($course['delivery'] ?? '', ENT_QUOTES);
+            $duration  = htmlspecialchars($course['duration'] ?? '', ENT_QUOTES);
+            $entry     = htmlspecialchars($course['entry'] ?? '', ENT_QUOTES);
+            $feeTuition   = htmlspecialchars($course['fee_tuition'] ?? '', ENT_QUOTES);
+            $feeApp       = htmlspecialchars($course['fee_application'] ?? '', ENT_QUOTES);
+            $hasScholarship = !empty($course['scholarships']);
+            $viewUrl   = !empty($instId) ? $appendAutoLang($_page_base_url.'/institution_hub_profile/pub_view/'.$instId) : $appendAutoLang($_page_base_url.'/account/posts?uid='.$instMemberId);
+
+            // Logo URL logic with existence check to avoid broken image renders.
+            if (!empty($avatar)) {
+                $logoRelativePath = 'upload/member_logo/' . ltrim($avatar, '/');
+                $logoSrc = file_exists(public_path($logoRelativePath)) ? ('/' . $logoRelativePath) : '';
+            } else {
+                $logoSrc = '';
+            }
+        ?>
+        <div class="program-card" data-search="<?php echo strtolower($instName . ' ' . $courseName . ' ' . $delivery); ?>">
+            <div class="program-card-header">
+                <div class="program-inst-logo">
+                    <?php if (!empty($logoSrc)): ?>
+                    <img src="<?php echo $logoSrc; ?>" alt="<?php echo $instName; ?>" loading="lazy">
+                    <?php else: ?>
+                    <span class="program-logo-placeholder"><?php echo mb_substr(strip_tags($instName), 0, 1, 'UTF-8'); ?></span>
+                    <?php endif; ?>
+                </div>
+                <a href="<?php echo $viewUrl; ?>" class="program-inst-name"><?php echo $instName; ?></a>
+            </div>
+
+            <div class="program-level-badge"><?php echo htmlspecialchars($level, ENT_QUOTES); ?></div>
+            <a href="<?php echo $viewUrl; ?>" class="program-name"><?php echo $courseName; ?></a>
+
+            <?php if ($hasScholarship): ?>
+            <div class="program-tags">
+                <span class="program-tag tag-scholarship"><i class="fa fa-dollar"></i> Scholarship Available</span>
+            </div>
+            <?php endif; ?>
+
+            <div class="program-meta">
+                <?php if (!empty($delivery)): ?>
+                <div class="program-meta-row">
+                    <span class="program-meta-label">Delivery</span>
+                    <span class="program-meta-value"><?php echo $delivery; ?></span>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($feeTuition)): ?>
+                <div class="program-meta-row">
+                    <span class="program-meta-label">Gross tuition</span>
+                    <span class="program-meta-value program-fee"><?php echo $feeTuition; ?></span>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($feeApp)): ?>
+                <div class="program-meta-row">
+                    <span class="program-meta-label">Application fee</span>
+                    <span class="program-meta-value"><?php echo $feeApp; ?></span>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($duration)): ?>
+                <div class="program-meta-row">
+                    <span class="program-meta-label">Duration</span>
+                    <span class="program-meta-value"><?php echo $duration; ?></span>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($entry)): ?>
+            <div class="program-intake">
+                <span class="program-intake-label">Earliest intake</span>
+                <span class="program-intake-value"><?php echo $entry; ?></span>
+            </div>
+            <?php endif; ?>
+
+            <div class="program-card-footer">
+                <a href="<?php echo $viewUrl; ?>" class="program-btn-view">View Program Details ▾</a>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    </div>
+
+    <div id="programs-no-results" class="programs-no-results" style="display:none;">
+        <i class="fa fa-search"></i>
+        <p>No programs match your search.</p>
+    </div>
+</section>
+@endif
+
 @if(session('trigger_assessment'))
 <script>
     window.triggerAssessment = true;
     window.assessmentPrompt = {!! json_encode(session('eligibility_assessment')['prompt'] ?? '') !!};
 </script>
 @endif
-@endpush
+@endsection

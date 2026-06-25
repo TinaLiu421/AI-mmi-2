@@ -104,7 +104,8 @@ class Visa_Options extends WebController {
             'show_type'         =>  1,
             'show_lang'         =>  $this->_current_lang_index,
             'show_page_size'    =>  12,
-            'show_country'      =>  $target_country_id
+            'show_country'      =>  $target_country_id,
+            'exclude_featured'  =>  true
         ]);
 
         if(!empty($list_news['data'])) {
@@ -140,7 +141,8 @@ class Visa_Options extends WebController {
             'show_type'         =>  2,
             'show_lang'         =>  $this->_current_lang_index,
             'show_page_size'    =>  12,
-            'show_country'      =>  $target_country_id
+            'show_country'      =>  $target_country_id,
+            'exclude_featured'  =>  true
         ]);
 
         if(!empty($list_events['data'])) {

@@ -44,7 +44,7 @@
                         <?php } ?>
                     </div>
                     <div class="select">
-                        <input type="file" id="mylogo" name="mylogo" accept="image/*">
+                        <input type="file" id="mylogo" name="mylogo" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg">
                     </div>
                 </div>
             </div>

@@ -25,9 +25,33 @@ class Apply extends WebController
             'image'       => ''
         ]);
 
+        // Base list of approved institutions (always shown)
+        $baseList = [
+            'Australian College of Tourism and Information Technology',
+            'MBI-AU',
+            'Rosehill College',
+        ];
+
+        // Auto-add any newly registered institutions that have a proper institute_name
+        $dbRows = \DB::table('member as m')
+            ->join('institution_profiles as ip', 'ip.member_id', '=', 'm.id')
+            ->where('m.type', 3)
+            ->where('m.status', 1)
+            ->whereNotNull('ip.institute_name')
+            ->where('ip.institute_name', '!=', '')
+            ->orderByRaw("app_ip.institute_name ASC")
+            ->pluck('ip.institute_name')
+            ->map(fn($n) => trim($n))
+            ->filter()
+            ->all();
+
+        $institutions = array_values(array_unique(array_merge($baseList, $dbRows)));
+        sort($institutions);
+
         $data = [
-            'pricing_table_id' => env('STRIPE_PRICING_TABLE_ID_2'),
-            'stripe_pk'        => env('STRIPE_KEY'),
+            'institutions'        => $institutions,
+            'prefill_institution' => request()->query('institution', ''),
+            'prefill_course'      => request()->query('prefill_course', request()->query('course', '')),
         ];
 
         return $this->pageData($data)->pageView();

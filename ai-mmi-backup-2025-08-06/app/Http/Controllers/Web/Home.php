@@ -1495,18 +1495,29 @@ When responding, consider the context of this post. Use it as reference material
 
     public function chatStream()
 {
-    $question = request()->input('question', '');
+    $question  = request()->input('question', '');
+    $voiceMode = (bool) request()->input('voice_mode', false);
 
+    // === GUEST: 5 free chats before sign-up ===
     if (empty($this->_current_member)) {
-        return response()->json([
-            'status' => 401,
-            'message' => 'Please register or log in before using AI chat.',
-            'redirect' => $this->toURL('account_login'),
-        ], 401);
+        $guestChatCount = (int) $this->getSession('guest_chat_count', 0);
+
+        if ($guestChatCount >= 5) {
+            return response()->json([
+                'status'      => 401,
+                'show_signup' => true,
+                'message'     => "You've used all 5 free AI chats! Sign up free to keep chatting — and earn 20 Credits instantly.",
+                'signup_url'  => $this->toURL('account_registration'),
+                'login_url'   => $this->toURL('account_login'),
+            ], 401);
+        }
+
+        // Increment BEFORE streaming so the count is accurate even if client disconnects
+        $this->setSession(['guest_chat_count' => $guestChatCount + 1]);
     }
 
     // Use a StreamedResponse so Laravel can handle streaming properly.
-    return response()->stream(function() use ($question) {
+    return response()->stream(function() use ($question, $voiceMode) {
         // Disable buffers and ensure immediate flush inside the stream.
         @ini_set('zlib.output_compression', 'Off');
         @ini_set('implicit_flush', 1);
@@ -1727,6 +1738,22 @@ or equivalent wording in the user's language.
 - Bullets: use • or ✅ but keep each bullet to 1 line.
 - Do NOT stack 8+ bullets in a row without a sentence in between.
 - Ask only one focused clarifying question at the end.
+
+### INTERACTIVE QUICK-REPLY CHOICES
+When your response ends with a question where the user should choose from a known set of options
+(e.g. destination country, visa type, study level, course type, work industry, English test type,
+ qualification level, timeline, budget range, etc.), add a CHOICES block on a **new line** at the
+ very end of your reply, using EXACTLY this format:
+
+⟦CHOICES: Option A | Option B | Option C | Other (I'll type)⟧
+
+Rules:
+- Only include CHOICES when it genuinely helps the user pick — do NOT add for open-ended questions.
+- Maximum 7 options total. Keep each option SHORT (1–5 words).
+- ALWAYS include \"Other (I'll type)\" as the last option unless the list is truly exhaustive (yes/no).
+- Good examples: destination country, visa category, study level, budget range, timeline, job type.
+- BAD examples: asking for their full name, asking them to describe their situation.
+- In voice mode: NEVER include CHOICES blocks.
 " . $this->buildStrictLanguageInstruction($lang);
 
         $systemPromptParts = [];
@@ -1844,6 +1871,11 @@ When responding, consider the context of this post. If the user's question relat
             $finalSystemPrompt .= "\n\n- Do NOT add greeting or self-introduction in this response.\n- Provide only verified facts from available sources.\n- If a specific number/date cannot be verified, explicitly say it may vary and ask user to confirm the official page.";
         }
 
+        // Voice mode: prepend brevity instruction and cap token usage for faster responses
+        if ($voiceMode) {
+            $finalSystemPrompt = "You are a friendly spoken voice assistant named Alyssa. Answer in 2-3 short, natural spoken sentences only. No bullet points, no lists, no markdown — just plain conversational speech. Be warm, direct and concise.\n\n" . $finalSystemPrompt;
+        }
+
         $questionForModel = $this->buildQuestionWithConversationContext(
             (string)$question,
             (int)$memberId,
@@ -1855,21 +1887,37 @@ When responding, consider the context of this post. If the user's question relat
             $questionForModel = $this->buildNzBusinessInvestorUserQuery($questionForModel, $nzBusinessInvestorUrl);
         }
 
+        // Voice mode: use a fast non-reasoning model for near-instant spoken replies.
+        // grok-3-fast has no chain-of-thought overhead and returns answers ~3x faster.
+        $xaiModel     = $voiceMode ? 'grok-3-fast' : 'grok-4-1-fast-reasoning';
+        $xaiMaxTokens = $voiceMode ? 220 : (int)env('XAI_MAX_OUTPUT_TOKENS', 900);
+
         // Use true xAI SSE streaming — forwards tokens to browser in real-time
+        // Voice mode: keep web search for accuracy but skip the slower vector-store file_search.
         $xStream = $this->callXaiResponsesStream($questionForModel, [
             'resume_thread'      => true,
             'temperature'        => (float)env('XAI_CHAT_TEMPERATURE', 0.40),
-            'max_output_tokens'  => (int)env('XAI_MAX_OUTPUT_TOKENS', 900),
-            'model'              => 'grok-4-1-fast-reasoning',
+            'max_output_tokens'  => $xaiMaxTokens,
+            'model'              => $xaiModel,
             'enable_search'      => true,
             'allowed_domains'    => $allowedDomains,
-            'file_search_max'    => (int)env('XAI_FILE_SEARCH_MAX', 5),
-            'collection_ids'     => ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
+            'file_search_max'    => $voiceMode ? 0 : (int)env('XAI_FILE_SEARCH_MAX', 5),
+            'collection_ids'     => $voiceMode ? [] : ['collection_1c89e82d-3b05-4bb6-9bf7-aae3181a3a9c'],
             'vector_store_ids'   => [],
             'system'             => $finalSystemPrompt,
         ]);
 
         $reply = $this->processFinalText((string)($xStream['text'] ?? ''), false, $lang);
+
+        // Extract quick-reply choices the AI embedded (⟦CHOICES: A | B | C⟧).
+        // Strip the tag from $reply so the stored chat log stays clean.
+        $quickReplies = [];
+        if (!$voiceMode && preg_match('/⟦CHOICES:\s*([^⟧]+)⟧/u', $reply, $_choicesM)) {
+            $quickReplies = array_values(array_filter(
+                array_map('trim', explode('|', $_choicesM[1]))
+            ));
+            $reply = rtrim(preg_replace('/\s*⟦CHOICES:[^⟧]+⟧/u', '', $reply));
+        }
 
         if (trim($reply) === '') {
             $this->streamError('Upstream empty response');
@@ -1931,6 +1979,11 @@ When responding, consider the context of this post. If the user's question relat
                     ? '✨ 查看完整方案 → 立即升级'
                     : '✨ See the Full Plan → Upgrade',
             ]);
+        }
+
+        // Attach quick-reply chips extracted from AI response
+        if (!empty($quickReplies)) {
+            $streamMeta['quick_replies'] = $quickReplies;
         }
 
         // Stream only the suffix (nudge text) — core answer was already streamed live
@@ -3418,18 +3471,15 @@ private function didApiCall(string $method, string $path, array $body = []): arr
     return ['code' => $httpCode, 'body' => (string) $response];
 }
 
-/** POST /home/avatar/stream  – create a new D-ID WebRTC stream session */
+/** POST /home/avatar/stream  – create a new D-ID WebRTC stream (Agents API) */
 public function avatarStream(\Illuminate\Http\Request $request)
 {
-    $presenterImg = env(
-        'DID_PRESENTER_IMG',
-        'https://create-images-results.d-id.com/DefaultPresenters/Noelle_f/image.jpeg'
-    );
+    // D-ID Agents Streams API is the current recommended API.
+    // /talks/streams and /clips/streams are legacy and do not produce real-time lip-sync
+    // animation for Clips Presenters (speak command returns 200 but sends no animation frames).
+    $agentId = env('DID_AGENT_ID', 'v2_agt_wlqIlZVZ');
 
-    $result = $this->didApiCall('POST', '/talks/streams', [
-        'source_url'         => $presenterImg,
-        'compatibility_mode' => 'on',
-    ]);
+    $result = $this->didApiCall('POST', "/agents/{$agentId}/streams", []);
 
     return response($result['body'], $result['code'])
         ->header('Content-Type', 'application/json');
@@ -3438,7 +3488,9 @@ public function avatarStream(\Illuminate\Http\Request $request)
 /** POST /home/avatar/stream/{id}/sdp  – forward WebRTC SDP answer */
 public function avatarStreamSdp(\Illuminate\Http\Request $request, string $streamId)
 {
-    $result = $this->didApiCall('POST', "/talks/streams/{$streamId}/sdp", [
+    $agentId = env('DID_AGENT_ID', 'v2_agt_wlqIlZVZ');
+
+    $result = $this->didApiCall('POST', "/agents/{$agentId}/streams/{$streamId}/sdp", [
         'answer'     => $request->input('answer'),
         'session_id' => $request->input('session_id'),
     ]);
@@ -3450,7 +3502,9 @@ public function avatarStreamSdp(\Illuminate\Http\Request $request, string $strea
 /** POST /home/avatar/stream/{id}/ice  – forward ICE candidate */
 public function avatarStreamIce(\Illuminate\Http\Request $request, string $streamId)
 {
-    $result = $this->didApiCall('POST', "/talks/streams/{$streamId}/ice", [
+    $agentId = env('DID_AGENT_ID', 'v2_agt_wlqIlZVZ');
+
+    $result = $this->didApiCall('POST', "/agents/{$agentId}/streams/{$streamId}/ice", [
         'candidate'  => $request->input('candidate'),
         'session_id' => $request->input('session_id'),
     ]);
@@ -3459,13 +3513,14 @@ public function avatarStreamIce(\Illuminate\Http\Request $request, string $strea
         ->header('Content-Type', 'application/json');
 }
 
-/** POST /home/avatar/stream/{id}/speak  – make the avatar say text */
+/** POST /home/avatar/stream/{id}/speak  – make the avatar say text (Agents API) */
 public function avatarSpeak(\Illuminate\Http\Request $request, string $streamId)
 {
-    $text      = mb_substr((string) $request->input('text', ''), 0, 500);
+    $agentId   = env('DID_AGENT_ID', 'v2_agt_wlqIlZVZ');
+    $text      = mb_substr((string) $request->input('text', ''), 0, 900);
     $sessionId = (string) $request->input('session_id', '');
 
-    $result = $this->didApiCall('POST', "/talks/streams/{$streamId}", [
+    $result = $this->didApiCall('POST', "/agents/{$agentId}/streams/{$streamId}", [
         'script' => [
             'type'     => 'text',
             'input'    => $text,
@@ -3474,7 +3529,9 @@ public function avatarSpeak(\Illuminate\Http\Request $request, string $streamId)
                 'voice_id' => env('DID_VOICE_ID', 'en-US-JennyNeural'),
             ],
         ],
-        'config'     => ['stitch' => false],
+        'config'     => [
+            'fluent' => true,
+        ],
         'session_id' => $sessionId,
     ]);
 
@@ -3485,7 +3542,9 @@ public function avatarSpeak(\Illuminate\Http\Request $request, string $streamId)
 /** DELETE /home/avatar/stream/{id}  – close the stream session */
 public function avatarStreamClose(\Illuminate\Http\Request $request, string $streamId)
 {
-    $result = $this->didApiCall('DELETE', "/talks/streams/{$streamId}", [
+    $agentId = env('DID_AGENT_ID', 'v2_agt_wlqIlZVZ');
+
+    $result = $this->didApiCall('DELETE', "/agents/{$agentId}/streams/{$streamId}", [
         'session_id' => $request->input('session_id', ''),
     ]);
 

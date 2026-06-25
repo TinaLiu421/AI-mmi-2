@@ -84,6 +84,7 @@ $list_forum_comment = $_page_data['list_forum_comment'];
 @endsection
 
 <?php
+if (!function_exists('time2Units')) {
 function time2Units($time, $lang = 1) {
     $year = floor($time / 60 / 60 / 24 / 365);
     $time -= $year * 60 * 60 * 24 * 365;
@@ -139,5 +140,6 @@ function time2Units($time, $lang = 1) {
         }
     }
     return $elapse;
+}
 }
 ?>

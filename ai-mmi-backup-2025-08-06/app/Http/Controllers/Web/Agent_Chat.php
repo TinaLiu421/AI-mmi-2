@@ -163,6 +163,7 @@ class Agent_Chat extends WebController
         $threads = [];
         $activeTargetType = null;
         $activeTargetId = null;
+        $postContext = null;
 
         if ($isAgent) {
             $threads = $this->getAgentThreads($memberId);
@@ -190,6 +191,24 @@ class Agent_Chat extends WebController
             }
         }
 
+        // Load post context if post_id is provided
+        $postId = request()->input('post_id');
+        if (!empty($postId) && is_numeric($postId)) {
+            $postData = DB::table('member_posts')
+                ->where('id', (int)$postId)
+                ->where('status', '>', 0)
+                ->first(['id', 'title', 'content', 'sector']);
+            
+            if ($postData) {
+                $postContext = [
+                    'id' => $postData->id,
+                    'title' => $postData->title,
+                    'content' => $postData->content,
+                    'sector' => $postData->sector,
+                ];
+            }
+        }
+
         $memberPlanCode = '';
         if ($memberId && !$isAgent) {
             $memberPlanCode = $this->getMemberActivePlanCode((int)$memberId);
@@ -202,6 +221,7 @@ class Agent_Chat extends WebController
             'active_target_type' => $activeTargetType,
             'active_target_id'   => $activeTargetId,
             'member_plan_code'   => $memberPlanCode,
+            'post_context'       => $postContext,
         ])->pageView('agent_chat');
     }
 
@@ -985,7 +1005,7 @@ class Agent_Chat extends WebController
                         $q->whereNull('subscriptions.ends_at')
                           ->orWhere('subscriptions.ends_at', '>', now());
                     })
-                    ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
+                    ->orderByRaw("CASE app_plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
                     ->select('subscriptions.member_id', 'plans.name', 'plans.code')
                     ->get();
 
@@ -1610,7 +1630,7 @@ class Agent_Chat extends WebController
                 }
 
                 $planRows = $planQuery
-                    ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
+                    ->orderByRaw("CASE app_plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
                     ->select('subscriptions.member_id', 'plans.name')
                     ->get();
 
@@ -2098,7 +2118,7 @@ class Agent_Chat extends WebController
             }
 
             $plan = $planQuery
-                ->orderByRaw("CASE plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
+                ->orderByRaw("CASE app_plans.code WHEN 'vip' THEN 1 WHEN 'premium' THEN 2 WHEN 'hybrid' THEN 3 WHEN 'all_ai' THEN 4 WHEN 'free' THEN 5 ELSE 99 END")
                 ->select('plans.code')
                 ->first();
 

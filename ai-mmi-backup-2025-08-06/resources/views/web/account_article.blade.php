@@ -17,6 +17,41 @@ function getYoutubeEmbedUrl($url) {
     return 'https://www.youtube.com/embed/' . $youtube_id;
 }
 }
+
+// Strips markdown syntax and returns clean plain text suitable for card excerpts.
+// Handles: **bold**, __underline__, *italic*, _italic_, ==highlight==,
+//          ## headings, - / * / • bullet lists, 1. numbered lists, --- rules.
+if (!function_exists('mdPlainText')) {
+function mdPlainText($md, $maxLen = 0) {
+    $s = (string)($md ?? '');
+    // Bold / underline: **text** __text__  — replace with " text " so adjacent tokens stay separated
+    $s = preg_replace('/\*\*(.+?)\*\*/su', ' $1 ', $s);
+    $s = preg_replace('/__(.+?)__/su',     ' $1 ', $s);
+    // Italic: *text*  _text_  (only single markers)
+    $s = preg_replace('/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/u', ' $1 ', $s);
+    $s = preg_replace('/(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/u',      ' $1 ', $s);
+    // Highlight: ==text==
+    $s = preg_replace('/==(.+?)==/su', ' $1 ', $s);
+    // Headings: # ## ### …
+    $s = preg_replace('/^#{1,6}[ \t]+/mu', '', $s);
+    // Horizontal rules: --- *** ===
+    $s = preg_replace('/^[-=*]{3,}[ \t]*$/mu', '', $s);
+    // Bullet list markers: -  *  +  •
+    $s = preg_replace('/^[ \t]*[-*+•][ \t]+/mu', '', $s);
+    // Numbered list markers: 1.  2.  …
+    $s = preg_replace('/^[ \t]*\d+\.[ \t]+/mu', '', $s);
+    // Strip any residual HTML
+    $s = strip_tags($s);
+    // Collapse whitespace (newlines → space)
+    $s = preg_replace('/[\r\n\t]+/', ' ', $s);
+    $s = preg_replace('/[ ]{2,}/', ' ', $s);
+    $s = trim($s);
+    if ($maxLen > 0 && mb_strlen($s) > $maxLen) {
+        $s = mb_substr($s, 0, $maxLen);
+    }
+    return $s;
+}
+}
 ?>
 <?php if(!empty($_page_data['list_posts']['data'])) { foreach ($_page_data['list_posts']['data'] as $posts) { 
     $postSector = (!empty($posts['sector']) && in_array($posts['sector'], ['study', 'migration'], true)) ? $posts['sector'] : 'study';
@@ -51,8 +86,8 @@ if (!empty($posts['photo']) && file_exists(public_path('upload/member_posts/'.$p
     $card_thumb = !empty($yt_id) ? 'https://img.youtube.com/vi/'.$yt_id.'/hqdefault.jpg' : null;
 }
 $card_type_label = (int)($posts['category_type'] ?? 1) === 2 ? 'Event' : 'News';
-$card_title      = !empty($posts['title']) ? $posts['title'] : mb_substr(strip_tags($posts['content'] ?? ''), 0, 60);
-$card_excerpt    = mb_substr(strip_tags($posts['content'] ?? ''), 0, 180);
+$card_title      = !empty($posts['title']) ? $posts['title'] : mdPlainText($posts['content'] ?? '', 60);
+$card_excerpt    = mdPlainText($posts['content'] ?? '', 180);
 ?>
 <div class="post home-post-card">
     <a class="home-post-card-thumb-wrap" href="<?php echo htmlspecialchars($card_url, ENT_QUOTES, 'UTF-8'); ?>">
@@ -144,8 +179,8 @@ $card_excerpt    = mb_substr(strip_tags($posts['content'] ?? ''), 0, 180);
                 <div class="article-short-content">
                     <?php
                     $rawContent   = $posts['content'] ?? '';
-                    $plainExcerpt = mb_substr(strip_tags($rawContent), 0, 240);
-                    $isTruncated  = mb_strlen(strip_tags($rawContent)) > 240;
+                    $plainExcerpt = mdPlainText($rawContent, 240);
+                    $isTruncated  = mb_strlen(mdPlainText($rawContent)) > 240;
                     ?>
                     <span class="post-card-excerpt"><?php echo htmlspecialchars($plainExcerpt, ENT_QUOTES, 'UTF-8'); ?><?php echo $isTruncated ? '…' : ''; ?></span>
                     <?php if ($isTruncated): ?>

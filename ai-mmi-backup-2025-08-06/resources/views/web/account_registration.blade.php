@@ -130,6 +130,38 @@
         }
         .reg-section-head p { margin: 0; font-size: 14px; color: #64748b; }
 
+        /* ── OAuth sign-up buttons inside plan cards ── */
+        .reg-oauth-divider {
+            display: flex; align-items: center; gap: 10px;
+            margin: 14px 0 12px;
+            color: #94a3b8; font-size: 13px; font-weight: 500;
+        }
+        .reg-oauth-divider::before,
+        .reg-oauth-divider::after {
+            content: ''; flex: 1; height: 1px; background: #e2e8f0;
+        }
+        .reg-oauth-btns {
+            display: flex; gap: 10px; margin-bottom: 6px;
+        }
+        .reg-oauth-btn {
+            flex: 1; display: inline-flex; align-items: center; justify-content: center;
+            gap: 7px; height: 42px; border-radius: 10px;
+            font-size: 14px; font-weight: 700; text-decoration: none;
+            transition: filter .18s, transform .18s;
+        }
+        .reg-oauth-btn:hover {
+            filter: brightness(1.08); transform: translateY(-1px);
+            text-decoration: none;
+        }
+        .reg-oauth-google {
+            background: #fff; border: 1.5px solid #dadce0; color: #3c4043;
+        }
+        .reg-oauth-google:hover { color: #3c4043; }
+        .reg-oauth-facebook {
+            background: #1877f2; border: 1.5px solid #1877f2; color: #fff;
+        }
+        .reg-oauth-facebook:hover { color: #fff; }
+
         @media (max-width: 680px) {
             .reg-plan-grid { grid-template-columns: 1fr; }
             .reg-plan-subtitle,
@@ -153,12 +185,12 @@
             <h3 class="reg-plan-name"><?php echo htmlspecialchars($plan['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
 
             <?php if($plan['type'] == 'service_provider'): ?>
-            <p class="reg-plan-subtitle">List your migration services, connect with clients, and grow your practice — completely free.</p>
+            <p class="reg-plan-subtitle">List your education and migration services, connect with clients, and grow your practice — completely free.</p>
             <?php else: ?>
             <?php if((int)$plan['valid_days_trial'] > 0): ?>
             <p class="reg-plan-period"><?php echo $_page_lang['free_trial']; ?> / <?php echo str_replace('{num}', $plan['valid_days_trial'], $_page_lang['num_days']); ?></p>
             <?php endif; ?>
-            <p class="reg-plan-subtitle">Explore AI-powered migration guidance and tools to kick-start your journey, completely free.</p>
+            <p class="reg-plan-subtitle">Explore AI-powered education and migration guidance and tools to kick-start your journey, completely free.</p>
             <?php endif; ?>
 
             <div class="reg-plan-price">Free</div>
@@ -166,6 +198,18 @@
             <a class="reg-plan-cta" href="<?php echo $_page_base_url.'/account_registration/'.$plan['type']; ?>">
                 <?php echo $_page_lang['sign_up_now']; ?>
             </a>
+
+            <?php if($plan['type'] !== 'service_provider'): ?>
+            <div class="reg-oauth-divider"><span>or sign up with</span></div>
+            <div class="reg-oauth-btns">
+                <a href="<?php echo $_page_base_url.'/account_login/google?role=individual'; ?>" class="reg-oauth-btn reg-oauth-google">
+                    <i class="fa fa-google"></i> Google
+                </a>
+                <a href="<?php echo $_page_base_url.'/account_login/facebook?role=individual'; ?>" class="reg-oauth-btn reg-oauth-facebook">
+                    <i class="fa fa-facebook"></i> Facebook
+                </a>
+            </div>
+            <?php endif; ?>
 
             <?php if(!empty($plan['content'])): ?>
             <p class="reg-features-title"><i class="fa fa-plus" style="margin-right:4px;"></i><?php echo $_page_lang['benefits']; ?></p>
@@ -178,7 +222,8 @@
     </div>
     <?php } ?>
 
-    <!-- ══ PAID PLANS ══ -->
+    {{-- Paid plans hidden from signup page to reduce friction for new users --}}
+    <?php if(false): ?>
     <div class="reg-section-head">
         <h2>Paid plans — sign up &amp; pay in one step</h2>
         <p>Create your account and go straight to secure Stripe checkout.</p>
@@ -275,6 +320,7 @@
         </div>
         <?php endforeach; ?>
     </div>
+    <?php endif; ?>
 
 </div>
 @endsection

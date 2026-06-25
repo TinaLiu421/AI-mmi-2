@@ -713,8 +713,8 @@ class BaseModel extends Model {
             else {
                 $data = $this->specialChars($data);
                 foreach ($data as $key => $value) {
-                    // array to json format
-                    if(!empty($value) && is_array($value)) {
+                    // array to json format (including empty arrays)
+                    if(is_array($value)) {
                         $data[$key] = json_encode($value);
                     }
                 }
@@ -745,17 +745,24 @@ class BaseModel extends Model {
     }
     
     protected function toPlainText($value = '', $no_space = false) {
-        // First remove the leading/trialing whitespace
+        $value = (string)$value;
+        // Strip markdown syntax before strip_tags
+        $value = preg_replace('/\*\*(.+?)\*\*/su', ' $1 ', $value);
+        $value = preg_replace('/__(.+?)__/su',     ' $1 ', $value);
+        $value = preg_replace('/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/u', ' $1 ', $value);
+        $value = preg_replace('/(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/u', ' $1 ', $value);
+        $value = preg_replace('/==(.+?)==/su',     ' $1 ', $value);
+        $value = preg_replace('/^#{1,6}[ \t]+/mu', '',  $value);
+        $value = preg_replace('/^[-=*]{3,}[ \t]*$/mu', '', $value);
+        $value = preg_replace('/^[ \t]*[-*+•][ \t]+/mu', '', $value);
+        $value = preg_replace('/^[ \t]*\d+\.[ \t]+/mu', '', $value);
+        // Standard cleanup
         $value = strip_tags(trim(str_replace('&nbsp;', ' ', $value)));
-        // Now remove any doubled-up whitespace
-        $value = preg_replace('/\s(?=\s)/', '', $value);
-        // Finally, replace any non-space whitespace, with a space
         $value = preg_replace('/[\n\r\t]/', ' ', $value);
-        // Echo out: 'This line contains liberal use of whitespace.'
-        if($no_space) {
+        $value = preg_replace('/[ ]{2,}/', ' ', $value);
+        if ($no_space) {
             $value = preg_replace('/\s+/', '', $value);
         }
-        
         return trim($value);
     }
     

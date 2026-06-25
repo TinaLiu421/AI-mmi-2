@@ -88,6 +88,20 @@ class CourseApplicationController extends Controller
 
         $application->save();
 
+        if ($intent === 'submit') {
+            $fresh = $application->fresh();
+            try {
+                $this->sendTeamNotification($fresh);
+            } catch (\Throwable $e) {
+                \Log::error('Failed to send team notification email: ' . $e->getMessage());
+            }
+            try {
+                $this->sendApplicantConfirmation($fresh);
+            } catch (\Throwable $e) {
+                \Log::error('Failed to send applicant confirmation email: ' . $e->getMessage());
+            }
+        }
+
         return response()->json([
             'message' => ($intent === 'save') ? 'Application saved' : 'Application submitted',
             'application' => $this->formatApplication($application->fresh()),
@@ -267,5 +281,116 @@ class CourseApplicationController extends Controller
         }
 
         return (int) $tokenRecord->member_id;
+    }
+
+    private function sendTeamNotification($application): void
+    {
+        $documents    = json_decode($application->document_paths ?? '[]', true) ?: [];
+        $englishTests = json_decode($application->english_tests ?? '[]', true) ?: [];
+        $scholarships = json_decode($application->scholarship_colleges ?? '[]', true) ?: [];
+
+        $summary = [
+            'Applicant name'       => trim(($application->given_name ?? '') . ' ' . ($application->family_name ?? '')),
+            'Email'                => $application->email_address ?? '-',
+            'Mobile'               => $application->mobile_number ?? '-',
+            'Date of birth'        => $application->date_of_birth ?? '-',
+            'Nationality'          => $application->nationality ?? '-',
+            'Highest education'    => $application->highest_education ?? '-',
+            'Has English test'     => ($application->has_english_test ? 'Yes' : 'No'),
+            'English tests'        => empty($englishTests) ? '-' : implode(', ', array_map(fn($k,$v) => strtoupper($k).': '.$v, array_keys($englishTests), $englishTests)),
+            'Financial support'    => ($application->has_financial_support ? 'Yes' : 'No'),
+            'Financial notes'      => $application->financial_notes ?? '-',
+            'Target institution'   => $application->target_institution ?? '-',
+            'Target program'       => $application->target_program ?? '-',
+            'Preferred start year' => $application->start_year ?? '-',
+            'Wants scholarship'    => ($application->wants_scholarship ? 'Yes' : 'No'),
+            'Scholarship colleges' => empty($scholarships) ? '-' : implode(', ', $scholarships),
+            'Residential address'  => nl2br(e($application->residential_address ?? '-')),
+        ];
+
+        $rows = '';
+        foreach ($summary as $label => $value) {
+            $rows .= '<tr><th align="left" style="padding:6px 10px;background:#f4f6fb;border:1px solid #dfe4ef;">'
+                . e($label)
+                . '</th><td style="padding:6px 10px;border:1px solid #dfe4ef;">'
+                . (is_string($value) ? $value : e((string)$value))
+                . '</td></tr>';
+        }
+
+        $docList = '';
+        foreach ($documents as $doc) {
+            $docList .= '<li>' . e($doc['label'] ?? $doc['original_name'] ?? 'Document')
+                . ' - ' . e($doc['original_name'] ?? basename($doc['path'] ?? '')) . '</li>';
+        }
+        if (!$docList) $docList = '<li>No documents uploaded.</li>';
+
+        $html = '<h2>New Course Application</h2>'
+            . '<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-family:Arial,Helvetica,sans-serif;font-size:14px;">'
+            . $rows . '</table>'
+            . '<h3 style="margin-top:16px;">Documents</h3><ul>' . $docList . '</ul>';
+
+        $attachments = [];
+        foreach ($documents as $doc) {
+            $filePath = !empty($doc['path']) ? public_path($doc['path']) : null;
+            if ($filePath && file_exists($filePath)) {
+                $attachments[] = ['path' => $filePath, 'name' => $doc['original_name'] ?? basename($filePath)];
+            }
+        }
+
+        $applicantName = trim(($application->given_name ?? '') . ' ' . ($application->family_name ?? ''));
+        $subject = 'New Course Application - ' . ($applicantName ?: ($application->email_address ?? 'Applicant'));
+        $this->dispatchEmail('info@ai-mmi.com', null, $subject, $html, $attachments);
+    }
+
+    private function sendApplicantConfirmation($application): void
+    {
+        $toEmail = $application->email_address ?? null;
+        if (empty($toEmail)) return;
+
+        $firstName = $application->given_name ?? 'there';
+        $institution = $application->target_institution ?? 'your chosen institution';
+        $program = $application->target_program ?? 'your selected program';
+
+        $html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333;max-width:580px;margin:0 auto;">'
+            . '<h2 style="color:#0b2d6f;">Application Received</h2>'
+            . '<p>Hi ' . e($firstName) . ',</p>'
+            . '<p>Thank you for submitting your application to <strong>' . e($institution) . '</strong> for <strong>' . e($program) . '</strong>.</p>'
+            . '<p>Our counsellors at AI-mmi have received your details and documents. We\'ll review everything and be in touch with you soon.</p>'
+            . '<p>If you have any questions in the meantime, simply reply to this email.</p>'
+            . '<p style="margin-top:24px;">Best regards,<br><strong>The AI-mmi Team</strong></p>'
+            . '</div>';
+
+        $this->dispatchEmail($toEmail, $firstName, 'Your AI-mmi Application — We\'ve received it!', $html);
+    }
+
+    private function dispatchEmail(string $toAddress, ?string $toName, string $subject, string $html, array $attachments = []): void
+    {
+        require_once app_path('Libraries/sendgrid/sendgrid-php.php');
+        $fromAddress = env('MAIL_FROM_ADDRESS', 'no-reply@ai-mmi.com') ?: 'no-reply@ai-mmi.com';
+        $fromName    = env('MAIL_FROM_NAME', 'AI-mmi') ?: 'AI-mmi';
+
+        $email = new \SendGrid\Mail\Mail();
+        $email->setFrom($fromAddress, $fromName);
+        $email->setSubject($subject);
+        $email->addTo($toAddress, $toName);
+        $email->addContent('text/html', $html);
+
+        foreach ($attachments as $file) {
+            $contents = @file_get_contents($file['path']);
+            if ($contents === false) continue;
+            $mime = mime_content_type($file['path']) ?: 'application/octet-stream';
+            $email->addAttachment(base64_encode($contents), $mime, $file['name'], 'attachment');
+        }
+
+        $apiKey = getenv('SENDGRID_API_KEY');
+        if (empty($apiKey)) {
+            \Log::error('SendGrid API key missing; cannot send email to ' . $toAddress);
+            return;
+        }
+
+        $sendgrid = new \SendGrid($apiKey);
+        $response = $sendgrid->send($email);
+        \Log::info('Email dispatched', ['to' => $toAddress, 'subject' => $subject,
+            'status' => method_exists($response, 'statusCode') ? $response->statusCode() : null]);
     }
 }

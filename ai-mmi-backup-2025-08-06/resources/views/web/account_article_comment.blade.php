@@ -1,4 +1,5 @@
 <?php
+if (!function_exists('commentAvatarUrl')) {
 function commentAvatarUrl($avatar = '') {
     $avatar = trim((string)$avatar);
     if ($avatar === '') return '';
@@ -12,6 +13,7 @@ function commentAvatarUrl($avatar = '') {
         return 'upload/member_logo/'.$avatar;
     }
     return $avatar;
+}
 }
 
 if(!empty($_page_data['reply'])) { foreach ($_page_data['reply'] as $comment) {
@@ -48,6 +50,7 @@ $profileUrl = $isAi ? '#' : ($_page_base_url.'/account/posts?uid='.$comment['mem
 <?php }} ?>
 
 <?php
+if (!function_exists('time2Units')) {
 function time2Units($time, $lang = 1) {
     $year = floor($time / 60 / 60 / 24 / 365);
     $time -= $year * 60 * 60 * 24 * 365;
@@ -103,5 +106,6 @@ function time2Units($time, $lang = 1) {
         }
     }
     return $elapse;
+}
 }
 ?>

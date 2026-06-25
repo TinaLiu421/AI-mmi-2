@@ -31,6 +31,31 @@ function iweb_self_func() {
             window.location.reload();
         });
     });
+
+
+    $(document).on('click', 'a.set-feature', function() {
+        var find_ids = $(this).data('id');
+        var is_featured = $(this).find('i').hasClass('fa-star') && !$(this).find('i').hasClass('fa-star-o');
+        if (is_featured) {
+            iweb.confirm('Remove this post from featured spotlight?', function(result) {
+                if (result) {
+                    iweb.post({
+                        url: window.location.href,
+                        values: { _token: _token, page_action: 'feature', id: find_ids }
+                    }, function() { window.location.reload(); });
+                }
+            });
+        } else {
+            iweb.confirm('Feature this post for 7 days on the home page spotlight?', function(result) {
+                if (result) {
+                    iweb.post({
+                        url: window.location.href,
+                        values: { _token: _token, page_action: 'feature', id: find_ids }
+                    }, function() { window.location.reload(); });
+                }
+            });
+        }
+    });
     
     
     $(document).on('click', '#delete-my-posts', function() {

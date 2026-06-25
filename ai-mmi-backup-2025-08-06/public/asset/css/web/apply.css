@@ -285,6 +285,27 @@
 
 .doc-label {
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.doc-required {
+    font-size: 11px;
+    font-weight: 600;
+    background: #fff0f0;
+    color: #c0392b;
+    border: 1px solid #f5c6c6;
+    border-radius: 4px;
+    padding: 1px 6px;
+    white-space: nowrap;
+}
+
+.doc-optional {
+    font-size: 11px;
+    font-weight: 400;
+    color: #8a9ab8;
 }
 
 .doc-upload {
@@ -471,4 +492,25 @@
         width: 100%;
         text-align: center;
     }
+}
+
+/* Institution dropdown on apply page */
+.target-inst-select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #c9d7ee;
+    border-radius: 10px;
+    font-size: 15px;
+    color: #0a1f44;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230060ff' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 14px center;
+    background-size: 12px;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.target-inst-select:focus {
+    outline: none;
+    border-color: #3f8cff;
+    box-shadow: 0 0 0 3px rgba(63, 140, 255, 0.15);
 }

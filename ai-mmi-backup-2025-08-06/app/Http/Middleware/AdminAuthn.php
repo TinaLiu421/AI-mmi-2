@@ -7,6 +7,7 @@ use Closure;
 use Illuminate\Http\Request;
 
 class AdminAuthn { 
+    private const SUPER_ADMIN_EMAILS = ['admin@wealthskey.com', 'info@ai-mmi.com'];
     
     public function handle(Request $request, Closure $next) {
         // ip whitelist
@@ -60,7 +61,10 @@ class AdminAuthn {
         // user privilege
         if(!in_array($current_admin_class, ['authn'])) {
             if(!empty($user_data)) {
-                if($user_data['id'] > 1 && $current_admin_class != 'profile') {
+                $email = strtolower(trim((string)($user_data['email'] ?? '')));
+                $isSuperAdminEmail = in_array($email, self::SUPER_ADMIN_EMAILS, true);
+
+                if($user_data['id'] > 1 && !$isSuperAdminEmail && $current_admin_class != 'profile') {
                     $role_data = (new \App\Models\User(null))->getRoleByID($user_data['role_id']);
                     if(!empty($role_data)) {
                         $user_data['allowed'] = $role_data['allowed'];

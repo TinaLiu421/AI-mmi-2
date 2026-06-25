@@ -20,6 +20,9 @@
         'Doctorate / PhD',
         'Other'
     ];
+    $institutions = $_page_data['institutions'] ?? [];
+    $prefill_institution = $_page_data['prefill_institution'] ?? '';
+    $prefill_course = $_page_data['prefill_course'] ?? '';
 @endphp
 
 <div class="apply-page" id="apply-page-top" data-member-id="{{ $member['id'] ?? '' }}">
@@ -35,8 +38,8 @@
                     <p>AI-mmi will review your goals, budget, scholarship interest, and documents in one place.</p>
                 </li>
                 <li>
-                    <strong>Documents &amp; Payment</strong>
-                    <p>Upload your passport, academic certificates, English results, and proof of funds, then pay AUD $0 securely via Stripe.</p>
+                    <strong>Documents &amp; Submit</strong>
+                    <p>Upload your passport, academic certificates, English results, and proof of funds, then submit your application.</p>
                 </li>
                 <li>
                     <strong>Scholarship Ready</strong>
@@ -162,13 +165,23 @@
                     </div>
                 </div>
 
-                <label class="input-field full-width">
+                <div class="input-field full-width">
                     <span>What university/college are you applying for?</span>
-                    <input type="text" name="target_institution" id="target_institution" placeholder="College or university name" required>
-                </label>
+                    <select id="target_institution_select" class="target-inst-select"
+                            data-prefill="{{ $prefill_institution ?? '' }}">
+                        <option value="">— Select an institution —</option>
+                        @foreach($institutions as $inst)
+                        <option value="{{ $inst }}">{{ $inst }}</option>
+                        @endforeach
+                        <option value="__other__">Other (not listed above)</option>
+                    </select>
+                    <input type="text" name="target_institution" id="target_institution"
+                           placeholder="Enter institution name"
+                           style="display:none;margin-top:8px;">
+                </div>
                 <label class="input-field full-width">
                     <span>What program/course are you applying for?</span>
-                    <input type="text" name="target_program" id="target_program" placeholder="e.g. Diploma of IT" required>
+                    <input type="text" name="target_program" id="target_program" placeholder="e.g. Diploma of IT" value="{{ $prefill_course }}" required>
                 </label>
                 <label class="input-field full-width">
                     <span>What year do you want to start?</span>
@@ -242,7 +255,7 @@
                 </div>
                 <div class="document-grid">
                     <div class="document-field" data-doc-key="passport_copy">
-                        <div class="doc-label">Copy of your passport</div>
+                        <div class="doc-label">Copy of your passport <span class="doc-optional">(optional)</span></div>
                         <p>Preferably the bio-data page.</p>
                         <div class="doc-action">
                             <label class="doc-upload">
@@ -253,7 +266,7 @@
                         </div>
                     </div>
                     <div class="document-field" data-doc-key="education_certificate">
-                        <div class="doc-label">Copy of your education certificate</div>
+                        <div class="doc-label">School result / academic transcript <span class="doc-required">*&nbsp;Required</span></div>
                         <p>Latest academic transcripts or certificates.</p>
                         <div class="doc-action">
                             <label class="doc-upload">
@@ -264,7 +277,7 @@
                         </div>
                     </div>
                     <div class="document-field" data-doc-key="english_test_result">
-                        <div class="doc-label">Copy of your English test result</div>
+                        <div class="doc-label">Copy of your English test result <span class="doc-optional">(optional)</span></div>
                         <p>If applicable.</p>
                         <div class="doc-action">
                             <label class="doc-upload">
@@ -275,7 +288,7 @@
                         </div>
                     </div>
                     <div class="document-field" data-doc-key="financial_statement">
-                        <div class="doc-label">Copy of your or sponsor&rsquo;s bank statement</div>
+                        <div class="doc-label">Copy of your or sponsor&rsquo;s bank statement <span class="doc-optional">(optional)</span></div>
                         <p>Proof of sufficient funds.</p>
                         <div class="doc-action">
                             <label class="doc-upload">
@@ -288,63 +301,32 @@
                 </div>
             </section>
 
-                <!-- reCAPTCHA v2 Verification -->
-                <div class="recaptcha-container" style="margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 4px; border: 1px solid #e0e0e0;">
-                    <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">
-                        <strong>Security verification:</strong> Please verify that you're human before submitting.
-                    </p>
-                    <div class="g-recaptcha" data-sitekey="{{ env('RECAPTCHA_SITE_KEY') }}" data-callback="onRecaptchaSuccess" style="display: flex; justify-content: center;"></div>
-                    <input type="hidden" id="recaptcha_token" name="g-recaptcha-response" value="">
-                </div>
-
                 <div class="form-actions">
                     <button type="button" class="btn ghost" id="save-application">Save draft</button>
-                    <button type="button" class="btn primary" id="submit-application" disabled style="opacity: 0.6; cursor: not-allowed;" title="Please verify with reCAPTCHA first">Submit</button>
+                    <button type="button" class="btn primary" id="submit-application">Submit</button>
                 </div>
             </form>
         </div>
 
         <aside class="apply-sidebar">
-            <section class="card payment-card lean" id="payment-card"
-                data-pricing-table-id="{{ $pricing_table_id ?? env('STRIPE_PRICING_TABLE_ID_2') }}"
-                data-stripe-key="{{ $stripe_pk ?? env('STRIPE_KEY') }}"
-                data-default-email="{{ $defaultEmail }}"
-                data-member-id="{{ $member['id'] ?? '' }}">
+            <div id="application-success" style="display:none;" class="card lean" style="padding:24px;text-align:center;">
+                <h3 style="color:#0b6e4f;margin-bottom:12px;">&#10003; Application Received!</h3>
+                <p>Thank you! We've received your application and sent a confirmation to your email. Our team will be in touch shortly.</p>
+            </div>
+            <section class="card lean" id="apply-sidebar-default">
                 <div class="payment-card__body">
                     <div class="payment-widget-wrapper">
-                        <div id="payment-widget" class="apply-payment-widget is-locked">
+                        <div id="payment-widget">
                             <div class="payment-placeholder">
                                 <strong>Submit your application details first.</strong>
-                                <p>The payment button appears once the form and documents are saved.</p>
+                                <p>Fill in all required fields and upload your documents, then click Submit.</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
-
         </aside>
     </div>
 </div>
 
-<!-- reCAPTCHA Script & Verification Handler -->
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
-<script>
-    // Called when reCAPTCHA is successfully verified
-    function onRecaptchaSuccess() {
-        const submitBtn = document.getElementById('submit-application');
-        submitBtn.disabled = false;
-        submitBtn.style.opacity = '1';
-        submitBtn.style.cursor = 'pointer';
-        submitBtn.title = '';
-    }
-
-    // Called when reCAPTCHA expires
-    function onRecaptchaExpire() {
-        const submitBtn = document.getElementById('submit-application');
-        submitBtn.disabled = true;
-        submitBtn.style.opacity = '0.6';
-        submitBtn.style.cursor = 'not-allowed';
-        submitBtn.title = 'Please verify with reCAPTCHA first';
-    }
-</script>
 @endsection

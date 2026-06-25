@@ -569,7 +569,13 @@ class Member extends BaseModel {
                     ]);
                 }
 
-                $this->setResultMessage($this->pLang('authn_not_match'), 404);
+                // Give a specific message when the account exists and password is
+                // correct but the email has not been verified yet.
+                if (!empty($member_data) && $passwordOk && $statusOk && !$isVerified) {
+                    $this->setResultMessage('Your email address has not been verified yet. Please check your inbox for the verification email, or <a href="/account_registration/resend_verification">click here to resend it</a>.', 403);
+                } else {
+                    $this->setResultMessage($this->pLang('authn_not_match'), 404);
+                }
             }
         }
         else {
@@ -752,7 +758,7 @@ class Member extends BaseModel {
                 [
                     'email'            =>  'required|email',
                     'password'         =>  'required|regex:/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}$/',
-                    'repeat_password'  =>  'required|same:repeat_password'
+                    'repeat_password'  =>  'required|same:password'
                 ]);
             }
 

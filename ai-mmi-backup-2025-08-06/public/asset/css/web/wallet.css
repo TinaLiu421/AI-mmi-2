@@ -1,0 +1,235 @@
+/* ====================================================
+   AI-mmi Wallet Page
+   ==================================================== */
+
+:root {
+    --w-gold: #f59e0b;
+    --w-gold-dim: rgba(245,158,11,0.12);
+    --w-gold-border: rgba(245,158,11,0.35);
+    --w-dark: #020c1c;
+    --w-card: #0d1f3c;
+    --w-card-border: rgba(255,255,255,0.08);
+    --w-text: #f2f5fa;
+    --w-text-muted: #94a3b8;
+    --w-green: #10b981;
+    --w-red: #ef4444;
+}
+
+.wallet-wrap {
+    max-width: 100%;
+    margin: 0 0 80px;
+    padding: 0 32px;
+    font-family: 'Heebo', sans-serif;
+    color: var(--w-text);
+}
+
+/* ── Hero balance card ── */
+.w-hero {
+    background: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
+    border: 1px solid var(--w-gold-border);
+    border-radius: 20px;
+    padding: 40px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 36px;
+}
+
+.w-balance-group { display: flex; flex-direction: column; gap: 6px; }
+.w-balance-label { font-size: 13px; color: var(--w-text-muted); letter-spacing: 2px; text-transform: uppercase; font-weight: 600; }
+.w-balance-amount { font-size: 56px; font-weight: 800; color: var(--w-gold); line-height: 1; }
+.w-balance-usd { font-size: 16px; color: var(--w-text-muted); margin-top: 4px; }
+
+.w-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.w-btn {
+    padding: 12px 24px; border-radius: 10px; font-size: 15px; font-weight: 700;
+    cursor: pointer; border: none; text-decoration: none; display: inline-block;
+    transition: transform .15s, box-shadow .15s;
+}
+.w-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+.w-btn-primary { background: var(--w-gold); color: #020c1c; }
+.w-btn-outline { background: transparent; border: 2px solid var(--w-gold-border); color: var(--w-gold); }
+.w-btn-outline:hover { border-color: var(--w-gold); }
+
+/* ── Sections ── */
+.w-section { margin-bottom: 40px; }
+.w-section-title {
+    font-size: 22px; font-weight: 800; color: var(--w-text);
+    margin: 0 0 20px;
+    display: flex; align-items: center; gap: 10px;
+}
+.w-section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--w-card-border);
+}
+
+/* ── Package cards ── */
+.w-packages { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 340px)); gap: 16px; justify-content: start; }
+.w-pkg-card {
+    background: var(--w-card);
+    border: 1px solid var(--w-card-border);
+    border-radius: 14px;
+    padding: 24px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s;
+    position: relative;
+}
+.w-pkg-card:hover, .w-pkg-card.selected {
+    border-color: var(--w-gold);
+    transform: translateY(-3px);
+}
+.w-pkg-card.selected { background: rgba(245,158,11,0.08); }
+.w-pkg-tokens { font-size: 36px; font-weight: 800; color: var(--w-gold); line-height: 1; }
+.w-pkg-label { font-size: 13px; color: var(--w-text-muted); margin: 4px 0 12px; }
+.w-pkg-price { font-size: 22px; font-weight: 700; color: var(--w-text); }
+.w-pkg-per { font-size: 12px; color: var(--w-text-muted); margin-top: 2px; }
+.w-pkg-badge {
+    position: absolute; top: -8px; right: 12px;
+    background: var(--w-gold); color: #020c1c;
+    font-size: 11px; font-weight: 800; padding: 2px 10px; border-radius: 100px;
+    letter-spacing: 1px; text-transform: uppercase;
+}
+
+/* ── Transfer form ── */
+.w-transfer-form {
+    background: var(--w-card);
+    border: 1px solid var(--w-card-border);
+    border-radius: 14px;
+    padding: 28px;
+    display: flex; flex-direction: column; gap: 16px;
+}
+.w-form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.w-field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 6px; }
+.w-field label { font-size: 13px; color: var(--w-text-muted); font-weight: 600; }
+.w-field input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--w-card-border);
+    border-radius: 8px;
+    color: var(--w-text);
+    padding: 10px 14px;
+    font-size: 15px;
+    transition: border-color .2s;
+}
+.w-field input:focus { outline: none; border-color: var(--w-gold); }
+.w-transfer-msg { font-size: 14px; margin-top: 4px; display: none; }
+.w-transfer-msg.ok { color: var(--w-green); display: block; }
+.w-transfer-msg.err { color: var(--w-red); display: block; }
+
+/* ── Transaction history ── */
+.w-tx-list { display: flex; flex-direction: column; gap: 1px; background: var(--w-card-border); border-radius: 12px; overflow: hidden; }
+.w-tx-item {
+    background: var(--w-card);
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.w-tx-item:first-child { border-radius: 12px 12px 0 0; }
+.w-tx-item:last-child { border-radius: 0 0 12px 12px; }
+.w-tx-left { display: flex; flex-direction: column; gap: 2px; }
+.w-tx-type { font-size: 14px; font-weight: 600; color: var(--w-text); }
+.w-tx-date { font-size: 12px; color: var(--w-text-muted); }
+.w-tx-amount { font-size: 16px; font-weight: 800; white-space: nowrap; }
+.w-tx-amount.positive { color: var(--w-green); }
+.w-tx-amount.negative { color: var(--w-red); }
+
+/* ── Referral section ── */
+.w-referral-box {
+    background: var(--w-card);
+    border: 1px solid var(--w-card-border);
+    border-radius: 14px;
+    padding: 24px;
+}
+.w-ref-url-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.w-ref-url-input {
+    flex: 1; min-width: 200px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--w-card-border);
+    border-radius: 8px; color: var(--w-text-muted);
+    padding: 10px 14px; font-size: 14px; cursor: text;
+}
+.w-ref-copy-btn {
+    padding: 10px 18px; background: var(--w-gold); color: #020c1c;
+    border: none; border-radius: 8px; font-weight: 700; cursor: pointer;
+    font-size: 14px;
+}
+
+/* ── Earn guide ── */
+.w-earn-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;
+}
+.w-earn-item {
+    background: var(--w-card); border: 1px solid var(--w-card-border);
+    border-radius: 12px; padding: 18px 14px; text-align: center;
+}
+.w-earn-amount { font-size: 28px; font-weight: 800; color: var(--w-gold); }
+.w-earn-label { font-size: 13px; color: var(--w-text-muted); margin-top: 4px; }
+
+/* ── Flash ── */
+.w-flash {
+    padding: 14px 20px; border-radius: 10px; font-size: 15px; font-weight: 600;
+    margin-bottom: 24px;
+}
+.w-flash.ok { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.4); color: var(--w-green); }
+.w-flash.err { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: var(--w-red); }
+
+/* ── Make header dark so it's uniform across the full width (not white on right side) ── */
+header.page-header {
+    background-color: rgba(2, 12, 28, 0.95) !important;
+    background-image: none !important;
+}
+
+/* ── Make body background dark so the area behind the chat (right side) isn't white ── */
+html, body {
+    background-color: #020c1c !important;
+}
+
+/* ── Give the chat panel an explicit white background so it stays legible ── */
+main.page-body .chat-area .box {
+    background-color: rgba(255, 255, 255, 0.96) !important;
+}
+
+/* ── Restore header clearance: home.css sets padding-top:0 on page-home, which hides
+   wallet content behind the fixed header. Override it back to the header height. ── */
+main.page-body {
+    padding-top: var(--header-height) !important;
+}
+
+/* ── Spacing inside info-area ── */
+main.page-body .info-area {
+    padding-top: 24px;
+}
+
+/* ── Override info-area for wallet's dark theme ── */
+/* Note: body class is 'page-home' (not 'page-wallet') because wallet uses direct
+   routes that bypass RouteMapping. The inline style in wallet.blade.php handles
+   the dark background without class conditions, so these rules below are kept
+   as fallbacks only. */
+body.page-wallet main.page-body .info-area {
+    background-color: #020c1c;
+    background-image: none;
+    width: 100%;
+}
+body.page-wallet main.page-body .info-area::before {
+    display: none;
+}
+
+/* ── Proportional 2/3 + 1/3 split: wallet = exactly 2/3, chat = exactly 1/3 ──
+   wallet.css is ONLY loaded on the wallet page (via wallet.blade.php @push),
+   so these class-agnostic selectors safely override home.css's margin-right:0.
+   The direct route gives body class 'page-home', so .page-content.wallet never
+   matches — we target .page-content directly instead. */
+@media (min-width: 701px) {
+    main.page-body .page-content {
+        margin-right: 33.333vw !important;
+    }
+    main.page-body .chat-area {
+        width: 33.333vw !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .w-hero { padding: 28px 20px; }
+    .w-balance-amount { font-size: 40px; }
+    .w-packages { grid-template-columns: repeat(2, 1fr); }
+}

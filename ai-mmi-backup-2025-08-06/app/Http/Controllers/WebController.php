@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 
 class WebController extends CoreController {
     protected $_member_model = null;
@@ -74,7 +75,7 @@ class WebController extends CoreController {
             $email_address[$key] = $this->toPlainText($to_email);
         }
         $email_address = array_unique(array_filter($email_address));
-        
+
         if(!empty($email_address)) {
             $html = '<div style="font-family:Arial,微軟正黑體,PMingLiU,新細明體;padding:8px;">';
                 $html.= '<div style="padding:10px;border:8px solid #002065;border-radius:4px;box-shadow:0px 0px 8px #222;">';
@@ -82,34 +83,22 @@ class WebController extends CoreController {
                 $html.= '</div>';
             $html.= '</div>';
 
-            require app_path('Libraries/sendgrid/sendgrid-php.php');
-            $email = new \SendGrid\Mail\Mail();
-
-            $email->setFrom('no-reply@at-creative.com', 'AI-mmi');
-
-            $email->setSubject($subject);
-            foreach ($email_address as $key => $to_email) {
+            $allSent = true;
+            foreach ($email_address as $to_email) {
                 $to_email = $this->toPlainText($to_email);
-                if (filter_var($to_email, FILTER_VALIDATE_EMAIL)) {
-                    $email->addTo($to_email);
+                if (!filter_var($to_email, FILTER_VALIDATE_EMAIL)) {
+                    continue;
+                }
+                try {
+                    \Illuminate\Support\Facades\Mail::html($html, function ($message) use ($to_email, $subject) {
+                        $message->to($to_email)->subject($subject);
+                    });
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('sendEmail failed', ['to' => $to_email, 'subject' => $subject, 'error' => $e->getMessage()]);
+                    $allSent = false;
                 }
             }
-            $email->addContent(
-                "text/html",
-                $html
-            );
-
-            $apiKey = getenv('SENDGRID_API_KEY');
-            
-            $sendgrid = new \SendGrid($apiKey);
-            try {
-                if($sendgrid->send($email)) {
-                    return true;
-                }
-                return false;
-            } catch (Exception $e) {
-                return false;
-            }
+            return $allSent;
         }
         return false;
     }
@@ -119,6 +108,8 @@ class WebController extends CoreController {
         $this->_setting_model = $this->loadModel('setting');
         $this->_member_model = $this->loadModel('member');
 
+        $adminEmails = ['admin@wealthskey.com', 'info@ai-mmi.com'];
+
         
         if(!empty($this->getSession('member_access_token'))) {
             $this->_current_member = $this->_member_model->getByToken($this->getSession('member_access_token'));
@@ -126,6 +117,52 @@ class WebController extends CoreController {
         
         if(empty($this->_current_member) && !empty($this->getMyCookie('member_access_token'))){
             $this->_current_member = $this->_member_model->getByToken($this->getMyCookie('member_access_token'));
+        }
+
+        // Full-account admin proxy mode: admin can act as selected member across all account pages.
+        $this->pageData([
+            'admin_proxy_mode'   => false,
+            'admin_proxy_target' => null,
+            'admin_real_member'  => null,
+        ]);
+
+        if (!empty($this->_current_member)) {
+            $currentEmail = mb_strtolower(trim((string)($this->_current_member['email'] ?? '')), 'UTF-8');
+            $isAdmin = in_array($currentEmail, $adminEmails, true);
+            $proxyMemberId = (int)$this->getSession('admin_proxy_member_id_full');
+
+            if ($isAdmin && $proxyMemberId > 0) {
+                // Use raw table query so unclaimed (inactive/no-email) accounts can still be proxied by admin.
+                $proxyMemberObj = DB::table('member')->where('id', $proxyMemberId)->first();
+                $proxyMember = $proxyMemberObj ? (array)$proxyMemberObj : [];
+                if (!empty($proxyMember)) {
+                    $realAdmin = $this->_current_member;
+                    $this->_current_member = $proxyMember;
+                    $this->_current_member['__admin_proxy_mode'] = 1;
+                    $this->_current_member['__admin_real_member_id'] = (int)($realAdmin['id'] ?? 0);
+                    $this->_current_member['__admin_real_email'] = (string)($realAdmin['email'] ?? '');
+                    $this->_current_member['status'] = 1;
+                    $this->_current_member['verified'] = 1;
+                    $this->_current_member['spotlight_manager'] = 1;
+                    $this->_current_member['expiration_date_account'] = '9999-12-31';
+                    $this->_current_member['expiration_date_visa_submission_ai'] = '9999-12-31';
+                    $this->_current_member['expiration_date_visa_submission_human'] = '9999-12-31';
+
+                    $this->pageData([
+                        'admin_proxy_mode'   => true,
+                        'admin_proxy_target' => $proxyMember,
+                        'admin_real_member'  => $realAdmin,
+                    ]);
+                }
+            }
+        }
+
+        // Accounts that never expire as service providers
+        $never_expire_emails = ['info@mbi-au.com'];
+        if (!empty($this->_current_member['email']) && in_array($this->_current_member['email'], $never_expire_emails)) {
+            $this->_current_member['expiration_date_account']              = '9999-12-31';
+            $this->_current_member['expiration_date_visa_submission_ai']   = '9999-12-31';
+            $this->_current_member['expiration_date_visa_submission_human'] = '9999-12-31';
         }
 
         $list_countries = $this->loadModel('pages', ['table' => 'country'])->getAll($this->_current_lang_index, 

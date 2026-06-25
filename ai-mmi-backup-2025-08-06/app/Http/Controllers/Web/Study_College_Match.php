@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers\Web;
 
+use App\Services\TokenService;
 use Illuminate\Support\Facades\DB;
 
 class Study_College_Match extends Home
@@ -57,6 +58,20 @@ class Study_College_Match extends Home
         if (empty($memberId)) {
             $this->pageResult(['status' => 401, 'message' => 'Please log in.']);
             return;
+        }
+
+        // Block college matching when free-plan user has zero tokens
+        $memberPlanCode = $this->resolveActivePlanCode((int) $memberId);
+        if ($memberPlanCode === 'free') {
+            $balance = (new TokenService())->getBalance((int) $memberId);
+            if ($balance <= 0) {
+                $this->pageResult([
+                    'status'     => 402,
+                    'message'    => 'You need tokens to use college matching. Top up your wallet to continue.',
+                    'wallet_url' => $this->toURL('wallet'),
+                ]);
+                return;
+            }
         }
 
         // Load saved preferences
@@ -221,5 +236,10 @@ PROMPT;
             'matched'       => $matched,
             'also_consider' => $alsoConsider,
         ]);
+
+        // Token spend: 1 token per 5 match searches
+        if ($memberId) {
+            (new TokenService())->onMatchMade((int) $memberId);
+        }
     }
 }

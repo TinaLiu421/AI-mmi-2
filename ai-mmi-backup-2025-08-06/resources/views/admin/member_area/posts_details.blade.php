@@ -116,6 +116,7 @@ $list_posts_comment = $_page_data['list_posts_comment'];
 @endsection
 
 <?php
+if (!function_exists('time2Units')) {
 function time2Units($time, $lang = 1) {
     $year = floor($time / 60 / 60 / 24 / 365);
     $time -= $year * 60 * 60 * 24 * 365;
@@ -172,7 +173,9 @@ function time2Units($time, $lang = 1) {
     }
     return $elapse;
 }
+}
 
+if (!function_exists('getYoutubeEmbedUrl')) {
 function getYoutubeEmbedUrl($url) {
      $shortUrlRegex = '/youtu.be\/([a-zA-Z0-9_-]+)\??/i';
      $longUrlRegex = '/youtube.com\/((?:embed)|(?:watch))((?:\?v\=)|(?:\/))([a-zA-Z0-9_-]+)/i';
@@ -185,5 +188,6 @@ function getYoutubeEmbedUrl($url) {
         $youtube_id = $matches[count($matches) - 1];
     }
     return 'https://www.youtube.com/embed/' . $youtube_id ;
+}
 }
 ?>

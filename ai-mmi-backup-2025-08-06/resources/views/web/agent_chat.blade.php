@@ -157,7 +157,8 @@ window.agentChatConfig = {
     activeTargetType: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? 'member' : $_page_data['active_target_type']) !!},
     activeTargetId: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? (int)$selectedAgent['id'] : $_page_data['active_target_id']) !!},
     langCode: '{{ $_current_lang_code }}',
-    presenceAgentId: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? (int)$selectedAgent['id'] : null) !!}
+    presenceAgentId: {!! json_encode((!$_page_data['is_agent'] && !empty($selectedAgent['id'])) ? (int)$selectedAgent['id'] : null) !!},
+    postContext: {!! json_encode($_page_data['post_context'] ?? null) !!}
 };
 </script>
 @endsection

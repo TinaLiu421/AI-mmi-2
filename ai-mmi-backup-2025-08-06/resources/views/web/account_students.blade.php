@@ -22,7 +22,7 @@ $_page_title = $_tab_labels[$_list_type] ?? 'Students';
     <?php } else { ?>
     <div class="banner" style="display:none;"></div>
     <?php } ?>
-    <div class="basic">
+    <div class="basic edu-inst">
         <div class="photo">
             <img src="asset/image/icon-member.png" alt="icon-member"/>
             <?php if(file_exists('upload/member_avatar/'.$_show_current_member['avatar'])) { ?>
@@ -37,11 +37,10 @@ $_page_title = $_tab_labels[$_list_type] ?? 'Students';
                     <span><?php echo $_show_current_member['alias_name']; ?></span>
                 </div>
             </div>
-            <div class="total-followers">0 followers</div>
+            {{-- followers hidden --}}
         </div>
         <div class="clearboth"></div>
         <div class="tab">
-            <a class="posts" href="<?php echo $_page_base_url.'/account/posts'.$_uid_qs; ?>"><?php echo $_page_lang['tab_posts']; ?></a>
             <a class="about" href="<?php echo $_page_base_url.'/account/profile'.$_uid_qs; ?>"><?php echo $_page_lang['tab_about']; ?></a>
             <a class="edu-tab <?php echo $_list_type === 'matched' ? 'selected' : ''; ?>" href="<?php echo $_page_base_url.'/account/students_matched'.$_uid_qs; ?>">Students Matched</a>
             <a class="edu-tab <?php echo $_list_type === 'applied' ? 'selected' : ''; ?>" href="<?php echo $_page_base_url.'/account/students_applied'.$_uid_qs; ?>">Students Applied</a>

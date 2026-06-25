@@ -1,0 +1,868 @@
+/* Institution Hub Profile – full-width, easy-to-edit form layout */
+
+/* Give the profile page more horizontal space */
+main.page-body .info-area > .inner-panel {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+}
+
+/* ── Override iWeb framework: inputs / textareas wrapped in inline-block divs ── */
+/* Make wrappers act as block containers throughout the form */
+#profile-form .iweb-input,
+#profile-form .iweb-input > div,
+.course-edit-card .iweb-input,
+.course-edit-card .iweb-input > div {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    float: none !important;
+}
+/* Inside the course card header (flex row), the wrapper should flex-grow */
+.course-card-header > .iweb-input {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+}
+/* All inputs/textareas inside course cards should be full-width */
+.course-edit-card input,
+.course-edit-card textarea {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* ── Page containers ─────────────────────────────────────────────── */
+.profile-step    { margin: 24px 0; }
+.profile-url-box {
+    background: #f7f9fc;
+    border: 1px solid #dde3ed;
+    border-radius: 10px;
+    padding: 24px 22px;
+    max-width: 760px;
+}
+.profile-field-label {
+    font-weight: 600;
+    font-size: 0.95em;
+    color: #333;
+    display: block;
+    margin-bottom: 10px;
+}
+.profile-url-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.profile-hint { font-size: 0.82em; color: #888; margin-top: 10px; }
+
+.profile-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 24px 0 16px 0;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* ── Section cards – each fills the full column width ───────────── */
+.profile-section-card {
+    display: block;
+    width: 100%;
+    background: #fff;
+    border: 1.5px solid #e4e8f0;
+    border-radius: 10px;
+    padding: 18px 20px 16px 20px;
+    margin-bottom: 18px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.profile-section-card:focus-within {
+    border-color: #1a73e8;
+    box-shadow: 0 2px 10px rgba(26,115,232,0.1);
+}
+
+.profile-section-label {
+    font-weight: 700;
+    font-size: 0.88em;
+    color: #1a73e8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+}
+
+/* ── Inputs ─────────────────────────────────────────────────────── */
+.profile-input {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 12px 16px !important;
+    border: 1.5px solid #ccd4e0 !important;
+    border-radius: 7px !important;
+    font-size: 1em !important;
+    font-family: inherit !important;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #fff !important;
+    color: #222 !important;
+}
+.profile-input:focus { border-color: #1a73e8 !important; }
+
+/* ── Textareas – FULL WIDTH, comfortable height, resizable ──────── */
+.profile-textarea,
+#profile-form textarea,
+.profile-section-card textarea {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding: 14px 18px !important;
+    border: 1.5px solid #d0d8e8 !important;
+    border-radius: 7px !important;
+    font-size: 0.97em !important;
+    font-family: inherit !important;
+    line-height: 1.7 !important;
+    resize: vertical !important;
+    outline: none;
+    background: #fafbfd !important;
+    color: #222 !important;
+    transition: border-color 0.2s;
+    /* Override iweb.min.css fixed height */
+    height: auto !important;
+    min-height: 260px;
+}
+.profile-textarea:focus,
+#profile-form textarea:focus {
+    border-color: #1a73e8 !important;
+    background: #fff !important;
+}
+
+/* Specific heights per section for comfortable editing */
+#f_programs  { min-height: 400px; }
+#f_admission { min-height: 340px; }
+#f_fees      { min-height: 300px; }
+#f_summary   { min-height: 120px; }
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btn-primary {
+    background: #1a73e8;
+    color: #fff;
+    border: none;
+    padding: 11px 24px;
+    border-radius: 7px;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-primary:hover { background: #1558b0; }
+.btn-outline-sm {
+    background: transparent;
+    color: #1a73e8;
+    border: 1.5px solid #1a73e8;
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.btn-outline-sm:hover { background: #f0f6ff; }
+
+/* ── Loading spinner ─────────────────────────────────────────────── */
+.profile-spinner {
+    width: 44px; height: 44px;
+    border: 4px solid #e0e8f8;
+    border-top-color: #1a73e8;
+    border-radius: 50%;
+    animation: ihubSpin 0.8s linear infinite;
+    margin: 0 auto;
+}
+@keyframes ihubSpin { to { transform: rotate(360deg); } }
+
+/* ── Student counters ────────────────────────────────────────────── */
+.counters-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.counter-card {
+    flex: 1;
+    min-width: 130px;
+    background: #f7f9fc;
+    border: 1.5px solid #dde3ed;
+    border-radius: 10px;
+    padding: 20px 16px;
+    text-align: center;
+}
+.counter-num {
+    font-size: 2em;
+    font-weight: 800;
+    color: #1a73e8;
+}
+.counter-label {
+    font-size: 0.82em;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* ── Logo generator card ─────────────────────────────────────────── */
+.logo-gen-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.logo-gen-preview {
+    width: 150px; height: 150px;
+    border: 2px solid #c8d3e6;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #fff;
+    position: relative;
+    padding: 8px;
+    box-sizing: border-box;
+}
+.logo-gen-preview img {
+    max-width: 100%; max-height: 100%;
+    width: auto; height: auto;
+    object-fit: contain; display: block;
+}
+.logo-gen-placeholder {
+    font-size: 0.78em; color: #aaa;
+    text-align: center; padding: 8px;
+}
+.logo-gen-spinner {
+    position: absolute;
+    width: 36px; height: 36px;
+    border: 3px solid #e0e8f8;
+    border-top-color: #1a73e8;
+    border-radius: 50%;
+    animation: ihubSpin 0.8s linear infinite;
+}
+.logo-gen-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ── Gallery thumbnail grid (hub profile editor) ── */
+.gallery-thumb-wrap {
+    position: relative;
+    width: 110px;
+    height: 82px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1.5px solid #d0dbe8;
+    background: #f0f4f8;
+    flex-shrink: 0;
+}
+.gallery-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.gallery-thumb-del {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(220, 40, 40, 0.82);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95em;
+    line-height: 22px;
+    text-align: center;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.gallery-thumb-wrap:hover .gallery-thumb-del {
+    opacity: 1;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   COURSES SECTION – Agent Edit UI
+   ════════════════════════════════════════════════════════════════════ */
+
+.courses-section-card {
+    padding: 20px 22px 16px;
+}
+.courses-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.btn-add-course {
+    background: #1a73e8;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 9px 18px;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.18s;
+    flex-shrink: 0;
+}
+.btn-add-course:hover { background: #1558b0; }
+
+.courses-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    background: #fafbfd;
+    border: 2px dashed #d8e0ee;
+    border-radius: 10px;
+    font-size: 0.93em;
+    line-height: 1.7;
+}
+
+/* ── Individual course card ────────────────────────────────────── */
+.course-edit-card {
+    border: 1.5px solid #dce4f0;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    background: #fafbfd;
+    overflow: hidden;
+    transition: border-color 0.18s, box-shadow 0.18s;
+}
+.course-edit-card:focus-within {
+    border-color: #1a73e8;
+    box-shadow: 0 2px 12px rgba(26,115,232,0.09);
+}
+
+/* Course header row */
+.course-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    border-bottom: 1px solid #e6ecf5;
+}
+.course-card-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-size: 0.8em;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.course-name-input {
+    flex: 1;
+    border: 1.5px solid #d0d8e8 !important;
+    border-radius: 6px !important;
+    padding: 8px 12px !important;
+    font-size: 0.97em !important;
+    font-weight: 600 !important;
+    color: #1a1a2e !important;
+    background: #fafbfd !important;
+    outline: none;
+    height: auto !important;
+    resize: none !important;
+    box-sizing: border-box !important;
+    min-height: 0 !important;
+    transition: border-color 0.18s;
+}
+.course-name-input:focus { border-color: #1a73e8 !important; background: #fff !important; }
+.course-delete-btn {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 1.1em;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.course-delete-btn:hover { color: #e74c3c; background: #fff0ee; }
+
+/* Course details row (code, CRICOS, delivery, duration, entry) */
+.course-details-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #f4f7fc;
+    border-bottom: 1px solid #e6ecf5;
+}
+.course-detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 140px;
+    min-width: 120px;
+}
+.course-detail-field label {
+    font-size: 0.73em;
+    font-weight: 700;
+    color: #1a73e8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.course-detail-input {
+    font-size: 0.87em !important;
+    padding: 7px 10px !important;
+    border-radius: 6px !important;
+    min-height: 0 !important;
+    height: auto !important;
+}
+
+/* Tabs navigation */
+.course-tabs-nav {
+    display: flex;
+    gap: 0;
+    background: #fff;
+    border-bottom: 1px solid #e6ecf5;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.course-tab-btn {
+    border: none;
+    background: none;
+    padding: 11px 18px;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+}
+.course-tab-btn:hover { color: #1a73e8; }
+.course-tab-btn.active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+}
+
+/* Tab body */
+.course-tabs-body { padding: 14px 16px 4px; }
+.course-textarea {
+    min-height: 160px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PUBLIC PROFILE – Course Cards (user-facing)
+   ════════════════════════════════════════════════════════════════════ */
+
+.edu-courses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.edu-course-card {
+    border: 1.5px solid #dce4f0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+    transition: box-shadow 0.18s;
+}
+.edu-course-card:hover { box-shadow: 0 2px 10px rgba(26,115,232,0.09); }
+
+.edu-course-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    cursor: pointer;
+    gap: 10px;
+}
+.edu-course-card-header:hover { background: #f0f5ff; }
+
+.edu-course-card-main { flex: 1; min-width: 0; }
+
+.edu-course-name {
+    font-size: 0.97em;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+    line-height: 1.3;
+}
+.edu-course-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.edu-course-pill {
+    display: inline-block;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.75em;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.edu-pill-code     { background: #e8f0fe; color: #1a56c4; }
+.edu-pill-cricos   { background: #f0f0f0; color: #555; }
+.edu-pill-duration { background: #e6f9f0; color: #1a7a4d; }
+.edu-pill-delivery { background: #fff3e0; color: #a05c00; }
+.edu-pill-entry    { background: #fce4ec; color: #b0003a; }
+
+.edu-course-toggle {
+    font-size: 0.8em;
+    color: #888;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+/* Course details (expanded) */
+.edu-course-details {
+    border-top: 1px solid #e6ecf5;
+}
+
+.edu-course-tabs-nav {
+    display: flex;
+    gap: 0;
+    background: #f8faff;
+    border-bottom: 1px solid #e6ecf5;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.edu-course-tab-btn {
+    border: none;
+    background: none;
+    padding: 10px 16px;
+    font-size: 0.82em;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+}
+.edu-course-tab-btn:hover { color: #1a73e8; }
+.edu-course-tab-btn.active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+    background: #fff;
+}
+
+.edu-course-tab-body { padding: 16px 18px; }
+.edu-course-tab-content { display: block; }
+
+@media (max-width: 600px) {
+    .course-details-row { flex-direction: column; }
+    .course-detail-field { flex: none; width: 100%; }
+    .edu-course-card-header { flex-wrap: wrap; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   AGENT EDITOR – AI Generate button
+   ════════════════════════════════════════════════════════════════════ */
+.btn-generate-course {
+    background: #fff;
+    border: 1.5px solid #1a73e8;
+    color: #1a73e8;
+    border-radius: 6px;
+    padding: 5px 13px;
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+    line-height: 1.4;
+}
+.btn-generate-course:hover:not(:disabled) {
+    background: #1a73e8;
+    color: #fff;
+}
+.btn-generate-course:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   AGENT EDITOR – Structured Requirements + Fees tabs
+   ════════════════════════════════════════════════════════════════════ */
+.req-section,
+.fee-section {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 2px 0 6px;
+}
+
+.req-section-header {
+    font-size: 0.75em;
+    font-weight: 700;
+    color: #1a73e8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+    margin-bottom: -6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e6ecf5;
+}
+
+.req-field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.req-label {
+    font-size: 0.76em;
+    font-weight: 700;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.req-full-input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    font-size: 0.9em !important;
+}
+
+/* English proficiency score grid — 5 columns, wraps on small screens */
+.req-scores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.req-score-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.req-score-cell label {
+    font-size: 0.73em;
+    font-weight: 700;
+    color: #1a73e8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Two-column layout for fee pairs (App Fee + OSHC) */
+.fee-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 540px) {
+    .fee-two-col { grid-template-columns: 1fr; }
+    .req-scores-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PUBLIC PROFILE – Structured Requirements display
+   ════════════════════════════════════════════════════════════════════ */
+.pub-req-section { display: flex; flex-direction: column; gap: 12px; }
+.pub-req-row { display: flex; flex-direction: column; gap: 3px; }
+.pub-req-label {
+    font-size: 0.72em;
+    font-weight: 700;
+    color: #1a73e8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pub-req-value { font-size: 0.9em; color: #333; line-height: 1.5; }
+
+/* English score badges row */
+.pub-english-scores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+}
+.pub-score-badge {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    background: #f0f4ff;
+    border: 1px solid #c5d5f8;
+    border-radius: 8px;
+    padding: 6px 14px;
+    min-width: 80px;
+}
+.pub-score-badge-name {
+    font-size: 0.68em;
+    font-weight: 700;
+    color: #1a56c4;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pub-score-badge-val {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-top: 2px;
+}
+
+/* Documents as bullet list */
+.pub-doc-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.88em;
+    color: #444;
+    line-height: 1.7;
+}
+
+/* Fees structured display */
+.pub-fees-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.pub-fee-item { display: flex; flex-direction: column; gap: 2px; }
+.pub-fee-label {
+    font-size: 0.72em;
+    font-weight: 700;
+    color: #a05c00;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.pub-fee-value { font-size: 0.92em; font-weight: 600; color: #1a1a2e; }
+
+.pub-tuition-highlight {
+    background: #fff8e1;
+    border: 1.5px solid #ffd54f;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 4px;
+}
+.pub-tuition-label { font-size: 0.72em; font-weight: 700; color: #a05c00; text-transform: uppercase; }
+.pub-tuition-value { font-size: 1.1em; font-weight: 700; color: #7a4000; margin-top: 3px; }
+
+@media (max-width: 540px) {
+    .pub-fees-grid { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Nav Sidebar — study section navigation
+   ══════════════════════════════════════════════════════════════ */
+.ihp-outer-wrap {
+    display: flex;
+    align-items: flex-start;
+    min-height: calc(100vh - 80px);
+}
+
+.ihp-nav-sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    padding: 28px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    position: sticky;
+    top: 80px;
+    background: #0c1445;
+    min-height: calc(100vh - 80px);
+    align-self: flex-start;
+}
+
+.ihp-nav-sidebar a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 8px;
+    border-radius: 14px;
+    text-decoration: none;
+    color: rgba(255,255,255,0.65);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.3;
+    width: 100%;
+    transition: background .2s, color .2s;
+}
+.ihp-nav-sidebar a:hover        { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+.ihp-nav-sidebar a.active       { background: rgba(255,255,255,0.15); color: #fff; }
+
+.ihp-nav-icon {
+    font-size: 20px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.09);
+    flex-shrink: 0;
+    transition: background .2s;
+}
+.ihp-nav-sidebar a.active .ihp-nav-icon              { background: rgba(255,255,255,.22); }
+.ihp-nav-sidebar a:hover:not(.active) .ihp-nav-icon  { background: rgba(255,255,255,.14); }
+
+.ihp-nav-label { flex: 1; }
+
+.ihp-chat-av {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.12) center/cover no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff;
+}
+.ihp-chat-av--init  { background: linear-gradient(135deg,#1d4ed8,#60a5fa); }
+.ihp-chat-av--blank { background: rgba(255,255,255,0.12); }
+
+/* Full-width page: chat-area is fixed so margin-right is not needed */
+main.page-body .page-content.institution-hub-profile {
+    margin-right: 0;
+}
+
+/* Full-width info-area: override common.css 66% width so sidebar + form fit */
+main.page-body .institution-hub-profile .info-area {
+    width: 100% !important;
+    background-image: none !important;
+    background-color: #f0f1f3 !important;
+}
+main.page-body .institution-hub-profile .info-area::before { display: none !important; }
+
+/* Content area to the right of the nav sidebar */
+.ihp-content-area {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    background: #f0f1f3;
+}
+
+/* Adjust inner-panel padding when inside ihp-content-area */
+.ihp-content-area > .inner-panel {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+}
+
+/* Mobile: hide nav sidebar on small screens */
+@media (max-width: 820px) {
+    .ihp-nav-sidebar { display: none; }
+    .ihp-outer-wrap  { display: block; }
+    .ihp-content-area { background: #f0f1f3; }
+}
+
+/* Fix inline 1fr 1fr form grids — override with minmax(0,1fr) so columns don't overflow */
+.ihp-content-area div[style*="grid-template-columns:1fr 1fr"],
+.ihp-content-area div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+}
+/* Prevent grid children (form fields) from forcing their columns wider */
+.ihp-content-area [style*="grid-template-columns"] > * {
+    min-width: 0;
+}

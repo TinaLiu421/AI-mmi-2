@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\WebController;
 use Laravel\Socialite\Facades\Socialite;
 use App\Rules\RecaptchaRule;
+use App\Services\TokenService;
 
 class Account_Login extends WebController {
 
@@ -160,7 +161,9 @@ class Account_Login extends WebController {
         }
 
         // 若依然没有，则创建新用户
+        $isNewMember = false;
         if (!$member) {
+            $isNewMember = true;
             $memberId = \DB::table('member')->insertGetId([
                 'email'           => $socialUser->getEmail() ?? 'N/A',
                 'alias_name'      => $socialUser->getName() ?? 'N/A',
@@ -199,6 +202,13 @@ class Account_Login extends WebController {
 
         // 填默认字段（你已有）
         $this->fillDefaultProfileIfEmpty($memberId, $intendedType ?? 1);
+
+        // Token rewards
+        $tokenService = new TokenService();
+        if ($isNewMember) {
+            $tokenService->earn((int)$memberId, TokenService::AMOUNT_SIGNUP, TokenService::EARN_SIGNUP, 'member', (int)$memberId, 'Sign up via ' . $provider);
+            $tokenService->generateReferralCode((int)$memberId);
+        }
 
         // 登录 token 不变
         $token = md5(uniqid(rand()));

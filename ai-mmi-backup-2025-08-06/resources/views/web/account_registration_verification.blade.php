@@ -13,6 +13,9 @@
         </div>
         <?php } else { ?>
         <div class="vmsg"><?php echo $_page_lang['activated_failed']; ?></div>
+        <div class="action center" style="margin-top:16px;">
+            <a class="btn btn-back-2" href="<?php echo $_page_base_url.'/account_registration/resend_verification'; ?>">Resend Verification Email</a>
+        </div>
         <?php } ?>
     </div>
 </div>

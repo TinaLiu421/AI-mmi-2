@@ -1,0 +1,1473 @@
+@extends('web.common')
+
+@push('css')
+<style>
+/* ── Full-width layout: hide chat panel, expand info-area ── */
+main.page-body .info-area{width:100%!important;float:none!important;background:#f1f5f9!important;background-image:none!important;min-height:100vh!important}
+main.page-body .info-area::before{display:none!important}
+main.page-body .page-content{margin-right:0!important}
+body{background:#f1f5f9!important}
+main.page-body .chat-area{display:none!important}
+main.page-body .mobile-chat-button{display:none!important}
+/* =====================================================
+   AI-mmi Institution Profile v2
+   ===================================================== */
+.ipv2-page{--clr-accent:#1a5ca8;--clr-dark:#0f172a;--clr-mid:#334155;--clr-light:#f8fafc;--clr-border:#e2e8f0;--clr-success:#10b981;--clr-danger:#ef4444;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:16px;background:#f1f5f9;min-height:100vh;padding-bottom:60px}
+
+/* Hero */
+.ipv2-hero{position:relative;height:340px;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);background-size:cover;background-position:center}
+.ipv2-hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.25) 0%,rgba(0,0,0,.72) 100%)}
+.ipv2-hero-inner{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:0 24px 32px;display:flex;align-items:flex-end;gap:22px;height:100%;box-sizing:border-box}
+.ipv2-hero-logo{width:84px;height:84px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;box-shadow:0 4px 20px rgba(0,0,0,.35)}
+.ipv2-hero-logo img{width:100%;height:100%;object-fit:contain}
+.ipv2-hero-logo-ph{font-size:2em;font-weight:700;color:var(--clr-accent);text-transform:uppercase}
+.ipv2-hero-text{flex:1;min-width:0}
+.ipv2-hero-name{color:#fff;font-size:clamp(1.4em,3vw,2.1em);font-weight:700;margin:0 0 7px;line-height:1.2}
+.ipv2-hero-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+.ipv2-hero-tag{background:rgba(255,255,255,.13);color:#e2e8f0;border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:2px 10px;font-size:.82em;backdrop-filter:blur(4px)}
+.ipv2-hero-desc{color:rgba(255,255,255,.78);font-size:.95em;line-height:1.6;margin:0 0 13px;max-width:620px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ipv2-hero-actions{display:flex;gap:9px;flex-wrap:wrap}
+.ipv2-btn-primary{background:var(--clr-accent);color:#fff;border:none;border-radius:8px;padding:8px 17px;font-size:.85em;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s;display:inline-block}
+.ipv2-btn-primary:hover{background:#1447a0;color:#fff}
+.ipv2-btn-outline{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.32);border-radius:8px;padding:8px 17px;font-size:.85em;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s;display:inline-block}
+.ipv2-btn-outline:hover{background:rgba(255,255,255,.2);color:#fff}
+.ipv2-btn-accent{background:#f59e0b;color:#1e293b;border:none;border-radius:8px;padding:8px 17px;font-size:.85em;font-weight:700;cursor:pointer;text-decoration:none;transition:background .2s;display:inline-block}
+.ipv2-btn-accent:hover{background:#d97706;color:#1e293b}
+/* profile strength — hidden from public; kept for reference */
+.ipv2-hero-strength{display:none!important}
+
+/* Key stats strip */
+.ipv2-stats-strip{background:#fff;border-bottom:2px solid var(--clr-border);padding:0 24px}
+.ipv2-stats-strip-inner{max-width:1100px;margin:0 auto;display:flex;flex-wrap:wrap;gap:0;border-top:none}
+.ipv2-stat-item{display:flex;align-items:center;gap:9px;padding:13px 22px 13px 0;margin-right:4px;border-right:1px solid var(--clr-border)}
+.ipv2-stat-item:last-child{border-right:none}
+.ipv2-stat-icon{width:32px;height:32px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:var(--clr-accent);font-size:.85em;flex-shrink:0}
+.ipv2-stat-body{display:flex;flex-direction:column;min-width:0}
+.ipv2-stat-label{font-size:.7em;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;line-height:1}
+.ipv2-stat-value{font-size:.9em;font-weight:600;color:#1e293b;margin-top:2px;white-space:nowrap}
+.ipv2-stat-value a{color:var(--clr-accent);text-decoration:none}
+.ipv2-stat-value a:hover{text-decoration:underline}
+@media(max-width:640px){.ipv2-stats-strip{padding:0 14px}.ipv2-stat-item{padding:10px 14px 10px 0}.ipv2-stat-value{font-size:.82em}}
+/* Info bar */
+.ipv2-info-bar{background:#f8fafc;border-bottom:1px solid var(--clr-border);padding:6px 24px;display:flex;align-items:center;justify-content:flex-end;gap:18px;font-size:.78em;color:#64748b}
+.ipv2-claim-link{color:var(--clr-accent);font-weight:600;text-decoration:none}
+.ipv2-claim-link:hover{text-decoration:underline}
+
+/* Tabs */
+.ipv2-tabs-outer{background:#fff;border-bottom:2px solid var(--clr-border);position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.ipv2-tabs{max-width:1100px;margin:0 auto;padding:0 20px;display:flex;overflow-x:auto;scrollbar-width:none}
+.ipv2-tabs::-webkit-scrollbar{display:none}
+.ipv2-tab-btn{background:none;border:none;border-bottom:3px solid transparent;padding:14px 18px;font-size:.95em;font-weight:500;color:#64748b;cursor:pointer;white-space:nowrap;transition:color .2s,border-color .2s;margin-bottom:-2px}
+.ipv2-tab-btn:hover{color:var(--clr-accent)}
+.ipv2-tab-btn.active{color:var(--clr-accent);border-bottom-color:var(--clr-accent);font-weight:600}
+
+/* Content */
+.ipv2-content{max-width:1100px;margin:0 auto;padding:26px 24px}
+.ipv2-tab-panel{display:none}
+.ipv2-tab-panel.active{display:block}
+
+/* Back */
+.ipv2-back{max-width:1100px;margin:0 auto;padding:14px 24px 0}
+.ipv2-back-link{color:#64748b;text-decoration:none;font-size:.83em;display:inline-flex;align-items:center;gap:5px}
+.ipv2-back-link:hover{color:var(--clr-accent)}
+
+/* Overview: content left + sticky sidebar right */
+.ipv2-overview-layout{display:grid;grid-template-columns:1fr 310px;gap:20px;align-items:start}
+@media(max-width:900px){.ipv2-overview-layout{grid-template-columns:1fr}}
+.ipv2-overview-main{display:flex;flex-direction:column;gap:16px}
+.ipv2-overview-sidebar{display:flex;flex-direction:column;gap:16px}
+
+/* Quick Look — clean white sidebar card */
+.ipv2-quicklook{background:#fff;border-radius:14px;border:1px solid #dde6f8;box-shadow:0 2px 14px rgba(0,32,101,0.07);padding:18px 20px;color:#334155}
+.ipv2-ql-title{font-size:.7em;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin:0 0 12px;font-weight:700}
+.ipv2-ql-row{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:.9em}
+.ipv2-ql-row:last-child{border-bottom:none}
+.ipv2-ql-icon{width:18px;text-align:center;flex-shrink:0;margin-top:2px;color:#1a5ca8;font-size:.85em}
+.ipv2-ql-label{color:#64748b;min-width:75px;flex-shrink:0;font-size:.86em}
+.ipv2-ql-value{color:#1e293b;flex:1;word-break:break-word;font-weight:500}
+.ipv2-ql-link{color:#1a5ca8;text-decoration:none;font-weight:500}
+.ipv2-ql-link:hover{text-decoration:underline}
+.ipv2-ql-social{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+.ipv2-ql-social a{display:inline-flex;align-items:center;gap:3px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;font-size:.8em;color:#1a5ca8;text-decoration:none;transition:background .15s}
+.ipv2-ql-social a:hover{background:#dbeafe;color:#1447a0}
+
+/* Facts panel */
+.ipv2-facts-panel{display:flex;flex-direction:column;gap:14px}
+.ipv2-facts-card{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.ipv2-facts-card-title{font-size:.76em;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#94a3b8;margin:0 0 11px}
+.ipv2-facts-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
+@media(max-width:480px){.ipv2-facts-grid{grid-template-columns:1fr}}
+.ipv2-fact-row{display:flex;align-items:center;gap:7px;font-size:.91em;color:#334155;padding:4px 0}
+.ipv2-fact-yes{color:#10b981}
+.ipv2-fact-no{color:#ef4444}
+.ipv2-fact-na{color:#cbd5e1}
+.ipv2-info-rows{display:flex;flex-direction:column;gap:0}
+.ipv2-info-row{display:flex;align-items:baseline;gap:10px;font-size:.91em;padding:7px 0;border-bottom:1px solid #f1f5f9}
+.ipv2-info-row:last-child{border-bottom:none}
+.ipv2-info-label{color:#64748b;min-width:150px;flex-shrink:0}
+.ipv2-info-val{color:#1e293b;font-weight:500;flex:1}
+/* Summary cards (requirements, fees, about) */
+.ipv2-summ-card{background:#fff;border-radius:14px;border:1px solid #dde6f8;box-shadow:0 2px 12px rgba(0,32,101,0.06);padding:20px 22px}
+.ipv2-summ-title{font-size:.72em;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#94a3b8;margin:0 0 14px;display:flex;align-items:center;gap:6px}
+.ipv2-summ-title i{color:#1a5ca8}
+.ipv2-req-row{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;font-size:.91em}
+.ipv2-req-row:last-child{border-bottom:none}
+.ipv2-req-label{color:#64748b;min-width:95px;flex-shrink:0;font-size:.87em}
+.ipv2-req-val{color:#1e293b;font-weight:600;flex:1}
+.ipv2-fee-row{display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid #f8fafc;font-size:.92em}
+.ipv2-fee-row:last-child{border-bottom:none}
+.ipv2-fee-label{color:#475569;flex:1;font-size:.9em}
+.ipv2-fee-val{color:#0f172a;font-weight:700;white-space:nowrap}
+.ipv2-fee-val.green{color:#16a34a}
+/* About snippet */
+.ipv2-about-snippet{font-size:.96em;color:#334155;line-height:1.75}
+.ipv2-about-snippet p{margin:0 0 .8em}
+.ipv2-about-snippet p:last-child{margin:0}
+.ipv2-see-more-btn{background:none;border:none;color:#1a5ca8;font-size:.84em;font-weight:600;cursor:pointer;padding:4px 0;margin-top:6px;display:inline-flex;align-items:center;gap:4px}
+.ipv2-see-more-btn:hover{text-decoration:underline}
+/* Inline Google Map */
+.ipv2-map-wrap{border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-top:12px;line-height:0}
+.ipv2-map-wrap iframe{display:block;width:100%;height:210px;border:none}
+
+/* Address box — keep for backward compat but hide (address is in sidebar map card now) */
+.ipv2-address-box{display:none}
+
+/* Pills */
+.ipv2-pill-list{display:flex;flex-wrap:wrap;gap:5px}
+.ipv2-pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:20px;padding:3px 12px;font-size:.84em;font-weight:500}
+.ipv2-pill-green{background:#f0fdf4;color:#16a34a;border-color:#bbf7d0}
+.ipv2-pill-purple{background:#faf5ff;color:#7c3aed;border-color:#ddd6fe}
+.ipv2-pill-gray{background:#f8fafc;color:#64748b;border-color:#e2e8f0}
+
+/* About accordions */
+.ipv2-accordion{background:#fff;border-radius:12px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.05);overflow:hidden}
+.ipv2-accordion summary{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;cursor:pointer;font-weight:600;font-size:1em;color:#1e293b;list-style:none;user-select:none}
+.ipv2-accordion summary::-webkit-details-marker{display:none}
+.ipv2-accordion summary::after{content:'▾';font-size:.82em;color:#94a3b8;transition:transform .2s}
+.ipv2-accordion[open] summary::after{transform:rotate(-180deg)}
+.ipv2-accordion-body{padding:2px 18px 18px;color:#475569;font-size:.93em;line-height:1.65;border-top:1px solid #f1f5f9}
+.ipv2-accordion-body p{margin:0 0 .9em;font-size:1em;line-height:1.65;color:#374151}
+.ipv2-accordion-body p:last-child{margin-bottom:0}
+.ipv2-desc-stat{font-weight:700;color:#1e40af}
+
+/* About cards grid */
+.ipv2-about-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:8px}
+.ipv2-about-card{background:#f8fafc;border:1px solid var(--clr-border);border-radius:10px;padding:14px 16px}
+.ipv2-about-card-title{font-size:.75em;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#94a3b8;margin:0 0 9px}
+
+/* Text content (admission/fees/dates blobs) */
+.ipv2-text-content{font-size:.96em;line-height:1.7;color:#334155;background:#fff;border-radius:12px;padding:22px 24px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.ipv2-text-content h4.inst-section-subhead{font-size:.76em;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--clr-accent);margin:22px 0 10px;padding:9px 14px;background:#eff6ff;border-left:4px solid var(--clr-accent);border-radius:0 6px 6px 0;border-bottom:none}
+.ipv2-text-content h4.inst-section-subhead:first-child{margin-top:0}
+.ipv2-text-content ul.inst-section-list{list-style:none;padding:0;margin:0 0 14px}
+.ipv2-text-content ul.inst-section-list li{padding:7px 10px 7px 28px;position:relative;font-size:.93em;color:#334155;border-bottom:1px solid #f1f5f9}
+.ipv2-text-content ul.inst-section-list li:last-child{border-bottom:none}
+.ipv2-text-content ul.inst-section-list li::before{content:'›';position:absolute;left:9px;top:6px;color:var(--clr-accent);font-weight:700;font-size:1.1em;line-height:1.4}
+.ipv2-text-content ul.inst-section-list li.inst-see-website{color:#94a3b8;font-style:italic}
+.ipv2-text-content ul.inst-section-list li.inst-see-website::before{content:none}
+.ipv2-text-content ul.inst-section-list li.inst-contact-admissions{color:#2563eb;background:#eff6ff;border-radius:6px;padding:6px 10px 6px 32px;font-size:.88em;font-style:normal}
+.ipv2-text-content ul.inst-section-list li.inst-contact-admissions::before{content:none}
+.ipv2-text-content ul.inst-section-list li.inst-contact-admissions i{margin-right:5px;opacity:.7}
+.inst-dates-list li.inst-date-item{display:flex;align-items:center;gap:12px;padding:9px 10px;flex-wrap:wrap}
+.ipv2-text-content ul.inst-dates-list li.inst-date-item::before{content:none;display:none}
+.inst-date-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.78em;font-weight:700;white-space:nowrap;flex-shrink:0}
+.inst-date-badge-red{background:#fee2e2;color:#b91c1c}
+.inst-date-badge-green{background:#dcfce7;color:#15803d}
+.inst-date-badge-blue{background:#dbeafe;color:#1d4ed8}
+.inst-date-desc{font-size:.93em;color:#334155}
+
+/* Gallery */
+.ipv2-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.ipv2-gallery-item{border-radius:10px;overflow:hidden;aspect-ratio:16/10;background:#e2e8f0;cursor:pointer}
+.ipv2-gallery-item img{width:100%;height:100%;object-fit:cover;transition:transform .3s;display:block}
+.ipv2-gallery-item:hover img{transform:scale(1.04)}
+
+/* Courses (reuse old classes with small tweaks) */
+.inst-course-card{background:#fff;border-radius:12px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;transition:box-shadow .2s}
+.inst-course-card.is-open,.inst-course-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.inst-course-header{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;flex-wrap:wrap}
+.inst-course-logo-wrap{flex-shrink:0}
+.inst-course-logo{width:42px;height:42px;border-radius:8px;object-fit:contain;background:#f8fafc;padding:2px}
+.inst-course-logo-placeholder{width:42px;height:42px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--clr-accent);font-size:.9em}
+.inst-course-title-block{flex:1;min-width:160px}
+.inst-course-code-row{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.inst-course-code{background:#f1f5f9;color:#64748b;border-radius:5px;padding:1px 7px;font-size:.79em;font-weight:600}
+.inst-course-location{color:#94a3b8;font-size:.82em}
+.inst-course-name{font-weight:600;font-size:1em;color:#1e293b;line-height:1.3}
+.inst-course-level-badge{display:inline-block;background:#eff6ff;color:var(--clr-accent);border-radius:20px;padding:2px 9px;font-size:.77em;font-weight:600;margin-top:4px}
+.inst-course-meta-summary{display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0}
+.inst-course-meta-pill{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;text-align:center;min-width:80px}
+.meta-pill-label{display:block;font-size:.69em;color:#94a3b8;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.meta-pill-value{display:block;font-size:.88em;color:#1e293b;font-weight:600;margin-top:1px}
+.inst-tuition-value{color:#10b981}
+.inst-course-expand-btn{background:none;border:1px solid #e2e8f0;border-radius:8px;padding:7px 13px;font-size:.84em;font-weight:600;color:#64748b;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.inst-course-expand-btn:hover{background:#f1f5f9;color:var(--clr-accent)}
+.inst-course-details{padding:0 18px 18px;border-top:1px solid #f1f5f9}
+.inst-detail-section{margin-top:14px}
+.inst-detail-section h4{font-size:.85em;font-weight:700;color:#334155;margin:0 0 8px;text-transform:uppercase;letter-spacing:.06em}
+.inst-overview-text{font-size:.94em;color:#475569;line-height:1.75;margin:0}
+.inst-req-table{width:100%;border-collapse:collapse;font-size:.91em}
+.inst-req-table tr{border-bottom:1px solid #f1f5f9}
+.inst-req-table tr:last-child{border-bottom:none}
+.inst-req-table td{padding:5px 8px;color:#334155;vertical-align:top}
+.req-label{color:#94a3b8;white-space:nowrap;width:100px;font-weight:500}
+.inst-scholarship-note h4{color:#d97706}
+.inst-detail-apply-row{text-align:right;margin-top:12px}
+.inst-apply-btn{display:inline-block;background:var(--clr-accent);color:#fff;border-radius:8px;padding:8px 18px;font-size:.9em;font-weight:600;text-decoration:none}
+.inst-apply-btn:hover{background:#1447a0;color:#fff}
+.inst-course-filters{margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.inst-course-search{padding:9px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:.94em;outline:none;background:#fff;min-width:200px;flex:1;max-width:320px}
+.inst-course-search:focus{border-color:var(--clr-accent)}
+.ipv2-level-filters{display:flex;flex-wrap:wrap;gap:5px}
+.ipv2-level-btn{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:5px 14px;font-size:.83em;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s;white-space:nowrap}
+.ipv2-level-btn:hover{border-color:var(--clr-accent);color:var(--clr-accent)}
+.ipv2-level-btn.active{background:var(--clr-accent);border-color:var(--clr-accent);color:#fff}
+.inst-no-results,.ipv2-empty{text-align:center;padding:40px 20px;color:#94a3b8}
+.ipv2-empty i,.inst-no-results i{font-size:2em;margin-bottom:10px;display:block}
+.ipv2-text-content ul.inst-section-list li.inst-see-website{color:#94a3b8;font-style:italic}
+.ipv2-text-content ul.inst-section-list li.inst-see-website::before{content:none}
+.ipv2-text-content ul.inst-section-list li.inst-contact-admissions{color:#2563eb;background:#eff6ff;border-radius:6px;padding:6px 10px 6px 32px;font-size:.88em;font-style:normal}
+.ipv2-text-content ul.inst-section-list li.inst-contact-admissions::before{content:none}
+.ipv2-text-content ul.inst-section-list li.inst-contact-admissions i{margin-right:5px;opacity:.7}
+.inst-course-meta-pill:has(.meta-pill-label){}
+
+/* Responsive */
+@media(max-width:600px){
+  .ipv2-hero{height:290px}
+  .ipv2-hero-inner{padding:0 14px 22px;gap:14px}
+  .ipv2-hero-logo{width:66px;height:66px}
+  .ipv2-hero-name{font-size:1.15em}
+  .ipv2-content{padding:14px 14px}
+  .ipv2-tab-btn{padding:11px 11px;font-size:.8em}
+  .ipv2-hero-strength{display:none}
+  .ipv2-stat-item{padding:12px 16px 12px 0}
+  .ipv2-stat-value{font-size:.92em}
+}
+
+/* ============================================================
+   VISUAL POLISH PACK — professional edu-site standards
+   (IDP / QS / Hotcourses inspired)
+   ============================================================ */
+
+/* Slightly warmer page bg */
+.ipv2-page{background:#eef2f7}
+
+/* Hero: taller, dot-texture pattern, bottom gradient bar */
+.ipv2-hero{height:400px}
+.ipv2-hero-pattern{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.065) 1px,transparent 1px);
+  background-size:26px 26px}
+.ipv2-hero-bar{position:absolute;bottom:0;left:0;right:0;height:4px;z-index:5;
+  background:linear-gradient(90deg,#3b82f6 0%,#818cf8 50%,#a78bfa 100%)}
+/* Keep inner above pattern */
+.ipv2-hero-inner{z-index:4}
+
+/* Logo: ring effect + slightly larger */
+.ipv2-hero-logo{width:96px;height:96px;border-radius:18px;
+  box-shadow:0 0 0 4px rgba(255,255,255,.22),0 8px 32px rgba(0,0,0,.5)}
+.ipv2-hero-logo-ph{font-size:2.2em;font-weight:800;letter-spacing:-.02em}
+
+/* Name: heavier weight */
+.ipv2-hero-name{font-weight:800;letter-spacing:-.02em}
+
+/* Tags: slightly more visible */
+.ipv2-hero-tag{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.3);
+  font-size:.83em;padding:3px 12px}
+
+/* Hero desc: slightly more opaque */
+.ipv2-hero-desc{color:rgba(255,255,255,.88)}
+
+/* Buttons: gradient + depth shadow */
+.ipv2-btn-primary{
+  background:linear-gradient(135deg,#1a5ca8 0%,#2563eb 100%);
+  box-shadow:0 3px 14px rgba(37,99,235,.38);
+  padding:10px 20px;font-size:.88em}
+.ipv2-btn-primary:hover{background:linear-gradient(135deg,#1447a0 0%,#1d4fd8 100%);color:#fff}
+.ipv2-btn-accent{
+  background:linear-gradient(135deg,#f59e0b 0%,#ea7c0a 100%);
+  box-shadow:0 3px 14px rgba(245,158,11,.38);
+  padding:10px 20px;font-size:.88em;color:#fff}
+.ipv2-btn-accent:hover{background:linear-gradient(135deg,#d97706 0%,#c2640a 100%);color:#fff}
+
+/* Stats strip: bigger numbers, soft shadow */
+.ipv2-stats-strip{border-bottom:none;box-shadow:0 3px 16px rgba(0,0,0,.07)}
+.ipv2-stat-item{padding:18px 28px 18px 0}
+.ipv2-stat-value{font-size:1.05em;font-weight:700;color:#0f172a;margin-top:4px}
+.ipv2-stat-label{font-size:.66em;letter-spacing:.1em}
+.ipv2-stat-icon{width:38px;height:38px;border-radius:10px;font-size:.9em}
+/* Per-icon color tinting */
+.ipv2-stat-item:nth-child(1) .ipv2-stat-icon{background:#eff6ff;color:#2563eb}
+.ipv2-stat-item:nth-child(2) .ipv2-stat-icon{background:#fef3c7;color:#b45309}
+.ipv2-stat-item:nth-child(3) .ipv2-stat-icon{background:#f0fdf4;color:#15803d}
+
+/* Info bar */
+.ipv2-info-bar{background:#f8fafc;border-bottom:1px solid #dce3ed}
+
+/* Tabs: slightly bolder active */
+.ipv2-tabs-outer{box-shadow:0 3px 16px rgba(0,0,0,.07)}
+.ipv2-tab-btn{font-size:.95em;padding:15px 20px;font-weight:600}
+.ipv2-tab-btn.active{font-weight:700;border-bottom-width:3px}
+
+/* Accordion: left border accent on open state */
+.ipv2-accordion{border-left:3px solid transparent;transition:border-color .2s}
+.ipv2-accordion[open]{border-left-color:var(--clr-accent)}
+.ipv2-accordion[open] summary{background:linear-gradient(90deg,#f0f7ff,#fff);color:var(--clr-accent)}
+.ipv2-accordion summary{transition:background .15s,color .15s}
+
+/* Quick Look sidebar: subtle shadow upgrade only */
+.ipv2-quicklook{box-shadow:0 4px 20px rgba(0,32,101,0.10)}
+.ipv2-ql-value{font-weight:600}
+
+/* Cards: sharper multi-layer shadow */
+.ipv2-facts-card{box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.05)}
+.ipv2-text-content{box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.05)}
+
+/* Subheads: richer accent gradient bg */
+.ipv2-text-content h4.inst-section-subhead{
+  background:linear-gradient(90deg,#dbeafe,#eff6ff 70%,transparent)}
+
+/* Course cards: border + accent hover */
+.inst-course-card{border:1px solid #e4eaf3}
+.inst-course-card:hover{border-color:var(--clr-accent);
+  box-shadow:0 4px 22px rgba(26,92,168,.13)}
+
+/* Pills: sharper */
+.ipv2-pill{font-weight:600}
+.ipv2-pill-green{background:#f0fdf4;color:#166534;border-color:#bbf7d0}
+</style>
+@endpush
+
+@section('content')
+<?php
+// ── Data extraction ───────────────────────────────────────────────────────────
+$_profile  = $_page_data['profile'] ?? [];
+$_courses  = $_page_data['courses'] ?? [];
+$profileId = (int)($_profile['id'] ?? 0);
+
+// Basic info — strip legal suffixes (Pty Ltd, trading as, Inc, etc.) for display
+$_rawInstName = $_profile['institute_name'] ?? 'Institution';
+$_rawInstName = preg_replace('/\s*\(trading\s+as\s+[^)]+\)/i', '', $_rawInstName); // remove "(trading as ...)"
+$_rawInstName = preg_replace('/\s*\bPty\.?\s+Ltd\.?\b/i', '', $_rawInstName);     // remove "Pty Ltd"
+$_rawInstName = preg_replace('/\s*\bPty\.?\b(?=\s*$)/i', '', $_rawInstName);         // remove trailing "Pty"
+$_rawInstName = preg_replace('/\s*,?\s*\bLimited\b/i', '', $_rawInstName);            // remove "Limited"
+$_rawInstName = preg_replace('/\s*,?\s*\bInc\.?\b(?=\s*$)/i', '', $_rawInstName);    // remove trailing "Inc."
+$_rawInstName = trim($_rawInstName);
+if (empty($_rawInstName)) $_rawInstName = $_profile['institute_name'] ?? 'Institution';
+$instName   = htmlspecialchars($_rawInstName, ENT_QUOTES);
+$avatar     = $_profile['avatar'] ?? '';
+$websiteUrl = $_profile['website_url'] ?? '';
+$country    = $_profile['country'] ?? '';
+$category   = $_profile['institution_category'] ?? '';
+
+// New structured fields
+$city              = $_profile['city'] ?? '';
+$address           = $_profile['address'] ?? '';
+$phone             = $_profile['phone'] ?? '';
+$bannerImage       = $_profile['banner_image'] ?? '';
+$schoolPhases      = $_profile['school_phases'] ?? '';
+$annualFeesRange   = $_profile['annual_fees_range'] ?? '';
+$prospectusUrl     = $_profile['prospectus_url'] ?? '';
+$studentTeacherRatio = $_profile['student_teacher_ratio'] ?? '';
+$academicYear      = $_profile['academic_year'] ?? '';
+$missionStatement  = $_profile['mission_statement'] ?? '';
+$description       = $_profile['description'] ?? '';
+$profileStrength   = (int)($_profile['profile_strength'] ?? 0);
+$claimedAt         = $_profile['claimed_at'] ?? null;
+
+// JSON arrays
+$_ipv2_decode_json = function($raw) {
+    if (empty($raw)) return [];
+    $d = json_decode($raw, true);
+    return is_array($d) ? array_values(array_filter($d)) : [];
+};
+$curriculum           = $_ipv2_decode_json($_profile['curriculum'] ?? '');
+$examBoards           = $_ipv2_decode_json($_profile['exam_boards'] ?? '');
+$qualificationsAwarded= $_ipv2_decode_json($_profile['qualifications_awarded'] ?? '');
+$languageOfInstruction= $_ipv2_decode_json($_profile['language_of_instruction'] ?? '');
+$schoolQualities      = $_ipv2_decode_json($_profile['school_qualities'] ?? '');
+$examResults          = $_ipv2_decode_json($_profile['exam_results'] ?? '');
+
+// Social links (JSON object)
+$socialLinks = [];
+$_slRaw = $_profile['social_links'] ?? '';
+if (!empty($_slRaw)) {
+    $slDecoded = json_decode($_slRaw, true);
+    if (is_array($slDecoded)) $socialLinks = $slDecoded;
+}
+
+// Boolean flags (null = unknown, 1 = yes, 0 = no)
+$hasBoarding     = isset($_profile['has_boarding']) && $_profile['has_boarding'] !== null ? (int)$_profile['has_boarding'] : null;
+$hasSchoolBus    = isset($_profile['has_school_bus']) && $_profile['has_school_bus'] !== null ? (int)$_profile['has_school_bus'] : null;
+$hasScholarships = isset($_profile['has_scholarships']) && $_profile['has_scholarships'] !== null ? (int)$_profile['has_scholarships'] : null;
+$hasChinese      = isset($_profile['has_chinese_language_support']) && $_profile['has_chinese_language_support'] !== null ? (int)$_profile['has_chinese_language_support'] : null;
+$hasExtraLangs   = isset($_profile['has_extra_languages']) && $_profile['has_extra_languages'] !== null ? (int)$_profile['has_extra_languages'] : null;
+
+// Legacy text blobs
+$summary   = $_profile['summary']   ?? '';
+$admission = $_profile['admission'] ?? '';
+$fees      = $_profile['fees']      ?? '';
+$keyDates  = $_profile['key_dates'] ?? '';
+$programs  = $_profile['programs']  ?? '';
+
+// Logo src
+$logoSrc = !empty($avatar) ? '/upload/member_logo/' . htmlspecialchars(basename($avatar), ENT_QUOTES) : '';
+
+// Better initials: first letter of each significant word, up to 3 chars
+$_ignoreWords = ['of','and','the','a','an','for','in','at','by','to','&'];
+$_nameParts   = preg_split('/[\s\(\)\-\/]+/', $instName, -1, PREG_SPLIT_NO_EMPTY);
+$_logoInitials = '';
+foreach ($_nameParts as $_p) {
+    if (!in_array(strtolower($_p), $_ignoreWords) && preg_match('/\pL/u', $_p)) {
+        $_logoInitials .= mb_strtoupper(mb_substr($_p, 0, 1, 'UTF-8'), 'UTF-8');
+    }
+    if (mb_strlen($_logoInitials, 'UTF-8') >= 3) break;
+}
+if (empty($_logoInitials)) $_logoInitials = mb_strtoupper(mb_substr($instName, 0, 2, 'UTF-8'), 'UTF-8');
+
+// Gallery
+$_pv_gallery = $_ipv2_decode_json($_profile['gallery_json'] ?? '');
+
+// Hero background: banner_image first, then first gallery photo, else gradient
+if (!empty($bannerImage)) {
+    $heroBg = ' style="background-image:url(\'/upload/inst_gallery/' . htmlspecialchars(basename($bannerImage), ENT_QUOTES) . '\')"';
+} elseif (!empty($_pv_gallery)) {
+    $heroBg = ' style="background-image:url(\'/upload/inst_gallery/' . htmlspecialchars(basename($_pv_gallery[0]), ENT_QUOTES) . '\')"';
+} else {
+    $heroBg = '';
+}
+
+// Short hero description: word-boundary truncation ≤ 220 chars
+$_heroSrc = !empty($description) ? strip_tags($description) : (!empty($summary) ? strip_tags($summary) : '');
+if (!empty($_heroSrc) && mb_strlen($_heroSrc, 'UTF-8') > 220) {
+    $_heroTrunc = rtrim(preg_replace('/\s+\S*$/u', '', mb_substr($_heroSrc, 0, 221, 'UTF-8')));
+    $heroDesc = $_heroTrunc . '…';
+} else {
+    $heroDesc = $_heroSrc;
+}
+
+// Category label
+$catLabels = [
+    'university'         => 'College',
+    'vocational'         => 'VET / Vocational',
+    'highschool'         => 'High School',
+    'college'            => 'College',
+    'language_school'    => 'Language School',
+    'primary_school'     => 'Primary School',
+    'secondary_school'   => 'Secondary School',
+    'international_school'=> 'International School',
+    'tutoring'           => 'Tutoring Centre',
+    'other'              => 'College',
+];
+$catLabel = $catLabels[$category] ?? ucwords(str_replace('_', ' ', $category));
+
+// Extract CRICOS / RTO from summary or description (legacy support)
+// Regex requires code to start with a digit to avoid matching words like "compliance", "registered"
+$_pv_cricos = ''; $_pv_rto = '';
+$_pv_src = $summary . ' ' . $description;
+if (!empty($_pv_src)) {
+    if (preg_match('/\bCRICOS(?:\s+Provider(?:\s+Code)?)?[#:\s]+([0-9][A-Z0-9]{4,9})\b/i', $_pv_src, $_m)) $_pv_cricos = strtoupper($_m[1]);
+    if (preg_match('/\bRTO[#:\s]+([0-9]+)/i', $_pv_src, $_m))                                               $_pv_rto    = $_m[1];
+}
+
+// Compute profile strength dynamically
+$_str_fields = [
+    !empty($instName) && $instName !== 'Institution',
+    !empty($avatar),
+    !empty($websiteUrl),
+    !empty($description) || !empty($summary),
+    !empty($city) || !empty($country),
+    !empty($phone),
+    !empty($address),
+    !empty($annualFeesRange),
+    !empty($curriculum),
+    !empty($examBoards),
+    !empty($qualificationsAwarded),
+    !empty($studentTeacherRatio),
+    !empty($missionStatement),
+    !empty($schoolQualities),
+    !empty($_pv_gallery),
+    count($_courses) > 0,
+    !empty($socialLinks),
+    !empty($admission) || !empty($fees),
+];
+$_str_score = $profileStrength > 0 ? $profileStrength : (int)(array_sum(array_map('intval', $_str_fields)) / count($_str_fields) * 100);
+
+// Updated date
+$updatedAt = $_profile['updated_at'] ?? '';
+$updatedLabel = '';
+if (!empty($updatedAt)) {
+    try { $updatedLabel = (new DateTime($updatedAt))->format('M Y'); }
+    catch(\Throwable $e) { $updatedLabel = ''; }
+}
+
+// Helper functions
+if (!function_exists('ipv2_textToHtml')) {
+    function ipv2_textToHtml(string $text): string {
+        if (empty(trim($text))) return '';
+        $lines = explode("\n", $text);
+        $out = ''; $inList = false;
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') { if ($inList) { $out .= '</ul>'; $inList = false; } continue; }
+            if (preg_match('/^[A-Z0-9 \/()\-&:]{6,}:?\s*$/', $line) && $line === strtoupper($line)) {
+                if ($inList) { $out .= '</ul>'; $inList = false; }
+                $out .= '<h4 class="inst-section-subhead">' . htmlspecialchars(rtrim($line, ':'), ENT_QUOTES) . '</h4>';
+            } elseif (str_starts_with($line, '- ') || str_starts_with($line, '• ')) {
+                if (!$inList) { $out .= '<ul class="inst-section-list">'; $inList = true; }
+                $_li_text = ltrim($line, '-•· ');
+                // Auto-upgrade old 'see website' placeholders to actionable contact prompt
+                if (preg_match('/see\s+(institution\s+|the\s+|enrol\s+page\s+on\s+the\s+|[\w\s]+\s+on\s+(the\s+)?)?website/i', $_li_text)) {
+                    $_li_text = 'Contact admissions for current details';
+                    $out .= '<li class="inst-contact-admissions"><i class="fa fa-envelope-o"></i> ' . htmlspecialchars($_li_text, ENT_QUOTES) . '</li>';
+                } elseif (preg_match('/contact\s+admissions\s+for\s+current/i', $_li_text)) {
+                    $out .= '<li class="inst-contact-admissions"><i class="fa fa-envelope-o"></i> ' . htmlspecialchars($_li_text, ENT_QUOTES) . '</li>';
+                } else {
+                    $out .= '<li>' . htmlspecialchars($_li_text, ENT_QUOTES) . '</li>';
+                }
+            } else {
+                if ($inList) { $out .= '</ul>'; $inList = false; }
+                $out .= '<p>' . htmlspecialchars($line, ENT_QUOTES) . '</p>';
+            }
+        }
+        if ($inList) $out .= '</ul>';
+        return $out;
+    }
+}
+// Keep old name for backward compat
+if (!function_exists('textToHtmlBlocks')) {
+    function textToHtmlBlocks(string $text): string { return ipv2_textToHtml($text); }
+}
+// Description renderer — splits into paragraphs and auto-bolds key stats/numbers
+if (!function_exists('ipv2_descriptionToHtml')) {
+    function ipv2_descriptionToHtml(string $text): string {
+        if (empty(trim($text))) return '';
+        // Split into paragraphs on double (or single) newlines
+        $paras = preg_split('/\n{2,}/', trim($text));
+        if (count($paras) === 1) {
+            $paras = array_values(array_filter(array_map('trim', preg_split('/\n/', $text))));
+        }
+        $out = '';
+        foreach ($paras as $para) {
+            $para = trim($para);
+            if (empty($para)) continue;
+            $safe = htmlspecialchars($para, ENT_QUOTES);
+            // Bold numbers with common units
+            $safe = preg_replace('/\b(\d[\d,]*\+?)\s*(students?|countries?|campuses?|staff|researchers?|graduates?|programs?|courses?|years?|nationalities|faculties|schools)\b/i', '<strong class="ipv2-desc-stat">$1 $2</strong>', $safe);
+            // Bold rankings, percentages, QS references
+            $safe = preg_replace('/\b(top\s+\d+%?|No\.\s*\d+|#\s*\d+|QS\s+Five\s+Stars?|QS\s+[\w\s]+?\d+)(?=[\s,\.\!\?]|$)/i', '<strong class="ipv2-desc-stat">$1</strong>', $safe);
+            $safe = preg_replace('/\b(\d+(?:\.\d+)?%)\b/', '<strong class="ipv2-desc-stat">$1</strong>', $safe);
+            $out .= '<p>' . $safe . '</p>';
+        }
+        return $out ?: '<p>' . htmlspecialchars($text, ENT_QUOTES) . '</p>';
+    }
+}
+// Special renderer for key dates — extracts "DD Month YYYY — Description" patterns into visual badges
+if (!function_exists('ipv2_keyDatesToHtml')) {
+    function ipv2_keyDatesToHtml(string $text): string {
+        if (empty(trim($text))) return '';
+        $lines = explode("\n", $text);
+        $out = ''; $inList = false;
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') { if ($inList) { $out .= '</ul>'; $inList = false; } continue; }
+            if (preg_match('/^[A-Z0-9 \/()\-&:]{6,}:?\s*$/', $line) && $line === strtoupper($line)) {
+                if ($inList) { $out .= '</ul>'; $inList = false; }
+                $out .= '<h4 class="inst-section-subhead">' . htmlspecialchars(rtrim($line, ':'), ENT_QUOTES) . '</h4>';
+            } elseif (str_starts_with($line, '- ') || str_starts_with($line, '• ')) {
+                $item = ltrim($line, '-•· ');
+                // Detect "DD Month YYYY — Description" or "DD Month YYYY: Description"
+                if (preg_match('/^(\d{1,2}\s+\w+\s+\d{4})\s*[—–\-:]\s*(.*)/u', $item, $m)) {
+                    if (!$inList) { $out .= '<ul class="inst-section-list inst-dates-list">'; $inList = true; }
+                    try { $badge = (new DateTime($m[1]))->format('j M Y'); }
+                    catch(\Throwable $e) { $badge = $m[1]; }
+                    $desc = $m[2];
+                    $isDeadline = preg_match('/deadline|close|last\s+day|due|acceptance/i', $desc);
+                    $isOpen     = preg_match('/open|begin|start|launch/i', $desc);
+                    $cls = $isDeadline ? 'inst-date-badge-red' : ($isOpen ? 'inst-date-badge-green' : 'inst-date-badge-blue');
+                    $out .= '<li class="inst-date-item"><span class="inst-date-badge ' . $cls . '">' . htmlspecialchars($badge, ENT_QUOTES) . '</span><span class="inst-date-desc">' . htmlspecialchars($desc, ENT_QUOTES) . '</span></li>';
+                } else {
+                    if (!$inList) { $out .= '<ul class="inst-section-list inst-dates-list">'; $inList = true; }
+                    $out .= '<li>' . htmlspecialchars($item, ENT_QUOTES) . '</li>';
+                }
+            } else {
+                if ($inList) { $out .= '</ul>'; $inList = false; }
+                $out .= '<p>' . htmlspecialchars($line, ENT_QUOTES) . '</p>';
+            }
+        }
+        if ($inList) $out .= '</ul>';
+        return $out;
+    }
+}
+if (!function_exists('courseLevel')) {
+    function courseLevel(string $name): string {
+        $n = strtolower($name);
+        if (str_contains($n,'doctor')||str_contains($n,'phd'))          return 'Doctoral';
+        if (str_contains($n,'master')||str_contains($n,'graduate dip')) return 'Postgraduate';
+        if (str_contains($n,'bachelor'))     return 'Undergraduate';
+        if (str_contains($n,'advanced dip')) return 'Advanced Diploma';
+        if (str_contains($n,'diploma'))      return 'Diploma';
+        if (str_contains($n,'certificate iv')||str_contains($n,'cert iv')) return 'Certificate IV';
+        if (str_contains($n,'certificate iii')) return 'Certificate III';
+        if (str_contains($n,'certificate'))  return 'Certificate';
+        return 'Program';
+    }
+}
+
+// Helper: render a boolean fact row (only shows when available/true)
+function ipv2_factRow(string $label, $val): string {
+    if (!$val) return '';  // Only show features the school actually has
+    return '<div class="ipv2-fact-row"><i class="fa fa-check-circle ipv2-fact-yes"></i><span>' . htmlspecialchars($label, ENT_QUOTES) . '</span></div>';
+}
+
+// Helper: render a pill list
+function ipv2_pillList(array $items, string $cls = ''): string {
+    if (empty($items)) return '';
+    $out = '<div class="ipv2-pill-list">';
+    foreach ($items as $item) {
+        $out .= '<span class="ipv2-pill ' . htmlspecialchars($cls, ENT_QUOTES) . '">' . htmlspecialchars((string)$item, ENT_QUOTES) . '</span>';
+    }
+    return $out . '</div>';
+}
+
+// Determine which tabs to show
+$showOverview  = !empty($city) || !empty($phone) || !empty($address) || !empty($country) || !empty($annualFeesRange) || !empty($schoolPhases) || !empty($curriculum) || !empty($examBoards) || !empty($hasBoarding) || !empty($hasChinese) || !empty($studentTeacherRatio);
+$showAbout     = !empty($summary) || !empty($description) || !empty($missionStatement) || !empty($schoolQualities) || !empty($curriculum) || !empty($examBoards);
+$showPrograms  = !empty($_courses);
+$showAdmission = !empty($admission);
+$showFees      = !empty($fees) || !empty($keyDates);
+$showFacilities= !empty($_pv_gallery);
+
+// First active tab
+$firstTab = $showOverview ? 'overview' : ($showAbout ? 'about' : ($showPrograms ? 'programs' : ($showAdmission ? 'admission' : ($showFees ? 'fees' : 'facilities'))));
+
+// Social icon map
+$_socialIcons = [
+    'facebook'  => ['fa fa-facebook',  'Facebook'],
+    'instagram' => ['fa fa-instagram', 'Instagram'],
+    'youtube'   => ['fa fa-youtube',   'YouTube'],
+    'linkedin'  => ['fa fa-linkedin',  'LinkedIn'],
+    'twitter'   => ['fa fa-twitter',   'Twitter'],
+    'wechat'    => ['fa fa-weixin',    'WeChat'],
+    'bilibili'  => ['fa fa-play-circle','Bilibili'],
+    'website'   => ['fa fa-globe',     'Website'],
+];
+?>
+
+<div class="ipv2-page">
+
+<!-- ── BACK LINK ─────────────────────────────────────────────────────── -->
+<div class="ipv2-back">
+    <a href="<?php echo $_page_base_url . '/institution_explore'; ?>" class="ipv2-back-link">
+        <i class="fa fa-arrow-left"></i> Back to Colleges
+    </a>
+</div>
+
+<!-- ── HERO ──────────────────────────────────────────────────────────── -->
+<div class="ipv2-hero"<?php echo $heroBg; ?>>
+    <div class="ipv2-hero-overlay"></div>
+    <div class="ipv2-hero-pattern"></div>
+
+    <?php if ($_str_score > 0): ?>
+    <div class="ipv2-hero-strength">
+        <div class="ipv2-strength-bar-wrap"><div class="ipv2-strength-bar-fill" style="width:<?php echo $_str_score; ?>%"></div></div>
+        Profile <?php echo $_str_score; ?>%
+    </div>
+    <?php endif; ?>
+
+    <div class="ipv2-hero-inner">
+        <!-- Logo -->
+        <div class="ipv2-hero-logo">
+            <?php if (!empty($logoSrc)): ?>
+            <img src="<?php echo $logoSrc; ?>" alt="<?php echo htmlspecialchars($instName, ENT_QUOTES); ?>"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <span class="ipv2-hero-logo-ph" style="display:none"><?php echo htmlspecialchars($_logoInitials, ENT_QUOTES); ?></span>
+            <?php else: ?>
+            <span class="ipv2-hero-logo-ph"><?php echo htmlspecialchars($_logoInitials, ENT_QUOTES); ?></span>
+            <?php endif; ?>
+        </div>
+
+        <!-- Name + tags + description + CTA -->
+        <div class="ipv2-hero-text">
+            <h1 class="ipv2-hero-name"><?php echo $instName; ?></h1>
+
+            <div class="ipv2-hero-tags">
+                <span class="ipv2-hero-tag"><?php echo htmlspecialchars($catLabel, ENT_QUOTES); ?></span>
+                <?php if (!empty($city) || !empty($country)): ?>
+                <span class="ipv2-hero-tag"><i class="fa fa-map-marker"></i> <?php echo htmlspecialchars(trim($city . ($city && $country ? ', ' : '') . $country), ENT_QUOTES); ?></span>
+                <?php endif; ?>
+                <?php if (!empty($schoolPhases)): ?>
+                <span class="ipv2-hero-tag"><?php echo htmlspecialchars($schoolPhases, ENT_QUOTES); ?></span>
+                <?php endif; ?>
+                <?php if (!empty($_pv_cricos)): ?>
+                <span class="ipv2-hero-tag">CRICOS <?php echo htmlspecialchars($_pv_cricos, ENT_QUOTES); ?></span>
+                <?php endif; ?>
+                <?php if (!empty($_pv_rto)): ?>
+                <span class="ipv2-hero-tag">RTO <?php echo htmlspecialchars($_pv_rto, ENT_QUOTES); ?></span>
+                <?php endif; ?>
+                <?php if (count($_courses) > 0): ?>
+                <span class="ipv2-hero-tag"><?php echo count($_courses); ?> Program<?php echo count($_courses) !== 1 ? 's' : ''; ?></span>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($heroDesc)): ?>
+            <p class="ipv2-hero-desc"><?php echo htmlspecialchars($heroDesc, ENT_QUOTES); ?></p>
+            <?php endif; ?>
+
+            <div class="ipv2-hero-actions">
+                <a href="javascript:void(0);"
+                   class="ipv2-btn-primary do-toapply"
+                   data-sector="migration"
+                   data-action-url="<?php echo htmlspecialchars($_page_base_url . '/agent_chat', ENT_QUOTES); ?>"
+                   data-preset-msg="<?php echo htmlspecialchars('Tell me about ' . $instName . '. What courses do they offer, how do I apply, and what are the fees?', ENT_QUOTES); ?>">
+                    <i class="fa fa-robot"></i> Ask AI About This School
+                </a>
+                <a href="<?php echo htmlspecialchars($_page_base_url . '/apply?institution=' . urlencode($instName), ENT_QUOTES); ?>" class="ipv2-btn-accent">
+                    <i class="fa fa-paper-plane"></i> Apply Now
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="ipv2-hero-bar"></div>
+</div>
+
+<!-- ── KEY STATS STRIP ───────────────────────────────────────────────── -->
+<div class="ipv2-stats-strip">
+<div class="ipv2-stats-strip-inner">
+    <?php if (count($_courses) > 0): ?>
+    <div class="ipv2-stat-item">
+        <div class="ipv2-stat-icon" style="background:#eff6ff;color:#2563eb"><i class="fa fa-book"></i></div>
+        <div class="ipv2-stat-body">
+            <span class="ipv2-stat-label">Programs</span>
+            <span class="ipv2-stat-value"><?php echo count($_courses); ?> available</span>
+        </div>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($annualFeesRange)): ?>
+    <div class="ipv2-stat-item">
+        <div class="ipv2-stat-icon" style="background:#f0fdf4;color:#16a34a"><i class="fa fa-money"></i></div>
+        <div class="ipv2-stat-body">
+            <span class="ipv2-stat-label">Annual Fees</span>
+            <span class="ipv2-stat-value" style="color:#16a34a"><?php echo htmlspecialchars($annualFeesRange, ENT_QUOTES); ?></span>
+        </div>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($_pv_cricos)): ?>
+    <div class="ipv2-stat-item">
+        <div class="ipv2-stat-icon" style="background:#faf5ff;color:#7c3aed"><i class="fa fa-id-badge"></i></div>
+        <div class="ipv2-stat-body">
+            <span class="ipv2-stat-label">CRICOS</span>
+            <span class="ipv2-stat-value"><?php echo htmlspecialchars($_pv_cricos, ENT_QUOTES); ?></span>
+        </div>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($_pv_rto)): ?>
+    <div class="ipv2-stat-item">
+        <div class="ipv2-stat-icon" style="background:#fff7ed;color:#c2410c"><i class="fa fa-certificate"></i></div>
+        <div class="ipv2-stat-body">
+            <span class="ipv2-stat-label">RTO</span>
+            <span class="ipv2-stat-value"><?php echo htmlspecialchars($_pv_rto, ENT_QUOTES); ?></span>
+        </div>
+    </div>
+    <?php endif; ?>
+    <?php if ($hasScholarships === 1): ?>
+    <div class="ipv2-stat-item">
+        <div class="ipv2-stat-icon" style="background:#fefce8;color:#a16207"><i class="fa fa-star"></i></div>
+        <div class="ipv2-stat-body">
+            <span class="ipv2-stat-label">Scholarships</span>
+            <span class="ipv2-stat-value" style="color:#16a34a">Available</span>
+        </div>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($city) || !empty($country)): ?>
+    <div class="ipv2-stat-item">
+        <div class="ipv2-stat-icon" style="background:#fef2f2;color:#dc2626"><i class="fa fa-map-marker"></i></div>
+        <div class="ipv2-stat-body">
+            <span class="ipv2-stat-label">Location</span>
+            <span class="ipv2-stat-value"><?php echo htmlspecialchars(implode(', ', array_filter([$city, $country])), ENT_QUOTES); ?></span>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+</div>
+
+<!-- ── INFO BAR ──────────────────────────────────────────────────────── -->
+<div class="ipv2-info-bar">
+    <?php if (!empty($updatedLabel)): ?>
+    <span><i class="fa fa-refresh"></i> Updated <?php echo htmlspecialchars($updatedLabel, ENT_QUOTES); ?></span>
+    <?php endif; ?>
+
+</div>
+
+<!-- ── TABS ──────────────────────────────────────────────────────────── -->
+<div class="ipv2-tabs-outer">
+    <nav class="ipv2-tabs" id="ipv2-tabs">
+        <?php if ($showOverview): ?><button class="ipv2-tab-btn<?php echo $firstTab === 'overview' ? ' active' : ''; ?>" data-tab="ipv2-tab-overview">Overview</button><?php endif; ?>
+        <?php if ($showAbout):    ?><button class="ipv2-tab-btn<?php echo $firstTab === 'about' ? ' active' : ''; ?>" data-tab="ipv2-tab-about">About School</button><?php endif; ?>
+        <?php if ($showPrograms): ?><button class="ipv2-tab-btn<?php echo $firstTab === 'programs' ? ' active' : ''; ?>" data-tab="ipv2-tab-programs">Programs (<?php echo count($_courses); ?>)</button><?php endif; ?>
+        <?php if ($showAdmission):?><button class="ipv2-tab-btn<?php echo $firstTab === 'admission' ? ' active' : ''; ?>" data-tab="ipv2-tab-admission">Admission</button><?php endif; ?>
+        <?php if ($showFees):     ?><button class="ipv2-tab-btn<?php echo $firstTab === 'fees' ? ' active' : ''; ?>" data-tab="ipv2-tab-fees">Fees & Dates</button><?php endif; ?>
+        <?php if ($showFacilities):?><button class="ipv2-tab-btn<?php echo $firstTab === 'facilities' ? ' active' : ''; ?>" data-tab="ipv2-tab-facilities">Facilities</button><?php endif; ?>
+    </nav>
+</div>
+
+<!-- ── CONTENT ───────────────────────────────────────────────────────── -->
+<div class="ipv2-content">
+
+    <!-- ── OVERVIEW TAB ──────────────────────────────────────── -->
+    <?php if ($showOverview): ?>
+    <div class="ipv2-tab-panel<?php echo $firstTab === 'overview' ? ' active' : ''; ?>" id="ipv2-tab-overview">
+        <div class="ipv2-overview-layout">
+
+            <!-- ═══ LEFT: main content ═══ -->
+            <div class="ipv2-overview-main">
+
+                <!-- About snippet -->
+                <?php $_aboutSrc = !empty($description) ? strip_tags($description) : (!empty($summary) ? strip_tags($summary) : ''); ?>
+                <?php if (!empty($_aboutSrc)): ?>
+                <div class="ipv2-summ-card">
+                    <p class="ipv2-summ-title"><i class="fa fa-info-circle"></i> About <?php echo $instName; ?></p>
+                    <div class="ipv2-about-snippet">
+                        <?php
+                        $_aParas = preg_split('/\n{2,}/', trim($_aboutSrc));
+                        if (count($_aParas) === 1) $_aParas = array_values(array_filter(array_map('trim', preg_split('/\n/', $_aboutSrc))));
+                        $_show = array_slice($_aParas, 0, 2);
+                        $_more = array_slice($_aParas, 2);
+                        foreach ($_show as $_p): if (empty(trim($_p))) continue; ?>
+                        <p><?php echo htmlspecialchars(trim($_p), ENT_QUOTES); ?></p>
+                        <?php endforeach; ?>
+                        <?php if (!empty($_more)): ?>
+                        <div id="ipv2-about-more" style="display:none">
+                            <?php foreach ($_more as $_p): if (empty(trim($_p))) continue; ?>
+                            <p><?php echo htmlspecialchars(trim($_p), ENT_QUOTES); ?></p>
+                            <?php endforeach; ?>
+                        </div>
+                        <button class="ipv2-see-more-btn" onclick="var m=document.getElementById('ipv2-about-more');m.style.display=m.style.display==='none'?'block':'none';this.textContent=m.style.display==='block'?'Show less \u25b2':'Read more \u25be'">Read more &#9662;</button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Entry Requirements at a Glance -->
+                <?php
+                $_req_en = []; $_req_ac = [];
+                if (!empty($admission)) {
+                    foreach (preg_split('/\r?\n/', $admission) as $_rl) {
+                        $_rl = trim($_rl);
+                        if (!$_rl || $_rl[0] !== '-') continue;
+                        $_ri = ltrim($_rl, '-•· ');
+                        if (preg_match('/^(IELTS(?:\s+Academic)?|PTE(?:\s+Academic)?|TOEFL(?:\s+iBT)?|Cambridge(?:\s+English)?|Duolingo|OET)\s*[:\-]\s*(.+)/i', $_ri, $_rm)) {
+                            $key = strtoupper(preg_replace('/\s+Academic|\s+iBT/i','',trim($_rm[1])));
+                            if (!isset($_req_en[$key]) && count($_req_en) < 5) $_req_en[$key] = trim($_rm[2]);
+                        } elseif (count($_req_ac) < 4 && preg_match('/^(Year\s+\d|ATAR|GPA|Bachelor|Completed|Secondary|High\s+School|Australian\s+Year|Minimum age)/i', $_ri)) {
+                            $_req_ac[] = $_ri;
+                        }
+                    }
+                }
+                ?>
+                <?php if (!empty($_req_en) || !empty($_req_ac)): ?>
+                <div class="ipv2-summ-card">
+                    <p class="ipv2-summ-title"><i class="fa fa-check-square-o"></i> Entry Requirements</p>
+                    <?php if (!empty($_req_en)): ?>
+                    <p style="font-size:.72em;font-weight:700;color:#1a5ca8;text-transform:uppercase;letter-spacing:.07em;margin:0 0 7px">English Proficiency (Minimum)</p>
+                    <?php foreach ($_req_en as $_test => $_score): ?>
+                    <div class="ipv2-req-row">
+                        <span class="ipv2-req-label"><?php echo htmlspecialchars($_test, ENT_QUOTES); ?></span>
+                        <span class="ipv2-req-val"><?php echo htmlspecialchars($_score, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                    <?php if (!empty($_req_ac)): ?>
+                    <p style="font-size:.72em;font-weight:700;color:#1a5ca8;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 7px">Academic Requirements</p>
+                    <?php foreach ($_req_ac as $_ar): ?>
+                    <div class="ipv2-req-row"><span class="ipv2-req-val" style="min-width:unset"><?php echo htmlspecialchars($_ar, ENT_QUOTES); ?></span></div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                    <?php if ($showAdmission): ?>
+                    <div style="margin-top:12px">
+                        <button class="ipv2-see-more-btn" onclick="document.querySelector('[data-tab=\'ipv2-tab-admission\']').click()"><i class="fa fa-arrow-right"></i> Full admission requirements</button>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php elseif ($showAdmission): ?>
+                <div class="ipv2-summ-card">
+                    <p class="ipv2-summ-title"><i class="fa fa-clipboard"></i> Admission Requirements</p>
+                    <p style="color:#64748b;font-size:.93em;margin:0 0 12px">Requirements are available — see the Admission tab for full details.</p>
+                    <button class="ipv2-see-more-btn" onclick="document.querySelector('[data-tab=\'ipv2-tab-admission\']').click()" style="font-size:.9em"><i class="fa fa-arrow-right"></i> View Admission Requirements</button>
+                </div>
+                <?php endif; ?>
+
+                <!-- Fees Overview -->
+                <?php
+                $_fee_lines = [];
+                if (!empty($fees)) {
+                    $_in_tuition = false;
+                    foreach (preg_split('/\r?\n/', $fees) as $_fl) {
+                        $_fl = trim($_fl);
+                        if (!$_fl) { $_in_tuition = false; continue; }
+                        if (preg_match('/^(TUITION|COURSE\s+FEES|TUITION\s+\/)/i', $_fl)) { $_in_tuition = true; continue; }
+                        if ($_in_tuition && $_fl[0] === '-') {
+                            $_fee_lines[] = ltrim($_fl, '-•· ');
+                            if (count($_fee_lines) >= 6) break;
+                        } elseif ($_in_tuition && preg_match('/^[A-Z]{3,}/', $_fl) && !empty($_fee_lines)) {
+                            break;
+                        } elseif ($_in_tuition && preg_match('/^[A-Z]{3,}/', $_fl)) {
+                            $_in_tuition = false;
+                        }
+                    }
+                }
+                ?>
+                <?php if (!empty($_fee_lines) || !empty($annualFeesRange)): ?>
+                <div class="ipv2-summ-card">
+                    <p class="ipv2-summ-title"><i class="fa fa-dollar"></i> Fees Overview</p>
+                    <?php if (!empty($annualFeesRange)): ?>
+                    <div style="background:#f0fdf4;border-radius:9px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+                        <span style="font-size:.88em;color:#334155;font-weight:600">Annual Fees Range</span>
+                        <span style="color:#16a34a;font-weight:800;font-size:.97em"><?php echo htmlspecialchars($annualFeesRange, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php foreach ($_fee_lines as $_fee): ?>
+                    <div class="ipv2-fee-row">
+                        <?php if (preg_match('/^(.+?):\s*(AUD|USD|\$|€|£|\d)(.+)$/i', $_fee, $_fm)): ?>
+                        <span class="ipv2-fee-label"><?php echo htmlspecialchars(trim($_fm[1]), ENT_QUOTES); ?></span>
+                        <span class="ipv2-fee-val"><?php echo htmlspecialchars(trim($_fm[2].$_fm[3]), ENT_QUOTES); ?></span>
+                        <?php else: ?>
+                        <span style="color:#334155;font-size:.9em;flex:1"><?php echo htmlspecialchars($_fee, ENT_QUOTES); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php if ($showFees): ?>
+                    <div style="margin-top:12px">
+                        <button class="ipv2-see-more-btn" onclick="document.querySelector('[data-tab=\'ipv2-tab-fees\']').click()"><i class="fa fa-arrow-right"></i> Full fees &amp; key dates</button>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php elseif ($showFees): ?>
+                <div class="ipv2-summ-card">
+                    <p class="ipv2-summ-title"><i class="fa fa-money"></i> Fees &amp; Costs</p>
+                    <p style="color:#64748b;font-size:.93em;margin:0 0 12px">Fee details available — see the Fees tab for the full breakdown.</p>
+                    <button class="ipv2-see-more-btn" onclick="document.querySelector('[data-tab=\'ipv2-tab-fees\']').click()" style="font-size:.9em"><i class="fa fa-arrow-right"></i> View Fees &amp; Dates</button>
+                </div>
+                <?php endif; ?>
+
+                <!-- Key Features -->
+                <?php $factRows = ipv2_factRow('Boarding available', $hasBoarding) . ipv2_factRow('School bus service', $hasSchoolBus) . ipv2_factRow('Scholarships available', $hasScholarships) . ipv2_factRow('Chinese language support', $hasChinese) . ipv2_factRow('Extra language programs', $hasExtraLangs); ?>
+                <?php if (!empty($factRows)): ?>
+                <div class="ipv2-summ-card">
+                    <p class="ipv2-summ-title"><i class="fa fa-star-o"></i> School Features</p>
+                    <div class="ipv2-facts-grid"><?php echo $factRows; ?></div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Curriculum & Qualifications -->
+                <?php if (!empty($curriculum) || !empty($examBoards) || !empty($qualificationsAwarded)): ?>
+                <div class="ipv2-summ-card">
+                    <p class="ipv2-summ-title"><i class="fa fa-graduation-cap"></i> Curriculum &amp; Qualifications</p>
+                    <?php if (!empty($curriculum)): ?>
+                    <div style="margin-bottom:10px">
+                        <p style="font-size:.72em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin:0 0 5px">Curriculum</p>
+                        <?php echo ipv2_pillList($curriculum); ?>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($examBoards)): ?>
+                    <div style="margin-bottom:10px">
+                        <p style="font-size:.72em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin:0 0 5px">Exam Boards</p>
+                        <?php echo ipv2_pillList($examBoards, 'ipv2-pill-green'); ?>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($qualificationsAwarded)): ?>
+                    <div>
+                        <p style="font-size:.72em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin:0 0 5px">Qualifications Awarded</p>
+                        <?php echo ipv2_pillList($qualificationsAwarded, 'ipv2-pill-purple'); ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+
+            </div><!-- /.ipv2-overview-main -->
+
+            <!-- ═══ RIGHT: sidebar ═══ -->
+            <div class="ipv2-overview-sidebar">
+
+                <!-- Quick Look (white) -->
+                <div class="ipv2-quicklook">
+                    <p class="ipv2-ql-title">Quick Look</p>
+                    <?php if (!empty($catLabel)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon"><i class="fa fa-university"></i></span>
+                        <span class="ipv2-ql-label">Type</span>
+                        <span class="ipv2-ql-value"><?php echo htmlspecialchars($catLabel, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($city) || !empty($country)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon"><i class="fa fa-map-marker"></i></span>
+                        <span class="ipv2-ql-label">Location</span>
+                        <span class="ipv2-ql-value"><?php echo htmlspecialchars(implode(', ', array_filter([$city, $country])), ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($schoolPhases)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon"><i class="fa fa-graduation-cap"></i></span>
+                        <span class="ipv2-ql-label">Phases</span>
+                        <span class="ipv2-ql-value"><?php echo htmlspecialchars($schoolPhases, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($annualFeesRange)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon" style="color:#16a34a"><i class="fa fa-dollar"></i></span>
+                        <span class="ipv2-ql-label">Annual Fees</span>
+                        <span class="ipv2-ql-value" style="color:#16a34a"><?php echo htmlspecialchars($annualFeesRange, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($_pv_cricos)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon" style="color:#7c3aed"><i class="fa fa-id-badge"></i></span>
+                        <span class="ipv2-ql-label">CRICOS</span>
+                        <span class="ipv2-ql-value"><?php echo htmlspecialchars($_pv_cricos, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($_pv_rto)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon" style="color:#c2410c"><i class="fa fa-certificate"></i></span>
+                        <span class="ipv2-ql-label">RTO</span>
+                        <span class="ipv2-ql-value"><?php echo htmlspecialchars($_pv_rto, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($hasScholarships === 1): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon" style="color:#f59e0b"><i class="fa fa-star"></i></span>
+                        <span class="ipv2-ql-label">Scholarships</span>
+                        <span class="ipv2-ql-value" style="color:#16a34a">Available</span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($phone)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon"><i class="fa fa-phone"></i></span>
+                        <span class="ipv2-ql-label">Phone</span>
+                        <span class="ipv2-ql-value"><a href="tel:<?php echo htmlspecialchars(preg_replace('/[^0-9+]/','',$phone),ENT_QUOTES); ?>" class="ipv2-ql-link"><?php echo htmlspecialchars($phone, ENT_QUOTES); ?></a></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($studentTeacherRatio)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon"><i class="fa fa-users"></i></span>
+                        <span class="ipv2-ql-label">Ratio</span>
+                        <span class="ipv2-ql-value"><?php echo htmlspecialchars($studentTeacherRatio, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($academicYear)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon"><i class="fa fa-calendar"></i></span>
+                        <span class="ipv2-ql-label">Academic Yr</span>
+                        <span class="ipv2-ql-value"><?php echo htmlspecialchars($academicYear, ENT_QUOTES); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($prospectusUrl)): ?>
+                    <div class="ipv2-ql-row">
+                        <span class="ipv2-ql-icon"><i class="fa fa-file-pdf-o"></i></span>
+                        <span class="ipv2-ql-label">Prospectus</span>
+                        <span class="ipv2-ql-value"><a href="<?php echo htmlspecialchars($prospectusUrl, ENT_QUOTES); ?>" class="ipv2-ql-link" target="_blank" rel="noopener">Download &#8599;</a></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($socialLinks)): ?>
+                    <div class="ipv2-ql-row" style="flex-wrap:wrap">
+                        <span class="ipv2-ql-icon"><i class="fa fa-share-alt"></i></span>
+                        <span class="ipv2-ql-label">Social</span>
+                        <div class="ipv2-ql-social" style="flex:1">
+                            <?php foreach ($socialLinks as $_slKey => $_slUrl): if (empty($_slUrl)) continue;
+                                $_slInfo = $_socialIcons[$_slKey] ?? ['fa fa-link', ucfirst($_slKey)]; ?>
+                            <a href="<?php echo htmlspecialchars((string)$_slUrl, ENT_QUOTES); ?>" target="_blank" rel="noopener noreferrer">
+                                <i class="<?php echo htmlspecialchars($_slInfo[0], ENT_QUOTES); ?>"></i> <?php echo htmlspecialchars($_slInfo[1], ENT_QUOTES); ?>
+                            </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($updatedLabel)): ?>
+                    <p style="font-size:.7em;color:#94a3b8;margin:10px 0 0;text-align:right"><i class="fa fa-refresh"></i> Updated <?php echo htmlspecialchars($updatedLabel, ENT_QUOTES); ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Campus address + Embedded Google Map -->
+                <?php if (!empty($address)): ?>
+                <div class="ipv2-quicklook">
+                    <p class="ipv2-ql-title"><i class="fa fa-map-marker" style="color:#ef4444;margin-right:4px"></i> Campus Address</p>
+                    <p style="font-size:.88em;color:#334155;line-height:1.6;margin:0"><?php echo nl2br(htmlspecialchars($address, ENT_QUOTES)); ?></p>
+                    <div class="ipv2-map-wrap">
+                        <iframe
+                            src="https://maps.google.com/maps?q=<?php echo urlencode($address); ?>&output=embed&z=15"
+                            loading="lazy"
+                            allowfullscreen
+                            title="Campus map">
+                        </iframe>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+            </div><!-- /.ipv2-overview-sidebar -->
+
+        </div><!-- /.ipv2-overview-layout -->
+    </div>
+    <?php endif; ?>
+
+    <!-- ── ABOUT SCHOOL TAB ───────────────────────────────────── -->
+    <?php if ($showAbout): ?>
+    <div class="ipv2-tab-panel<?php echo $firstTab === 'about' ? ' active' : ''; ?>" id="ipv2-tab-about">
+
+        <!-- Description / summary -->
+        <?php if (!empty($description) || !empty($summary)): ?>
+        <details class="ipv2-accordion" open>
+            <summary>About <?php echo $instName; ?></summary>
+            <div class="ipv2-accordion-body">
+                <?php
+                // Prefer full summary (250-350 words from AI) over the short description card
+                $_aboutText = !empty($summary) ? $summary : $description;
+                echo ipv2_descriptionToHtml($_aboutText); ?>
+            </div>
+        </details>
+        <?php endif; ?>
+
+        <!-- Mission statement -->
+        <?php if (!empty($missionStatement)): ?>
+        <details class="ipv2-accordion">
+            <summary>Mission Statement</summary>
+            <div class="ipv2-accordion-body">
+                <?php echo ipv2_descriptionToHtml($missionStatement); ?>
+            </div>
+        </details>
+        <?php endif; ?>
+
+        <!-- School qualities -->
+        <?php if (!empty($schoolQualities)): ?>
+        <details class="ipv2-accordion">
+            <summary>Qualities &amp; Characteristics</summary>
+            <div class="ipv2-accordion-body">
+                <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:5px">
+                    <?php foreach ($schoolQualities as $_q): ?>
+                    <li style="display:flex;align-items:flex-start;gap:8px"><i class="fa fa-check" style="color:#10b981;margin-top:3px;flex-shrink:0"></i><span><?php echo htmlspecialchars((string)$_q, ENT_QUOTES); ?></span></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        </details>
+        <?php endif; ?>
+
+        <!-- Exam results -->
+        <?php if (!empty($examResults)): ?>
+        <details class="ipv2-accordion">
+            <summary>Examination Results</summary>
+            <div class="ipv2-accordion-body">
+                <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:5px">
+                    <?php foreach ($examResults as $_er): ?>
+                    <li style="display:flex;align-items:flex-start;gap:8px"><i class="fa fa-trophy" style="color:#f59e0b;margin-top:3px;flex-shrink:0"></i><span><?php echo htmlspecialchars((string)$_er, ENT_QUOTES); ?></span></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        </details>
+        <?php endif; ?>
+
+        <!-- Curriculum / Exam Boards cards -->
+        <?php if (!empty($curriculum) || !empty($examBoards) || !empty($qualificationsAwarded)): ?>
+        <div class="ipv2-about-cards" style="margin-top:14px">
+            <?php if (!empty($curriculum)): ?>
+            <div class="ipv2-about-card">
+                <p class="ipv2-about-card-title">Curriculum</p>
+                <?php echo ipv2_pillList($curriculum); ?>
+            </div>
+            <?php endif; ?>
+            <?php if (!empty($examBoards)): ?>
+            <div class="ipv2-about-card">
+                <p class="ipv2-about-card-title">Exam Boards</p>
+                <?php echo ipv2_pillList($examBoards, 'ipv2-pill-green'); ?>
+            </div>
+            <?php endif; ?>
+            <?php if (!empty($qualificationsAwarded)): ?>
+            <div class="ipv2-about-card">
+                <p class="ipv2-about-card-title">Qualifications Awarded</p>
+                <?php echo ipv2_pillList($qualificationsAwarded, 'ipv2-pill-purple'); ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+    </div>
+    <?php endif; ?>
+
+    <!-- ── PROGRAMS & COURSES TAB ─────────────────────────────── -->
+    <?php if ($showPrograms): ?>
+    <div class="ipv2-tab-panel<?php echo $firstTab === 'programs' ? ' active' : ''; ?>" id="ipv2-tab-programs">
+        <?php
+        // Collect distinct levels for filter buttons
+        $_levels = [];
+        foreach ($_courses as $_c) {
+            if (!empty($_c['name'])) { $lv = courseLevel($_c['name']); if (!in_array($lv, $_levels)) $_levels[] = $lv; }
+        }
+        ?>
+        <div class="inst-course-filters">
+            <input type="text" id="ipv2-course-search" class="inst-course-search" placeholder="Search programs…">
+            <?php if (count($_levels) > 1): ?>
+            <div class="ipv2-level-filters">
+                <button class="ipv2-level-btn active" data-level="">All (<?php echo count($_courses); ?>)</button>
+                <?php foreach ($_levels as $_lv): ?>
+                <button class="ipv2-level-btn" data-level="<?php echo htmlspecialchars($_lv, ENT_QUOTES); ?>"><?php echo htmlspecialchars($_lv, ENT_QUOTES); ?></button>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <div id="ipv2-course-list">
+        <?php foreach ($_courses as $_course):
+            if (empty($_course['name'])) continue;
+            $cName      = htmlspecialchars($_course['name']            ?? '', ENT_QUOTES);
+            $cCode      = htmlspecialchars($_course['code']            ?? '', ENT_QUOTES);
+            $cDelivery  = htmlspecialchars($_course['delivery']        ?? '', ENT_QUOTES);
+            $cDuration  = htmlspecialchars($_course['duration']        ?? '', ENT_QUOTES);
+            $cEntry     = htmlspecialchars($_course['entry']           ?? '', ENT_QUOTES);
+            $cTuition   = htmlspecialchars($_course['fee_tuition']     ?? '', ENT_QUOTES);
+            $cAppFee    = htmlspecialchars($_course['fee_application']  ?? '', ENT_QUOTES);
+            $cOshc      = htmlspecialchars($_course['fee_oshc']        ?? '', ENT_QUOTES);
+            $cLiving    = htmlspecialchars($_course['fee_living']      ?? '', ENT_QUOTES);
+            $cIelts     = htmlspecialchars($_course['req_ielts']       ?? '', ENT_QUOTES);
+            $cPte       = htmlspecialchars($_course['req_pte']         ?? '', ENT_QUOTES);
+            $cToefl     = htmlspecialchars($_course['req_toefl']       ?? '', ENT_QUOTES);
+            $cCambridge = htmlspecialchars($_course['req_cambridge']   ?? '', ENT_QUOTES);
+            $cDuolingo  = htmlspecialchars($_course['req_duolingo']    ?? '', ENT_QUOTES);
+            $cAcademic  = htmlspecialchars($_course['req_academic']    ?? '', ENT_QUOTES);
+            $cOverview  = $_course['overview'] ?? $_course['description'] ?? '';
+            $cScholarship = $_course['scholarships'] ?? '';
+            $cLevel     = courseLevel($_course['name'] ?? '');
+            $hasDetails = !empty($cDelivery)||!empty($cDuration)||!empty($cEntry)||!empty($cTuition)||!empty($cIelts)||!empty($cOverview);
+            $searchData = strtolower(strip_tags($cName . ' ' . $cCode . ' ' . $cDelivery . ' ' . $cLevel));
+        ?>
+        <div class="inst-course-card" data-search="<?php echo htmlspecialchars($searchData, ENT_QUOTES); ?>" data-level="<?php echo htmlspecialchars($cLevel, ENT_QUOTES); ?>">
+            <div class="inst-course-header" onclick="ipv2ToggleCourse(this)">
+                <div class="inst-course-logo-wrap">
+                    <?php if (!empty($logoSrc)): ?>
+                    <img src="<?php echo $logoSrc; ?>" alt="<?php echo htmlspecialchars($instName, ENT_QUOTES); ?>" class="inst-course-logo"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                    <div class="inst-course-logo-placeholder" style="display:none"><?php echo htmlspecialchars($_logoInitials, ENT_QUOTES); ?></div>
+                    <?php else: ?>
+                    <div class="inst-course-logo-placeholder"><?php echo htmlspecialchars($_logoInitials, ENT_QUOTES); ?></div>
+                    <?php endif; ?>
+                </div>
+                <div class="inst-course-title-block">
+                    <?php if (!empty($cCode) || !empty($cDelivery)): ?>
+                    <div class="inst-course-code-row">
+                        <?php if (!empty($cCode)): ?><span class="inst-course-code"><?php echo $cCode; ?></span><?php endif; ?>
+                        <?php if (!empty($cDelivery)): ?><span class="inst-course-location"><i class="fa fa-map-marker"></i> <?php echo $cDelivery; ?></span><?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                    <div class="inst-course-name"><?php echo $cName; ?></div>
+                    <div class="inst-course-level-badge"><?php echo $cLevel; ?></div>
+                </div>
+                <div class="inst-course-meta-summary">
+                    <?php if (!empty($cEntry)): ?>
+                    <div class="inst-course-meta-pill"><span class="meta-pill-label">Earliest Intake</span><span class="meta-pill-value"><?php echo $cEntry; ?></span></div>
+                    <?php endif; ?>
+                    <?php if (!empty($cDuration)): ?>
+                    <div class="inst-course-meta-pill"><span class="meta-pill-label">Duration</span><span class="meta-pill-value"><?php echo $cDuration; ?></span></div>
+                    <?php endif; ?>
+                    <?php if (!empty($cTuition)): ?>
+                    <div class="inst-course-meta-pill"><span class="meta-pill-label">Tuition</span><span class="meta-pill-value inst-tuition-value"><?php echo $cTuition; ?></span></div>
+                    <?php endif; ?>
+                    <?php if (!empty($cIelts)): ?>
+                    <div class="inst-course-meta-pill"><span class="meta-pill-label">IELTS Min.</span><span class="meta-pill-value"><?php echo $cIelts; ?></span></div>
+                    <?php endif; ?>
+                </div>
+                <?php if ($hasDetails): ?>
+                <button class="inst-course-expand-btn" type="button">View Details ▾</button>
+                <?php endif; ?>
+            </div>
+            <?php if ($hasDetails): ?>
+            <div class="inst-course-details" style="display:none">
+                <?php if (!empty($cOverview)): ?>
+                <div class="inst-detail-section"><h4>Overview</h4><p class="inst-overview-text"><?php echo nl2br(htmlspecialchars($cOverview, ENT_QUOTES)); ?></p></div>
+                <?php endif; ?>
+                <?php if (!empty($cAcademic)||!empty($cIelts)||!empty($cPte)||!empty($cToefl)||!empty($cCambridge)||!empty($cDuolingo)): ?>
+                <div class="inst-detail-section"><h4>Entry Requirements</h4>
+                    <table class="inst-req-table">
+                        <?php if (!empty($cAcademic)): ?><tr><td class="req-label">Academic</td><td><?php echo $cAcademic; ?></td></tr><?php endif; ?>
+                        <?php if (!empty($cIelts)):    ?><tr><td class="req-label">IELTS</td><td><?php echo $cIelts; ?></td></tr><?php endif; ?>
+                        <?php if (!empty($cPte)):      ?><tr><td class="req-label">PTE</td><td><?php echo $cPte; ?></td></tr><?php endif; ?>
+                        <?php if (!empty($cToefl)):    ?><tr><td class="req-label">TOEFL iBT</td><td><?php echo $cToefl; ?></td></tr><?php endif; ?>
+                        <?php if (!empty($cCambridge)):?><tr><td class="req-label">Cambridge</td><td><?php echo $cCambridge; ?></td></tr><?php endif; ?>
+                        <?php if (!empty($cDuolingo)): ?><tr><td class="req-label">Duolingo</td><td><?php echo $cDuolingo; ?></td></tr><?php endif; ?>
+                    </table>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($cTuition)||!empty($cAppFee)||!empty($cOshc)||!empty($cLiving)): ?>
+                <div class="inst-detail-section"><h4>Fees</h4>
+                    <table class="inst-req-table">
+                        <?php if (!empty($cTuition)): ?><tr><td class="req-label">Tuition</td><td class="inst-tuition-value"><?php echo $cTuition; ?></td></tr><?php endif; ?>
+                        <?php if (!empty($cAppFee)):  ?><tr><td class="req-label">Application</td><td><?php echo $cAppFee; ?></td></tr><?php endif; ?>
+                        <?php if (!empty($cOshc)):    ?><tr><td class="req-label">OSHC</td><td><?php echo $cOshc; ?></td></tr><?php endif; ?>
+                        <?php if (!empty($cLiving)):  ?><tr><td class="req-label">Living Costs</td><td><?php echo $cLiving; ?></td></tr><?php endif; ?>
+                    </table>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($cScholarship)): ?>
+                <div class="inst-detail-section inst-scholarship-note"><h4><i class="fa fa-star"></i> Scholarships</h4><p><?php echo nl2br(htmlspecialchars($cScholarship, ENT_QUOTES)); ?></p></div>
+                <?php endif; ?>
+                <div class="inst-detail-apply-row">
+                    <a href="<?php echo htmlspecialchars($_page_base_url . '/apply?institution=' . urlencode($instName) . '&course=' . urlencode($_course['name'] ?? ''), ENT_QUOTES); ?>" class="inst-apply-btn">Create Application <i class="fa fa-arrow-right"></i></a>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+        </div>
+        <div id="ipv2-no-results" style="display:none" class="ipv2-empty">
+            <i class="fa fa-search"></i><p>No programs match your search.</p>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- ── ADMISSION TAB ──────────────────────────────────────── -->
+    <?php if ($showAdmission): ?>
+    <div class="ipv2-tab-panel<?php echo $firstTab === 'admission' ? ' active' : ''; ?>" id="ipv2-tab-admission">
+        <div class="ipv2-text-content"><?php echo ipv2_textToHtml($admission); ?></div>
+    </div>
+    <?php endif; ?>
+
+    <!-- ── FEES & KEY DATES TAB ───────────────────────────────── -->
+    <?php if ($showFees): ?>
+    <div class="ipv2-tab-panel<?php echo $firstTab === 'fees' ? ' active' : ''; ?>" id="ipv2-tab-fees">
+        <?php if (!empty($fees)): ?>
+        <div class="ipv2-text-content" style="margin-bottom:14px"><?php echo ipv2_textToHtml($fees); ?></div>
+        <?php endif; ?>
+        <?php if (!empty($keyDates)): ?>
+        <div class="ipv2-text-content">
+            <?php echo ipv2_keyDatesToHtml($keyDates); ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- ── FACILITIES TAB ─────────────────────────────────────── -->
+    <?php if ($showFacilities): ?>
+    <div class="ipv2-tab-panel<?php echo $firstTab === 'facilities' ? ' active' : ''; ?>" id="ipv2-tab-facilities">
+        <div class="ipv2-gallery-grid">
+            <?php foreach ($_pv_gallery as $_gi => $_gf): ?>
+            <div class="ipv2-gallery-item" onclick="ipv2OpenLightbox(<?php echo $_gi; ?>)">
+                <img src="/upload/inst_gallery/<?php echo htmlspecialchars(basename($_gf), ENT_QUOTES); ?>" alt="Campus photo <?php echo $_gi + 1; ?>" loading="lazy">
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Empty state if no data at all -->
+    <?php if (!$showOverview && !$showAbout && !$showPrograms && !$showAdmission && !$showFees && !$showFacilities): ?>
+    <div class="ipv2-empty" style="padding:80px 20px">
+        <i class="fa fa-building-o"></i>
+        <p style="font-size:1.1em;font-weight:600;color:#334155;margin-bottom:6px">Profile Coming Soon</p>
+        <p style="font-size:.88em">This institution's profile is being set up. Check back soon for full details.</p>
+    </div>
+    <?php endif; ?>
+
+</div><!-- /.ipv2-content -->
+
+<!-- Lightbox overlay -->
+<div id="ipv2-lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
+    <button onclick="document.getElementById('ipv2-lightbox').style.display='none'" style="position:absolute;top:16px;right:22px;background:none;border:none;color:#fff;font-size:2em;cursor:pointer;z-index:2">&times;</button>
+    <button id="ipv2-lb-prev" onclick="ipv2LbNav(-1)" style="position:absolute;left:16px;background:none;border:none;color:#fff;font-size:2.5em;cursor:pointer;z-index:2">&#x2039;</button>
+    <img id="ipv2-lb-img" src="" alt="" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:8px">
+    <button id="ipv2-lb-next" onclick="ipv2LbNav(1)" style="position:absolute;right:16px;background:none;border:none;color:#fff;font-size:2.5em;cursor:pointer;z-index:2">&#x203A;</button>
+    <div id="ipv2-lb-caption" style="color:#94a3b8;font-size:.82em;margin-top:12px"></div>
+</div>
+
+</div><!-- /.ipv2-page -->
+@endsection
+
+@push('scripts')
+<script>
+// ── Tab switching ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.ipv2-tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.ipv2-tab-btn').forEach(function(b){ b.classList.remove('active'); });
+        document.querySelectorAll('.ipv2-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+        btn.classList.add('active');
+        var panel = document.getElementById(btn.getAttribute('data-tab'));
+        if (panel) panel.classList.add('active');
+    });
+});
+
+// ── Course expand/collapse ────────────────────────────────────────────────────
+function ipv2ToggleCourse(header) {
+    var card    = header.closest('.inst-course-card');
+    var details = card.querySelector('.inst-course-details');
+    var btn     = card.querySelector('.inst-course-expand-btn');
+    if (!details) return;
+    var isOpen  = details.style.display !== 'none';
+    details.style.display = isOpen ? 'none' : '';
+    if (btn) btn.textContent = isOpen ? 'View Details ▾' : 'Close ▴';
+    card.classList.toggle('is-open', !isOpen);
+}
+
+// ── Course search filter ──────────────────────────────────────────────────────
+var ipv2Search = document.getElementById('ipv2-course-search');
+var _ipv2ActiveLevel = '';
+function _ipv2FilterCourses() {
+    var q = (ipv2Search ? ipv2Search.value.toLowerCase().trim() : '');
+    var cards = document.querySelectorAll('#ipv2-course-list .inst-course-card');
+    var visible = 0;
+    cards.forEach(function(card) {
+        var matchQ = !q || (card.getAttribute('data-search') || '').indexOf(q) !== -1;
+        var matchL = !_ipv2ActiveLevel || (card.getAttribute('data-level') || '') === _ipv2ActiveLevel;
+        var show = matchQ && matchL;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    var nr = document.getElementById('ipv2-no-results');
+    if (nr) nr.style.display = (visible === 0) ? '' : 'none';
+}
+if (ipv2Search) ipv2Search.addEventListener('input', _ipv2FilterCourses);
+document.querySelectorAll('.ipv2-level-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.ipv2-level-btn').forEach(function(b){b.classList.remove('active');});
+        this.classList.add('active');
+        _ipv2ActiveLevel = this.getAttribute('data-level') || '';
+        _ipv2FilterCourses();
+    });
+});
+
+// ── Gallery lightbox ──────────────────────────────────────────────────────────
+var _ipv2Gallery = <?php echo json_encode(array_values(array_map('basename', $_pv_gallery))); ?>;
+var _ipv2LbIdx = 0;
+function ipv2OpenLightbox(idx) {
+    if (!_ipv2Gallery.length) return;
+    _ipv2LbIdx = idx;
+    ipv2LbShow();
+    var lb = document.getElementById('ipv2-lightbox');
+    lb.style.display = 'flex';
+}
+function ipv2LbShow() {
+    var img = document.getElementById('ipv2-lb-img');
+    var cap = document.getElementById('ipv2-lb-caption');
+    if (img) img.src = '/upload/inst_gallery/' + _ipv2Gallery[_ipv2LbIdx];
+    if (cap) cap.textContent = (_ipv2LbIdx + 1) + ' / ' + _ipv2Gallery.length;
+    var prev = document.getElementById('ipv2-lb-prev');
+    var next = document.getElementById('ipv2-lb-next');
+    if (prev) prev.style.display = _ipv2Gallery.length > 1 ? '' : 'none';
+    if (next) next.style.display = _ipv2Gallery.length > 1 ? '' : 'none';
+}
+function ipv2LbNav(dir) {
+    _ipv2LbIdx = (_ipv2LbIdx + dir + _ipv2Gallery.length) % _ipv2Gallery.length;
+    ipv2LbShow();
+}
+// Close lightbox on overlay click
+document.addEventListener('DOMContentLoaded', function() {
+    var lb = document.getElementById('ipv2-lightbox');
+    if (lb) {
+        lb.addEventListener('click', function(e) {
+            if (e.target === lb) lb.style.display = 'none';
+        });
+    }
+});
+// Keyboard navigation for lightbox
+document.addEventListener('keydown', function(e) {
+    var lb = document.getElementById('ipv2-lightbox');
+    if (!lb || lb.style.display === 'none') return;
+    if (e.key === 'Escape') lb.style.display = 'none';
+    if (e.key === 'ArrowLeft')  ipv2LbNav(-1);
+    if (e.key === 'ArrowRight') ipv2LbNav(1);
+});
+</script>
+@endpush

@@ -207,13 +207,18 @@ div.details-list > div.posts a.remove-posts-post {
     box-shadow: 0px 0px 5px #ddd;
 }
 
-#account-publish-form div.row div.iweb-input > div > textarea {
+#account-publish-form div.row div.iweb-input > div > textarea,
+#account-publish-form textarea#content {
     background: #fff!important;
-    min-height: 420px;
+    min-height: 520px;
+    height: 520px;
     font-family: inherit;
     font-size: 15px;
     line-height: 1.6;
     resize: vertical;
+    padding: 12px 14px;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 /* ── Post editor toolbar ── */

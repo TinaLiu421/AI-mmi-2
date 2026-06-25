@@ -809,27 +809,32 @@ main.page-body .chat-area .input-question .robot video {
     left: 0;
 }
 
-/* Presenter static image – always visible as base layer */
+/* Presenter static image – face-centred, head not cropped */
 #avatar-presenter-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: top center;
+    object-position: 50% 18%;
     position: absolute;
     top: 0;
     left: 0;
     z-index: 0;
+    transform: scale(1.35) translateY(-8%);
+    transform-origin: top center;
 }
 
-/* D-ID live video – properly contained inside the robot circle */
+/* D-ID video – face-centred, head not cropped */
 #did-avatar-video {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: 50% 18%;
     position: absolute;
     top: 0;
     left: 0;
     z-index: 1;
+    transform: scale(1.35) translateY(-8%);
+    transform-origin: top center;
 }
 
 /* Tap-to-hear overlay – shown once D-ID stream connects */
@@ -854,14 +859,43 @@ main.page-body .chat-area .input-question .robot video {
 .avatar-tap-hear i { font-size: 14px; }
 .avatar-tap-hear:hover { background: linear-gradient(0deg, rgba(99,102,241,0.8) 0%, rgba(0,0,0,0) 100%); }
 
-/* Pulse ring while D-ID avatar is speaking */
+/* Pulse ring while avatar is speaking – ripple + subtle scale bob */
 @keyframes did-speaking-pulse {
-    0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 0 rgba(99,102,241,0.55), var(--shadow-glow); }
-    50%       { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 7px rgba(99,102,241,0), var(--shadow-glow); }
+    0%   { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 0px  rgba(99,102,241,0.9), var(--shadow-glow); transform: scale(1.00); }
+    30%  { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 12px rgba(99,102,241,0),   var(--shadow-glow); transform: scale(1.02); }
+    60%  { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 6px  rgba(99,102,241,0.5), var(--shadow-glow); transform: scale(0.99); }
+    100% { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 0px  rgba(99,102,241,0.9), var(--shadow-glow); transform: scale(1.00); }
 }
 main.page-body .chat-area .input-question .robot.did-speaking {
-    animation: did-speaking-pulse 1.1s ease-in-out infinite;
+    animation: did-speaking-pulse 0.7s ease-in-out infinite;
     border-color: #6366f1;
+}
+
+/* ── Animated equaliser bars shown below avatar while speaking ── */
+.avatar-sound-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    height: 32px;
+    margin-top: 4px;
+}
+.avatar-sound-bars span {
+    display: block;
+    width: 5px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #6366f1 0%, #818cf8 100%);
+    animation: sound-bar-bounce 0.55s ease-in-out infinite alternate;
+    transform-origin: bottom;
+}
+.avatar-sound-bars span:nth-child(1) { height: 10px; animation-delay: 0.00s; }
+.avatar-sound-bars span:nth-child(2) { height: 20px; animation-delay: 0.10s; }
+.avatar-sound-bars span:nth-child(3) { height: 28px; animation-delay: 0.20s; }
+.avatar-sound-bars span:nth-child(4) { height: 20px; animation-delay: 0.10s; }
+.avatar-sound-bars span:nth-child(5) { height: 10px; animation-delay: 0.00s; }
+@keyframes sound-bar-bounce {
+    from { transform: scaleY(0.2); opacity: 0.55; }
+    to   { transform: scaleY(1);   opacity: 1;    }
 }
 
 main.page-body .chat-area .input-question .robot a#sound-control {
@@ -1324,7 +1358,7 @@ main.page-body .chat-area .box .input-question .input-wrapper {
 
 /* Speaking pulse on the robot in the panel */
 .chat-avatar-panel .robot.did-speaking {
-    animation: did-speaking-pulse 1.1s ease-in-out infinite !important;
+    animation: did-speaking-pulse 0.7s ease-in-out infinite !important;
     border-color: #6366f1 !important;
 }
 
@@ -1478,8 +1512,17 @@ main.page-body .chat-area .box .input-question .input-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Eliminate 300ms tap delay on mobile */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    /* Ensure tappable above any overlapping elements */
+    position: relative;
+    z-index: 10;
 }
-.voice-mic-btn:hover {
+.voice-mic-btn:hover,
+.voice-mic-btn:active {
     transform: scale(1.08);
     box-shadow: 0 6px 28px rgba(99,102,241,0.7);
 }
@@ -2219,6 +2262,25 @@ footer.page-footer a:hover {
 
     .article-list .post .details {
         margin: 0 !important;
+    }
+
+    /* Voice mode — make avatar larger and mic button easier to tap on phone */
+    .chat-mode-voice .chat-avatar-panel .robot {
+        width: 160px !important;
+        height: 160px !important;
+    }
+    .voice-mic-btn {
+        width: 84px !important;
+        height: 84px !important;
+        font-size: 30px !important;
+    }
+    .voice-mic-hint {
+        font-size: 14px !important;
+    }
+    /* Ensure voice mode input is always above any overlay */
+    #voice-mode-input {
+        position: relative;
+        z-index: 20;
     }
 }
 
@@ -3358,4 +3420,70 @@ div.form div.coverphoto-file > div.select > input[type="file"] {
         padding: 12px 14px;
         font-size: 15px;
     }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Post publish dialog – editor toolbar + textarea
+   (posts.css lives under css/admin/ and isn't loaded for web
+    pages, so we include the essential rules here too)
+═══════════════════════════════════════════════════════════ */
+#account-publish-form textarea#content,
+#account-publish-form div.row div.iweb-input > div > textarea {
+    background: #fff !important;
+    min-height: 520px;
+    height: 520px;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.6;
+    resize: vertical;
+    padding: 12px 14px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.post-editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    padding: 7px 10px;
+    background: #f5f7fa;
+    border: 1px solid #d8d8d8;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+}
+.post-editor-toolbar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 9px;
+    background: #fff;
+    border: 1px solid #d0d5dd;
+    border-radius: 5px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #344054;
+    line-height: 1.4;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.post-editor-toolbar button:hover,
+.post-editor-toolbar button:active {
+    background: #e8f0fe;
+    border-color: #3b6ef5;
+    color: #1a3cb0;
+}
+.pet-sep {
+    display: inline-block;
+    width: 1px;
+    height: 22px;
+    background: #d0d5dd;
+    margin: 0 2px;
+}
+.post-md-body mark {
+    background: #fff176;
+    padding: 0 2px;
+    border-radius: 2px;
 }

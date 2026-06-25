@@ -5,8 +5,10 @@ use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Support\CountriesPhoneCodes;
 use App\Support\DestinationsServing;
+use App\Services\TokenService;
 use Stripe\Stripe;
 use Stripe\Checkout\Session as StripeCheckoutSession;
 
@@ -51,6 +53,11 @@ class Account extends WebController {
         $isSelf = isset($this->_current_member['id']) 
                 && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];
 
+        // Allow institution owners to preview their public APB profile via ?preview=1
+        if ($isSelf && request()->query('preview') === '1') {
+            $isSelf = false;
+        }
+
         // Load institution profile for education institutions
         $institution_profile = null;
         if ((int)$this->_show_current_member['type'] === 3) {
@@ -86,12 +93,19 @@ class Account extends WebController {
             if(!$validator->fails()) {
                 if(strtotime($this->_current_member['expiration_date_account']) >= strtotime($this->_today_date)) {
                     $this->_page_post_data['member_id'] = $this->_current_member['id'];
-                    if($this->loadModel('posts')->doSave($this->_page_post_data, $this->postParamValue('posts_id', 0))) {
-                        $this->pageResult(
-                        [
-                            'status'    =>  200,
-                            'message'   =>  'OK'
-                        ]);
+                    $_posts_model = $this->loadModel('posts');
+                    $_saved_id = $_posts_model->doSave($this->_page_post_data, $this->postParamValue('posts_id', 0));
+                    if($_saved_id) {
+                        $_post_as_featured = (int)($this->_page_post_data['post_as_featured'] ?? 0);
+                        $_featured_admin_emails = ['admin@wealthskey.com', 'info@ai-mmi.com'];
+                        $_is_featured_redirect = $_post_as_featured === 1
+                            && in_array((int)$this->_current_member['type'], [2, 3])
+                            && !in_array(strtolower(trim($this->_current_member['email'] ?? '')), $_featured_admin_emails);
+                        $_result = ['status' => 200, 'message' => 'OK'];
+                        if ($_is_featured_redirect) {
+                            $_result['redirect_url'] = $this->toURL('account/spotlight');
+                        }
+                        $this->pageResult($_result);
                     }
                     else {
                         $this->pageResult(
@@ -276,10 +290,18 @@ class Account extends WebController {
                     // move & resize
                     if($file->move(public_path($location), $file_name)) {
                         if(file_exists(public_path($location.'/'.$file_name))) {
-                            \Intervention\Image\Facades\Image::make(public_path($location.'/'.$file_name))->resize(400, 400, function ($constraint) {
-                                $constraint->aspectRatio();
-                                $constraint->upsize();
-                            })->save(public_path($location.'/'.$file_name));
+                            // Skip raster resize for SVG — it is resolution-independent
+                            $isSvg = strtolower($file_extension) === 'svg';
+                            if (!$isSvg) {
+                                try {
+                                    \Intervention\Image\Facades\Image::make(public_path($location.'/'.$file_name))->resize(400, 400, function ($constraint) {
+                                        $constraint->aspectRatio();
+                                        $constraint->upsize();
+                                    })->save(public_path($location.'/'.$file_name));
+                                } catch (\Throwable $e) {
+                                    // If resize fails (e.g. unsupported format), keep the original
+                                }
+                            }
                         }
                         $this->_page_post_data['logo'] = $file_name;
                     }
@@ -399,6 +421,19 @@ class Account extends WebController {
                 }
 
                 if($this->_member_model->doSave($revise_member, $this->_current_member['id'])) {
+                    // Award profile complete token (one-time)
+                    if (empty($this->_current_member['profile_token_awarded'])) {
+                        $memberId = (int) $this->_current_member['id'];
+                        // Check completeness: requires full_name, telephone_num, and avatar
+                        $updatedMember = DB::table('member')->where('id', $memberId)->first();
+                        if ($updatedMember &&
+                            !empty($updatedMember->full_name) && $updatedMember->full_name !== 'N/A' &&
+                            !empty($updatedMember->telephone_num) &&
+                            !empty($updatedMember->avatar)) {
+                            (new TokenService())->earn($memberId, TokenService::AMOUNT_PROFILE_COMPLETE, TokenService::EARN_PROFILE_COMPLETE, 'member', $memberId, 'Profile completed');
+                            DB::table('member')->where('id', $memberId)->update(['profile_token_awarded' => true]);
+                        }
+                    }
                     $this->pageResult(
                     [
                         'status'    =>  200,
@@ -441,22 +476,32 @@ class Account extends WebController {
     // ✅ search subscriptions table
         $memberId = $this->_show_current_member['id'];
         try {
-            $currentSub = DB::table('subscriptions as s')
+            $hasCancelAtPeriodEnd = Schema::hasColumn('subscriptions', 'cancel_at_period_end');
+
+            $subQuery = DB::table('subscriptions as s')
                 ->join('plans as p','p.id','=','s.plan_id')
                 ->where('s.member_id', $memberId)
                 ->where('s.status','active')
                 ->where(function($q){
                     $q->whereNull('s.ends_at')->orWhere('s.ends_at','>', now());
                 })
-                ->orderByDesc('s.started_at')
-                ->first(['p.name as plan_name','p.code as plan_code','s.ends_at','s.stripe_subscription_id','s.cancel_at_period_end']);
+                ->orderByDesc('s.started_at');
+
+            $selectFields = ['p.name as plan_name','p.code as plan_code','s.ends_at','s.stripe_subscription_id'];
+            if ($hasCancelAtPeriodEnd) {
+                $selectFields[] = 's.cancel_at_period_end';
+            }
+
+            $currentSub = $subQuery->first($selectFields);
 
             // write the finals into _show_current_member
             $this->_show_current_member['subscription_name']   = ($currentSub !== null) ? $currentSub->plan_name : 'Free Plan';
             $this->_show_current_member['subscription_expiry'] = ($currentSub !== null) ? $currentSub->ends_at : null;
             $this->_show_current_member['subscription_plan_code']      = ($currentSub !== null) ? $currentSub->plan_code : null;
             $this->_show_current_member['subscription_stripe_sub_id']  = ($currentSub !== null) ? $currentSub->stripe_subscription_id : null;
-            $this->_show_current_member['subscription_cancel_at_period_end'] = ($currentSub !== null) ? (bool)$currentSub->cancel_at_period_end : false;
+            $this->_show_current_member['subscription_cancel_at_period_end'] = ($currentSub !== null && $hasCancelAtPeriodEnd)
+                ? (bool)($currentSub->cancel_at_period_end ?? false)
+                : false;
         } catch (\Throwable $e) {
             Log::warning('account.profile: subscription query failed', ['member_id' => $memberId, 'error' => $e->getMessage()]);
             $this->_show_current_member['subscription_name']                 = 'Free Plan';
@@ -468,6 +513,11 @@ class Account extends WebController {
 
         $isSelf = isset($this->_current_member['id']) 
             && (int)$this->_show_current_member['id'] === (int)$this->_current_member['id'];
+
+        // Allow institution owners to preview their public APB profile via ?preview=1
+        if ($isSelf && request()->query('preview') === '1') {
+            $isSelf = false;
+        }
 
         // Load institution profile for education institutions (type=3, institution_type=2)
         $institution_profile = null;
@@ -659,12 +709,34 @@ class Account extends WebController {
             return !in_array((int)$p['id'], array_map('intval', $occupied_post_ids));
         }));
 
-        // How many slots are globally free right now
+        // How many posts are currently live (for display only — no limit enforced)
         $active_count  = $sq->getActiveCount();
-        $free_slots    = max(0, \App\Models\Spotlight_Queue::SLOT_LIMIT - $active_count);
+        $free_slots    = 999; // unlimited — all paid entries activate immediately
 
-        // Schedule preview for up to 3 new purchases
-        $schedule_preview = $sq->getSchedulePreview(min(3, max(1, count($available_posts))));
+        // Schedule preview (all posts activate immediately after payment)
+        $schedule_preview = $sq->getSchedulePreview(max(1, count($available_posts)));
+
+        // Directly-featured posts (featured_until > now but no queue entry) — for admin recovery
+        $is_spotlight_mgr = !empty($this->_current_member['spotlight_manager']);
+        $directly_featured = [];
+        if ($is_spotlight_mgr) {
+            $queued_post_ids = array_column($my_queue, 'posts_id');
+            $df_rows = DB::table('member_posts')
+                ->whereNotNull('featured_until')
+                ->where('featured_until', '>', now()->toDateTimeString())
+                ->where('status', '>', 0)
+                ->whereNotIn('id', empty($queued_post_ids) ? [0] : $queued_post_ids)
+                ->select(['id', 'title', 'featured_until', 'member_id'])
+                ->get();
+            foreach ($df_rows as $df) {
+                $directly_featured[] = [
+                    'id'            => (int)$df->id,
+                    'title'         => $df->title ?: '(Untitled)',
+                    'featured_until'=> $df->featured_until,
+                    'member_id'     => (int)$df->member_id,
+                ];
+            }
+        }
 
         // Flash messages from redirect
         $payment_status = request()->query('payment', '');
@@ -694,6 +766,8 @@ class Account extends WebController {
             'schedule_preview'      => $schedule_preview,
             'slot_price_cents'      => 10000,  // $100 in cents
             'payment_status'        => $payment_status,
+            'directly_featured'     => $directly_featured,
+            'is_spotlight_mgr'      => $is_spotlight_mgr,
         ])->pageView('account_spotlight', false, false);
     }
 
@@ -815,9 +889,8 @@ class Account extends WebController {
             $post_ids = array_map('intval', array_filter(explode(',', (string)$raw_ids)));
         }
 
-        // Deduplicate and constrain to max 3
+        // Deduplicate
         $post_ids = array_values(array_unique($post_ids));
-        $post_ids = array_slice($post_ids, 0, 3);
 
         if (empty($post_ids)) {
             return redirect()->to($this->toURL('account/spotlight'))->with('error', 'No posts selected.');

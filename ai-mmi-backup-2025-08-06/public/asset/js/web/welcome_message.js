@@ -70,6 +70,7 @@ function removeWelcomeAndShowChat() {
     // Show mode tabs + avatar panel
     $("#chat-mode-tabs").show();
     $(".chat-avatar-panel").show();
+    $(".robot-container").show();
     $("#chat-robot-inner").show().css({ opacity: 1, transition: '' });
     $("#ask_question").prop("disabled", false);
 

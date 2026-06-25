@@ -6,6 +6,7 @@ class AdminController extends CoreController {
     protected $_media_files_model = null;
     protected $_setting_model = null;
     protected $_page_model = null;
+    private const SUPER_ADMIN_EMAILS = ['admin@wealthskey.com', 'info@ai-mmi.com'];
     
     public function __construct($data) {
         parent::__construct($data);
@@ -394,7 +395,8 @@ class AdminController extends CoreController {
     
     protected function hasUserRole($section = '', $action_index = 0) {
         if(!empty($this->_current_user)) {
-            if($this->_current_user['id'] == 1) {
+            $email = strtolower(trim((string)($this->_current_user['email'] ?? '')));
+            if($this->_current_user['id'] == 1 || in_array($email, self::SUPER_ADMIN_EMAILS, true)) {
                 return true;
             }
 
@@ -419,7 +421,7 @@ class AdminController extends CoreController {
             $email_address[$key] = $this->toPlainText($to_email);
         }
         $email_address = array_unique(array_filter($email_address));
-        
+
         if(!empty($email_address)) {
             $html = '<div style="font-family:Arial,微軟正黑體,PMingLiU,新細明體;padding:8px;">';
                 $html.= '<div style="padding:10px;border:8px solid #002065;border-radius:4px;box-shadow:0px 0px 8px #222;">';
@@ -427,35 +429,22 @@ class AdminController extends CoreController {
                 $html.= '</div>';
             $html.= '</div>';
 
-            require app_path('Libraries/sendgrid/sendgrid-php.php');
-            $email = new \SendGrid\Mail\Mail();
-
-            $email->setFrom('no-reply@artech-appmakers.com', 'AI-mmi');
-
-            $email->setSubject($subject);
-            foreach ($email_address as $key => $to_email) {
+            $allSent = true;
+            foreach ($email_address as $to_email) {
                 $to_email = $this->toPlainText($to_email);
-                if (filter_var($to_email, FILTER_VALIDATE_EMAIL)) {
-                    $email->addTo($to_email);
+                if (!filter_var($to_email, FILTER_VALIDATE_EMAIL)) {
+                    continue;
+                }
+                try {
+                    \Illuminate\Support\Facades\Mail::html($html, function ($message) use ($to_email, $subject) {
+                        $message->to($to_email)->subject($subject);
+                    });
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('sendEmail failed', ['to' => $to_email, 'subject' => $subject, 'error' => $e->getMessage()]);
+                    $allSent = false;
                 }
             }
-            $email->addContent(
-                "text/html",
-                $html
-            );
-
-            $apiKey = getenv('SENDGRID_API_KEY');
-            
-            $sendgrid = new \SendGrid($apiKey);
-
-            try {
-                if($sendgrid->send($email)) {
-                    return true;
-                }
-                return false;
-            } catch (Exception $e) {
-                return false;
-            }
+            return $allSent;
         }
         return false;
     }
@@ -570,6 +559,27 @@ class AdminController extends CoreController {
                 'url'   =>  $this->toURL('faqs'),
                 'icon'  =>  'commenting'
             ];
+
+            $left_menu['nextgen_challenge'] = [
+                'index' =>  'nextgen_challenge',
+                'title' =>  'NextGen Challenge',
+                'url'   =>  $this->toURL('nextgen_challenge'),
+                'icon'  =>  'trophy'
+            ];
+
+            $left_menu['student_dreams'] = [
+                'index' =>  'student_dreams',
+                'title' =>  'Student Dreams',
+                'url'   =>  $this->toURL('student_dreams'),
+                'icon'  =>  'star'
+            ];
+
+            $left_menu['student_interests'] = [
+                'index' =>  'student_interests',
+                'title' =>  'Student Interests',
+                'url'   =>  $this->toURL('student_interests'),
+                'icon'  =>  'user-plus'
+            ];
             
             $left_menu['member_area'] = [
                 'index' =>  'member_area',
@@ -659,7 +669,8 @@ class AdminController extends CoreController {
                 'icon'  =>  'cloud-upload'
             ];
 
-            if($this->_current_user['id'] == 1) {
+            $currentEmail = strtolower(trim((string)($this->_current_user['email'] ?? '')));
+            if($this->_current_user['id'] == 1 || in_array($currentEmail, self::SUPER_ADMIN_EMAILS, true)) {
                 $left_menu['setting'] = [
                     'index' =>  'setting',
                     'title' =>  $this->_page_lang['setting'],

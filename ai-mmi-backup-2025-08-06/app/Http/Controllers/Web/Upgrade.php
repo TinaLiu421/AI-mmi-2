@@ -2,127 +2,136 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\WebController;
+use App\Services\TokenService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Stripe\Stripe;
-use Stripe\Checkout\Session as StripeCheckoutSession;
-use Stripe\Price as StripePrice;
-use Stripe\Subscription as StripeSubscription;
 
 class Upgrade extends WebController
 {
+    /** Plans available for token-based purchase (ordered for display). */
+    private const TOKEN_PLAN_CODES = ['agent_call', 'premium', 'vip'];
+
+    /** Plan display metadata */
+    private const PLAN_META = [
+        'agent_call' => [
+            'name'        => 'AI + Agent Plan',
+            'subtitle'    => 'Smart AI + Human Expert Support',
+            'description' => 'Get instant guidance with access to qualified agents when you need personalized help.',
+            'features'    => [
+                'AI-powered guidance',
+                'Full smart matching features',
+                'Consultation call with expert agents for up to 1 hour (may arrange more consultations using tokens)',
+                'Faster and more affordable than traditional agencies',
+            ],
+            'best_for'    => 'Best for users who want expert support at lower cost',
+            'is_popular'  => false,
+        ],
+        'premium' => [
+            'name'        => 'DIY + Expert Review Plan',
+            'subtitle'    => "Do-It-Yourself for Visa + Expert's Review before Submission",
+            'description' => 'Perfect for individual applicants who want to prepare and submit visa applications without agents.',
+            'features'    => [
+                'AI visa eligibility assessment',
+                'Step by step guidance for 6 months',
+                'Document checklists',
+                'One feedback by an expert agent after screening your application before submission',
+            ],
+            'best_for'    => 'Save money while staying guided and organized',
+            'is_popular'  => false,
+        ],
+        'vip' => [
+            'name'        => 'Full Agent Service Plan',
+            'subtitle'    => 'End-to-End Professional Assistance',
+            'description' => 'A complete AI+Agent services with dedicated agent support throughout your application journey.',
+            'features'    => [
+                'Full visa consultation',
+                'Full visa application services by both AI & expert agents (limit to Student Visa, Guardian Visa, Domestic Helper Visa, Working Holiday Visa, Visitor Visa and Graduate Work Visa only)',
+            ],
+            'best_for'    => 'Maximum support for the best chance of success at competitive rates',
+            'is_popular'  => true,
+        ],
+    ];
+
     public function index()
     {
         $member = $this->_current_member ?? null;
 
         if (empty($member)) {
-            // Retrieve the current full URL, ensuring proper redirection after login
-            $currentUrl = url()->current();
-            // Generate a login page link with the redirect parameter included
-            $loginUrl = $this->toURL('account_login') . '?redirect=' . urlencode($currentUrl);
+            $loginUrl = $this->toURL('account_login') . '?redirect=' . urlencode(url()->current());
             return redirect()->to($loginUrl);
         }
 
-        // Logged in: Upgrade page rendering normally
         $this->pageMeta([
             'title'       => $this->_page_lang['upgrade'] ?? 'Upgrade',
             'description' => '',
-            'image'       => ''
+            'image'       => '',
         ]);
 
-        // Detect the member's current active migration plan (if any)
-        $activeMigrationSub = DB::table('subscriptions')
-            ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
-            ->where('subscriptions.member_id', $member['id'])
-            ->where('subscriptions.status', 'active')
-            ->where(function ($q) {
-                $q->whereNull('subscriptions.ends_at')
-                  ->orWhere('subscriptions.ends_at', '>', now());
-            })
-            ->where('plans.business_domain', 'migration')
-            ->orderByDesc('subscriptions.id')
-            ->select('plans.code as plan_code', 'plans.name as plan_name', 'subscriptions.ends_at', 'subscriptions.stripe_subscription_id')
-            ->first();
+        $memberId = (int) $member['id'];
+        $svc      = new TokenService();
+        $balance  = $svc->getBalance($memberId);
 
-        $currentPlanCode = $activeMigrationSub->plan_code ?? null;
+        // All active token-based subscriptions (may be multiple)
+        $activeSubs = DB::table('subscriptions as s')
+            ->join('plans as p', 'p.id', '=', 's.plan_id')
+            ->where('s.member_id', $memberId)
+            ->where('s.status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('s.ends_at')->orWhere('s.ends_at', '>', now());
+            })
+            ->whereIn('p.code', self::TOKEN_PLAN_CODES)
+            ->select('p.code', 'p.name', 's.ends_at', 'p.token_cost')
+            ->get();
+
+        $activeSubCodes = $activeSubs->pluck('code')->toArray();
+
+        // Show highest-value active plan in the header banner
+        $activeSub = $activeSubs->sortByDesc('token_cost')->first();
+
+        // Build plan cards from DB + metadata
+        $plansGate = [];
+        $dbPlans   = DB::table('plans')
+            ->whereIn('code', self::TOKEN_PLAN_CODES)
+            ->where('is_active', 1)
+            ->get()
+            ->keyBy('code');
+
+        foreach (self::TOKEN_PLAN_CODES as $code) {
+            $plan = $dbPlans[$code] ?? null;
+            if (!$plan) {
+                continue;
+            }
+            $meta       = self::PLAN_META[$code] ?? [];
+            $tokenCost  = (int) $plan->token_cost;
+            $deficit    = max(0, $tokenCost - $balance);
+            $isCurrent  = in_array($code, $activeSubCodes, true);
+
+            $plansGate[] = [
+                'code'           => $code,
+                'name'           => $meta['name'] ?? $plan->name,
+                'subtitle'       => $meta['subtitle'] ?? '',
+                'description'    => $meta['description'] ?? '',
+                'features'       => $meta['features'] ?? [],
+                'best_for'       => $meta['best_for'] ?? '',
+                'is_popular'     => $meta['is_popular'] ?? false,
+                'token_cost'     => $tokenCost,
+                'usd_equiv'      => '$' . number_format($tokenCost * 0.10, 0),
+                'access_months'  => (int) $plan->access_months,
+                'deficit'        => $deficit,
+                'deficit_usd'    => '$' . number_format($deficit * 0.10, 2),
+                'can_pay_direct' => ($balance >= $tokenCost),
+                'is_current'     => $isCurrent,
+                'checkout_url'   => $this->toURL('upgrade/checkout/' . $code),
+            ];
+        }
 
         $data = [
-            'pricing_table_id'   => env('STRIPE_PRICING_TABLE_ID_1'),
-            'stripe_pk'          => env('STRIPE_KEY'),
-            'current_plan_code'  => $currentPlanCode,
-            'current_plan_name'  => $activeMigrationSub->plan_name ?? null,
-            'current_plan_expiry'=> $activeMigrationSub->ends_at ?? null,
-            'plans_gate' => [
-                [
-                    'code' => 'all_ai',
-                    'name' => 'AI Smart Plan',
-                    'period_label' => '(For 90 days)',
-                    'renew_note' => 'Auto renews unless cancelled',
-                    'subtitle' => 'Your 24/7 AI migration guide. Perfect for self-starters who want smart support anytime.',
-                    'price' => '$9',
-                    'billing' => '',
-                    'cta' => 'Subscribe',
-                    'is_popular' => false,
-                    'features' => [
-                        'Unlimited AI migration and visa guidance',
-                        'DIY tools for eligibility, document prep, and planning',
-                        'Regular policy updates and step-by-step guidance',
-                    ],
-                    'checkout_url' => $this->toURL('upgrade/checkout/all_ai'),
-                ],
-                [
-                    'code' => 'hybrid',
-                    'name' => 'AI + Agent Plan',
-                    'period_label' => '(For 90 days)',
-                    'renew_note' => 'Auto renews unless cancelled',
-                    'subtitle' => 'AI Smart Plan + 2-hour voice or video call with a qualified migration/education agent',
-                    'price' => '$29',
-                    'billing' => '',
-                    'cta' => 'Subscribe',
-                    'is_popular' => true,
-                    'features' => [
-                        'Everything in the AI Smart Plan',
-                        '2-hour consultation with a registered migration agent/lawyer',
-                        'Personalized feedback and recommendations',
-                    ],
-                    'checkout_url' => $this->toURL('upgrade/checkout/hybrid'),
-                ],
-                [
-                    'code' => 'premium',
-                    'name' => 'DIY Plan',
-                    'period_label' => 'One-time payment',
-                    'renew_note' => '',
-                    'subtitle' => 'DIY for visa submission with final validation and review by a qualified migration agent',
-                    'price' => '$699',
-                    'billing' => '',
-                    'cta' => 'Pay',
-                    'is_popular' => false,
-                    'features' => [
-                        'Everything in the Hybrid Plan',
-                        'Final review of your DIY application by a licensed expert',
-                        'Detailed recommendations before submission',
-                    ],
-                    'checkout_url' => $this->toURL('upgrade/checkout/premium'),
-                ],
-                [
-                    'code' => 'vip',
-                    'name' => 'VIP Agent Plan',
-                    'period_label' => 'One-time payment',
-                    'renew_note' => '',
-                    'subtitle' => 'AI and qualified migration agent support for student, graduate work, working holiday, tourist, and certain family visas',
-                    'price' => '$999',
-                    'billing' => '',
-                    'cta' => 'Pay',
-                    'is_popular' => false,
-                    'features' => [
-                        'Everything in the Premium Plan',
-                        'Full guidance and support from a licensed migration agent or lawyer',
-                        'Continuous follow-up and personalized support',
-                        '*student, graduate work, working holiday, tourist, and certain family visas only',
-                    ],
-                    'checkout_url' => $this->toURL('upgrade/checkout/vip'),
-                ],
-            ],
+            'token_balance'       => $balance,
+            'wallet_url'          => $this->toURL('wallet'),
+            'plans_gate'          => $plansGate,
+            'current_plan_code'   => $activeSub->code   ?? null,
+            'current_plan_name'   => $activeSub->name   ?? null,
+            'current_plan_expiry' => $activeSub->ends_at ?? null,
         ];
 
         return $this->pageData($data)->pageView();
@@ -132,170 +141,56 @@ class Upgrade extends WebController
     {
         $member = $this->_current_member ?? null;
         if (empty($member)) {
-            $currentUrl = url()->current();
-            $loginUrl = $this->toURL('account_login') . '?redirect=' . urlencode($currentUrl);
+            $loginUrl = $this->toURL('account_login') . '?redirect=' . urlencode(url()->current());
             return redirect()->to($loginUrl);
         }
 
-        $planCode = trim((string)$planCode);
-        if (!in_array($planCode, ['all_ai', 'hybrid', 'premium', 'vip'], true)) {
+        $planCode = trim((string) $planCode);
+        if (!in_array($planCode, self::TOKEN_PLAN_CODES, true)) {
             return redirect()->to($this->toURL('upgrade'));
         }
 
         $plan = DB::table('plans')->where('code', $planCode)->first();
-        if (!$plan || empty($plan->stripe_price_id)) {
-            Log::warning('upgrade.checkout missing stripe price mapping', [
-                'plan_code' => $planCode,
-                'member_id' => (int)($member['id'] ?? 0),
-            ]);
+        if (!$plan || !(int) $plan->token_cost) {
             return redirect()->to($this->toURL('upgrade'));
         }
 
-        // Guard: prevent re-subscribing to the exact same plan while still active
-        $alreadyActive = DB::table('subscriptions')
-            ->where('member_id', $member['id'])
-            ->where('status', 'active')
-            ->where('plan_id', $plan->id)
-            ->where(function ($q) {
-                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
-            })
-            ->exists();
+        $memberId  = (int) $member['id'];
+        $tokenCost = (int) $plan->token_cost;
+        $svc       = new TokenService();
+        $balance   = $svc->getBalance($memberId);
 
-        if ($alreadyActive) {
-            $this->setSession(['error_message' => 'You already have this plan active. To renew early, please wait until closer to your expiry date.']);
-            return redirect()->to($this->toURL('upgrade'));
+        // Prevent re-purchase while already active
+        if ($svc->hasPlanAccess($memberId, $planCode)) {
+            return redirect()->to($this->toURL('upgrade') . '?notice=already_active');
         }
 
-        Stripe::setApiKey(config('services.stripe.secret'));
-
-        // Upgrade path: cancel the old Stripe subscription so it stops billing
-        $oldMigrationSub = DB::table('subscriptions')
-            ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
-            ->where('subscriptions.member_id', $member['id'])
-            ->where('subscriptions.status', 'active')
-            ->whereNotNull('subscriptions.stripe_subscription_id')
-            ->where('plans.business_domain', 'migration')
-            ->where(function ($q) {
-                $q->whereNull('subscriptions.ends_at')->orWhere('subscriptions.ends_at', '>', now());
-            })
-            ->orderByDesc('subscriptions.id')
-            ->select('subscriptions.id', 'subscriptions.stripe_subscription_id')
-            ->first();
-
-        if ($oldMigrationSub) {
-            try {
-                \Stripe\Subscription::cancel($oldMigrationSub->stripe_subscription_id);
-                DB::table('subscriptions')
-                    ->where('id', $oldMigrationSub->id)
-                    ->update(['status' => 'expired', 'ends_at' => now(), 'updated_at' => now()]);
-                Log::info('upgrade.checkout: cancelled old subscription', [
-                    'old_sub_id'        => $oldMigrationSub->id,
-                    'stripe_sub_id'     => $oldMigrationSub->stripe_subscription_id,
-                    'member_id'         => (int)($member['id'] ?? 0),
-                    'upgrading_to'      => $planCode,
-                ]);
-            } catch (\Throwable $e) {
-                // Log but don't block the upgrade checkout
-                Log::warning('upgrade.checkout: could not cancel old subscription', [
-                    'stripe_sub_id' => $oldMigrationSub->stripe_subscription_id,
-                    'error'         => $e->getMessage(),
-                ]);
+        if ($balance >= $tokenCost) {
+            // Sufficient balance — activate directly without Stripe
+            $ok = $svc->activatePlan($memberId, $planCode, $tokenCost);
+            if ($ok) {
+                return redirect()->to($this->toURL('upgrade') . '?payment=success&plan=' . $planCode);
             }
-        }
-
-        try {
-            $priceObj = StripePrice::retrieve($plan->stripe_price_id);
-            $mode = !empty($priceObj->recurring) ? 'subscription' : 'payment';
-
-            $successUrl = $this->toURL('upgrade') . '?payment=success';
-            $cancelUrl  = $this->toURL('upgrade') . '?payment=cancel';
-
-            $session = StripeCheckoutSession::create([
-                'mode' => $mode,
-                'line_items' => [[
-                    'price' => $plan->stripe_price_id,
-                    'quantity' => 1,
-                ]],
-                'success_url' => $successUrl,
-                'cancel_url' => $cancelUrl,
-                'client_reference_id' => (string)($member['id'] ?? ''),
-                'customer_email' => (string)($member['email'] ?? ''),
-                'allow_promotion_codes' => true,
-                'metadata' => [
-                    'member_id' => (string)($member['id'] ?? ''),
-                    'plan_code' => (string)$planCode,
-                    'source' => 'custom-upgrade-page',
-                ],
-            ]);
-
-            return redirect()->away($session->url);
-        } catch (\Throwable $e) {
-            Log::error('upgrade.checkout failed', [
+            Log::error('upgrade.checkout: activatePlan failed', [
+                'member_id' => $memberId,
                 'plan_code' => $planCode,
-                'member_id' => (int)($member['id'] ?? 0),
-                'error' => $e->getMessage(),
             ]);
-
-            $this->setSession(['error_message' => 'Unable to start Stripe checkout right now. Please try again.']);
-            return redirect()->to($this->toURL('upgrade'));
-        }
-    }
-
-    public function cancelRenewal()
-    {
-        $member = $this->_current_member ?? null;
-        if (empty($member)) {
-            return response()->json(['ok' => false, 'message' => 'Not logged in.'], 401);
+            return redirect()->to($this->toURL('upgrade') . '?error=activation_failed');
         }
 
-        $sub = DB::table('subscriptions as s')
-            ->join('plans as p', 'p.id', '=', 's.plan_id')
-            ->where('s.member_id', $member['id'])
-            ->where('s.status', 'active')
-            ->whereIn('p.code', ['all_ai', 'hybrid'])
-            ->whereNotNull('s.stripe_subscription_id')
-            ->where(function ($q) {
-                $q->whereNull('s.ends_at')->orWhere('s.ends_at', '>', now());
-            })
-            ->orderByDesc('s.id')
-            ->select('s.id', 's.stripe_subscription_id', 's.ends_at', 's.cancel_at_period_end')
-            ->first();
+        // Balance insufficient — charge the deficit via Stripe
+        $deficit   = $tokenCost - $balance;
+        $stripeUrl = $svc->createPlanDeficitSession($memberId, $planCode, $deficit, $tokenCost);
 
-        if (!$sub) {
-            return response()->json(['ok' => false, 'message' => 'No cancellable subscription found.'], 404);
-        }
-
-        if ($sub->cancel_at_period_end) {
-            return response()->json(['ok' => false, 'message' => 'Auto-renewal is already cancelled.'], 409);
-        }
-
-        try {
-            Stripe::setApiKey(config('services.stripe.secret'));
-
-            StripeSubscription::update($sub->stripe_subscription_id, [
-                'cancel_at_period_end' => true,
+        if (!$stripeUrl) {
+            Log::error('upgrade.checkout: createPlanDeficitSession failed', [
+                'member_id' => $memberId,
+                'plan_code' => $planCode,
+                'deficit'   => $deficit,
             ]);
-
-            DB::table('subscriptions')
-                ->where('id', $sub->id)
-                ->update(['cancel_at_period_end' => true, 'updated_at' => now()]);
-
-            Log::info('subscription.cancel_renewal: set cancel_at_period_end=true', [
-                'sub_id'    => $sub->id,
-                'stripe_id' => $sub->stripe_subscription_id,
-                'member_id' => (int)($member['id'] ?? 0),
-            ]);
-
-            $expiryFormatted = $sub->ends_at ? date('M d, Y', strtotime($sub->ends_at)) : null;
-
-            return response()->json(['ok' => true, 'expiry' => $expiryFormatted]);
-        } catch (\Throwable $e) {
-            Log::error('subscription.cancel_renewal failed', [
-                'stripe_id' => $sub->stripe_subscription_id,
-                'member_id' => (int)($member['id'] ?? 0),
-                'error'     => $e->getMessage(),
-            ]);
-            return response()->json(['ok' => false, 'message' => 'Unable to cancel at this time. Please try again.'], 500);
+            return redirect()->to($this->toURL('upgrade') . '?error=stripe_failed');
         }
+
+        return redirect()->away($stripeUrl);
     }
 }

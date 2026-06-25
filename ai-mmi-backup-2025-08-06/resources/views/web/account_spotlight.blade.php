@@ -18,6 +18,8 @@ $_schedule_preview= $_page_data['schedule_preview'] ?? [];
 $_price_cents     = (int)($_page_data['slot_price_cents'] ?? 10000);
 $_payment_status  = $_page_data['payment_status']   ?? '';
 $_is_readonly     = !empty($_page_data['is_readonly']);
+$_directly_featured = $_page_data['directly_featured'] ?? [];
+$_is_spotlight_mgr  = !empty($_page_data['is_spotlight_mgr']);
 
 $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : '';
 ?>
@@ -43,7 +45,7 @@ $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : '
             <div class="alias">
                 <div class="readonly"><span><?php echo $_show_current_member['alias_name']; ?></span></div>
             </div>
-            <div class="total-followers">0 followers</div>
+            {{-- followers hidden --}}
         </div>
         <div class="clearboth"></div>
 
@@ -71,7 +73,7 @@ $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : '
         {{-- Payment flash banner --}}
         <?php if($_payment_status === 'success'): ?>
         <div class="spotlight-flash spotlight-flash--success">
-            ✅ Payment received! Your post(s) are queued for spotlight. They'll go live as soon as a slot opens.
+            ✅ Payment received! Your post(s) are now live in the Spotlight section.
         </div>
         <?php elseif($_payment_status === 'cancel'): ?>
         <div class="spotlight-flash spotlight-flash--cancel">
@@ -87,12 +89,34 @@ $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : '
         </div>
         <?php endif; ?>
 
+        {{-- ── Admin Recovery: directly-featured posts (no queue entry) ────── --}}
+        <?php if ($_is_spotlight_mgr && !empty($_directly_featured)): ?>
+        <div class="spotlight-section" style="background:#fff8e1;border:1px solid #f5c842;border-radius:10px;padding:18px 22px;margin-bottom:16px;">
+            <h3 class="spotlight-section-title" style="color:#7a5200;">⚠️ Live in Spotlight (Direct)</h3>
+            <p class="spotlight-section-desc" style="color:#7a5200;">These posts are live in the spotlight carousel. Click <strong>Remove</strong> to unfeature them.</p>
+            <div class="spotlight-queue-list">
+                <?php foreach ($_directly_featured as $_df): ?>
+                <div class="spotlight-queue-item" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#fff;border-radius:8px;margin-bottom:8px;border:1px solid #e0c85a;">
+                    <div>
+                        <div style="font-weight:600;font-size:0.92rem;"><?php echo htmlspecialchars(mb_substr($_df['title'], 0, 70), ENT_QUOTES, 'UTF-8'); ?></div>
+                        <div style="font-size:0.8rem;color:#888;margin-top:2px;">Live until: <?php echo date('d M Y H:i', strtotime($_df['featured_until'])); ?></div>
+                    </div>
+                    <button class="spotlight-direct-remove-btn"
+                            data-posts-id="<?php echo (int)$_df['id']; ?>"
+                            style="flex-shrink:0;padding:6px 14px;background:#ef5350;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:700;">
+                        ✕ Remove
+                    </button>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
         {{-- ── Section 1: My current spotlight entries ────────────────────── --}}
         <div class="spotlight-section">
             <h3 class="spotlight-section-title">⭐ My Spotlight</h3>
             <p class="spotlight-section-desc">
-                Up to <strong>3</strong> posts can be spotlighted at once, site-wide. Each slot costs <strong>$100 / week</strong>.
-                Slots activate automatically as space opens.
+                Each spotlight costs <strong>$100 / week</strong> per post. Your post goes <strong>live immediately</strong> after payment.
             </p>
 
             <?php if(empty($_my_queue)): ?>
@@ -119,7 +143,7 @@ $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : '
                         <?php if($sq_start): ?>
                         <span class="sq-expires">Predicted start: <?php echo date('d M Y', strtotime($sq_start)); ?></span>
                         <?php else: ?>
-                        <span class="sq-expires">Waiting for a slot to open</span>
+                        <span class="sq-expires">Goes live immediately after payment is confirmed</span>
                         <?php endif; ?>
                         <?php else: ?>
                         <span class="sq-badge sq-badge--pending">💳 Awaiting payment confirmation</span>
@@ -156,27 +180,13 @@ $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : '
             <?php endif; ?>
         </div>
 
-        {{-- ── Section 2: Global slot status ─────────────────────────────── --}}
-        <div class="spotlight-section spotlight-section--slots">
-            <h3 class="spotlight-section-title">📊 Live Slot Status</h3>
-            <div class="spotlight-slots">
-                <?php for($si = 1; $si <= 3; $si++): ?>
-                <div class="spotlight-slot <?php echo $si <= $_active_count ? 'spotlight-slot--taken' : 'spotlight-slot--free'; ?>">
-                    <span><?php echo $si <= $_active_count ? '🔴 Taken' : '🟢 Free'; ?></span>
-                </div>
-                <?php endfor; ?>
-            </div>
-            <p class="spotlight-slot-label">
-                <?php echo $_active_count; ?>/3 slots occupied &mdash;
-                <?php echo $_free_slots; ?> free right now.
-            </p>
-        </div>
+
 
         <?php if(!$_is_readonly && !empty($_available_posts)): ?>
         {{-- ── Section 3: Purchase basket ──────────────────────────────────── --}}
         <div class="spotlight-section spotlight-section--basket">
             <h3 class="spotlight-section-title">🛒 Add to Spotlight</h3>
-            <p class="spotlight-section-desc">Select up to 3 of your published posts. Each costs $100 / week.</p>
+            <p class="spotlight-section-desc">Select the posts you want spotlighted. Each costs <strong>$100 / week</strong>. All activate <strong>immediately</strong> after payment.</p>
 
             <form id="spotlight-checkout-form"
                   method="POST"
@@ -278,17 +288,6 @@ $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : '
             if (cb.checked) checked.push(cb);
         });
 
-        // Enforce max 3
-        if (checked.length > 3) {
-            checkboxes.forEach(function (cb) {
-                if (!cb.checked) return;
-                if (!checked.slice(0, 3).includes(cb)) {
-                    cb.checked = false;
-                }
-            });
-            checked = checked.slice(0, 3);
-        }
-
         var qty = checked.length;
 
         if (qty === 0) {
@@ -348,5 +347,46 @@ $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : '
     }
 })();
 </script>
+
+<?php if ($_is_spotlight_mgr): ?>
+<script>
+(function() {
+    // Handle direct-remove buttons (admin recovery section)
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.spotlight-direct-remove-btn');
+        if (!btn) return;
+        e.preventDefault();
+        var postsId = parseInt(btn.dataset.postsId, 10);
+        if (!confirm('Remove this post from the Spotlight section?')) return;
+        btn.disabled = true;
+        btn.textContent = '…';
+        fetch('/spotlight/toggle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': (typeof _token !== 'undefined') ? _token
+                    : (document.querySelector('meta[name="csrf-token"]') || {}).content || ''
+            },
+            body: JSON.stringify({ posts_id: postsId })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 200) {
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Something went wrong.'));
+                btn.disabled = false;
+                btn.textContent = '✕ Remove';
+            }
+        })
+        .catch(function(err) {
+            alert('Request failed: ' + err.message);
+            btn.disabled = false;
+            btn.textContent = '✕ Remove';
+        });
+    });
+})();
+</script>
+<?php endif; ?>
 
 @endsection

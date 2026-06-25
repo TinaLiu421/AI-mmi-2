@@ -6,13 +6,16 @@
 <?php $_show_current_member_lawfirm = (!empty($_page_data['current_member_lawfirm']))?$_page_data['current_member_lawfirm']:[]; ?>
 <?php $_institution_profile = $_page_data['institution_profile'] ?? null; ?>
 <?php $_is_edu_institution = !empty($_institution_profile) || ((int)($_show_current_member['type'] ?? 0) === 3 && (int)($_show_current_member_details['institution_type'] ?? 0) === 2); ?>
+<?php if($_is_edu_institution): ?>
+<script>window.location.replace('<?php echo $_page_base_url; ?>/account/profile<?php echo !empty($_page_get_data['uid']) ? '?uid='.htmlspecialchars((string)$_page_get_data['uid'], ENT_QUOTES, 'UTF-8') : ''; ?>');</script>
+<?php endif; ?>
 <div class="inner-panel full">
     <?php if(!empty($_show_current_member['coverphoto']) && file_exists('upload/member_coverphoto/'.$_show_current_member['coverphoto'])) { ?>
     <div class="banner" style="background-image:url('<?php echo 'upload/member_coverphoto/'.$_show_current_member['coverphoto']; ?>')"></div>
     <?php } else { ?>
     <div class="banner" style="display:none;"></div>
     <?php } ?>
-    <div class="basic">
+    <div class="basic<?php echo $_is_edu_institution ? ' edu-inst' : ''; ?>">
         <div class="photo">
             <img src="asset/image/icon-member.png" alt="icon-member"/>
             <?php if(file_exists('upload/member_avatar/'.$_show_current_member['avatar'])) { ?>
@@ -27,24 +30,22 @@
         <div class="name">
             <div class="alias">
                 <div class="readonly">
-                    <span><?php echo $_show_current_member['alias_name']; ?></span>
+                    <span><?php
+                        $_disp_name = $_show_current_member['alias_name'];
+                        if($_is_edu_institution) $_disp_name = preg_replace('/\band\b/i', '&', $_disp_name);
+                        echo htmlspecialchars($_disp_name, ENT_QUOTES, 'UTF-8');
+                    ?></span>
                 </div>
                 <?php if(empty($_page_data['is_readonly'])) { ?>
                 <a><img src="asset/image/icon-edit.png"></a>
                 <?php } ?>
             </div>
-            <div class="total-followers">0 followers</div>
+            {{-- followers hidden --}}
         </div>
         <div class="clearboth"></div>
         <div class="tab">
             <a class="posts selected"><?php echo $_page_lang['tab_posts']; ?></a>
             <a class="about" href="<?php echo $_page_base_url.'/account/profile'.((!empty($_page_get_data['uid']))?'?uid='.$_page_get_data['uid']:''); ?>"><?php echo $_page_lang['tab_about']; ?></a>
-            <?php if($_is_edu_institution): ?>
-            <?php $_uid_qs = (!empty($_page_get_data['uid'])) ? '?uid='.$_page_get_data['uid'] : ''; ?>
-            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_matched'.$_uid_qs; ?>">Students Matched</a>
-            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_applied'.$_uid_qs; ?>">Students Applied</a>
-            <a class="edu-tab" href="<?php echo $_page_base_url.'/account/students_accepted'.$_uid_qs; ?>">Students Accepted</a>
-            <?php endif; ?>
             <?php if(empty($_page_data['is_readonly']) && in_array((int)$_show_current_member['type'], [2, 3])): ?>
             <a class="spotlight" href="<?php echo $_page_base_url.'/account/spotlight'; ?>">⭐ Spotlight</a>
             <?php endif; ?>
@@ -60,7 +61,7 @@
                 <?php } ?>
             </div>
             <div class="info">
-                <?php if(!empty($_show_current_member_details['company_website'])) { ?>
+                <?php if(!empty($_show_current_member_details['company_website']) && empty($_page_data['is_readonly'])) { ?>
                 <div class="row">
                     <label><img src="asset/image/icon-lang-gray.png" alt="icon-lang-gray"><?php echo $_page_lang['account.company_website']; ?></label>
                     <span><?php echo $_show_current_member_details['company_website']; ?></span>
@@ -74,7 +75,7 @@
                 </div>
                 <?php } ?>
                 
-                <?php if(!empty($_show_current_member['telephone_num'])) { ?>
+                <?php if(!empty($_show_current_member['telephone_num']) && empty($_page_data['is_readonly'])) { ?>
                 <div class="row">
                     <label><i class="fa fa-phone"></i><?php echo $_page_lang['account.telephone']; ?></label>
                     <span>

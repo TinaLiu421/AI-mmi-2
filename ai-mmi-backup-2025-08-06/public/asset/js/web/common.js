@@ -405,13 +405,18 @@ function streamResponse(question, bubbleId) {
     // === USE YOUR EXISTING itoken GENERATION ===
     const local_time = iweb.getDateTime(null, "time");
     const itoken = window.btoa(md5(iweb.csrf_token + "#dt" + local_time) + "%" + local_time);
-    
+
+    const isVoiceMode = (window._chatMode === 'voice');
+
     // === SAME FORM DATA AS REGULAR CHAT ===
     const formData = new FormData();
     formData.append('question', question);
     formData.append('_token', csrfToken);
     formData.append('itoken', itoken); // Your custom CSRF
-    
+    if (isVoiceMode) {
+        formData.append('voice_mode', '1');
+    }
+
     fetch('/chat/stream', {
         method: 'POST',
         body: formData,
@@ -432,10 +437,13 @@ function streamResponse(question, bubbleId) {
                     : 'Request failed. Please try again.';
 
                 throw {
-                    isHttpError: true,
-                    status: response.status,
-                    message: message,
-                    redirect: payload && payload.redirect ? payload.redirect : null,
+                    isHttpError:  true,
+                    status:       response.status,
+                    message:      message,
+                    redirect:     payload && payload.redirect    ? payload.redirect    : null,
+                    show_signup:  payload && payload.show_signup ? true                : false,
+                    signup_url:   payload && payload.signup_url  ? payload.signup_url  : null,
+                    login_url:    payload && payload.login_url   ? payload.login_url   : null,
                 };
             });
         }
@@ -488,16 +496,57 @@ function streamResponse(question, bubbleId) {
                         if (!line) return;
                         
                         if (line === 'data: [DONE]') {
+                            // ── Extract quick-reply chip choices from fullText ──
+                            // The AI may embed ⟦CHOICES: A | B | C⟧ at the end.
+                            // Strip it from the rendered text and collect the options.
+                            var _quickReplies = [];
+                            var _choicesRe = /⟦CHOICES:\s*([^⟧]+)⟧/;
+                            var _cm = fullText.match(_choicesRe);
+                            if (_cm) {
+                                _quickReplies = _cm[1].split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+                                fullText = fullText.replace(_choicesRe, '').replace(/[\s\n]+$/, '');
+                            }
+                            // Prefer server-supplied list (guaranteed clean, even if tag was stripped server-side)
+                            if (streamMeta && Array.isArray(streamMeta.quick_replies) && streamMeta.quick_replies.length) {
+                                _quickReplies = streamMeta.quick_replies;
+                            }
+
                             renderMode = 'markdown';
                             renderMarkdown();
                             renderUpgradeButton();
                             $bubble.removeClass('streaming');
-                            // Trigger D-ID avatar to speak the full AI reply
-                            // If avatar will speak, defer the CTA until after speaking
+
+                            // Render quick-reply chips below the AI bubble (text mode only)
+                            if (_quickReplies.length && !isVoiceMode) {
+                                renderQuickReplies(_quickReplies, bubbleId);
+                            }
+
                             if (fullText.trim() && typeof avatarSpeak === 'function') {
-                                avatarSpeak(fullText);
+                                if (isVoiceMode && window._voiceSpeakStarted) {
+                                    // Already started speaking the first sentence — don't speak again
+                                    window._voiceSpeakStarted = false;
+                                } else {
+                                    window._voiceSpeakStarted = false;
+                                    avatarSpeak(fullText);
+                                }
                             } else {
-                                showTalkToAgentCTA();
+                                // Only show CTA in chat mode
+                                if (!isVoiceMode && typeof showTalkToAgentCTA === 'function') {
+                                    showTalkToAgentCTA();
+                                }
+                                // In voice mode, reset mic hint so user can speak again
+                                if (isVoiceMode) {
+                                    $('#voice-mic-hint').text('Tap mic to speak to Alyssa');
+                                    if (window.setAvatarStatusGlobal) window.setAvatarStatusGlobal('Ready', '');
+                                }
+                            }
+                            // Guest: increment count, update badge, nudge on final free chat
+                            if (!_current_member) {
+                                var newGuestCount = _guestIncChatCount();
+                                _guestUpdateBadge(newGuestCount);
+                                if (newGuestCount >= 5) {
+                                    setTimeout(function() { _guestShowSignupNudgeInChat(); }, 1200);
+                                }
                             }
                             return;
                         }
@@ -531,6 +580,18 @@ function streamResponse(question, bubbleId) {
                                     
                                     fullText += data.choices[0].delta.content;
                                     scheduleRender();
+
+                                    // ── Early speaking in voice mode ──────────────────────
+                                    // As soon as the first complete sentence arrives, send it
+                                    // to D-ID immediately — don't wait for [DONE].
+                                    if (isVoiceMode && !window._voiceSpeakStarted && fullText.length >= 25) {
+                                        var earlyMatch = fullText.match(/^(.{15,}?[.!?])[\s\n]/);
+                                        if (earlyMatch && earlyMatch[1]) {
+                                            window._voiceSpeakStarted = true;
+                                            if (window.setAvatarStatusGlobal) window.setAvatarStatusGlobal('Speaking…', 'speaking');
+                                            if (typeof avatarSpeak === 'function') avatarSpeak(earlyMatch[1].trim());
+                                        }
+                                    }
                                 }
                                 
                             } catch(e) {
@@ -555,6 +616,13 @@ function streamResponse(question, bubbleId) {
         $bubble.removeClass('streaming');
 
         if (error && error.isHttpError) {
+            // Guest hit 5-chat limit → show signup modal, not a redirect
+            if (error.status === 401 && error.show_signup) {
+                $text.remove();
+                $bubble.remove();
+                _guestShowSignupModal();
+                return;
+            }
             $text.html(`<span style="color: orange;">${escapeHtml(error.message || 'Request failed.')}</span>`);
             if (error.status === 401 && error.redirect) {
                 setTimeout(() => {
@@ -565,6 +633,135 @@ function streamResponse(question, bubbleId) {
         }
 
         $text.html('<span style="color: orange;">Connection failed. Please try again.</span>');
+    });
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Guest-chat helpers  (5 free chats before sign-up)
+// ─────────────────────────────────────────────────────────────
+var _GUEST_CHAT_KEY  = 'aimmi_guest_chats';
+var _GUEST_MAX_FREE  = 5;
+
+function _guestGetChatCount() {
+    return parseInt(localStorage.getItem(_GUEST_CHAT_KEY) || '0', 10);
+}
+function _guestSetChatCount(n) {
+    localStorage.setItem(_GUEST_CHAT_KEY, String(n));
+}
+function _guestIncChatCount() {
+    var n = _guestGetChatCount() + 1;
+    _guestSetChatCount(n);
+    return n;
+}
+function _guestUpdateBadge(count) {
+    var left = Math.max(0, _GUEST_MAX_FREE - count);
+    var $badge = $('#guest-chat-badge');
+    if (!$badge.length) return;
+    if (left <= 0) {
+        $badge.html('<i class="fa fa-star" style="color:#f0c940;"></i> Sign up free — get <strong>20 Credits</strong>! &nbsp;<a href="' + (_page_base_url||'') + '/account_registration" style="color:#0055d4;font-weight:700;text-decoration:none;">Sign Up →</a>');
+    } else {
+        $badge.html('<i class="fa fa-star" style="color:#f0c940;"></i> <strong>' + left + '</strong> free AI chat' + (left === 1 ? '' : 's') + ' left &nbsp;·&nbsp; <a href="' + (_page_base_url||'') + '/account_registration" style="color:#0055d4;font-weight:700;text-decoration:none;">Sign Up Free →</a>');
+    }
+}
+function _guestShowSignupModal() {
+    var $m = $('#guest-signup-overlay');
+    if ($m.length) {
+        $m.addClass('open');
+        $('body').addClass('modal-open');
+    }
+}
+function _guestHideSignupModal() {
+    $('#guest-signup-overlay').removeClass('open');
+    $('body').removeClass('modal-open');
+}
+function _guestShowSignupNudgeInChat() {
+    var base = _page_base_url || '';
+    var html = '<div class="guest-signup-nudge">'
+        + '<div class="gsn-icon">🎯</div>'
+        + '<div class="gsn-body">'
+        + '<div class="gsn-title">That was your last free chat!</div>'
+        + '<div class="gsn-sub">Create a free account &amp; get <strong>20 Credits</strong> — keep chatting instantly.</div>'
+        + '<div class="gsn-btns">'
+        + '<a href="' + base + '/account_registration" class="gsn-btn-primary">Sign Up Free</a>'
+        + '<a href="' + base + '/account_login" class="gsn-btn-secondary">Sign In</a>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    $('main.page-body div.chat-area div.box > div.show-message').append(html);
+    scrollChatToBottom();
+}
+// Initialise badge on page load for guests
+$(function() {
+    if (!_current_member) {
+        _guestUpdateBadge(_guestGetChatCount());
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
+//  Quick-reply chips  (prefill buttons below AI response)
+// ─────────────────────────────────────────────────────────────
+
+// Country → emoji flag map for visual niceness
+var _QR_FLAG_MAP = {
+    'australia': '🇦🇺', 'new zealand': '🇳🇿', 'nz': '🇳🇿',
+    'united kingdom': '🇬🇧', 'uk': '🇬🇧', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+    'united states': '🇺🇸', 'usa': '🇺🇸', 'america': '🇺🇸', 'us': '🇺🇸',
+    'canada': '🇨🇦', 'singapore': '🇸🇬', 'malaysia': '🇲🇾',
+    'germany': '🇩🇪', 'france': '🇫🇷', 'ireland': '🇮🇪',
+    'netherlands': '🇳🇱', 'japan': '🇯🇵', 'south korea': '🇰🇷',
+    'hong kong': '🇭🇰', 'china': '🇨🇳', 'taiwan': '🇹🇼',
+    'switzerland': '🇨🇭', 'sweden': '🇸🇪', 'denmark': '🇩🇰',
+    'norway': '🇳🇴', 'finland': '🇫🇮', 'uae': '🇦🇪',
+    'dubai': '🇦🇪', 'india': '🇮🇳', 'indonesia': '🇮🇩',
+    'philippines': '🇵🇭', 'thailand': '🇹🇭', 'vietnam': '🇻🇳',
+    'spain': '🇪🇸', 'italy': '🇮🇹', 'portugal': '🇵🇹',
+};
+
+function renderQuickReplies(replies, bubbleId) {
+    var $bubble = $('#' + bubbleId);
+    if (!$bubble.length) return;
+
+    var html = '<div class="qr-wrap" id="qrw-' + bubbleId + '">';
+    replies.forEach(function(r) {
+        var lc = r.toLowerCase().trim();
+        var isOther = /other|i.ll type|type it|custom/i.test(r);
+        var flag = _QR_FLAG_MAP[lc] || '';
+        var label = flag ? (flag + '\u00a0' + r) : r;
+        var cls = 'qr-chip' + (isOther ? ' qr-chip--other' : '');
+        html += '<button type="button" class="' + cls + '" data-value="'
+            + r.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+            + '">' + label + '</button>';
+    });
+    html += '</div>';
+
+    $bubble.find('.txt').append(html);
+
+    // Scroll to show the chips
+    if (typeof scrollChatToBottom === 'function') scrollChatToBottom();
+    else {
+        var $area = $bubble.closest('.chat-area, .show-message');
+        if ($area.length) $area.scrollTop($area[0].scrollHeight);
+    }
+
+    // Click handler: fill input (and submit) or focus for "Other"
+    $bubble.find('.qr-chip').on('click', function() {
+        var val = $(this).data('value');
+        var isOther = $(this).hasClass('qr-chip--other');
+
+        // Animate removal of the chip row
+        $('#qrw-' + bubbleId).slideUp(140, function() { $(this).remove(); });
+
+        if (isOther) {
+            var $inp = $('#ask_question');
+            $inp.val('').focus().attr('placeholder', 'Type your answer here…');
+        } else {
+            $('#ask_question').val(val);
+            // Small delay so the chip disappears before submit fires
+            setTimeout(function() {
+                var $form = $('#ask-form');
+                if ($form.length) $form.submit();
+            }, 90);
+        }
     });
 }
 
@@ -982,49 +1179,76 @@ function iweb_global_func() {
         var ta = document.getElementById('content');
         if (!ta) return;
 
+        // Saved selection: captured on mousedown so clicking a button doesn't lose it
+        var _ss = 0, _se = 0;
+
+        function saveSel() { _ss = ta.selectionStart; _se = ta.selectionEnd; }
+
+        function insertAt(s, e, text, cursorAfter) {
+            ta.value = ta.value.substring(0, s) + text + ta.value.substring(e);
+            ta.focus();
+            var pos = cursorAfter !== undefined ? cursorAfter : s + text.length;
+            ta.setSelectionRange(pos, pos);
+        }
         function wrapSel(before, after) {
-            var s = ta.selectionStart, e = ta.selectionEnd;
-            var sel = ta.value.substring(s, e) || 'text';
-            ta.value = ta.value.substring(0, s) + before + sel + after + ta.value.substring(e);
-            ta.focus(); ta.setSelectionRange(s + before.length, s + before.length + sel.length);
+            var sel = ta.value.substring(_ss, _se) || 'text';
+            var newText = before + sel + after;
+            insertAt(_ss, _se, newText, _ss + before.length + sel.length);
         }
         function insertBullets() {
-            var s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.substring(s, e);
+            var sel = ta.value.substring(_ss, _se);
             if (sel) {
-                var r = sel.split('\n').map(function(l){return '- '+l;}).join('\n');
-                ta.value = ta.value.substring(0,s)+r+ta.value.substring(e);
-                ta.focus(); ta.setSelectionRange(s, s+r.length);
+                var r = sel.split('\n').map(function(l){ return '- ' + l; }).join('\n');
+                insertAt(_ss, _se, r, _ss + r.length);
             } else {
-                var ins = '\n- '; ta.value = ta.value.substring(0,s)+ins+ta.value.substring(e);
-                ta.focus(); ta.setSelectionRange(s+ins.length, s+ins.length);
+                var ins = (_ss > 0 && ta.value[_ss - 1] !== '\n') ? '\n- ' : '- ';
+                insertAt(_ss, _se, ins, _ss + ins.length);
             }
         }
         function insertNumbered() {
-            var s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.substring(s, e);
+            var sel = ta.value.substring(_ss, _se);
             if (sel) {
-                var r = sel.split('\n').map(function(l,i){return (i+1)+'. '+l;}).join('\n');
-                ta.value = ta.value.substring(0,s)+r+ta.value.substring(e);
-                ta.focus(); ta.setSelectionRange(s, s+r.length);
+                var r = sel.split('\n').map(function(l, i){ return (i + 1) + '. ' + l; }).join('\n');
+                insertAt(_ss, _se, r, _ss + r.length);
             } else {
-                var ins = '\n1. '; ta.value = ta.value.substring(0,s)+ins+ta.value.substring(e);
-                ta.focus(); ta.setSelectionRange(s+ins.length, s+ins.length);
+                var ins = (_ss > 0 && ta.value[_ss - 1] !== '\n') ? '\n1. ' : '1. ';
+                insertAt(_ss, _se, ins, _ss + ins.length);
             }
         }
 
+        // Prevent buttons from stealing focus (saves selection before mousedown changes it)
+        toolbar.addEventListener('mousedown', function(ev) {
+            var btn = ev.target.closest('button[data-fmt],button[data-emoji]');
+            if (!btn) return;
+            saveSel();        // snapshot before focus moves
+            ev.preventDefault(); // don't let the button steal focus from textarea
+        });
+
         toolbar.addEventListener('click', function(ev) {
             var btn = ev.target.closest('button[data-fmt],button[data-emoji]');
-            if (!btn) return; ev.preventDefault();
+            if (!btn) return;
+            ev.preventDefault();
             var fmt = btn.getAttribute('data-fmt'), emoji = btn.getAttribute('data-emoji');
             if (emoji) {
-                var p = ta.selectionStart;
-                ta.value = ta.value.substring(0,p)+emoji+ta.value.substring(ta.selectionEnd);
-                ta.focus(); ta.setSelectionRange(p+emoji.length, p+emoji.length);
+                insertAt(_ss, _se, emoji, _ss + emoji.length);
                 return;
             }
-            if (fmt === 'bold')      wrapSel('**','**');
+            if (fmt === 'bold')      wrapSel('**', '**');
             if (fmt === 'bullet')    insertBullets();
             if (fmt === 'numbered')  insertNumbered();
-            if (fmt === 'highlight') wrapSel('==','==');
+            if (fmt === 'highlight') wrapSel('==', '==');
+            if (fmt === 'underline') wrapSel('__', '__');
+        });
+
+        // Enter key: always insert a real newline (overrides any iweb.form submit-on-enter)
+        ta.addEventListener('keydown', function(ev) {
+            if (ev.key === 'Enter' && !ev.ctrlKey && !ev.metaKey) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                var s = ta.selectionStart, e = ta.selectionEnd;
+                ta.value = ta.value.substring(0, s) + '\n' + ta.value.substring(e);
+                ta.setSelectionRange(s + 1, s + 1);
+            }
         });
     }
 
@@ -1516,12 +1740,13 @@ function iweb_global_func() {
         function () {
             ensureHiddenFields();
 
-            // if (!_current_member) {
-            // iweb.alert("Sign in to get full chat features.", function () {
-            //         window.location.href = "/account_login";
-            //     });
-            //     return false;
-            // }
+            // Guest: client-side early check (server is authoritative)
+            if (!_current_member) {
+                if (_guestGetChatCount() >= _GUEST_MAX_FREE) {
+                    _guestShowSignupModal();
+                    return false;
+                }
+            }
 
             const $ta = $("#ask_question");
             const userQuestion = $ta.val().trim();
@@ -2044,83 +2269,17 @@ function renderPostMdBodies() {
 document.addEventListener('DOMContentLoaded', renderPostMdBodies);
 window.addEventListener('load', renderPostMdBodies);
 
-// ── Post editor markdown toolbar ────────────────────────────────────────
+// ── Post editor markdown toolbar (standalone page path) ─────────────────
 document.addEventListener('DOMContentLoaded', function () {
+    // The dialog path uses initPostEditorToolbar(); this handles the rare
+    // case where the form is rendered directly in the page (not in a dialog).
     var toolbar = document.getElementById('post-editor-toolbar');
     if (!toolbar) return;
     var ta = document.getElementById('content');
     if (!ta) return;
-
-    function wrapSelection(before, after) {
-        var start = ta.selectionStart;
-        var end   = ta.selectionEnd;
-        var sel   = ta.value.substring(start, end);
-        var replacement = before + (sel || 'text') + after;
-        ta.value = ta.value.substring(0, start) + replacement + ta.value.substring(end);
-        ta.focus();
-        ta.setSelectionRange(start + before.length, start + before.length + (sel || 'text').length);
+    if (typeof initPostEditorToolbar === 'function') {
+        initPostEditorToolbar();
     }
-
-    function insertAtLineStart(prefix) {
-        var start = ta.selectionStart;
-        var end   = ta.selectionEnd;
-        var lines = ta.value.substring(start, end).split('\n');
-        var replaced = lines.map(function (l) { return prefix + l; }).join('\n');
-        ta.value = ta.value.substring(0, start) + replaced + ta.value.substring(end);
-        ta.focus();
-        ta.setSelectionRange(start, start + replaced.length);
-    }
-
-    function insertBullets() {
-        var start = ta.selectionStart;
-        var end   = ta.selectionEnd;
-        var sel   = ta.value.substring(start, end);
-        if (sel) {
-            insertAtLineStart('- ');
-        } else {
-            var ins = '\n- ';
-            ta.value = ta.value.substring(0, start) + ins + ta.value.substring(end);
-            ta.focus();
-            ta.setSelectionRange(start + ins.length, start + ins.length);
-        }
-    }
-
-    function insertNumbered() {
-        var start = ta.selectionStart;
-        var end   = ta.selectionEnd;
-        var sel   = ta.value.substring(start, end);
-        if (sel) {
-            var lines = sel.split('\n');
-            var replaced = lines.map(function (l, i) { return (i + 1) + '. ' + l; }).join('\n');
-            ta.value = ta.value.substring(0, start) + replaced + ta.value.substring(end);
-            ta.focus();
-            ta.setSelectionRange(start, start + replaced.length);
-        } else {
-            var ins = '\n1. ';
-            ta.value = ta.value.substring(0, start) + ins + ta.value.substring(end);
-            ta.focus();
-            ta.setSelectionRange(start + ins.length, start + ins.length);
-        }
-    }
-
-    toolbar.addEventListener('click', function (e) {
-        var btn = e.target.closest('button[data-fmt], button[data-emoji]');
-        if (!btn) return;
-        e.preventDefault();
-        var fmt   = btn.getAttribute('data-fmt');
-        var emoji = btn.getAttribute('data-emoji');
-        if (emoji) {
-            var pos = ta.selectionStart;
-            ta.value = ta.value.substring(0, pos) + emoji + ta.value.substring(ta.selectionEnd);
-            ta.focus();
-            ta.setSelectionRange(pos + emoji.length, pos + emoji.length);
-            return;
-        }
-        if (fmt === 'bold')      wrapSelection('**', '**');
-        if (fmt === 'bullet')    insertBullets();
-        if (fmt === 'numbered')  insertNumbered();
-        if (fmt === 'highlight') wrapSelection('==', '==');
-    });
 });
 
 // ============================================================
@@ -2143,10 +2302,16 @@ document.addEventListener('DOMContentLoaded', function () {
     var _initFailed       = false;
     var _pendingText      = null;
     var _mode             = 'chat';
+    window._chatMode      = 'chat';  // mirrored globally for streamResponse (outer scope)
+    window._voiceSpeakStarted = false;
     var _recognition      = null;
     var _listening        = false;
     var _shouldAutoUnmute = false;  // set true on mic click → unmute D-ID as soon as it connects
     var _audioCtx         = null;   // AudioContext used to unlock browser audio policy
+    var _streamCreatedAt  = null;   // timestamp (ms) when D-ID stream was created
+    var _freezeWatcher    = null;   // setInterval handle for video-freeze detection
+    var _lastVideoTime    = -1;     // video.currentTime at last freeze-check tick
+    var _lastSpeakText    = '';     // most recent text sent to D-ID (for reconnect replay)
 
     function didPost(path, body) {
         return fetch((_page_base_url || '') + path, {
@@ -2169,6 +2334,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (dot)  dot.className  = 'avatar-status-dot' + (dotClass ? ' ' + dotClass : '');
         if (wrap) wrap.style.display = '';
     }
+    // Expose for use by streamResponse (outer scope)
+    window.setAvatarStatusGlobal = setAvatarStatus;
 
     // ── AudioContext unlock (must be called inside a user-gesture handler) ──
     // This "activates" the browser's audio output so that later async calls
@@ -2208,19 +2375,74 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ── Show / hide D-ID live video ───────────────────────────
-    function showAvatarVideo() {
-        var av = document.getElementById('did-avatar-video');
-        if (av) av.style.display = '';
+    // Path to the pre-hosted idle and speaking video loops
+    var _IDLE_VIDEO  = '/avatar/clip/alyssa_idle';
+    var _SPEAK_VIDEO = '/avatar/clip/alyssa_speaking';
+
+    function _ensureRobotContainerVisible() {
+        var rc = document.querySelector('.robot-container');
+        if (rc && rc.style.display === 'none') rc.style.display = '';
         var panel = document.querySelector('.chat-avatar-panel');
         if (panel && panel.style.display === 'none') panel.style.display = '';
+    }
+
+    function _playIdleLoop() {
+        var av = document.getElementById('did-avatar-video');
+        if (!av) return;
+        _ensureRobotContainerVisible();
+        if (av.srcObject) { try { av.srcObject = null; } catch(e){} }
+        if (av.src && av.src.indexOf('alyssa_idle') !== -1 && !av.paused) return; // already playing idle
+        av.src   = _IDLE_VIDEO;
+        av.loop  = true;
+        av.muted = true;
+        av.play().catch(function () {});
+    }
+
+    // ── Show / hide D-ID live video ───────────────────────────
+    function showAvatarVideo() {
+        var av  = document.getElementById('did-avatar-video');
+        var img = document.getElementById('avatar-presenter-img');
+        // Show D-ID video, hide static fallback image so animation is visible
+        if (av)  { av.style.display  = ''; }
+        if (img) { img.style.display = 'none'; }
+        var panel = document.querySelector('.chat-avatar-panel');
+        if (panel && panel.style.display === 'none') panel.style.display = '';
+        // Ensure the robot-container wrapper is visible (welcome_message.js hides it)
+        var rc = document.querySelector('.robot-container');
+        if (rc && rc.style.display === 'none') rc.style.display = '';
         _ready = true;
     }
 
     function hideAvatarVideo() {
-        var av = document.getElementById('did-avatar-video');
-        if (av) av.style.display = 'none';
+        var av  = document.getElementById('did-avatar-video');
+        var img = document.getElementById('avatar-presenter-img');
+        // Don't interrupt a speaking clip — just update ready state
+        if (!_speaking && av && av.style.display !== 'none') {
+            _playIdleLoop();
+        }
         _ready = false;
+    }
+
+    // ── Video freeze detector ─────────────────────────────────
+    // Polls video.currentTime every 5 s. If the stream has stalled for
+    // 10+ seconds while we're in "speaking" state, tear down and reconnect.
+    function startFreezeWatcher() {
+        clearInterval(_freezeWatcher);
+        _lastVideoTime = -1;
+        var frozenTicks = 0;
+        _freezeWatcher = setInterval(function () {
+            if (!_ready) { clearInterval(_freezeWatcher); return; }
+            var av = document.getElementById('did-avatar-video');
+            if (!av || av.ended) return;
+            // If iOS paused the local MP4, restart it
+            if (av.paused && !av.srcObject) {
+                av.play().catch(function () {});
+                return;
+            }
+            // We are using local MP4 loops — no need to detect WebRTC freeze or reconnect.
+            // Just keep the loop playing.
+            _lastVideoTime = av.currentTime;
+        }, 5000);
     }
 
     // ── D-ID WebRTC init ──────────────────────────────────────
@@ -2229,6 +2451,12 @@ document.addEventListener('DOMContentLoaded', function () {
         _initCalled = true;
         setAvatarStatus('Connecting…', '');
 
+        // ── Immediately start playing the idle loop so Alyssa is animated
+        //    even before WebRTC connects.  WebRTC track will override this
+        //    srcObject when D-ID streaming kicks in.
+        _playIdleLoop();
+        showAvatarVideo();
+
         didPost('/home/avatar/stream', {})
             .then(function (res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -2236,39 +2464,62 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(function (data) {
                 if (!data || !data.id || !data.offer) throw new Error('Bad D-ID response');
-                _streamId  = data.id;
-                _sessionId = data.session_id;
+                _streamId       = data.id;
+                _sessionId      = data.session_id;
+                _streamCreatedAt = Date.now();   // record creation time for proactive refresh
 
                 _pc = new RTCPeerConnection({ iceServers: data.ice_servers || [] });
 
                 _pc.addEventListener('track', function (event) {
                     var av = document.getElementById('did-avatar-video');
                     if (!av || !event.streams || !event.streams[0]) return;
-                    av.srcObject = event.streams[0];
+                    // We use pre-generated MP4 clips for animation (idle + speaking loops),
+                    // so we intentionally do NOT assign av.srcObject here.
+                    // Assigning srcObject would override our clip and show D-ID's muted
+                    // WebRTC stream (which looks like a frozen idle pose) instead.
+                    // The WebRTC connection is still maintained so we can send speak commands.
 
-                    if (_shouldAutoUnmute) {
-                        // User already clicked mic → their gesture unlocked audio → unmute now
-                        av.muted = false;
-                        _muted   = false;
-                        av.play().catch(function () {});
-                        var tapHear = document.getElementById('avatar-tap-hear');
+                    // Voice mode: never show tap-to-hear (browser TTS handles audio)
+                    var tapHear = document.getElementById('avatar-tap-hear');
+                    if (_mode === 'voice') {
+                        if (tapHear) tapHear.style.display = 'none';
+                    } else if (!_muted) {
+                        // Chat mode, already unmuted by user
                         if (tapHear) tapHear.style.display = 'none';
                         var sc = document.getElementById('sound-control');
-                        if (sc) { sc.style.display = ''; sc.classList.add('opened'); }
+                        if (sc) {
+                            sc.style.display = '';
+                            sc.classList.add('opened');
+                            sc.title = 'Mute avatar';
+                            var icon = sc.querySelector('i');
+                            if (icon) icon.className = 'fa fa-microphone';
+                        }
                     } else {
-                        // Not yet clicked → start muted, show tap-to-hear overlay
-                        av.muted = true;
-                        av.play().catch(function () {});
-                        var tapHear2 = document.getElementById('avatar-tap-hear');
-                        if (tapHear2) tapHear2.style.display = '';
+                        // Chat mode, not yet unmuted
+                        if (tapHear) tapHear.style.display = '';
                     }
+
+                    // Auto-restart local MP4 loops if iOS pauses them (only when not switching clips)
+                    av.onpause = function () {
+                        if (!av.srcObject && !av.ended && !_speaking) {
+                            setTimeout(function () { av.play().catch(function () {}); }, 50);
+                        }
+                    };
+                    av.onstalled = function () { if (!av.srcObject) av.play().catch(function () {}); };
+                    av.onwaiting = function () { if (!av.srcObject) av.play().catch(function () {}); };
 
                     showAvatarVideo();
                     setAvatarStatus('Ready', '');
+                    startFreezeWatcher();   // start monitoring for frozen stream
                     if (_pendingText) {
                         var t = _pendingText;
                         _pendingText = null;
-                        speakNow(t);
+                        // Route through avatarSpeak so browser TTS fires in voice mode
+                        if (typeof window.avatarSpeak === 'function') {
+                            window.avatarSpeak(t);
+                        } else {
+                            speakNow(t);
+                        }
                     }
                 });
 
@@ -2280,11 +2531,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
 
                 _pc.addEventListener('iceconnectionstatechange', function () {
-                    if (_pc.iceConnectionState === 'failed' ||
-                        _pc.iceConnectionState === 'disconnected' ||
-                        _pc.iceConnectionState === 'closed') {
-                        hideAvatarVideo();
-                        setAvatarStatus('Disconnected', '');
+                    var ics = _pc.iceConnectionState;
+                    if (ics === 'failed' || ics === 'disconnected' || ics === 'closed') {
+                        if (!_ready && _initCalled && !_initFailed) return; // already reconnecting
+                        // Clear D-ID stream IDs but don't interrupt a playing speaking clip
+                        _ready = false; _streamId = null; _sessionId = null;
+                        _initCalled = false; _initFailed = false; _streamCreatedAt = null;
+                        if (!_speaking) {
+                            hideAvatarVideo();
+                            setAvatarStatus('Reconnecting…', 'thinking');
+                            setTimeout(initDIDAvatar, 1200);
+                        }
+                        // If speaking, next avatarSpeak call will trigger reconnect via !_initCalled
+                    }
+                });
+
+                _pc.addEventListener('connectionstatechange', function () {
+                    var cs = _pc.connectionState;
+                    if (cs === 'failed' || cs === 'closed') {
+                        if (!_ready && _initCalled && !_initFailed) return;
+                        _ready = false; _streamId = null; _sessionId = null;
+                        _initCalled = false; _initFailed = false; _streamCreatedAt = null;
+                        if (!_speaking) {
+                            hideAvatarVideo();
+                            setAvatarStatus('Reconnecting…', 'thinking');
+                            setTimeout(initDIDAvatar, 1500);
+                        }
                     }
                 });
 
@@ -2304,13 +2576,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 _initFailed  = true;
                 _pendingText = null;
                 setAvatarStatus('Voice unavailable', '');
-                if (typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
+                // Only show CTA in chat mode — never interrupt voice mode UI with this CTA
+                if (_mode !== 'voice' && typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
             });
     }
 
     // ── Speak via D-ID TTS ────────────────────────────────────
     function speakNow(text) {
-        if (!_streamId || !_sessionId) return;
+        // ── 1. Clean and cap the text ────────────────────────────
         var speakText = text
             .replace(/\*\*(.+?)\*\*/g, '$1')
             .replace(/\*(.+?)\*/g, '$1')
@@ -2321,41 +2594,186 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/\s{2,}/g, ' ')
             .trim();
         if (!speakText) return;
-        if (speakText.length > 500) speakText = speakText.substring(0, 497) + '...';
+        var maxChars = (_mode === 'voice') ? 900 : 500;
+        if (speakText.length > maxChars) speakText = speakText.substring(0, maxChars - 3) + '...';
 
+        // ── 2. Caption ───────────────────────────────────────────
         var caption = document.getElementById('chat-avatar-caption');
         if (caption) {
             caption.textContent = speakText.length > 80 ? speakText.substring(0, 77) + '...' : speakText;
             caption.style.opacity = '1';
         }
+
+        // ── 3. Visual / speaking state (always, regardless of D-ID) ──
+        _ensureRobotContainerVisible();
         _speaking = true;
         setAvatarStatus('Speaking…', 'speaking');
         $('#chat-robot-inner').addClass('did-speaking');
+        var _soundBars = document.getElementById('avatar-sound-bars');
+        if (_soundBars) _soundBars.style.display = 'flex';
 
-        // In voice mode, show the AI response in the voice history
+        // ── 4. Switch to speaking clip immediately (no D-ID needed) ──
+        (function () {
+            var av = document.getElementById('did-avatar-video');
+            if (!av || !_SPEAK_VIDEO) return;
+            if (av.srcObject) { try { av.srcObject = null; } catch (e) {} }
+            av.src   = _SPEAK_VIDEO;
+            av.loop  = true;
+            av.muted = true;
+            av.play().catch(function () {});
+        })();
+
+        // ── 5. Voice history ─────────────────────────────────────
         if (_mode === 'voice') {
-            addVoiceHistory('ai', speakText.length > 120 ? speakText.substring(0, 117) + '...' : speakText);
+            addVoiceHistory('ai', speakText.length > 250 ? speakText.substring(0, 247) + '...' : speakText);
         }
+
+        var speakTextForReconnect = speakText;
+        _lastSpeakText = speakText;
+
+        // ── 6. Duration estimate ─────────────────────────────────
+        var wordCount   = speakText.split(/\s+/).length;
+        // Chat mode: timer drives animation end (no TTS audio).
+        // Voice mode: TTS onend drives end; this timer is just a safety net.
+        var estimatedMs = Math.min(Math.max(wordCount * 380, 3000), 30000);
+
+        // ── 7. If D-ID stream not ready, use estimated timer for animation end ──
+        if (!_streamId || !_sessionId) {
+            setTimeout(function () {
+                if (!_speaking) return; // already ended (e.g. by TTS onend in voice mode)
+                _speaking = false;
+                $('#chat-robot-inner').removeClass('did-speaking');
+                var _sbN = document.getElementById('avatar-sound-bars'); if (_sbN) _sbN.style.display = 'none';
+                if (caption) caption.style.opacity = '0';
+                var _avN = document.getElementById('did-avatar-video');
+                if (_avN && !_avN.srcObject) _playIdleLoop();
+                setAvatarStatus('Ready', '');
+                if (_mode === 'voice') $('#voice-mic-hint').text('Tap mic to speak to Alyssa');
+            }, estimatedMs);
+            return;
+        }
+
+        // ── 8. Client-side timeout: reconnect if D-ID API hangs (> 8 s) ────────
+        var _speakTimedOut   = false;
+        var _speakAbortTimer = setTimeout(function () {
+            _speakTimedOut = true;
+            _speaking = false;
+            $('#chat-robot-inner').removeClass('did-speaking');
+            var _sbT = document.getElementById('avatar-sound-bars'); if (_sbT) _sbT.style.display = 'none';
+            if (caption) caption.style.opacity = '0';
+            console.warn('[D-ID] speak API timed out — reconnecting');
+            _ready = false; _streamId = null; _sessionId = null;
+            _initCalled = false; _initFailed = false;
+            _pendingText = speakTextForReconnect;
+            _streamCreatedAt = null;
+            setAvatarStatus('Reconnecting…', 'thinking');
+            setTimeout(initDIDAvatar, 200);
+        }, 8000);
 
         didPost('/home/avatar/stream/' + _streamId + '/speak', {
             text: speakText, session_id: _sessionId
-        }).then(function () {
-            var wordCount   = speakText.split(/\s+/).length;
-            var estimatedMs = Math.min(Math.max(wordCount * 220, 1500), 20000);
+        }).then(function (response) {
+            clearTimeout(_speakAbortTimer);
+            if (_speakTimedOut) return;
+            // ── TEMPORARY DEBUG: show D-ID HTTP status in the avatar status area ──
+            // This helps diagnose why mouth animation is not working.
+            // Remove once animation is confirmed working.
+            if (!response.ok) {
+                response.text().then(function(body) {
+                    var snippet = body ? body.substring(0, 60) : '(empty)';
+                    setAvatarStatus('D-ID ' + response.status + ': ' + snippet, 'thinking');
+                    setTimeout(function() {
+                        _speaking = false;
+                        $('#chat-robot-inner').removeClass('did-speaking');
+                        var _sbE = document.getElementById('avatar-sound-bars'); if (_sbE) _sbE.style.display = 'none';
+                        if (caption) caption.style.opacity = '0';
+                        // Reconnect on session expiry
+                        _ready = false; _streamId = null; _sessionId = null;
+                        _initCalled = false; _initFailed = false; _streamCreatedAt = null;
+                        _pendingText = speakTextForReconnect;
+                        setTimeout(initDIDAvatar, 800);
+                    }, 4000);
+                });
+                return; // handled above, don't fall through
+            }
+            // 200 OK ─ D-ID accepted the speak command; log body for diagnosis
+            response.clone().text().then(function(body) {
+                console.log('[D-ID speak 200 body]', body ? body.substring(0, 200) : '(empty)');
+            });
+            setAvatarStatus('Speaking…', 'speaking');
+
+            // ── DIAGNOSTIC: show framesDecoded delta after 2 s ───────────────────
+            // Confirms whether D-ID is actually sending animation frames via WebRTC.
+            // Remove this block once animation is confirmed working.
+            (function () {
+                var av = document.getElementById('did-avatar-video');
+                if (!_pc || !av) return;
+                var baseFrames = 0;
+                var baseTime   = av.currentTime;
+                _pc.getStats(null).then(function (stats) {
+                    stats.forEach(function (r) {
+                        if (r.type === 'inbound-rtp' && r.kind === 'video') baseFrames = r.framesDecoded || 0;
+                    });
+                });
+                setTimeout(function () {
+                    if (!_pc) return;
+                    _pc.getStats(null).then(function (stats) {
+                        stats.forEach(function (r) {
+                            if (r.type === 'inbound-rtp' && r.kind === 'video') {
+                                var delta = (r.framesDecoded || 0) - baseFrames;
+                                var ctDelta = (av.currentTime - baseTime).toFixed(2);
+                                var paused  = av.paused ? 'PAUSED' : 'playing';
+                                setAvatarStatus('F+' + delta + ' t+' + ctDelta + 's ' + paused, 'speaking');
+                                setTimeout(function () { setAvatarStatus('Speaking…', 'speaking'); }, 3000);
+                            }
+                        });
+                    });
+                }, 2000);
+            })();
+            // ── END DIAGNOSTIC ────────────────────────────────────────────────────
+
             setTimeout(function () {
                 _speaking = false;
                 $('#chat-robot-inner').removeClass('did-speaking');
+                var _sbD = document.getElementById('avatar-sound-bars'); if (_sbD) _sbD.style.display = 'none';
                 if (caption) caption.style.opacity = '0';
+                // Return to idle loop after speaking finishes
+                var _avD = document.getElementById('did-avatar-video');
+                if (_avD && !_avD.srcObject) _playIdleLoop();
                 setAvatarStatus('Ready', '');
                 if (_mode === 'chat' && typeof showTalkToAgentCTA === 'function') {
                     showTalkToAgentCTA();
                 }
+                if (_mode === 'voice') {
+                    $('#voice-mic-hint').text('Tap mic to speak to Alyssa');
+                }
             }, estimatedMs);
-        }).catch(function () {
+        }).catch(function (err) {
+            clearTimeout(_speakAbortTimer);
+            if (_speakTimedOut) return;
             _speaking = false;
             $('#chat-robot-inner').removeClass('did-speaking');
+            var _sbC = document.getElementById('avatar-sound-bars'); if (_sbC) _sbC.style.display = 'none';
             if (caption) caption.style.opacity = '0';
-            setAvatarStatus('Ready', '');
+
+            var isSessionExpiry = err && err.message && err.message.indexOf('did-speak-failed') !== -1;
+            if (isSessionExpiry) {
+                console.warn('D-ID session expired — reconnecting…');
+                _ready    = false;
+                _streamId = null;
+                _sessionId = null;
+                _initCalled = false;
+                _initFailed = false;
+                _pendingText = speakTextForReconnect;
+                _streamCreatedAt = null;
+                setAvatarStatus('Reconnecting…', 'thinking');
+                setTimeout(initDIDAvatar, 500);
+            } else {
+                setAvatarStatus('Ready', '');
+                if (_mode === 'voice') {
+                    $('#voice-mic-hint').text('Tap mic to speak to Alyssa');
+                }
+            }
         });
     }
 
@@ -2370,20 +2788,27 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ── Voice mode: speech recognition ───────────────────────
-    function startListening() {
+    function _unlockMediaAndListen() {
         var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) {
-            alert('Voice input requires Chrome or Edge browser.');
-            return;
-        }
 
-        // CRITICAL: unlock browser audio with this user-gesture
+        // Unlock audio / video inside the user gesture before going async
+        if ('speechSynthesis' in window) {
+            try {
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(new window.SpeechSynthesisUtterance(''));
+            } catch (e) {}
+        }
+        (function () {
+            var av = document.getElementById('did-avatar-video');
+            if (av) {
+                av.muted = true;
+                av.play().catch(function () {});
+                var tapHear = document.getElementById('avatar-tap-hear');
+                if (tapHear) tapHear.style.display = 'none';
+            }
+        }());
         unlockAudio();
         _shouldAutoUnmute = true;
-
-        // If D-ID is already connected, unmute it immediately (we have the user gesture)
-        var av = document.getElementById('did-avatar-video');
-        if (av && av.srcObject) unmuteDID();
 
         _recognition = new SR();
         _recognition.lang = 'en-US';
@@ -2405,24 +2830,70 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (e.results[i].isFinal) final   += e.results[i][0].transcript;
                 else                      interim += e.results[i][0].transcript;
             }
-            // Show live transcript
             $('#voice-transcript-text').text((final || interim) || '');
             if (final.trim()) {
-                // Final result – submit to AI
                 var question = final.trim();
                 stopListening();
                 addVoiceHistory('user', question);
-                // Submit via the hidden chat form (this triggers AI + avatarSpeak)
-                $('#ask_question').val(question);
-                $('#ask-form').submit();
+                setAvatarStatus('Thinking…', 'thinking');
+                $('#voice-mic-hint').text('Alyssa is thinking…');
+                window._voiceSpeakStarted = false;
+
+                if (typeof removeWelcomeAndShowChat === 'function') {
+                    removeWelcomeAndShowChat();
+                }
+                var voiceBubbleId = 'voice-ai-' + Date.now();
+                var $showMsg = $('main.page-body div.chat-area div.box > div.show-message');
+                $showMsg.append(
+                    '<div class="dialog reply" id="' + voiceBubbleId + '">' +
+                    '<div class="avatar"><div style="background-image:url(\'/asset/image/logo-mmi.png\')"></div></div>' +
+                    '<div class="name">AI-mmi</div>' +
+                    '<div class="txt chat-markdown"></div></div><div class="clearboth"></div>'
+                );
+                if (typeof streamResponse === 'function') {
+                    streamResponse(question, voiceBubbleId);
+                } else {
+                    $('#ask_question').val(question);
+                    $('#ask-form').submit();
+                }
             }
         };
         _recognition.onerror = function (e) {
             console.warn('Speech recognition error:', e.error);
+            var msg = 'Tap to try again';
+            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                msg = 'Microphone blocked — allow mic in browser settings';
+            } else if (e.error === 'network') {
+                msg = 'Network error — check connection and try again';
+            } else if (e.error === 'no-speech') {
+                msg = 'No speech detected — tap mic and speak';
+            } else if (e.error === 'audio-capture') {
+                msg = 'Microphone not found — check your device';
+            } else if (e.error === 'aborted') {
+                msg = 'Tap mic to speak to Alyssa';
+            }
+            $('#voice-mic-hint').text(msg);
             stopListening();
         };
         _recognition.onend = function () { if (_listening) stopListening(); };
-        _recognition.start();
+        try {
+            _recognition.start();
+        } catch (e) {
+            console.warn('recognition.start() threw:', e);
+            $('#voice-mic-hint').text('Could not start mic — tap again');
+            stopListening();
+        }
+    }
+
+    function startListening() {
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            $('#voice-mic-hint').text('Voice not supported — try Chrome on Android or Safari on iOS 14.5+');
+            return;
+        }
+        // Call directly from the user gesture — iOS Safari requires SpeechRecognition.start()
+        // to be in the synchronous call stack of a tap/click, not inside a Promise callback.
+        _unlockMediaAndListen();
     }
 
     function stopListening() {
@@ -2438,6 +2909,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Mode switching ────────────────────────────────────────
     function setMode(mode) {
         _mode = mode;
+        window._chatMode = mode;   // expose for streamResponse (outer scope)
         $('.chat-mode-tab').removeClass('active');
         $('#mode-tab-' + mode).addClass('active');
         var $box = $('.chat-area .box');
@@ -2446,6 +2918,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (mode === 'voice') {
             $('#text-input-wrapper').hide();
             $('#voice-mode-input').show();
+            // Hide the "Talk to Registered Agent" CTA — it belongs to chat mode only
+            $('#talk-agent-cta').hide();
             if (!_initCalled) initDIDAvatar();
         } else {
             $('#text-input-wrapper').show();
@@ -2460,11 +2934,68 @@ document.addEventListener('DOMContentLoaded', function () {
             if (_mode === 'chat' && typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
             return;
         }
+
+        // ── TTS: VOICE MODE ONLY ─────────────────────────────────────────────────
+        // Chat mode: avatar animates (speaking clip plays) but no audio output.
+        // Voice mode: TTS provides audio; onend drives the animation end.
+        if (_mode === 'voice' && 'speechSynthesis' in window) {
+            try {
+                window.speechSynthesis.cancel(); // stop any previous utterance
+                var _ttsClean = text
+                    .replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
+                    .replace(/`[^`]+`/g, '').replace(/```[\s\S]*?```/g, '')
+                    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+                    .replace(/[#>|_~\[\]\\]/g, ' ').replace(/\s{2,}/g, ' ').trim();
+                var _ttsText  = _ttsClean.substring(0, 300);
+                var _ttsU     = new window.SpeechSynthesisUtterance(_ttsText);
+                _ttsU.rate    = 1.05;
+                _ttsU.volume  = 1.0;
+                var _ttsVoices = window.speechSynthesis.getVoices() || [];
+                var _ttsFV     = _ttsVoices.find(function (v) {
+                    return v.lang && v.lang.indexOf('en') === 0 &&
+                           /samantha|karen|moira|kate|victoria|tessa|zira|female|ava|aria/i.test(v.name);
+                });
+                if (_ttsFV) _ttsU.voice = _ttsFV;
+                // When TTS finishes, end the speaking animation
+                _ttsU.onend = function () {
+                    _speaking = false;
+                    $('#chat-robot-inner').removeClass('did-speaking');
+                    var _sbTts = document.getElementById('avatar-sound-bars');
+                    if (_sbTts) _sbTts.style.display = 'none';
+                    var captionEl = document.getElementById('chat-avatar-caption');
+                    if (captionEl) captionEl.style.opacity = '0';
+                    var _avTts = document.getElementById('did-avatar-video');
+                    if (_avTts && !_avTts.srcObject) _playIdleLoop();
+                    setAvatarStatus('Ready', '');
+                    $('#voice-mic-hint').text('Tap mic to speak to Alyssa');
+                };
+                _ttsU.onerror = function () { _ttsU.onend(); };
+                window.speechSynthesis.speak(_ttsU);
+            } catch (e) { /* TTS unavailable */ }
+        }
+
         if (_initFailed) {
+            // D-ID unavailable — still speak with local clips + TTS
             if (_mode === 'chat' && typeof showTalkToAgentCTA === 'function') showTalkToAgentCTA();
-            return;
+            // Reset so speakNow can proceed with local-clip path
+            if (!_ready) { _ready = true; }
         }
         if (!_initCalled) initDIDAvatar();
+
+        // Proactive session refresh: D-ID streams expire after ~5 min of idle.
+        if (_ready && _streamCreatedAt && (Date.now() - _streamCreatedAt) > 4 * 60 * 1000) {
+            _ready       = false;
+            _streamId    = null;
+            _sessionId   = null;
+            _initCalled  = false;
+            _initFailed  = false;
+            _streamCreatedAt = null;
+            _pendingText = text;
+            setAvatarStatus('Reconnecting…', 'thinking');
+            initDIDAvatar();
+            return;
+        }
+
         if (!_ready) { _pendingText = text; return; }
         speakNow(text);
     };
@@ -2477,6 +3008,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 _avatarInitOnChat = true;
                 initDIDAvatar();
             }
+            unlockAudio();
         }
         $(document).on('click', '#ask-form button[type=submit]', maybeInitAvatar);
         $(document).on('keydown', '#ask_question', function (e) {

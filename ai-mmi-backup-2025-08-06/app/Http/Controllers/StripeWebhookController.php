@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Stripe\Stripe;
 use Stripe\Subscription;
+use App\Services\TokenService;
 
 class StripeWebhookController extends Controller
 {
@@ -65,6 +66,19 @@ class StripeWebhookController extends Controller
     protected function onCheckoutCompleted($session)
     {
         try {
+            // ── Token purchase detection ──────────────────────────────
+            $metadata = $session->metadata ?? null;
+            if ($metadata && ($metadata->type ?? null) === 'token_purchase') {
+                $this->handleTokenPurchase($session);
+                return;
+            }
+            // ── Plan deficit purchase detection ───────────────────────
+            if ($metadata && ($metadata->type ?? null) === 'plan_purchase') {
+                $this->handlePlanPurchase($session);
+                return;
+            }
+            // ─────────────────────────────────────────────────────────
+
             $rawClientReference = $session->client_reference_id ?? null;
             [$memberId, $applicationId] = $this->parseClientReference($rawClientReference);
 
@@ -283,6 +297,101 @@ class StripeWebhookController extends Controller
 
         } catch (\Throwable $e) {
             Log::error('onCheckoutCompleted error: '.$e->getMessage(), ['trace'=>$e->getTraceAsString()]);
+        }
+    }
+
+    /**
+     * Handle a confirmed token purchase from Stripe Checkout.
+     */
+    protected function handleTokenPurchase($session): void
+    {
+        try {
+            $metadata  = $session->metadata;
+            $memberId  = (int) ($metadata->member_id ?? 0);
+            $tokens    = (int) ($metadata->tokens ?? 0);
+            $sessId    = $session->id ?? null;
+            $cusId     = $session->customer ?? null;
+            $amount    = $session->amount_total ?? null;
+            $currency  = $session->currency ?? null;
+
+            if (!$memberId || !$tokens) {
+                Log::warning('handleTokenPurchase: missing member_id or tokens', ['metadata' => (array)$metadata]);
+                return;
+            }
+
+            // Record payment
+            $paymentId = DB::table('payments')->insertGetId([
+                'member_id'          => $memberId,
+                'stripe_customer_id' => $cusId,
+                'stripe_session_id'  => $sessId,
+                'amount_total'       => $amount,
+                'currency'           => $currency,
+                'status'             => 'paid',
+                'raw_payload'        => json_encode($session->toArray()),
+                'created_at'         => now(),
+                'updated_at'         => now(),
+            ]);
+
+            // Credit tokens
+            (new TokenService())->creditPurchase($memberId, $tokens, $paymentId);
+
+            Log::info("Token purchase: +{$tokens} tokens credited to member #{$memberId}", ['payment_id' => $paymentId]);
+        } catch (\Throwable $e) {
+            Log::error('handleTokenPurchase failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle Stripe Checkout payment for a plan deficit top-up.
+     * After payment, credit the deficit tokens then activate the plan.
+     */
+    protected function handlePlanPurchase($session): void
+    {
+        try {
+            $metadata      = $session->metadata;
+            $memberId      = (int) ($metadata->member_id ?? 0);
+            $planCode      = (string) ($metadata->plan_code ?? '');
+            $deficitTokens = (int) ($metadata->deficit_tokens ?? 0);
+            $totalTokens   = (int) ($metadata->total_tokens ?? 0);
+            $sessionId     = $session->id ?? null;
+
+            if (!$memberId || !$planCode || !$totalTokens) {
+                Log::warning('handlePlanPurchase: missing metadata', ['metadata' => (array) $metadata]);
+                return;
+            }
+
+            $svc = new TokenService();
+
+            // 1. Credit the deficit tokens the member just paid for
+            if ($deficitTokens > 0) {
+                $paymentId = null;
+                try {
+                    $paymentId = \DB::table('payments')->insertGetId([
+                        'member_id'          => $memberId,
+                        'payment_method'     => 'stripe',
+                        'payment_status'     => 'paid',
+                        'amount_usd'         => ($deficitTokens * 10) / 100,
+                        'stripe_session_id'  => $sessionId,
+                        'raw_payload'        => json_encode($session->toArray()),
+                        'created_at'         => now(),
+                        'updated_at'         => now(),
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('handlePlanPurchase: could not insert payment row: ' . $e->getMessage());
+                }
+                $svc->creditPurchase($memberId, $deficitTokens, $paymentId);
+            }
+
+            // 2. Activate the plan (spends total tokens, inserts subscription record)
+            $ok = $svc->activatePlan($memberId, $planCode, $totalTokens, $sessionId);
+
+            if ($ok) {
+                Log::info("Plan purchase: {$planCode} activated for member #{$memberId} (deficit {$deficitTokens} tokens paid via Stripe)");
+            } else {
+                Log::error("handlePlanPurchase: activatePlan failed for member #{$memberId} plan={$planCode}");
+            }
+        } catch (\Throwable $e) {
+            Log::error('handlePlanPurchase failed: ' . $e->getMessage());
         }
     }
 
@@ -571,50 +680,14 @@ class StripeWebhookController extends Controller
 
     private function sendCourseApplicationEmail(string $subject, string $html, array $attachments = []): void
     {
+        $to = 'info@ai-mmi.com';
         try {
-            require_once app_path('Libraries/sendgrid/sendgrid-php.php');
-            $email = new \SendGrid\Mail\Mail();
-            $fromAddress = env('MAIL_FROM_ADDRESS', 'no-reply@at-creative.com') ?: 'no-reply@at-creative.com';
-            $fromName = env('MAIL_FROM_NAME', 'AI-mmi') ?: 'AI-mmi';
-            $email->setFrom($fromAddress, $fromName);
-            $email->setSubject($subject);
-            $email->addTo('info@ai-mmi.com');
-            $email->addContent('text/html', $html);
-
-            foreach ($attachments as $file) {
-                $contents = @file_get_contents($file['path']);
-                if ($contents === false) {
-                    continue;
-                }
-                $mime = mime_content_type($file['path']) ?: 'application/octet-stream';
-                $email->addAttachment(
-                    base64_encode($contents),
-                    $mime,
-                    $file['name'],
-                    'attachment'
-                );
-            }
-
-            $apiKey = getenv('SENDGRID_API_KEY');
-            if (empty($apiKey)) {
-                Log::error('SendGrid API key missing; cannot deliver course application email');
-                return;
-            }
-
-            $sendgrid = new \SendGrid($apiKey);
-            $response = $sendgrid->send($email);
-            if (method_exists($response, 'statusCode') && $response->statusCode() >= 400) {
-                Log::error('SendGrid API responded with error', [
-                    'status' => $response->statusCode(),
-                    'body'   => method_exists($response, 'body') ? $response->body() : null,
-                ]);
-            } else {
-                Log::info('Course application email dispatched via SendGrid', [
-                    'status' => method_exists($response, 'statusCode') ? $response->statusCode() : null,
-                ]);
-            }
+            \Illuminate\Support\Facades\Mail::html($html, function ($message) use ($to, $subject) {
+                $message->to($to)->subject($subject);
+            });
+            Log::info('Course application email dispatched', ['to' => $to]);
         } catch (\Throwable $e) {
-            Log::error('SendGrid delivery failed: ' . $e->getMessage());
+            Log::error('sendCourseApplicationEmail failed: ' . $e->getMessage(), ['to' => $to]);
         }
     }
 
