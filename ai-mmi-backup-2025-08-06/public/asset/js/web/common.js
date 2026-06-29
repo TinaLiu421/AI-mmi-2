@@ -2,6 +2,11 @@ var article_page = 1;
 var article_loading = false;
 var article_loading_enable = true;
 
+$.ajaxSetup({ timeout: 45000 });
+
+var chatRequestStartTime = null;
+var chatElapsedInterval = null;
+
 //var 仅调试推荐（救济），生产不推荐；最好使用const，但用其他方式确保声明只执行一次
 //报错重复声明
 var csrfToken = (typeof _token !== "undefined"&&_token)?_token: $('meta[name="csrf-token"]').attr('content');
@@ -875,6 +880,15 @@ function iweb_global_func() {
             $("main.page-body div.chat-area div.box > div.show-message").append(thinkingIndicator);
             scrollChatToBottom();
 
+            chatRequestStartTime = Date.now();
+            chatElapsedInterval = setInterval(function () {
+                var elapsed = Math.floor((Date.now() - chatRequestStartTime) / 1000);
+                var $indicator = $(".thinking-indicator .txt");
+                if ($indicator.length && elapsed > 3) {
+                    $indicator.html("Thinking ( " + elapsed + "s )<span class=\"dot\"></span><span class=\"dot\"></span><span class=\"dot\"></span>");
+                }
+            }, 1000);
+
             // UI：清空输入框&占位
             $ta.val("").attr("placeholder","Thinking...");
 
@@ -886,6 +900,9 @@ function iweb_global_func() {
 
             // —— ❹：successFn（第二个回调）保持你原来的实现不变 —— 
             function (response_data) {
+                if (chatElapsedInterval) { clearInterval(chatElapsedInterval); chatElapsedInterval = null; }
+                chatRequestStartTime = null;
+
                 // 这部分用你原来的渲染逻辑：移除 thinking、显示回复、FA 引导、顶部按钮等
                 $(".thinking-indicator").remove();
 
@@ -939,6 +956,26 @@ function iweb_global_func() {
             }
         );
     }
+
+    $(document).ajaxError(function (event, jqXHR, settings) {
+        if (!settings.url || settings.url.indexOf("/home/chat") === -1) return;
+        if (chatElapsedInterval) { clearInterval(chatElapsedInterval); chatElapsedInterval = null; }
+        $(".thinking-indicator").remove();
+        $("#ask_question").attr("placeholder", "Ask about study, visa, migration or life overseas...");
+        var fallbackMsg = "AI-mmi is taking longer than usual. Please try again in a moment.";
+        if (jqXHR.statusText === "timeout") {
+            fallbackMsg = "AI-mmi is experiencing high traffic. Your request timed out after 45 seconds. Please try again or rephrase your question.";
+        }
+        var fallbackHtml = renderBubble({
+            role: "reply",
+            avatar: "/asset/image/logo-mmi.png",
+            name: "AI-mmi",
+            text: fallbackMsg,
+            createdAtIso: new Date().toISOString(),
+        });
+        $("main.page-body div.chat-area div.box > div.show-message").append(fallbackHtml);
+        scrollChatToBottom();
+    });
 
 function iweb_global_func_done() {
     // load full article content

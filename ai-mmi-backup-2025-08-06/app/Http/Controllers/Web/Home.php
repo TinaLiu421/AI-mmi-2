@@ -171,24 +171,30 @@ class Home extends WebController {
 
             if (!empty($member)) {
 
-                // ① 判断是否付费用户
-                $isPaidUser = DB::table('subscriptions')
-                    ->where('member_id', $memberId)
-                    ->where('status', 'active')
-                    ->where(function ($q) {
-                        $q->whereNull('ends_at')
-                        ->orWhere('ends_at', '>', now());
-                    })
-                    ->exists();
+                // ① 判断是否付费用户 (60s 缓存减少DB查询)
+                $paidCacheKey = "chat_quota_paid_{$memberId}";
+                $isPaidUser = \Illuminate\Support\Facades\Cache::remember($paidCacheKey, 60, function () use ($memberId) {
+                    return DB::table('subscriptions')
+                        ->where('member_id', $memberId)
+                        ->where('status', 'active')
+                        ->where(function ($q) {
+                            $q->whereNull('ends_at')
+                            ->orWhere('ends_at', '>', now());
+                        })
+                        ->exists();
+                });
 
                 // 如果不是付费用户，则 Free Plan 限制生效
                 if (!$isPaidUser && !$isEdu) {
 
-                    // ② 统计用户提问次数（只数 type='ask'）
-                    $memberAskCount = DB::table('chat_log')
-                        ->where('member_id', $memberId)
-                        ->where('type', 'ask')
-                        ->count();
+                    // ② 统计用户提问次数 (30s 缓存)
+                    $countCacheKey = "chat_quota_count_{$memberId}";
+                    $memberAskCount = \Illuminate\Support\Facades\Cache::remember($countCacheKey, 30, function () use ($memberId) {
+                        return DB::table('chat_log')
+                            ->where('member_id', $memberId)
+                            ->where('type', 'ask')
+                            ->count();
+                    });
 
                     // ③ 超过 5 次 → 返回简短回答 + 升级提示
                     if ($memberAskCount >= 5) {
@@ -212,11 +218,14 @@ class Home extends WebController {
 
             // === ②.1 未登录用户免费额度限制（游客最多 3 次提问） ===
             if (empty($member)) {
-                $guestAskCount = \DB::table('chat_log')
-                    ->whereNull('member_id')      // 只统计未登录的提问
-                    ->where('guest_id', $guestId)
-                    ->where('type', 'ask')
-                    ->count();
+                $guestCacheKey = "chat_quota_guest_{$guestId}";
+                $guestAskCount = \Illuminate\Support\Facades\Cache::remember($guestCacheKey, 30, function () use ($guestId) {
+                    return \DB::table('chat_log')
+                        ->whereNull('member_id')
+                        ->where('guest_id', $guestId)
+                        ->where('type', 'ask')
+                        ->count();
+                });
 
                 if ($guestAskCount >= 3) {
                     // ★ 交给 Grok 生成「同语言」的限制提示
@@ -388,9 +397,34 @@ Rules:
                 $aiOwnerName = 'AI-mmi';
             }
 
-            // === ④ 入库 + 返回 ===
+            // === ④ 先返回 JSON 给用户，再异步写库（减少用户感知延迟） ===
+            [$member_owner_name, $member_owner_avatar] = $this->ownerVisual($member);
+            $nowUtcIso = \Carbon\Carbon::now('UTC')->toIso8601String();
+            echo json_encode([
+                'status'               => 200,
+                'message'              => '',
+                'url'                  => '',
+                'content'              => (string)$rawQuestion,
+                'content_raw'          => (string)$rawQuestion,
+                'content_html'         => nl2br(e($rawQuestion)),
+                'reply'                => $reply,
+                'reply_raw'            => $reply,
+                'reply_html'           => nl2br(e($reply)),
+                'answer_markdown'      => $reply,
+                'content_created_at'   => $nowUtcIso,
+                'reply_created_at'     => $nowUtcIso,
+                'member_owner_name'    => $member_owner_name,
+                'member_owner_avatar'  => $member_owner_avatar,
+                'ai_owner_name'        => 'AI-mmi',
+                'ai_owner_avatar'      => 'asset/image/logo-mmi.png',
+                'reply_source'         => $replySource,
+                'flow_prompt'          => null,
+            ]);
+            if (function_exists('fastcgi_finish_request')) {
+                session_write_close();
+                fastcgi_finish_request();
+            }
             $this->storeChat($memberId, $guestId, $sessionId, $rawQuestion, $reply, $replySource, $aiOwnerName, $storeChatConfig);
-            $this->jsonReply($rawQuestion, $reply, $replySource, $member);
         });
 
         if (request()->isMethod('post')) return;
